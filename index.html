@@ -3,43 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>로그인 및 회원가입</title>
-    <link rel="stylesheet" href="style.css">
+    <title>메인 서비스 페이지</title>
+    <script>
+        // 페이지가 열리자마자 로그인 여부 확인
+        const isLoggedIn = localStorage.getItem('isLoggedIn');
+        
+        if (isLoggedIn !== 'true') {
+            alert('로그인이 필요합니다!');
+            // 로그인이 안 되어있다면 로그인 페이지로 강제 이동
+            // 실제 배포된 로그인 사이트 URL로 변경하세요.
+            window.location.href = 'https://chansiu11.github.io/login.github.io'; 
+        }
+    </script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin-top: 100px; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background-color: #dc3545; color: white; border: none; border-radius: 4px; }
+    </style>
 </head>
 <body>
 
-    <div class="container">
-        <!-- 로그인 폼 -->
-        <div id="loginForm" class="form-box">
-            <h2>로그인</h2>
-            <form id="login">
-                <input type="text" id="loginId" placeholder="아이디" required>
-                <input type="password" id="loginPw" placeholder="비밀번호" required>
-                <button type="submit">로그인</button>
-            </form>
-            <p>계정이 없으신가요? <a href="#" id="toSignup">회원가입</a></p>
-        </div>
+    <h1>환영합니다, <span id="userName"></span>님!</h1>
+    <p>이곳은 로그인해야만 들어올 수 있는 메인 페이지(chansiu11.github.io)입니다.</p>
+    <br>
+    <button id="logoutBtn">로그아웃</button>
 
-        <!-- 회원가입 폼 -->
-        <div id="signupForm" class="form-box hidden">
-            <h2>회원가입</h2>
-            <form id="signup">
-                <input type="text" id="signupId" placeholder="아이디" required>
-                <input type="text" id="signupName" placeholder="이름" required>
-                <input type="password" id="signupPw" placeholder="비밀번호" required>
-                <button type="submit">가입하기</button>
-            </form>
-            <p>이미 계정이 있으신가요? <a href="#" id="toLogin">로그인</a></p>
-        </div>
+    <script>
+        // 사용자 이름 화면에 표시
+        const currentUserName = localStorage.getItem('currentUserName');
+        if (currentUserName) {
+            document.getElementById('userName').innerText = currentUserName;
+        }
 
-        <!-- 로그인 성공 화면 -->
-        <div id="welcomeBox" class="form-box hidden">
-            <h2>환영합니다!</h2>
-            <p><span id="userName"></span>님, 로그인되었습니다.</p>
-            <button id="logoutBtn">로그아웃</button>
-        </div>
-    </div>
-
-    <script src="script.js"></script>
+        // 로그아웃 버튼 처리
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            // 로그인 정보 초기화
+            localStorage.removeItem('isLoggedIn');
+            localStorage.removeItem('currentUserName');
+            
+            alert('로그아웃 되었습니다.');
+            // 로그아웃 후 로그인 페이지로 이동
+            window.location.href = 'https://chansiu11.github.io/login.github.io';
+        });
+    </script>
 </body>
 </html>
