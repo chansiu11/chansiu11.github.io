@@ -1,65 +1,237 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>오늘의 이슈 - 가상 뉴스</title>
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2D 슈팅 게임</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #1a1a1a;
+            color: #fff;
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #gameContainer {
+            position: relative;
+        }
+        canvas {
+            border: 2px solid #fff;
+            background-color: #050505;
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 18px;
+            pointer-events: none;
+        }
+    </style>
 </head>
-
 <body>
-  <header>
-    <div class="logo">TODAY ISSUE</div>
-    <nav>
-      <a href="#">정치</a>
-      <a href="#">사회</a>
-      <a href="#">문화</a>
-      <a href="#">오피니언</a>
-    </nav>
-  </header>
 
-  <main>
-    <div class="notice">
-      ⚠️
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="ui">점수: <span id="score">0</span></div>
     </div>
 
-    <article>
-      <span class="category">사회 · 풍자</span>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
 
-      <h1>
-        논란의 중심에 선 노예 ‘정윤환’,
-        시민들 “이대로 괜찮은가?”
-      </h1>
+        let score = 0;
+        let gameOver = false;
 
-      <p class="date">2026년 8월 25일 · 가상뉴스 편집부</p>
+        // 플레이어 설정
+        const player = {
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            radius: 15,
+            color: '#00ffcc',
+            speed: 4
+        };
 
-      <div class="line"></div>
+        // 입력 키 상태
+        const keys = {
+            w: false,
+            a: false,
+            s: false,
+            d: false
+        };
 
-      <p class="lead">
-        대충 정윤환 씨를 둘러싼 논란에 대한 내용임
-      </p>
+        // 총알 및 적 배열
+        const bullets = [];
+        const enemies = [];
 
-      <p>
-        본 기사는 현실의 특정 인물이나 실제 사건을 보도하는
-        기사가 아닙니다. 등장인물과 사건은 모두 창작된
-        설정이며 풍자와 웹 디자인 연습을 목적으로 제작되었습니다.
-      </p>
+        // 마우스 위치
+        let mouseX = canvas.width / 2;
+        let mouseY = canvas.height / 2;
 
-      <blockquote>
-        “사실 확인이 되지 않은 이야기를 실제 뉴스처럼
-        받아들여서는 안 됩니다.”
-      </blockquote>
+        // 키보드 이벤트
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') keys.w = true;
+            if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') keys.a = true;
+            if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') keys.s = true;
+            if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') keys.d = true;
+        });
 
-      <p>
-        제작자는 이 페이지를 통해 뉴스 사이트의 레이아웃,
-        타이포그래피, 카드 디자인 및 반응형 웹 디자인을
-        연습하고 있습니다.
-      </p>
-    </article>
-  </main>
+        window.addEventListener('keyup', (e) => {
+            if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') keys.w = false;
+            if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') keys.a = false;
+            if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') keys.s = false;
+            if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') keys.d = false;
+        });
 
-  <footer>
-    © 2026 TODAY ISSUE · Fictional Satire Project
-  </footer>
+        // 마우스 이동 추적
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = e.clientX - rect.left;
+            mouseY = e.clientY - rect.top;
+        });
+
+        // 마우스 클릭 시 총알 발사
+        canvas.addEventListener('click', () => {
+            if (gameOver) return;
+
+            const angle = Math.atan2(mouseY - player.y, mouseX - player.x);
+            const velocity = {
+                x: Math.cos(angle) * 8,
+                y: Math.sin(angle) * 8
+            };
+
+            bullets.push({
+                x: player.x,
+                y: player.y,
+                radius: 4,
+                color: '#ffff00',
+                velocity: velocity
+            });
+        });
+
+        // 적 생성 함수
+        function spawnEnemy() {
+            setInterval(() => {
+                if (gameOver) return;
+
+                const radius = Math.random() * 15 + 10;
+                let x, y;
+
+                // 화면 바깥 4개 방향 중 무작위 위치에서 생성
+                if (Math.random() < 0.5) {
+                    x = Math.random() < 0.5 ? 0 - radius : canvas.width + radius;
+                    y = Math.random() * canvas.height;
+                } else {
+                    x = Math.random() * canvas.width;
+                    y = Math.random() < 0.5 ? 0 - radius : canvas.height + radius;
+                }
+
+                const angle = Math.atan2(player.y - y, player.x - x);
+                const velocity = {
+                    x: Math.cos(angle) * 2,
+                    y: Math.sin(angle) * 2
+                };
+
+                enemies.push({
+                    x: x,
+                    y: y,
+                    radius: radius,
+                    color: '#ff3366',
+                    velocity: velocity
+                });
+            }, 1000);
+        }
+
+        // 프레임 업데이트 루프
+        function animate() {
+            if (gameOver) return;
+
+            requestAnimationFrame(animate);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 플레이어 이동 처리
+            if (keys.w && player.y - player.radius > 0) player.y -= player.speed;
+            if (keys.s && player.y + player.radius < canvas.height) player.y += player.speed;
+            if (keys.a && player.x - player.radius > 0) player.x -= player.speed;
+            if (keys.d && player.x + player.radius < canvas.width) player.x += player.speed;
+
+            // 플레이어 그리기
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+            ctx.fillStyle = player.color;
+            ctx.fill();
+            ctx.closePath();
+
+            // 총알 처리
+            bullets.forEach((bullet, index) => {
+                bullet.x += bullet.velocity.x;
+                bullet.y += bullet.velocity.y;
+
+                ctx.beginPath();
+                ctx.arc(bullet.x, bullet.y, bullet.radius, 0, Math.PI * 2);
+                ctx.fillStyle = bullet.color;
+                ctx.fill();
+                ctx.closePath();
+
+                // 화면 밖으로 나간 총알 제거
+                if (
+                    bullet.x < 0 ||
+                    bullet.x > canvas.width ||
+                    bullet.y < 0 ||
+                    bullet.y > canvas.height
+                ) {
+                    bullets.splice(index, 1);
+                }
+            });
+
+            // 적 처리 및 충돌 검사
+            enemies.forEach((enemy, enemyIndex) => {
+                // 플레이어를 향해 적 이동 업데이트
+                const angle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
+                enemy.velocity.x = Math.cos(angle) * 1.5;
+                enemy.velocity.y = Math.sin(angle) * 1.5;
+
+                enemy.x += enemy.velocity.x;
+                enemy.y += enemy.velocity.y;
+
+                ctx.beginPath();
+                ctx.arc(enemy.x, enemy.y, enemy.radius, 0, Math.PI * 2);
+                ctx.fillStyle = enemy.color;
+                ctx.fill();
+                ctx.closePath();
+
+                // 적과 플레이어 충돌 검사 (게임 오버)
+                const distToPlayer = Math.hypot(player.x - enemy.x, player.y - enemy.y);
+                if (distToPlayer - enemy.radius - player.radius < 1) {
+                    gameOver = true;
+                    alert(`게임 오버! 최종 점수: ${score}`);
+                }
+
+                // 총알과 적 충돌 검사
+                bullets.forEach((bullet, bulletIndex) => {
+                    const distToBullet = Math.hypot(bullet.x - enemy.x, bullet.y - enemy.y);
+
+                    if (distToBullet - enemy.radius - bullet.radius < 1) {
+                        // 제거 처리
+                        setTimeout(() => {
+                            enemies.splice(enemyIndex, 1);
+                            bullets.splice(bulletIndex, 1);
+                            score += 100;
+                            scoreEl.innerText = score;
+                        }, 0);
+                    }
+                });
+            });
+        }
+
+        spawnEnemy();
+        animate();
+    </script>
 </body>
 </html>
