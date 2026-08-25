@@ -3,248 +3,184 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>슈퍼 헥사곤 스타일 게임</title>
+    <title>발로란트 스타일 FPS 프로토타입</title>
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            background-color: #000;
-            color: #fff;
-            font-family: Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            overflow: hidden;
-        }
-        #gameContainer {
-            position: relative;
-        }
-        canvas {
-            border: 2px solid #333;
-            background-color: #111;
-        }
-        #ui {
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: sans-serif; }
+        #crosshair {
             position: absolute;
-            top: 15px;
-            left: 20px;
-            font-size: 20px;
-            font-weight: bold;
+            top: 50%; left: 50%;
+            width: 10px; height: 10px;
+            margin-top: -5px; margin-left: -5px;
             pointer-events: none;
-            text-shadow: 0 0 5px #000;
+        }
+        #crosshair::before, #crosshair::after {
+            content: ''; position: absolute; background: #00ffcc;
+        }
+        #crosshair::before { top: 4px; left: 0; width: 10px; height: 2px; }
+        #crosshair::after { top: 0; left: 4px; width: 2px; height: 10px; }
+        #ui {
+            position: absolute; top: 20px; left: 20px;
+            color: #fff; font-size: 20px; font-weight: bold;
+            pointer-events: none; text-shadow: 1px 1px 3px #000;
+        }
+        #instructions {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff; text-align: center; font-size: 24px;
+            background: rgba(0,0,0,0.7); padding: 20px; border-radius: 8px;
+            cursor: pointer;
         }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
 </head>
 <body>
 
-    <div id="gameContainer">
-        <canvas id="gameCanvas" width="600" height="600"></canvas>
-        <div id="ui">시간: <span id="time">0.00</span>초</div>
-    </div>
+    <div id="crosshair"></div>
+    <div id="ui">점수: <span id="score">0</span></div>
+    <div id="instructions">클릭하여 게임 시작 (마우스 고정)</div>
 
     <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const timeEl = document.getElementById('time');
+        // 1. Scene, Camera, Renderer
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1a1a2e);
 
-        const centerX = canvas.width / 2;
-        const centerY = canvas.height / 2;
-        const sides = 6; // 육각형 (6방향)
-        const baseRadius = 30; // 중앙 육각형 크기
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
 
-        let playerAngle = 0; // 플레이어 위치 (라디안)
-        const playerDist = 42; // 중앙으로부터의 거리
-        const playerSize = 6;
-        let rotateDirection = 0; // -1: 좌, 1: 우, 0: 정지
+        // 2. 조명
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(10, 20, 15);
+        scene.add(light);
+        scene.add(new THREE.AmbientLight(0x404040));
 
-        let globalRotation = 0; // 화면 전체 회전 각도
-        let startTime = Date.now();
-        let gameOver = false;
+        // 3. 컨트롤 (PointerLockControls)
+        const controls = new THREE.PointerLockControls(camera, document.body);
+        const instructions = document.getElementById('instructions');
 
-        const walls = [];
-        let lastSpawnTime = 0;
-        let spawnInterval = 1200; // 벽 생성 간격 (ms)
-        let wallSpeed = 2.5; // 벽이 좁혀오는 속도
+        instructions.addEventListener('click', () => {
+            controls.lock();
+        });
 
-        // 키보드 조작
+        controls.addEventListener('lock', () => {
+            instructions.style.display = 'none';
+        });
+
+        controls.addEventListener('unlock', () => {
+            instructions.style.display = 'block';
+        });
+
+        scene.add(controls.getObject());
+
+        // 4. 바닥 및 벽면(맵) 생성
+        const floorGeo = new THREE.PlaneGeometry(60, 60);
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0x222233 });
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        scene.add(floor);
+
+        // 5. 플레이어 이동 로직
+        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+        const velocity = new THREE.Vector3();
+        const direction = new THREE.Vector3();
+        let prevTime = performance.now();
+
         window.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') rotateDirection = -1;
-            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') rotateDirection = 1;
+            switch (e.code) {
+                case 'KeyW': moveForward = true; break;
+                case 'KeyA': moveLeft = true; break;
+                case 'KeyS': moveBackward = true; break;
+                case 'KeyD': moveRight = true; break;
+            }
         });
 
         window.addEventListener('keyup', (e) => {
-            if ((e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') && rotateDirection === -1) rotateDirection = 0;
-            if ((e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') && rotateDirection === 1) rotateDirection = 0;
+            switch (e.code) {
+                case 'KeyW': moveForward = false; break;
+                case 'KeyA': moveLeft = false; break;
+                case 'KeyS': moveBackward = false; break;
+                case 'KeyD': moveRight = false; break;
+            }
         });
 
-        // 벽 생성 알고리즘 (6개 면 중 1~2개를 비워둠)
-        function spawnWallGroup() {
-            const safeCount = Math.floor(Math.random() * 2) + 1; // 1~2개의 통로
-            const safeSides = new Set();
-            while (safeSides.size < safeCount) {
-                safeSides.add(Math.floor(Math.random() * sides));
-            }
+        // 6. 타겟(적) 생성 및 발사 시스템
+        const targets = [];
+        let score = 0;
 
-            for (let i = 0; i < sides; i++) {
-                if (!safeSides.has(i)) {
-                    walls.push({
-                        side: i,
-                        distance: 400, // 시작 거리
-                        thickness: 18 // 벽 두께
-                    });
-                }
-            }
+        function spawnTarget() {
+            const geo = new THREE.BoxGeometry(1.2, 2.4, 1.2);
+            const mat = new THREE.MeshStandardMaterial({ color: 0xff4444 });
+            const target = new THREE.Mesh(geo, mat);
+
+            target.position.x = (Math.random() - 0.5) * 40;
+            target.position.y = 1.2;
+            target.position.z = (Math.random() - 0.5) * 40;
+
+            scene.add(target);
+            targets.push(target);
         }
 
-        // 라디안 각도 정규화 (0 ~ 2*PI)
-        function normalizeAngle(angle) {
-            angle = angle % (Math.PI * 2);
-            if (angle < 0) angle += Math.PI * 2;
-            return angle;
+        for (let i = 0; i < 8; i++) spawnTarget();
+
+        // 사격 처리 (Raycaster)
+        const raycaster = new THREE.Raycaster();
+
+        window.addEventListener('click', () => {
+            if (!controls.isLocked) return;
+
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+            const intersects = raycaster.intersectObjects(targets);
+
+            if (intersects.length > 0) {
+                const hitObject = intersects[0].object;
+                scene.remove(hitObject);
+                const index = targets.indexOf(hitObject);
+                if (index > -1) targets.splice(index, 1);
+
+                score += 100;
+                document.getElementById('score').innerText = score;
+                spawnTarget(); // 새로운 타겟 재생성
+            }
+        });
+
+        // 초기 카메라 위치
+        controls.getObject().position.set(0, 1.6, 0);
+
+        // 7. 메인 프레임 루프
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const time = performance.now();
+            if (controls.isLocked) {
+                const delta = (time - prevTime) / 1000;
+
+                velocity.x -= velocity.x * 10.0 * delta;
+                velocity.z -= velocity.z * 10.0 * delta;
+
+                direction.z = Number(moveForward) - Number(moveBackward);
+                direction.x = Number(moveRight) - Number(moveLeft);
+                direction.normalize();
+
+                if (moveForward || moveBackward) velocity.z -= direction.z * 40.0 * delta;
+                if (moveLeft || moveRight) velocity.x -= direction.x * 40.0 * delta;
+
+                controls.moveRight(-velocity.x * delta);
+                controls.moveForward(-velocity.z * delta);
+            }
+            prevTime = time;
+
+            renderer.render(scene, camera);
         }
 
-        function update() {
-            if (gameOver) return;
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
 
-            const now = Date.now();
-            const elapsedTime = ((now - startTime) / 1000).toFixed(2);
-            timeEl.innerText = elapsedTime;
-
-            // 난이도 상승 (시간이 지날수록 속도 증가 및 생성 간격 감소)
-            wallSpeed = 2.5 + (elapsedTime * 0.05);
-            spawnInterval = Math.max(500, 1200 - (elapsedTime * 15));
-
-            // 화면 전체 천천히 회전
-            globalRotation += 0.01;
-
-            // 플레이어 회전 이동
-            playerAngle += rotateDirection * 0.08;
-            playerAngle = normalizeAngle(playerAngle);
-
-            // 주기적 벽 생성
-            if (now - lastSpawnTime > spawnInterval) {
-                spawnWallGroup();
-                lastSpawnTime = now;
-            }
-
-            // 벽 업데이트 및 충돌 검사
-            for (let i = walls.length - 1; i >= 0; i--) {
-                const w = walls[i];
-                w.distance -= wallSpeed;
-
-                // 충돌 처리 판정
-                if (w.distance < playerDist + playerSize && w.distance + w.thickness > playerDist - playerSize) {
-                    // 현재 벽이 커버하는 각도 범위 계산
-                    const sectorAngle = (Math.PI * 2) / sides;
-                    const wallStartAngle = normalizeAngle(globalRotation + w.side * sectorAngle);
-                    const wallEndAngle = normalizeAngle(wallStartAngle + sectorAngle);
-
-                    let pAngle = normalizeAngle(playerAngle);
-
-                    // 플레이어가 해당 섹터(벽 위치)에 있는지 확인
-                    let inSector = false;
-                    if (wallStartAngle < wallEndAngle) {
-                        inSector = pAngle >= wallStartAngle && pAngle <= wallEndAngle;
-                    } else {
-                        // 0도(2*PI)를 가로지르는 경우
-                        inSector = pAngle >= wallStartAngle || pAngle <= wallEndAngle;
-                    }
-
-                    if (inSector) {
-                        gameOver = true;
-                        alert(`게임 오버!\n버틴 시간: ${elapsedTime}초`);
-                        location.reload();
-                        return;
-                    }
-                }
-
-                // 중앙에 도착한 벽 제거
-                if (w.distance <= baseRadius) {
-                    walls.splice(i, 1);
-                }
-            }
-        }
-
-        function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            const sectorAngle = (Math.PI * 2) / sides;
-
-            // 1. 배경 가이드 라인 및 중앙 육각형 그리기
-            ctx.strokeStyle = '#333';
-            ctx.lineWidth = 1;
-            for (let i = 0; i < sides; i++) {
-                const angle = globalRotation + i * sectorAngle;
-                ctx.beginPath();
-                ctx.moveTo(centerX, centerY);
-                ctx.lineTo(centerX + Math.cos(angle) * 500, centerY + Math.sin(angle) * 500);
-                ctx.stroke();
-            }
-
-            // 중앙 육각형
-            ctx.beginPath();
-            for (let i = 0; i <= sides; i++) {
-                const angle = globalRotation + i * sectorAngle;
-                const x = centerX + Math.cos(angle) * baseRadius;
-                const y = centerY + Math.sin(angle) * baseRadius;
-                if (i === 0) ctx.moveTo(x, y);
-                else ctx.lineTo(x, y);
-            }
-            ctx.fillStyle = '#ff0055';
-            ctx.fill();
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-
-            // 2. 조여오는 벽 그리기
-            walls.forEach(w => {
-                const startAngle = globalRotation + w.side * sectorAngle;
-                const endAngle = startAngle + sectorAngle;
-
-                const innerR = w.distance;
-                const outerR = w.distance + w.thickness;
-
-                ctx.beginPath();
-                ctx.arc(centerX, centerY, innerR, startAngle, endAngle);
-                ctx.arc(centerX, centerY, outerR, endAngle, startAngle, true);
-                ctx.closePath();
-
-                ctx.fillStyle = '#ff0055';
-                ctx.fill();
-                ctx.strokeStyle = '#ff6699';
-                ctx.lineWidth = 1;
-                ctx.stroke();
-            });
-
-            // 3. 플레이어(작은 삼각형) 그리기
-            const px = centerX + Math.cos(playerAngle) * playerDist;
-            const py = centerY + Math.sin(playerAngle) * playerDist;
-
-            ctx.save();
-            ctx.translate(px, py);
-            ctx.rotate(playerAngle + Math.PI / 2);
-
-            ctx.beginPath();
-            ctx.moveTo(0, -playerSize * 1.5);
-            ctx.lineTo(-playerSize, playerSize);
-            ctx.lineTo(playerSize, playerSize);
-            ctx.closePath();
-
-            ctx.fillStyle = '#ffff00';
-            ctx.fill();
-            ctx.restore();
-        }
-
-        function gameLoop() {
-            update();
-            draw();
-            if (!gameOver) {
-                requestAnimationFrame(gameLoop);
-            }
-        }
-
-        gameLoop();
+        animate();
     </script>
 </body>
 </html>
