@@ -3,43 +3,225 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>내 웹사이트</title>
+    <title>Tank.io Game</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <header>
-        <div class="container">
-            <h1>My Website</h1>
-            <nav>
-                <ul>
-                    <li><a href="#about">소개</a></li>
-                    <li><a href="#projects">프로젝트</a></li>
-                    <li><a href="#contact">문의</a></li>
-                </ul>
-            </nav>
-        </div>
-    </header>
+    <div id="ui">
+        <div>점수: <span id="score">0</span></div>
+        <div>체력: <span id="hp">100</span></div>
+    </div>
+    <canvas id="gameCanvas"></canvas>
 
-    <main class="container">
-        <section id="about" class="hero">
-            <h2>윤정환 씝쉐키야</h2>
-            <p>GitHub Pages를 통해 배포된 저의 개인 웹사이트에 오신 것을 환영합니다.</p>
-        </section>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
 
-        <section id="projects" class="card-grid">
-            <div class="card">
-                <h3>프로젝트 1</h3>
-                <p>첫 번째 프로젝트에 대한 간단한 설명입니다.</p>
-            </div>
-            <div class="card">
-                <h3>프로젝트 2</h3>
-                <p>두 번째 프로젝트에 대한 간단한 설명입니다.</p>
-            </div>
-        </section>
-    </main>
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
 
-    <footer>
-        <p>&copy; 2026 My Website. All rights reserved.</p>
-    </footer>
+        // 플레이어 (탱크)
+        const player = {
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            radius: 20,
+            color: '#00b2e1',
+            speed: 4,
+            angle: 0,
+            hp: 100,
+            maxHp: 100,
+            score: 0
+        };
+
+        // 입력 상태
+        const keys = { w: false, a: false, s: false, d: false };
+        const mouse = { x: canvas.width / 2, y: canvas.height / 2, isDown: false };
+
+        // 총알 및 도형(적) 배열
+        const bullets = [];
+        const targets = [];
+
+        // 키보드 이벤트
+        window.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+            if (['w', 'a', 's', 'd', 'arrowup', 'arrowleft', 'arrowdown', 'arrowright'].includes(key)) {
+                if (key === 'w' || key === 'arrowup') keys.w = true;
+                if (key === 'a' || key === 'arrowleft') keys.a = true;
+                if (key === 's' || key === 'arrowdown') keys.s = true;
+                if (key === 'd' || key === 'arrowright') keys.d = true;
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            const key = e.key.toLowerCase();
+            if (key === 'w' || key === 'arrowup') keys.w = false;
+            if (key === 'a' || key === 'arrowleft') keys.a = false;
+            if (key === 's' || key === 'arrowdown') keys.s = false;
+            if (key === 'd' || key === 'arrowright') keys.d = false;
+        });
+
+        // 마우스 이벤트
+        window.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+        });
+
+        window.addEventListener('mousedown', () => mouse.isDown = true);
+        window.addEventListener('mouseup', () => mouse.isDown = false);
+
+        // 발사 연사 제어
+        let lastShot = 0;
+        const shootDelay = 150; // ms
+
+        function shoot() {
+            const now = Date.now();
+            if (now - lastShot > shootDelay) {
+                const bulletSpeed = 10;
+                const barrelLength = 30;
+                
+                // 포탑 끝에서 총알 생성
+                const startX = player.x + Math.cos(player.angle) * barrelLength;
+                const startY = player.y + Math.sin(player.angle) * barrelLength;
+
+                bullets.push({
+                    x: startX,
+                    y: startY,
+                    vx: Math.cos(player.angle) * bulletSpeed,
+                    vy: Math.sin(player.angle) * bulletSpeed,
+                    radius: 6,
+                    color: '#00b2e1'
+                });
+                lastShot = now;
+            }
+        }
+
+        // Target(도형) 생성
+        function spawnTarget() {
+            if (targets.length < 25) {
+                const size = Math.random() * 15 + 15;
+                targets.push({
+                    x: Math.random() * (canvas.width - 100) + 50,
+                    y: Math.random() * (canvas.height - 100) + 50,
+                    radius: size,
+                    hp: Math.floor(size),
+                    maxHp: Math.floor(size),
+                    color: size > 22 ? '#ffe869' : '#ff7676'
+                });
+            }
+        }
+        setInterval(spawnTarget, 1000);
+
+        // 게임 업데이트 및 렌더링
+        function update() {
+            // 플레이어 이동
+            if (keys.w && player.y - player.radius > 0) player.y -= player.speed;
+            if (keys.s && player.y + player.radius < canvas.height) player.y += player.speed;
+            if (keys.a && player.x - player.radius > 0) player.x -= player.speed;
+            if (keys.d && player.x + player.radius < canvas.width) player.x += player.speed;
+
+            // 포탑 각도 계산
+            player.angle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
+
+            // 마우스 클릭 시 발사
+            if (mouse.isDown) shoot();
+
+            // 총알 이동
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const b = bullets[i];
+                b.x += b.vx;
+                b.y += b.vy;
+
+                // 화면 밖으로 나가면 삭제
+                if (b.x < 0 || b.x > canvas.width || b.y < 0 || b.y > canvas.height) {
+                    bullets.splice(i, 1);
+                    continue;
+                }
+
+                // 총알과 도형 충돌 체크
+                for (let j = targets.length - 1; j >= 0; j--) {
+                    const t = targets[j];
+                    const dist = Math.hypot(b.x - t.x, b.y - t.y);
+                    if (dist < b.radius + t.radius) {
+                        t.hp -= 10;
+                        bullets.splice(i, 1);
+
+                        if (t.hp <= 0) {
+                            player.score += Math.floor(t.maxHp);
+                            document.getElementById('score').innerText = player.score;
+                            targets.splice(j, 1);
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 격자 배경 그리기
+            ctx.strokeStyle = '#f0f0f0';
+            ctx.lineWidth = 1;
+            const gridSize = 40;
+            for (let x = 0; x < canvas.width; x += gridSize) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += gridSize) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+            }
+
+            // 도형(목표물) 그리기
+            targets.forEach(t => {
+                ctx.fillStyle = t.color;
+                ctx.beginPath();
+                ctx.arc(t.x, t.y, t.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#555';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            });
+
+            // 총알 그리기
+            bullets.forEach(b => {
+                ctx.fillStyle = b.color;
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // 플레이어 탱크 그려주기
+            ctx.save();
+            ctx.translate(player.x, player.y);
+            ctx.rotate(player.angle);
+
+            // 포탑 (대포)
+            ctx.fillStyle = '#999999';
+            ctx.fillRect(0, -8, 30, 16);
+            ctx.strokeStyle = '#555';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(0, -8, 30, 16);
+
+            // 탱크 몸체 (원)
+            ctx.fillStyle = player.color;
+            ctx.beginPath();
+            ctx.arc(0, 0, player.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
 </body>
 </html>
