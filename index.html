@@ -1,227 +1,66 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tank.io Game</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>오늘의 이슈 - 가상 뉴스</title>
+  <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
-    <div id="ui">
-        <div>점수: <span id="score">0</span></div>
-        <div>체력: <span id="hp">100</span></div>
+  <header>
+    <div class="logo">TODAY ISSUE</div>
+    <nav>
+      <a href="#">정치</a>
+      <a href="#">사회</a>
+      <a href="#">문화</a>
+      <a href="#">오피니언</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="notice">
+      ⚠️ 본 페이지는 실제 인물이나 사건과 무관한 가상의 풍자 콘텐츠입니다.
     </div>
-    <canvas id="gameCanvas"></canvas>
 
-    <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
+    <article>
+      <span class="category">사회 · 풍자</span>
 
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }
-        resizeCanvas();
-        window.addEventListener('resize', resizeCanvas);
+      <h1>
+        논란의 중심에 선 가상 인물 ‘정윤환’,
+        시민들 “이대로 괜찮은가?”
+      </h1>
 
-        // 플레이어 (탱크)
-        const player = {
-            x: canvas.width / 2,
-            y: canvas.height / 2,
-            radius: 20,
-            color: '#00b2e1',
-            speed: 4,
-            angle: 0,
-            hp: 100,
-            maxHp: 100,
-            score: 0
-        };
+      <p class="date">2026년 8월 25일 · 가상뉴스 편집부</p>
 
-        // 입력 상태
-        const keys = { w: false, a: false, s: false, d: false };
-        const mouse = { x: canvas.width / 2, y: canvas.height / 2, isDown: false };
+      <div class="line"></div>
 
-        // 총알 및 도형(적) 배열
-        const bullets = [];
-        const targets = [];
+      <p class="lead">
+        가상의 인물 정윤환 씨를 둘러싼 논란이 온라인에서
+        화제가 되고 있다는 설정의 풍자 기사입니다.
+      </p>
 
-        // 키보드 이벤트
-        window.addEventListener('keydown', (e) => {
-            const key = e.key.toLowerCase();
-            if (['w', 'a', 's', 'd', 'arrowup', 'arrowleft', 'arrowdown', 'arrowright'].includes(key)) {
-                if (key === 'w' || key === 'arrowup') keys.w = true;
-                if (key === 'a' || key === 'arrowleft') keys.a = true;
-                if (key === 's' || key === 'arrowdown') keys.s = true;
-                if (key === 'd' || key === 'arrowright') keys.d = true;
-            }
-        });
+      <p>
+        본 기사는 현실의 특정 인물이나 실제 사건을 보도하는
+        기사가 아닙니다. 등장인물과 사건은 모두 창작된
+        설정이며 풍자와 웹 디자인 연습을 목적으로 제작되었습니다.
+      </p>
 
-        window.addEventListener('keyup', (e) => {
-            const key = e.key.toLowerCase();
-            if (key === 'w' || key === 'arrowup') keys.w = false;
-            if (key === 'a' || key === 'arrowleft') keys.a = false;
-            if (key === 's' || key === 'arrowdown') keys.s = false;
-            if (key === 'd' || key === 'arrowright') keys.d = false;
-        });
+      <blockquote>
+        “사실 확인이 되지 않은 이야기를 실제 뉴스처럼
+        받아들여서는 안 됩니다.”
+      </blockquote>
 
-        // 마우스 이벤트
-        window.addEventListener('mousemove', (e) => {
-            mouse.x = e.clientX;
-            mouse.y = e.clientY;
-        });
+      <p>
+        제작자는 이 페이지를 통해 뉴스 사이트의 레이아웃,
+        타이포그래피, 카드 디자인 및 반응형 웹 디자인을
+        연습하고 있습니다.
+      </p>
+    </article>
+  </main>
 
-        window.addEventListener('mousedown', () => mouse.isDown = true);
-        window.addEventListener('mouseup', () => mouse.isDown = false);
-
-        // 발사 연사 제어
-        let lastShot = 0;
-        const shootDelay = 150; // ms
-
-        function shoot() {
-            const now = Date.now();
-            if (now - lastShot > shootDelay) {
-                const bulletSpeed = 10;
-                const barrelLength = 30;
-                
-                // 포탑 끝에서 총알 생성
-                const startX = player.x + Math.cos(player.angle) * barrelLength;
-                const startY = player.y + Math.sin(player.angle) * barrelLength;
-
-                bullets.push({
-                    x: startX,
-                    y: startY,
-                    vx: Math.cos(player.angle) * bulletSpeed,
-                    vy: Math.sin(player.angle) * bulletSpeed,
-                    radius: 6,
-                    color: '#00b2e1'
-                });
-                lastShot = now;
-            }
-        }
-
-        // Target(도형) 생성
-        function spawnTarget() {
-            if (targets.length < 25) {
-                const size = Math.random() * 15 + 15;
-                targets.push({
-                    x: Math.random() * (canvas.width - 100) + 50,
-                    y: Math.random() * (canvas.height - 100) + 50,
-                    radius: size,
-                    hp: Math.floor(size),
-                    maxHp: Math.floor(size),
-                    color: size > 22 ? '#ffe869' : '#ff7676'
-                });
-            }
-        }
-        setInterval(spawnTarget, 1000);
-
-        // 게임 업데이트 및 렌더링
-        function update() {
-            // 플레이어 이동
-            if (keys.w && player.y - player.radius > 0) player.y -= player.speed;
-            if (keys.s && player.y + player.radius < canvas.height) player.y += player.speed;
-            if (keys.a && player.x - player.radius > 0) player.x -= player.speed;
-            if (keys.d && player.x + player.radius < canvas.width) player.x += player.speed;
-
-            // 포탑 각도 계산
-            player.angle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
-
-            // 마우스 클릭 시 발사
-            if (mouse.isDown) shoot();
-
-            // 총알 이동
-            for (let i = bullets.length - 1; i >= 0; i--) {
-                const b = bullets[i];
-                b.x += b.vx;
-                b.y += b.vy;
-
-                // 화면 밖으로 나가면 삭제
-                if (b.x < 0 || b.x > canvas.width || b.y < 0 || b.y > canvas.height) {
-                    bullets.splice(i, 1);
-                    continue;
-                }
-
-                // 총알과 도형 충돌 체크
-                for (let j = targets.length - 1; j >= 0; j--) {
-                    const t = targets[j];
-                    const dist = Math.hypot(b.x - t.x, b.y - t.y);
-                    if (dist < b.radius + t.radius) {
-                        t.hp -= 10;
-                        bullets.splice(i, 1);
-
-                        if (t.hp <= 0) {
-                            player.score += Math.floor(t.maxHp);
-                            document.getElementById('score').innerText = player.score;
-                            targets.splice(j, 1);
-                        }
-                        break;
-                    }
-                }
-            }
-        }
-
-        function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // 격자 배경 그리기
-            ctx.strokeStyle = '#f0f0f0';
-            ctx.lineWidth = 1;
-            const gridSize = 40;
-            for (let x = 0; x < canvas.width; x += gridSize) {
-                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
-            }
-            for (let y = 0; y < canvas.height; y += gridSize) {
-                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
-            }
-
-            // 도형(목표물) 그리기
-            targets.forEach(t => {
-                ctx.fillStyle = t.color;
-                ctx.beginPath();
-                ctx.arc(t.x, t.y, t.radius, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.strokeStyle = '#555';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-            });
-
-            // 총알 그리기
-            bullets.forEach(b => {
-                ctx.fillStyle = b.color;
-                ctx.beginPath();
-                ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
-                ctx.fill();
-            });
-
-            // 플레이어 탱크 그려주기
-            ctx.save();
-            ctx.translate(player.x, player.y);
-            ctx.rotate(player.angle);
-
-            // 포탑 (대포)
-            ctx.fillStyle = '#999999';
-            ctx.fillRect(0, -8, 30, 16);
-            ctx.strokeStyle = '#555';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(0, -8, 30, 16);
-
-            // 탱크 몸체 (원)
-            ctx.fillStyle = player.color;
-            ctx.beginPath();
-            ctx.arc(0, 0, player.radius, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
-
-            ctx.restore();
-        }
-
-        function gameLoop() {
-            update();
-            draw();
-            requestAnimationFrame(gameLoop);
-        }
-
-        gameLoop();
-    </script>
+  <footer>
+    © 2026 TODAY ISSUE · Fictional Satire Project
+  </footer>
 </body>
 </html>
