@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Mobile FPS Online</title>
+<style>
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#111;font-family:Arial;touch-action:none}
+canvas{width:100%;height:100%;display:block}
+#hud{position:fixed;top:10px;left:10px;right:10px;color:#fff;font-weight:bold;text-shadow:2px 2px #000;pointer-events:none}
+#hp{width:150px;height:14px;background:#333;border:2px solid #fff;border-radius:9px;overflow:hidden}.bar{height:100%;background:#36d35a;width:100%}
+#cross{position:fixed;left:50%;top:50%;width:20px;height:20px;transform:translate(-50%,-50%);pointer-events:none}
+#cross:before,#cross:after{content:"";position:absolute;background:white}.crossh{left:0;top:9px;width:20px;height:2px}.crossv{left:9px;top:0;width:2px;height:20px}
+#stick{position:fixed;left:20px;bottom:20px;width:130px;height:130px;border:3px solid #ffffff44;background:#ffffff18;border-radius:50%}
+#knob{position:absolute;left:38px;top:38px;width:54px;height:54px;border-radius:50%;background:#ffffff66}
+#fire{position:fixed;right:25px;bottom:30px;width:90px;height:90px;border-radius:50%;border:3px solid white;background:#e74c3c;color:white;font-weight:bold}
+#status{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);color:white;font-size:13px;text-shadow:1px 1px #000}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="hud">HP <div id="hp"><div class="bar" id="hpbar"></div></div><span id="players">Players: 1</span></div>
+<div id="cross"><i class="crossh"></i><i class="crossv"></i></div>
+<div id="stick"><div id="knob"></div></div>
+<button id="fire">FIRE</button>
+<div id="status">Connecting...</div>
+<script>
+const c=document.getElementById("game"),ctx=c.getContext("2d");
+let W,H;function resize(){W=innerWidth;H=innerHeight;c.width=W;c.height=H}resize();addEventListener("resize",resize);
+
+const me={x:0,y:0,a:0,hp:100};let others={};let bullets=[];let joy={x:0,y:0};let firing=false;
+const status=document.getElementById("status");
+
+function resize(){W=innerWidth;H=innerHeight;c.width=W*devicePixelRatio;c.height=H*devicePixelRatio;c.style.width=W+"px";c.style.height=H+"px";ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0)}
+resize();
+
+let ws;
+function connect(){
+  const protocol=location.protocol==="https:"?"wss":"ws";
+  const host=location.hostname||"localhost";
+  ws=new WebSocket(`${protocol}://${host}:8080`);
+  ws.onopen=()=>{status.textContent="Online";send()};
+  ws.onclose=()=>{status.textContent="Offline — server를 실행하세요";setTimeout(connect,2000)};
+  ws.onerror=()=>{status.textContent="Connection error"};
+  ws.onmessage=e=>{
+    const m=JSON.parse(e.data);
+    if(m.type==="state"){others=m.players;document.getElementById("players").textContent="Players: "+Object.keys(others).length}
+    if(m.type==="hit"){me.hp=m.hp;document.getElementById("hpbar").style.width=me.hp+"%"}
+  };
+}
+function send(){
+ if(ws&&ws.readyState===1)ws.send(JSON.stringify({type:"move",x:me.x,y:me.y,a:me.a}));
+}
+
+function shoot(){
+ if(ws&&ws.readyState===1)ws.send(JSON.stringify({type:"shoot",x:me.x,y:me.y,a:me.a}));
+}
+document.getElementById("fire").onpointerdown=e=>{e.preventDefault();firing=true;shoot()}
+document.getElementById("fire").onpointerup=()=>firing=false;
+setInterval(()=>{if(firing)shoot()},180);
+
+const stick=document.getElementById("stick"),knob=document.getElementById("knob");
+function joyMove(e){const r=stick.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let x=e.clientX-cx,y=e.clientY-cy,d=Math.hypot(x,y),max=43;if(d>max){x=x/d*max;y=y/d*max}joy.x=x/max;joy.y=y/max;knob.style.transform=`translate(${x}px,${y}px)`}
+stick.onpointerdown=e=>{stick.setPointerCapture(e.pointerId);joyMove(e)}
+stick.onpointermove=e=>{if(e.buttons)joyMove(e)}
+stick.onpointerup=stick.onpointercancel=()=>{joy.x=joy.y=0;knob.style.transform="translate(0,0)"};
+
+let lookId=null,lastX=0;
+c.addEventListener("pointerdown",e=>{if(e.clientX>W/2){lookId=e.pointerId;lastX=e.clientX}});
+c.addEventListener("pointermove",e=>{if(e.pointerId===lookId){me.a+=(e.clientX-lastX)*0.006;lastX=e.clientX}});
+c.addEventListener("pointerup",e=>{if(e.pointerId===lookId)lookId=null});
+
+function update(dt){
+ const ca=Math.cos(me.a),sa=Math.sin(me.a);
+ me.x+=(ca*joy.y+Math.cos(me.a+Math.PI/2)*joy.x)*2.8*dt*60;
+ me.y+=(sa*joy.y+Math.sin(me.a+Math.PI/2)*joy.x)*2.8*dt*60;
+ send();
+}
+
+function draw(){
+ ctx.fillStyle="#86b9df";ctx.fillRect(0,0,W,H/2);
+ ctx.fillStyle="#4b7a43";ctx.fillRect(0,H/2,W,H/2);
+ ctx.fillStyle="#333";ctx.fillRect(0,H/2,W,3);
+ const list=Object.values(others).filter(p=>p.id!==undefined);
+ for(const p of list){
+   const dx=p.x-me.x,dy=p.y-me.y;
+   const dist=Math.hypot(dx,dy), ang=Math.atan2(dy,dx)-me.a;
+   let a=Math.atan2(Math.sin(ang),Math.cos(ang));
+   if(Math.abs(a)<1.0){
+     const sx=W/2+Math.tan(a)*W*.45;
+     const size=Math.max(20,Math.min(240,700/(dist||1)));
+     ctx.fillStyle="#d94343";ctx.fillRect(sx-size/4,H/2-size,size/2,size);
+     ctx.fillStyle="#111";ctx.fillRect(sx-size/3,H/2-size-10,size*2/3,5);
+   }
+ }
+ ctx.fillStyle="#fff";ctx.font="bold 14px Arial";ctx.textAlign="center";ctx.fillText("ONLINE FPS",W/2,35);
+}
+let last=performance.now();function loop(t){const dt=Math.min(.05,(t-last)/1000);last=t;update(dt);draw();requestAnimationFrame(loop)}connect();loop(last);
+</script>
+</body>
+</html>
