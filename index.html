@@ -1,101 +1,1208 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Mobile FPS Online</title>
+<meta charset="UTF-8">
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0,
+      maximum-scale=1.0,user-scalable=no">
+
+<title>물불 퍼즐 어드벤처</title>
+
 <style>
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#111;font-family:Arial;touch-action:none}
-canvas{width:100%;height:100%;display:block}
-#hud{position:fixed;top:10px;left:10px;right:10px;color:#fff;font-weight:bold;text-shadow:2px 2px #000;pointer-events:none}
-#hp{width:150px;height:14px;background:#333;border:2px solid #fff;border-radius:9px;overflow:hidden}.bar{height:100%;background:#36d35a;width:100%}
-#cross{position:fixed;left:50%;top:50%;width:20px;height:20px;transform:translate(-50%,-50%);pointer-events:none}
-#cross:before,#cross:after{content:"";position:absolute;background:white}.crossh{left:0;top:9px;width:20px;height:2px}.crossv{left:9px;top:0;width:2px;height:20px}
-#stick{position:fixed;left:20px;bottom:20px;width:130px;height:130px;border:3px solid #ffffff44;background:#ffffff18;border-radius:50%}
-#knob{position:absolute;left:38px;top:38px;width:54px;height:54px;border-radius:50%;background:#ffffff66}
-#fire{position:fixed;right:25px;bottom:30px;width:90px;height:90px;border-radius:50%;border:3px solid white;background:#e74c3c;color:white;font-weight:bold}
-#status{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);color:white;font-size:13px;text-shadow:1px 1px #000}
+*{
+    box-sizing:border-box;
+    margin:0;
+    padding:0;
+    user-select:none;
+    -webkit-user-select:none;
+    touch-action:none;
+}
+
+body{
+    overflow:hidden;
+    background:#101522;
+    font-family:Arial,sans-serif;
+}
+
+canvas{
+    display:block;
+    width:100vw;
+    height:100vh;
+}
+
+#ui{
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+}
+
+#waterControls,
+#fireControls{
+    position:absolute;
+    bottom:15px;
+    display:flex;
+    gap:10px;
+    pointer-events:auto;
+}
+
+#waterControls{
+    left:15px;
+}
+
+#fireControls{
+    right:15px;
+}
+
+button{
+    width:58px;
+    height:58px;
+    border-radius:15px;
+    border:3px solid white;
+    color:white;
+    font-size:22px;
+    font-weight:bold;
+    background:#26364d;
+    box-shadow:0 4px 0 #111;
+}
+
+#waterTitle,
+#fireTitle{
+    position:fixed;
+    top:10px;
+    padding:7px 12px;
+    border-radius:10px;
+    color:white;
+    font-weight:bold;
+    text-shadow:1px 1px 2px black;
+}
+
+#waterTitle{
+    left:10px;
+    background:#168be0;
+}
+
+#fireTitle{
+    right:10px;
+    background:#e84c32;
+}
+
+#restart{
+    position:fixed;
+    top:55px;
+    left:50%;
+    transform:translateX(-50%);
+    display:none;
+    width:auto;
+    height:45px;
+    padding:0 18px;
+    font-size:15px;
+    background:#333;
+}
+
+#message{
+    position:fixed;
+    top:45%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    color:white;
+    font-size:30px;
+    font-weight:bold;
+    text-align:center;
+    text-shadow:3px 3px #000;
+    display:none;
+}
 </style>
 </head>
+
 <body>
+
 <canvas id="game"></canvas>
-<div id="hud">HP <div id="hp"><div class="bar" id="hpbar"></div></div><span id="players">Players: 1</span></div>
-<div id="cross"><i class="crossh"></i><i class="crossv"></i></div>
-<div id="stick"><div id="knob"></div></div>
-<button id="fire">FIRE</button>
-<div id="status">Connecting...</div>
+
+<div id="ui">
+
+<div id="waterTitle">
+💧 WATER
+</div>
+
+<div id="fireTitle">
+🔥 FIRE
+</div>
+
+<div id="waterControls">
+<button id="wLeft">◀</button>
+<button id="wRight">▶</button>
+<button id="wJump">▲</button>
+</div>
+
+<div id="fireControls">
+<button id="fLeft">◀</button>
+<button id="fRight">▶</button>
+<button id="fJump">▲</button>
+</div>
+
+<button id="restart">
+다시 시작
+</button>
+
+<div id="message"></div>
+
+</div>
+
 <script>
-const c=document.getElementById("game"),ctx=c.getContext("2d");
-let W,H;function resize(){W=innerWidth;H=innerHeight;c.width=W;c.height=H}resize();addEventListener("resize",resize);
 
-const me={x:0,y:0,a:0,hp:100};let others={};let bullets=[];let joy={x:0,y:0};let firing=false;
-const status=document.getElementById("status");
+/* ==================================================
+   기본 설정
+================================================== */
 
-function resize(){W=innerWidth;H=innerHeight;c.width=W*devicePixelRatio;c.height=H*devicePixelRatio;c.style.width=W+"px";c.style.height=H+"px";ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0)}
+const canvas =
+document.getElementById("game");
+
+const ctx =
+canvas.getContext("2d");
+
+let W = innerWidth;
+let H = innerHeight;
+
+function resize(){
+
+    W = innerWidth;
+    H = innerHeight;
+
+    canvas.width = W;
+    canvas.height = H;
+}
+
 resize();
 
-let ws;
-function connect(){
-  const protocol=location.protocol==="https:"?"wss":"ws";
-  const host=location.hostname||"localhost";
-  ws=new WebSocket(`${protocol}://${host}:8080`);
-  ws.onopen=()=>{status.textContent="Online";send()};
-  ws.onclose=()=>{status.textContent="Offline — server를 실행하세요";setTimeout(connect,2000)};
-  ws.onerror=()=>{status.textContent="Connection error"};
-  ws.onmessage=e=>{
-    const m=JSON.parse(e.data);
-    if(m.type==="state"){others=m.players;document.getElementById("players").textContent="Players: "+Object.keys(others).length}
-    if(m.type==="hit"){me.hp=m.hp;document.getElementById("hpbar").style.width=me.hp+"%"}
-  };
-}
-function send(){
- if(ws&&ws.readyState===1)ws.send(JSON.stringify({type:"move",x:me.x,y:me.y,a:me.a}));
+addEventListener("resize",resize);
+
+
+/* ==================================================
+   월드
+================================================== */
+
+const world = {
+
+    width:2200,
+
+    floor:520
+
+};
+
+
+/* ==================================================
+   플레이어
+================================================== */
+
+const water = {
+
+    x:180,
+    y:430,
+
+    w:28,
+    h:42,
+
+    vx:0,
+    vy:0,
+
+    speed:3.5,
+    jump:10,
+
+    grounded:false,
+
+    dead:false,
+
+    color:"#249eea"
+
+};
+
+
+const fire = {
+
+    x:240,
+    y:430,
+
+    w:28,
+    h:42,
+
+    vx:0,
+    vy:0,
+
+    speed:3.5,
+    jump:10,
+
+    grounded:false,
+
+    dead:false,
+
+    color:"#ef542f"
+
+};
+
+
+/* ==================================================
+   게임 상태
+================================================== */
+
+let cameraX = 0;
+
+let won = false;
+
+let gameOver = false;
+
+
+/* ==================================================
+   플랫폼
+================================================== */
+
+const platforms = [
+
+    {x:0,y:520,w:2200,h:60},
+
+    {x:80,y:420,w:250,h:25},
+
+    {x:420,y:350,w:240,h:25},
+
+    {x:760,y:450,w:220,h:25},
+
+    {x:1080,y:360,w:260,h:25},
+
+    {x:1430,y:450,w:220,h:25},
+
+    {x:1720,y:350,w:260,h:25},
+
+    {x:2040,y:450,w:120,h:25}
+
+];
+
+
+/* ==================================================
+   위험 지역
+================================================== */
+
+const waterPools = [
+
+    {x:350,y:495,w:130,h:25},
+
+    {x:980,y:495,w:100,h:25},
+
+    {x:1650,y:495,w:90,h:25}
+
+];
+
+
+const firePools = [
+
+    {x:660,y:495,w:100,h:25},
+
+    {x:1340,y:495,w:90,h:25},
+
+    {x:1980,y:495,w:60,h:25}
+
+];
+
+
+/* ==================================================
+   보석
+================================================== */
+
+let waterGems = [
+
+    {x:260,y:380,taken:false},
+
+    {x:540,y:310,taken:false},
+
+    {x:1150,y:320,taken:false},
+
+    {x:1790,y:310,taken:false}
+
+];
+
+let fireGems = [
+
+    {x:300,y:380,taken:false},
+
+    {x:590,y:310,taken:false},
+
+    {x:1240,y:320,taken:false},
+
+    {x:1850,y:310,taken:false}
+
+];
+
+
+/* ==================================================
+   출구
+================================================== */
+
+const waterDoor = {
+
+    x:2080,
+    y:395,
+
+    w:35,
+    h:55
+
+};
+
+const fireDoor = {
+
+    x:2125,
+    y:395,
+
+    w:35,
+    h:55
+
+};
+
+
+/* ==================================================
+   입력
+================================================== */
+
+const keys = {};
+
+addEventListener("keydown",e=>{
+
+    keys[e.key] = true;
+
+});
+
+addEventListener("keyup",e=>{
+
+    keys[e.key] = false;
+
+});
+
+
+function holdButton(button, key){
+
+    button.addEventListener(
+        "pointerdown",
+        e=>{
+            e.preventDefault();
+            keys[key] = true;
+        }
+    );
+
+    button.addEventListener(
+        "pointerup",
+        e=>{
+            e.preventDefault();
+            keys[key] = false;
+        }
+    );
+
+    button.addEventListener(
+        "pointercancel",
+        ()=>{
+            keys[key] = false;
+        }
+    );
+
+    button.addEventListener(
+        "pointerleave",
+        ()=>{
+            keys[key] = false;
+        }
+    );
 }
 
-function shoot(){
- if(ws&&ws.readyState===1)ws.send(JSON.stringify({type:"shoot",x:me.x,y:me.y,a:me.a}));
+
+/* 물 캐릭터 */
+
+holdButton(
+    document.getElementById("wLeft"),
+    "a"
+);
+
+holdButton(
+    document.getElementById("wRight"),
+    "d"
+);
+
+holdButton(
+    document.getElementById("wJump"),
+    "w"
+);
+
+
+/* 불 캐릭터 */
+
+holdButton(
+    document.getElementById("fLeft"),
+    "ArrowLeft"
+);
+
+holdButton(
+    document.getElementById("fRight"),
+    "ArrowRight"
+);
+
+holdButton(
+    document.getElementById("fJump"),
+    "ArrowUp"
+);
+
+
+/* ==================================================
+   충돌
+================================================== */
+
+function collide(a,b){
+
+    return (
+
+        a.x < b.x+b.w &&
+        a.x+a.w > b.x &&
+        a.y < b.y+b.h &&
+        a.y+a.h > b.y
+
+    );
+
 }
-document.getElementById("fire").onpointerdown=e=>{e.preventDefault();firing=true;shoot()}
-document.getElementById("fire").onpointerup=()=>firing=false;
-setInterval(()=>{if(firing)shoot()},180);
 
-const stick=document.getElementById("stick"),knob=document.getElementById("knob");
-function joyMove(e){const r=stick.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let x=e.clientX-cx,y=e.clientY-cy,d=Math.hypot(x,y),max=43;if(d>max){x=x/d*max;y=y/d*max}joy.x=x/max;joy.y=y/max;knob.style.transform=`translate(${x}px,${y}px)`}
-stick.onpointerdown=e=>{stick.setPointerCapture(e.pointerId);joyMove(e)}
-stick.onpointermove=e=>{if(e.buttons)joyMove(e)}
-stick.onpointerup=stick.onpointercancel=()=>{joy.x=joy.y=0;knob.style.transform="translate(0,0)"};
 
-let lookId=null,lastX=0;
-c.addEventListener("pointerdown",e=>{if(e.clientX>W/2){lookId=e.pointerId;lastX=e.clientX}});
-c.addEventListener("pointermove",e=>{if(e.pointerId===lookId){me.a+=(e.clientX-lastX)*0.006;lastX=e.clientX}});
-c.addEventListener("pointerup",e=>{if(e.pointerId===lookId)lookId=null});
+/* ==================================================
+   플레이어 업데이트
+================================================== */
 
-function update(dt){
- const ca=Math.cos(me.a),sa=Math.sin(me.a);
- me.x+=(ca*joy.y+Math.cos(me.a+Math.PI/2)*joy.x)*2.8*dt*60;
- me.y+=(sa*joy.y+Math.sin(me.a+Math.PI/2)*joy.x)*2.8*dt*60;
- send();
+function updatePlayer(p,left,right,jump){
+
+    p.vx = 0;
+
+    if(keys[left]){
+        p.vx = -p.speed;
+    }
+
+    if(keys[right]){
+        p.vx = p.speed;
+    }
+
+    if(
+        keys[jump] &&
+        p.grounded
+    ){
+
+        p.vy = -p.jump;
+        p.grounded = false;
+
+    }
+
+
+    p.vy += 0.45;
+
+
+    p.x += p.vx;
+
+    p.y += p.vy;
+
+
+    p.grounded = false;
+
+
+    /* 플랫폼 충돌 */
+
+    for(const platform of platforms){
+
+        if(
+
+            p.x < platform.x+platform.w &&
+            p.x+p.w > platform.x &&
+            p.y+p.h > platform.y &&
+            p.y+p.h-p.vy <= platform.y
+
+        ){
+
+            p.y =
+                platform.y-p.h;
+
+            p.vy = 0;
+
+            p.grounded = true;
+
+        }
+
+    }
+
+
+    /* 월드 경계 */
+
+    p.x =
+        Math.max(
+            0,
+            Math.min(
+                world.width-p.w,
+                p.x
+            )
+        );
+
+
+    /* 낙사 */
+
+    if(p.y > 650){
+
+        p.dead = true;
+
+    }
+
 }
+
+
+/* ==================================================
+   위험 지역
+================================================== */
+
+function checkHazards(p,type){
+
+    for(const pool of waterPools){
+
+        if(
+            type==="fire" &&
+            collide(p,pool)
+        ){
+
+            p.dead = true;
+
+        }
+
+    }
+
+
+    for(const pool of firePools){
+
+        if(
+            type==="water" &&
+            collide(p,pool)
+        ){
+
+            p.dead = true;
+
+        }
+
+    }
+
+}
+
+
+/* ==================================================
+   보석
+================================================== */
+
+function collectGems(){
+
+    for(const gem of waterGems){
+
+        if(
+            !gem.taken &&
+            Math.abs(water.x-gem.x)<35 &&
+            Math.abs(water.y-gem.y)<45
+        ){
+
+            gem.taken = true;
+
+        }
+
+    }
+
+
+    for(const gem of fireGems){
+
+        if(
+            !gem.taken &&
+            Math.abs(fire.x-gem.x)<35 &&
+            Math.abs(fire.y-gem.y)<45
+        ){
+
+            gem.taken = true;
+
+        }
+
+    }
+
+}
+
+
+/* ==================================================
+   출구
+================================================== */
+
+function checkDoors(){
+
+    const waterReady =
+        collide(water,waterDoor);
+
+    const fireReady =
+        collide(fire,fireDoor);
+
+
+    if(
+        waterReady &&
+        fireReady
+    ){
+
+        won = true;
+
+        document
+        .getElementById("message")
+        .innerHTML =
+        "🎉 STAGE CLEAR!<br><small>두 캐릭터가 모두 도착했습니다.</small>";
+
+        document
+        .getElementById("message")
+        .style.display="block";
+
+        document
+        .getElementById("restart")
+        .style.display="block";
+
+    }
+
+}
+
+
+/* ==================================================
+   리셋
+================================================== */
+
+function resetGame(){
+
+    water.x=180;
+    water.y=430;
+    water.vx=0;
+    water.vy=0;
+    water.dead=false;
+
+    fire.x=240;
+    fire.y=430;
+    fire.vx=0;
+    fire.vy=0;
+    fire.dead=false;
+
+    for(const g of waterGems)
+        g.taken=false;
+
+    for(const g of fireGems)
+        g.taken=false;
+
+    won=false;
+    gameOver=false;
+
+    document
+    .getElementById("message")
+    .style.display="none";
+
+    document
+    .getElementById("restart")
+    .style.display="none";
+
+}
+
+document
+.getElementById("restart")
+.addEventListener(
+    "click",
+    resetGame
+);
+
+
+/* ==================================================
+   카메라
+================================================== */
+
+function updateCamera(){
+
+    const center =
+        (water.x+fire.x)/2;
+
+    cameraX =
+        center-W/2;
+
+    cameraX =
+        Math.max(
+            0,
+            Math.min(
+                world.width-W,
+                cameraX
+            )
+        );
+
+}
+
+
+/* ==================================================
+   그리기
+================================================== */
+
+function drawBackground(){
+
+    /* 하늘 */
+
+    const gradient =
+        ctx.createLinearGradient(
+            0,0,0,H
+        );
+
+    gradient.addColorStop(
+        0,
+        "#151f38"
+    );
+
+    gradient.addColorStop(
+        1,
+        "#293b56"
+    );
+
+    ctx.fillStyle=gradient;
+
+    ctx.fillRect(
+        0,
+        0,
+        W,
+        H
+    );
+
+
+    /* 장식 */
+
+    ctx.fillStyle="#1c2d47";
+
+    for(
+        let x=-cameraX%100;
+        x<W;
+        x+=100
+    ){
+
+        ctx.fillRect(
+            x,
+            80,
+            45,
+            25
+        );
+
+    }
+
+}
+
+
+function drawPlatforms(){
+
+    for(const p of platforms){
+
+        const x =
+            p.x-cameraX;
+
+        ctx.fillStyle="#5d4637";
+
+        ctx.fillRect(
+            x,
+            p.y,
+            p.w,
+            p.h
+        );
+
+        ctx.fillStyle="#8b6b4e";
+
+        ctx.fillRect(
+            x,
+            p.y,
+            p.w,
+            7
+        );
+
+    }
+
+}
+
+
+function drawHazards(){
+
+    /* 물 */
+
+    for(const p of waterPools){
+
+        const x =
+            p.x-cameraX;
+
+        ctx.fillStyle="#218ddd";
+
+        ctx.fillRect(
+            x,
+            p.y,
+            p.w,
+            p.h
+        );
+
+        ctx.fillStyle="#62c9ff";
+
+        ctx.fillRect(
+            x,
+            p.y,
+            p.w,
+            5
+        );
+
+    }
+
+
+    /* 불 */
+
+    for(const p of firePools){
+
+        const x =
+            p.x-cameraX;
+
+        ctx.fillStyle="#e74a2d";
+
+        ctx.fillRect(
+            x,
+            p.y,
+            p.w,
+            p.h
+        );
+
+        ctx.fillStyle="#ffb52d";
+
+        ctx.fillRect(
+            x,
+            p.y,
+            p.w,
+            5
+        );
+
+    }
+
+}
+
+
+function drawGems(){
+
+    for(const g of waterGems){
+
+        if(g.taken) continue;
+
+        drawDiamond(
+            g.x-cameraX,
+            g.y,
+            "#39baff"
+        );
+
+    }
+
+
+    for(const g of fireGems){
+
+        if(g.taken) continue;
+
+        drawDiamond(
+            g.x-cameraX,
+            g.y,
+            "#ff643c"
+        );
+
+    }
+
+}
+
+
+function drawDiamond(x,y,color){
+
+    ctx.beginPath();
+
+    ctx.moveTo(x,y-13);
+    ctx.lineTo(x+10,y);
+    ctx.lineTo(x,y+13);
+    ctx.lineTo(x-10,y);
+
+    ctx.closePath();
+
+    ctx.fillStyle=color;
+
+    ctx.fill();
+
+    ctx.strokeStyle="white";
+
+    ctx.stroke();
+
+}
+
+
+/* ==================================================
+   캐릭터
+================================================== */
+
+function drawPlayer(p){
+
+    const x =
+        p.x-cameraX;
+
+    /* 몸 */
+
+    ctx.fillStyle=p.color;
+
+    ctx.fillRect(
+        x,
+        p.y,
+        p.w,
+        p.h
+    );
+
+
+    /* 머리 */
+
+    ctx.beginPath();
+
+    ctx.arc(
+        x+p.w/2,
+        p.y-8,
+        15,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fillStyle=p.color;
+
+    ctx.fill();
+
+
+    /* 눈 */
+
+    ctx.fillStyle="white";
+
+    ctx.beginPath();
+
+    ctx.arc(
+        x+9,
+        p.y-10,
+        4,
+        0,
+        Math.PI*2
+    );
+
+    ctx.arc(
+        x+19,
+        p.y-10,
+        4,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+
+    ctx.fillStyle="#222";
+
+    ctx.beginPath();
+
+    ctx.arc(
+        x+10,
+        p.y-10,
+        2,
+        0,
+        Math.PI*2
+    );
+
+    ctx.arc(
+        x+20,
+        p.y-10,
+        2,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+}
+
+
+/* ==================================================
+   출구 그리기
+================================================== */
+
+function drawDoors(){
+
+    const x1 =
+        waterDoor.x-cameraX;
+
+    const x2 =
+        fireDoor.x-cameraX;
+
+
+    ctx.fillStyle="#238fd5";
+
+    ctx.fillRect(
+        x1,
+        waterDoor.y,
+        waterDoor.w,
+        waterDoor.h
+    );
+
+
+    ctx.fillStyle="#e74c35";
+
+    ctx.fillRect(
+        x2,
+        fireDoor.y,
+        fireDoor.w,
+        fireDoor.h
+    );
+
+
+    ctx.fillStyle="white";
+
+    ctx.font="bold 20px Arial";
+
+    ctx.fillText(
+        "💧",
+        x1+3,
+        waterDoor.y+35
+    );
+
+    ctx.fillText(
+        "🔥",
+        x2+3,
+        fireDoor.y+35
+    );
+
+}
+
+
+/* ==================================================
+   UI 텍스트
+================================================== */
+
+function drawInfo(){
+
+    ctx.fillStyle="white";
+
+    ctx.font="bold 15px Arial";
+
+    ctx.fillText(
+        "💧 물: 왼쪽 버튼",
+        15,
+        H-145
+    );
+
+    ctx.fillText(
+        "🔥 불: 오른쪽 버튼",
+        W-170,
+        H-145
+    );
+
+}
+
+
+/* ==================================================
+   게임 업데이트
+================================================== */
+
+function update(){
+
+    if(won) return;
+
+
+    updatePlayer(
+        water,
+        "a",
+        "d",
+        "w"
+    );
+
+
+    updatePlayer(
+        fire,
+        "ArrowLeft",
+        "ArrowRight",
+        "ArrowUp"
+    );
+
+
+    checkHazards(
+        water,
+        "water"
+    );
+
+    checkHazards(
+        fire,
+        "fire"
+    );
+
+
+    collectGems();
+
+    checkDoors();
+
+
+    if(
+        water.dead ||
+        fire.dead
+    ){
+
+        gameOver=true;
+
+        document
+        .getElementById("message")
+        .innerHTML=
+        "💥 실패!<br><small>위험 지역을 피하세요.</small>";
+
+        document
+        .getElementById("message")
+        .style.display="block";
+
+        document
+        .getElementById("restart")
+        .style.display="block";
+
+    }
+
+
+    updateCamera();
+
+}
+
+
+/* ==================================================
+   메인 그리기
+================================================== */
 
 function draw(){
- ctx.fillStyle="#86b9df";ctx.fillRect(0,0,W,H/2);
- ctx.fillStyle="#4b7a43";ctx.fillRect(0,H/2,W,H/2);
- ctx.fillStyle="#333";ctx.fillRect(0,H/2,W,3);
- const list=Object.values(others).filter(p=>p.id!==undefined);
- for(const p of list){
-   const dx=p.x-me.x,dy=p.y-me.y;
-   const dist=Math.hypot(dx,dy), ang=Math.atan2(dy,dx)-me.a;
-   let a=Math.atan2(Math.sin(ang),Math.cos(ang));
-   if(Math.abs(a)<1.0){
-     const sx=W/2+Math.tan(a)*W*.45;
-     const size=Math.max(20,Math.min(240,700/(dist||1)));
-     ctx.fillStyle="#d94343";ctx.fillRect(sx-size/4,H/2-size,size/2,size);
-     ctx.fillStyle="#111";ctx.fillRect(sx-size/3,H/2-size-10,size*2/3,5);
-   }
- }
- ctx.fillStyle="#fff";ctx.font="bold 14px Arial";ctx.textAlign="center";ctx.fillText("ONLINE FPS",W/2,35);
+
+    drawBackground();
+
+    drawPlatforms();
+
+    drawHazards();
+
+    drawGems();
+
+    drawDoors();
+
+    drawPlayer(water);
+
+    drawPlayer(fire);
+
+    drawInfo();
+
 }
-let last=performance.now();function loop(t){const dt=Math.min(.05,(t-last)/1000);last=t;update(dt);draw();requestAnimationFrame(loop)}connect();loop(last);
+
+
+/* ==================================================
+   게임 루프
+================================================== */
+
+function loop(){
+
+    update();
+
+    draw();
+
+    requestAnimationFrame(loop);
+
+}
+
+loop();
+
 </script>
+
 </body>
 </html>
