@@ -2,13 +2,17 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport"
-      content="width=device-width, initial-scale=1.0,
-      maximum-scale=1.0,user-scalable=no">
 
-<title>물불 퍼즐 어드벤처</title>
+<meta name="viewport"
+content="width=device-width,
+initial-scale=1,
+maximum-scale=1,
+user-scalable=no">
+
+<title>물불 어드벤처</title>
 
 <style>
+
 *{
     box-sizing:border-box;
     margin:0;
@@ -30,129 +34,495 @@ canvas{
     height:100vh;
 }
 
-#ui{
+
+/* =========================
+   메뉴
+========================= */
+
+.screen{
+
     position:fixed;
+
     inset:0;
-    pointer-events:none;
+
+    display:flex;
+
+    flex-direction:column;
+
+    align-items:center;
+
+    justify-content:center;
+
+    background:
+    linear-gradient(
+        #16243d,
+        #0d1423
+    );
+
+    color:white;
+
+    z-index:20;
 }
 
-#waterControls,
-#fireControls{
-    position:absolute;
-    bottom:15px;
-    display:flex;
-    gap:10px;
-    pointer-events:auto;
+
+.title{
+
+    font-size:46px;
+
+    font-weight:900;
+
+    margin-bottom:35px;
+
+    text-shadow:
+    4px 4px #000;
+
 }
+
+
+.menuButton{
+
+    width:250px;
+
+    height:65px;
+
+    margin:10px;
+
+    border:none;
+
+    border-radius:16px;
+
+    background:#278be0;
+
+    color:white;
+
+    font-size:21px;
+
+    font-weight:bold;
+
+    box-shadow:
+    0 6px 0 #12518a;
+
+}
+
+
+.menuButton:active{
+
+    transform:translateY(5px);
+
+    box-shadow:
+    0 1px 0 #12518a;
+
+}
+
+
+/* =========================
+   스테이지 선택
+========================= */
+
+#stageScreen{
+
+    display:none;
+
+}
+
+
+.stageGrid{
+
+    display:grid;
+
+    grid-template-columns:
+    repeat(3,90px);
+
+    gap:15px;
+
+}
+
+
+.stage{
+
+    width:90px;
+
+    height:90px;
+
+    border-radius:15px;
+
+    border:3px solid white;
+
+    background:#3479ba;
+
+    color:white;
+
+    font-size:28px;
+
+    font-weight:bold;
+
+}
+
+
+.stage.locked{
+
+    background:#444;
+
+    opacity:.5;
+
+}
+
+
+.back{
+
+    margin-top:25px;
+
+    background:#555;
+
+    box-shadow:
+    0 5px 0 #222;
+
+}
+
+
+/* =========================
+   게임 UI
+========================= */
+
+#gameUI{
+
+    display:none;
+
+    position:fixed;
+
+    inset:0;
+
+    pointer-events:none;
+
+    z-index:10;
+
+}
+
+
+#levelText{
+
+    position:absolute;
+
+    top:10px;
+
+    left:50%;
+
+    transform:translateX(-50%);
+
+    color:white;
+
+    font-size:18px;
+
+    font-weight:bold;
+
+    text-shadow:
+    2px 2px #000;
+
+}
+
+
+/* =========================
+   모바일 버튼
+========================= */
+
+.controls{
+
+    position:absolute;
+
+    bottom:15px;
+
+    display:flex;
+
+    gap:8px;
+
+    pointer-events:auto;
+
+}
+
 
 #waterControls{
+
     left:15px;
+
 }
+
 
 #fireControls{
+
     right:15px;
+
 }
 
-button{
-    width:58px;
-    height:58px;
+
+.control{
+
+    width:55px;
+
+    height:55px;
+
     border-radius:15px;
+
     border:3px solid white;
+
+    background:#27384d;
+
     color:white;
-    font-size:22px;
+
+    font-size:21px;
+
     font-weight:bold;
-    background:#26364d;
-    box-shadow:0 4px 0 #111;
+
+    box-shadow:
+    0 4px 0 #111;
+
 }
 
-#waterTitle,
-#fireTitle{
-    position:fixed;
-    top:10px;
-    padding:7px 12px;
-    border-radius:10px;
-    color:white;
-    font-weight:bold;
-    text-shadow:1px 1px 2px black;
+
+.control:active{
+
+    transform:translateY(3px);
+
 }
 
-#waterTitle{
-    left:10px;
-    background:#168be0;
-}
 
-#fireTitle{
-    right:10px;
-    background:#e84c32;
-}
+/* =========================
+   결과 화면
+========================= */
 
-#restart{
-    position:fixed;
-    top:55px;
-    left:50%;
-    transform:translateX(-50%);
+#resultScreen{
+
     display:none;
-    width:auto;
-    height:45px;
-    padding:0 18px;
-    font-size:15px;
-    background:#333;
+
 }
 
-#message{
-    position:fixed;
-    top:45%;
-    left:50%;
-    transform:translate(-50%,-50%);
-    color:white;
-    font-size:30px;
-    font-weight:bold;
-    text-align:center;
-    text-shadow:3px 3px #000;
-    display:none;
+
+.resultTitle{
+
+    font-size:42px;
+
+    font-weight:900;
+
+    margin-bottom:20px;
+
 }
+
+
+.resultText{
+
+    margin-bottom:25px;
+
+    color:#ddd;
+
+    font-size:18px;
+
+}
+
 </style>
 </head>
 
 <body>
 
+
+<!-- =====================================================
+     게임 캔버스
+===================================================== -->
+
 <canvas id="game"></canvas>
 
-<div id="ui">
 
-<div id="waterTitle">
-💧 WATER
-</div>
+<!-- =====================================================
+     메인 메뉴
+===================================================== -->
 
-<div id="fireTitle">
-🔥 FIRE
-</div>
+<div id="menuScreen" class="screen">
 
-<div id="waterControls">
-<button id="wLeft">◀</button>
-<button id="wRight">▶</button>
-<button id="wJump">▲</button>
-</div>
+    <div class="title">
+        💧🔥 물불 어드벤처
+    </div>
 
-<div id="fireControls">
-<button id="fLeft">◀</button>
-<button id="fRight">▶</button>
-<button id="fJump">▲</button>
-</div>
+    <button
+    class="menuButton"
+    id="startButton">
 
-<button id="restart">
-다시 시작
-</button>
+        게임 시작
 
-<div id="message"></div>
+    </button>
 
 </div>
+
+
+<!-- =====================================================
+     스테이지 선택
+===================================================== -->
+
+<div id="stageScreen" class="screen">
+
+    <div class="title">
+        스테이지 선택
+    </div>
+
+
+    <div class="stageGrid">
+
+        <button class="stage"
+        data-stage="1">
+            1
+        </button>
+
+        <button class="stage"
+        data-stage="2">
+            2
+        </button>
+
+        <button class="stage"
+        data-stage="3">
+            3
+        </button>
+
+        <button class="stage"
+        data-stage="4">
+            4
+        </button>
+
+        <button class="stage"
+        data-stage="5">
+            5
+        </button>
+
+        <button class="stage locked">
+            🔒
+        </button>
+
+    </div>
+
+
+    <button
+    class="menuButton back"
+    id="stageBack">
+
+        뒤로
+
+    </button>
+
+</div>
+
+
+<!-- =====================================================
+     게임 UI
+===================================================== -->
+
+<div id="gameUI">
+
+    <div id="levelText">
+        STAGE 1
+    </div>
+
+
+    <!-- 물 조작 -->
+
+    <div
+    class="controls"
+    id="waterControls">
+
+        <button
+        class="control"
+        id="waterLeft">
+            ◀
+        </button>
+
+        <button
+        class="control"
+        id="waterRight">
+            ▶
+        </button>
+
+        <button
+        class="control"
+        id="waterJump">
+            ▲
+        </button>
+
+    </div>
+
+
+    <!-- 불 조작 -->
+
+    <div
+    class="controls"
+    id="fireControls">
+
+        <button
+        class="control"
+        id="fireLeft">
+            ◀
+        </button>
+
+        <button
+        class="control"
+        id="fireRight">
+            ▶
+        </button>
+
+        <button
+        class="control"
+        id="fireJump">
+            ▲
+        </button>
+
+    </div>
+
+</div>
+
+
+<!-- =====================================================
+     결과 화면
+===================================================== -->
+
+<div id="resultScreen" class="screen">
+
+    <div
+    class="resultTitle"
+    id="resultTitle">
+
+        실패!
+
+    </div>
+
+
+    <div
+    class="resultText"
+    id="resultText">
+
+        다시 도전해보세요.
+
+    </div>
+
+
+    <button
+    class="menuButton"
+    id="retryButton">
+
+        다시 시작
+
+    </button>
+
+
+    <button
+    class="menuButton back"
+    id="resultMenuButton">
+
+        스테이지 선택
+
+    </button>
+
+</div>
+
 
 <script>
 
-/* ==================================================
-   기본 설정
-================================================== */
+/* =====================================================
+   CANVAS
+===================================================== */
 
 const canvas =
 document.getElementById("game");
@@ -160,53 +530,110 @@ document.getElementById("game");
 const ctx =
 canvas.getContext("2d");
 
+
 let W = innerWidth;
+
 let H = innerHeight;
+
 
 function resize(){
 
     W = innerWidth;
+
     H = innerHeight;
 
     canvas.width = W;
+
     canvas.height = H;
+
 }
+
 
 resize();
 
-addEventListener("resize",resize);
+
+window.addEventListener(
+    "resize",
+    resize
+);
 
 
-/* ==================================================
-   월드
-================================================== */
+/* =====================================================
+   게임 상태
+===================================================== */
 
-const world = {
+let currentStage = 1;
 
-    width:2200,
+let cameraX = 0;
 
-    floor:520
-
-};
+let gameState = "menu";
 
 
-/* ==================================================
-   플레이어
-================================================== */
+/* =====================================================
+   입력
+===================================================== */
+
+const keys = {};
+
+
+window.addEventListener(
+    "keydown",
+    function(e){
+
+        keys[e.key] = true;
+
+        if(
+            e.key === "r" ||
+            e.key === "R"
+        ){
+
+            if(
+                gameState === "dead"
+            ){
+
+                startStage(
+                    currentStage
+                );
+
+            }
+
+        }
+
+    }
+);
+
+
+window.addEventListener(
+    "keyup",
+    function(e){
+
+        keys[e.key] = false;
+
+    }
+);
+
+
+/* =====================================================
+   캐릭터
+===================================================== */
 
 const water = {
 
-    x:180,
+    x:100,
+
     y:430,
 
-    w:28,
-    h:42,
+    w:20,
+
+    h:30,
 
     vx:0,
+
     vy:0,
 
-    speed:3.5,
-    jump:10,
+    speed:3.2,
+
+    jump:9,
 
     grounded:false,
 
@@ -219,17 +646,21 @@ const water = {
 
 const fire = {
 
-    x:240,
+    x:145,
+
     y:430,
 
-    w:28,
-    h:42,
+    w:20,
+
+    h:30,
 
     vx:0,
+
     vy:0,
 
-    speed:3.5,
-    jump:10,
+    speed:3.2,
+
+    jump:9,
 
     grounded:false,
 
@@ -240,222 +671,549 @@ const fire = {
 };
 
 
-/* ==================================================
-   게임 상태
-================================================== */
+/* =====================================================
+   맵 크기
+===================================================== */
 
-let cameraX = 0;
+const world = {
 
-let won = false;
+    width:5000,
 
-let gameOver = false;
+    height:650,
+
+    floor:540
+
+};
 
 
-/* ==================================================
+/* =====================================================
    플랫폼
-================================================== */
+===================================================== */
 
-const platforms = [
+let platforms = [];
 
-    {x:0,y:520,w:2200,h:60},
+let waterHazards = [];
 
-    {x:80,y:420,w:250,h:25},
+let fireHazards = [];
 
-    {x:420,y:350,w:240,h:25},
+let gems = [];
 
-    {x:760,y:450,w:220,h:25},
-
-    {x:1080,y:360,w:260,h:25},
-
-    {x:1430,y:450,w:220,h:25},
-
-    {x:1720,y:350,w:260,h:25},
-
-    {x:2040,y:450,w:120,h:25}
-
-];
+let doors = [];
 
 
-/* ==================================================
-   위험 지역
-================================================== */
+/* =====================================================
+   스테이지 생성
+===================================================== */
 
-const waterPools = [
+function createStage(stage){
 
-    {x:350,y:495,w:130,h:25},
+    platforms = [];
 
-    {x:980,y:495,w:100,h:25},
+    waterHazards = [];
 
-    {x:1650,y:495,w:90,h:25}
+    fireHazards = [];
 
-];
+    gems = [];
 
-
-const firePools = [
-
-    {x:660,y:495,w:100,h:25},
-
-    {x:1340,y:495,w:90,h:25},
-
-    {x:1980,y:495,w:60,h:25}
-
-];
+    doors = [];
 
 
-/* ==================================================
-   보석
-================================================== */
+    /* 바닥 */
 
-let waterGems = [
+    platforms.push({
 
-    {x:260,y:380,taken:false},
+        x:0,
 
-    {x:540,y:310,taken:false},
+        y:540,
 
-    {x:1150,y:320,taken:false},
+        w:5000,
 
-    {x:1790,y:310,taken:false}
+        h:110
 
-];
-
-let fireGems = [
-
-    {x:300,y:380,taken:false},
-
-    {x:590,y:310,taken:false},
-
-    {x:1240,y:320,taken:false},
-
-    {x:1850,y:310,taken:false}
-
-];
+    });
 
 
-/* ==================================================
-   출구
-================================================== */
+    /* 기본 플랫폼 */
 
-const waterDoor = {
+    for(
+        let i=0;
+        i<16;
+        i++
+    ){
 
-    x:2080,
-    y:395,
+        platforms.push({
 
-    w:35,
-    h:55
+            x:250+i*290,
 
-};
+            y:
+            420-
+            (i%3)*55,
 
-const fireDoor = {
+            w:180,
 
-    x:2125,
-    y:395,
+            h:22
 
-    w:35,
-    h:55
+        });
 
-};
-
-
-/* ==================================================
-   입력
-================================================== */
-
-const keys = {};
-
-addEventListener("keydown",e=>{
-
-    keys[e.key] = true;
-
-});
-
-addEventListener("keyup",e=>{
-
-    keys[e.key] = false;
-
-});
+    }
 
 
-function holdButton(button, key){
+    /* 高低差 */
 
-    button.addEventListener(
-        "pointerdown",
-        e=>{
-            e.preventDefault();
-            keys[key] = true;
-        }
-    );
+    platforms.push({
 
-    button.addEventListener(
-        "pointerup",
-        e=>{
-            e.preventDefault();
-            keys[key] = false;
-        }
-    );
+        x:700,
 
-    button.addEventListener(
-        "pointercancel",
-        ()=>{
-            keys[key] = false;
-        }
-    );
+        y:300,
 
-    button.addEventListener(
-        "pointerleave",
-        ()=>{
-            keys[key] = false;
-        }
-    );
+        w:220,
+
+        h:22
+
+    });
+
+
+    platforms.push({
+
+        x:1350,
+
+        y:270,
+
+        w:230,
+
+        h:22
+
+    });
+
+
+    platforms.push({
+
+        x:2100,
+
+        y:330,
+
+        w:250,
+
+        h:22
+
+    });
+
+
+    platforms.push({
+
+        x:2900,
+
+        y:260,
+
+        w:250,
+
+        h:22
+
+    });
+
+
+    platforms.push({
+
+        x:3800,
+
+        y:320,
+
+        w:300,
+
+        h:22
+
+    });
+
+
+    /* 물 위험 */
+
+    waterHazards.push({
+
+        x:520,
+
+        y:515,
+
+        w:160,
+
+        h:25
+
+    });
+
+
+    waterHazards.push({
+
+        x:1700,
+
+        y:515,
+
+        w:180,
+
+        h:25
+
+    });
+
+
+    waterHazards.push({
+
+        x:3250,
+
+        y:515,
+
+        w:170,
+
+        h:25
+
+    });
+
+
+    /* 불 위험 */
+
+    fireHazards.push({
+
+        x:850,
+
+        y:515,
+
+        w:170,
+
+        h:25
+
+    });
+
+
+    fireHazards.push({
+
+        x:2350,
+
+        y:515,
+
+        w:180,
+
+        h:25
+
+    });
+
+
+    fireHazards.push({
+
+        x:4100,
+
+        y:515,
+
+        w:180,
+
+        h:25
+
+    });
+
+
+    /* 보석 */
+
+    for(
+        let i=0;
+        i<12;
+        i++
+    ){
+
+        gems.push({
+
+            x:
+            300+i*370,
+
+            y:
+            360-(i%3)*50,
+
+            type:
+            i%2===0
+            ?"water"
+            :"fire",
+
+            taken:false
+
+        });
+
+    }
+
+
+    /* 출구 */
+
+    doors.push({
+
+        x:4750,
+
+        y:480,
+
+        w:30,
+
+        h:60,
+
+        type:"water"
+
+    });
+
+
+    doors.push({
+
+        x:4800,
+
+        y:480,
+
+        w:30,
+
+        h:60,
+
+        type:"fire"
+
+    });
+
 }
 
 
-/* 물 캐릭터 */
+/* =====================================================
+   스테이지 시작
+===================================================== */
 
-holdButton(
-    document.getElementById("wLeft"),
+function startStage(stage){
+
+    currentStage = stage;
+
+    createStage(stage);
+
+
+    water.x = 100;
+
+    water.y = 500;
+
+    water.vx = 0;
+
+    water.vy = 0;
+
+    water.dead = false;
+
+
+    fire.x = 145;
+
+    fire.y = 500;
+
+    fire.vx = 0;
+
+    fire.vy = 0;
+
+    fire.dead = false;
+
+
+    cameraX = 0;
+
+    gameState = "playing";
+
+
+    document
+    .getElementById("menuScreen")
+    .style.display="none";
+
+
+    document
+    .getElementById("stageScreen")
+    .style.display="none";
+
+
+    document
+    .getElementById("resultScreen")
+    .style.display="none";
+
+
+    document
+    .getElementById("gameUI")
+    .style.display="block";
+
+
+    document
+    .getElementById("levelText")
+    .textContent =
+    "STAGE " + stage;
+
+}
+
+
+/* =====================================================
+   메뉴
+===================================================== */
+
+document
+.getElementById("startButton")
+.addEventListener(
+    "click",
+    function(){
+
+        document
+        .getElementById("menuScreen")
+        .style.display="none";
+
+        document
+        .getElementById("stageScreen")
+        .style.display="flex";
+
+    }
+);
+
+
+/* =====================================================
+   스테이지 버튼
+===================================================== */
+
+document
+.querySelectorAll(".stage:not(.locked)")
+.forEach(
+    button=>{
+
+        button.addEventListener(
+            "click",
+            function(){
+
+                startStage(
+                    Number(
+                        button.dataset.stage
+                    )
+                );
+
+            }
+        );
+
+    }
+);
+
+
+/* =====================================================
+   뒤로
+===================================================== */
+
+document
+.getElementById("stageBack")
+.addEventListener(
+    "click",
+    function(){
+
+        document
+        .getElementById("stageScreen")
+        .style.display="none";
+
+        document
+        .getElementById("menuScreen")
+        .style.display="flex";
+
+    }
+);
+
+
+/* =====================================================
+   모바일 버튼
+===================================================== */
+
+function mobileButton(
+    id,
+    key
+){
+
+    const button =
+    document.getElementById(id);
+
+
+    button.addEventListener(
+        "pointerdown",
+        function(e){
+
+            e.preventDefault();
+
+            keys[key] = true;
+
+        }
+    );
+
+
+    button.addEventListener(
+        "pointerup",
+        function(e){
+
+            e.preventDefault();
+
+            keys[key] = false;
+
+        }
+    );
+
+
+    button.addEventListener(
+        "pointercancel",
+        function(){
+
+            keys[key] = false;
+
+        }
+    );
+
+
+    button.addEventListener(
+        "pointerleave",
+        function(){
+
+            keys[key] = false;
+
+        }
+    );
+
+}
+
+
+/* 물 */
+
+mobileButton(
+    "waterLeft",
     "a"
 );
 
-holdButton(
-    document.getElementById("wRight"),
+mobileButton(
+    "waterRight",
     "d"
 );
 
-holdButton(
-    document.getElementById("wJump"),
+mobileButton(
+    "waterJump",
     "w"
 );
 
 
-/* 불 캐릭터 */
+/* 불 */
 
-holdButton(
-    document.getElementById("fLeft"),
+mobileButton(
+    "fireLeft",
     "ArrowLeft"
 );
 
-holdButton(
-    document.getElementById("fRight"),
+mobileButton(
+    "fireRight",
     "ArrowRight"
 );
 
-holdButton(
-    document.getElementById("fJump"),
+mobileButton(
+    "fireJump",
     "ArrowUp"
 );
 
 
-/* ==================================================
+/* =====================================================
    충돌
-================================================== */
+===================================================== */
 
-function collide(a,b){
+function collision(a,b){
 
     return (
 
         a.x < b.x+b.w &&
+
         a.x+a.w > b.x &&
+
         a.y < b.y+b.h &&
+
         a.y+a.h > b.y
 
     );
@@ -463,34 +1221,53 @@ function collide(a,b){
 }
 
 
-/* ==================================================
-   플레이어 업데이트
-================================================== */
+/* =====================================================
+   캐릭터 업데이트
+===================================================== */
 
-function updatePlayer(p,left,right,jump){
+function updateCharacter(
+    p,
+    left,
+    right,
+    jump
+){
 
     p.vx = 0;
 
+
     if(keys[left]){
-        p.vx = -p.speed;
+
+        p.vx =
+        -p.speed;
+
     }
 
+
     if(keys[right]){
-        p.vx = p.speed;
+
+        p.vx =
+        p.speed;
+
     }
+
 
     if(
         keys[jump] &&
         p.grounded
     ){
 
-        p.vy = -p.jump;
-        p.grounded = false;
+        p.vy =
+        -p.jump;
+
+        p.grounded =
+        false;
 
     }
 
 
-    p.vy += 0.45;
+    /* 중력 */
+
+    p.vy += 0.42;
 
 
     p.x += p.vx;
@@ -498,85 +1275,128 @@ function updatePlayer(p,left,right,jump){
     p.y += p.vy;
 
 
-    p.grounded = false;
+    p.grounded=false;
 
 
-    /* 플랫폼 충돌 */
+    /* 플랫폼 */
 
-    for(const platform of platforms){
+    for(
+        const platform
+        of platforms
+    ){
 
         if(
 
-            p.x < platform.x+platform.w &&
-            p.x+p.w > platform.x &&
-            p.y+p.h > platform.y &&
-            p.y+p.h-p.vy <= platform.y
+            p.x < platform.x+
+            platform.w &&
+
+            p.x+p.w >
+            platform.x &&
+
+            p.y+p.h >
+            platform.y &&
+
+            p.y+p.h-p.vy
+            <= platform.y
 
         ){
 
             p.y =
-                platform.y-p.h;
+            platform.y-p.h;
 
-            p.vy = 0;
+            p.vy=0;
 
-            p.grounded = true;
+            p.grounded=true;
 
         }
 
     }
 
 
-    /* 월드 경계 */
+    /* 경계 */
 
-    p.x =
-        Math.max(
-            0,
-            Math.min(
-                world.width-p.w,
-                p.x
-            )
-        );
+    if(p.x<0){
+
+        p.x=0;
+
+    }
+
+
+    if(
+        p.x+p.w>
+        world.width
+    ){
+
+        p.x =
+        world.width-p.w;
+
+    }
 
 
     /* 낙사 */
 
-    if(p.y > 650){
+    if(p.y>700){
 
-        p.dead = true;
+        p.dead=true;
 
     }
 
 }
 
 
-/* ==================================================
+/* =====================================================
    위험 지역
-================================================== */
+===================================================== */
 
-function checkHazards(p,type){
+function checkHazards(
+    p,
+    type
+){
 
-    for(const pool of waterPools){
+    /* 물은 불 캐릭터에게 위험 */
 
-        if(
-            type==="fire" &&
-            collide(p,pool)
+    if(type==="fire"){
+
+        for(
+            const hazard
+            of waterHazards
         ){
 
-            p.dead = true;
+            if(
+                collision(
+                    p,
+                    hazard
+                )
+            ){
+
+                p.dead=true;
+
+            }
 
         }
 
     }
 
 
-    for(const pool of firePools){
+    /* 불은 물 캐릭터에게 위험 */
 
-        if(
-            type==="water" &&
-            collide(p,pool)
+    if(type==="water"){
+
+        for(
+            const hazard
+            of fireHazards
         ){
 
-            p.dead = true;
+            if(
+                collision(
+                    p,
+                    hazard
+                )
+            ){
+
+                p.dead=true;
+
+            }
 
         }
 
@@ -585,36 +1405,40 @@ function checkHazards(p,type){
 }
 
 
-/* ==================================================
+/* =====================================================
    보석
-================================================== */
+===================================================== */
 
 function collectGems(){
 
-    for(const gem of waterGems){
+    for(
+        const gem
+        of gems
+    ){
+
+        if(gem.taken)
+            continue;
+
+
+        const target =
+        gem.type==="water"
+        ?water
+        :fire;
+
 
         if(
-            !gem.taken &&
-            Math.abs(water.x-gem.x)<35 &&
-            Math.abs(water.y-gem.y)<45
+
+            Math.abs(
+                target.x-gem.x
+            )<30 &&
+
+            Math.abs(
+                target.y-gem.y
+            )<45
+
         ){
 
-            gem.taken = true;
-
-        }
-
-    }
-
-
-    for(const gem of fireGems){
-
-        if(
-            !gem.taken &&
-            Math.abs(fire.x-gem.x)<35 &&
-            Math.abs(fire.y-gem.y)<45
-        ){
-
-            gem.taken = true;
+            gem.taken=true;
 
         }
 
@@ -623,137 +1447,219 @@ function collectGems(){
 }
 
 
-/* ==================================================
+/* =====================================================
    출구
-================================================== */
+===================================================== */
 
 function checkDoors(){
 
-    const waterReady =
-        collide(water,waterDoor);
+    let waterAtDoor=false;
 
-    const fireReady =
-        collide(fire,fireDoor);
+    let fireAtDoor=false;
+
+
+    for(
+        const door
+        of doors
+    ){
+
+        if(
+            door.type==="water" &&
+            collision(
+                water,
+                door
+            )
+        ){
+
+            waterAtDoor=true;
+
+        }
+
+
+        if(
+            door.type==="fire" &&
+            collision(
+                fire,
+                door
+            )
+        ){
+
+            fireAtDoor=true;
+
+        }
+
+    }
 
 
     if(
-        waterReady &&
-        fireReady
+        waterAtDoor &&
+        fireAtDoor
     ){
 
-        won = true;
+        gameState="win";
 
-        document
-        .getElementById("message")
-        .innerHTML =
-        "🎉 STAGE CLEAR!<br><small>두 캐릭터가 모두 도착했습니다.</small>";
-
-        document
-        .getElementById("message")
-        .style.display="block";
-
-        document
-        .getElementById("restart")
-        .style.display="block";
+        showResult(
+            true
+        );
 
     }
 
 }
 
 
-/* ==================================================
-   리셋
-================================================== */
+/* =====================================================
+   사망
+===================================================== */
 
-function resetGame(){
+function showResult(win){
 
-    water.x=180;
-    water.y=430;
-    water.vx=0;
-    water.vy=0;
-    water.dead=false;
+    gameState =
+    win
+    ?"win"
+    :"dead";
 
-    fire.x=240;
-    fire.y=430;
-    fire.vx=0;
-    fire.vy=0;
-    fire.dead=false;
-
-    for(const g of waterGems)
-        g.taken=false;
-
-    for(const g of fireGems)
-        g.taken=false;
-
-    won=false;
-    gameOver=false;
 
     document
-    .getElementById("message")
+    .getElementById("gameUI")
     .style.display="none";
 
+
     document
-    .getElementById("restart")
-    .style.display="none";
+    .getElementById("resultScreen")
+    .style.display="flex";
+
+
+    const title =
+    document
+    .getElementById("resultTitle");
+
+
+    const text =
+    document
+    .getElementById("resultText");
+
+
+    if(win){
+
+        title.textContent =
+        "🎉 스테이지 클리어!";
+
+        text.textContent =
+        "두 캐릭터가 출구에 도착했습니다.";
+
+    }else{
+
+        title.textContent =
+        "💥 게임 오버!";
+
+        text.textContent =
+        "캐릭터가 위험 지역에 닿았습니다.";
+
+    }
 
 }
 
+
+/* =====================================================
+   다시 시작
+===================================================== */
+
 document
-.getElementById("restart")
+.getElementById("retryButton")
 .addEventListener(
     "click",
-    resetGame
+    function(){
+
+        startStage(
+            currentStage
+        );
+
+    }
 );
 
 
-/* ==================================================
+/* =====================================================
+   결과 → 스테이지 선택
+===================================================== */
+
+document
+.getElementById("resultMenuButton")
+.addEventListener(
+    "click",
+    function(){
+
+        document
+        .getElementById("resultScreen")
+        .style.display="none";
+
+
+        document
+        .getElementById("stageScreen")
+        .style.display="flex";
+
+
+        gameState="stage";
+
+    }
+);
+
+
+/* =====================================================
    카메라
-================================================== */
+===================================================== */
 
 function updateCamera(){
 
     const center =
-        (water.x+fire.x)/2;
+    (water.x+fire.x)/2;
+
 
     cameraX =
-        center-W/2;
+    center-W/2;
+
 
     cameraX =
-        Math.max(
-            0,
-            Math.min(
-                world.width-W,
-                cameraX
-            )
-        );
+    Math.max(
+        0,
+        Math.min(
+            world.width-W,
+            cameraX
+        )
+    );
 
 }
 
 
-/* ==================================================
-   그리기
-================================================== */
+/* =====================================================
+   배경
+===================================================== */
 
 function drawBackground(){
 
-    /* 하늘 */
-
     const gradient =
-        ctx.createLinearGradient(
-            0,0,0,H
-        );
+    ctx.createLinearGradient(
+        0,
+        0,
+        0,
+        H
+    );
+
 
     gradient.addColorStop(
         0,
-        "#151f38"
+        "#182844"
     );
+
 
     gradient.addColorStop(
         1,
-        "#293b56"
+        "#344c64"
     );
 
-    ctx.fillStyle=gradient;
+
+    ctx.fillStyle =
+    gradient;
+
 
     ctx.fillRect(
         0,
@@ -763,36 +1669,62 @@ function drawBackground(){
     );
 
 
-    /* 장식 */
+    /* 背景 산 */
 
-    ctx.fillStyle="#1c2d47";
+    ctx.fillStyle=
+    "#263b50";
+
 
     for(
-        let x=-cameraX%100;
-        x<W;
-        x+=100
+        let x=-cameraX%400-400;
+        x<W+400;
+        x+=400
     ){
 
-        ctx.fillRect(
+        ctx.beginPath();
+
+        ctx.moveTo(
             x,
-            80,
-            45,
-            25
+            350
         );
+
+        ctx.lineTo(
+            x+200,
+            160
+        );
+
+        ctx.lineTo(
+            x+400,
+            350
+        );
+
+        ctx.closePath();
+
+        ctx.fill();
 
     }
 
 }
 
+
+/* =====================================================
+   플랫폼 그리기
+===================================================== */
 
 function drawPlatforms(){
 
-    for(const p of platforms){
+    for(
+        const p
+        of platforms
+    ){
 
         const x =
-            p.x-cameraX;
+        p.x-cameraX;
 
-        ctx.fillStyle="#5d4637";
+
+        ctx.fillStyle=
+        "#634b39";
+
 
         ctx.fillRect(
             x,
@@ -801,72 +1733,93 @@ function drawPlatforms(){
             p.h
         );
 
-        ctx.fillStyle="#8b6b4e";
+
+        ctx.fillStyle=
+        "#9a7955";
+
 
         ctx.fillRect(
             x,
             p.y,
             p.w,
-            7
+            6
         );
 
     }
 
 }
 
+
+/* =====================================================
+   위험지역 그리기
+===================================================== */
 
 function drawHazards(){
 
-    /* 물 */
-
-    for(const p of waterPools){
+    for(
+        const h
+        of waterHazards
+    ){
 
         const x =
-            p.x-cameraX;
+        h.x-cameraX;
 
-        ctx.fillStyle="#218ddd";
+
+        ctx.fillStyle=
+        "#168de0";
+
 
         ctx.fillRect(
             x,
-            p.y,
-            p.w,
-            p.h
+            h.y,
+            h.w,
+            h.h
         );
 
-        ctx.fillStyle="#62c9ff";
+
+        ctx.fillStyle=
+        "#62caff";
+
 
         ctx.fillRect(
             x,
-            p.y,
-            p.w,
+            h.y,
+            h.w,
             5
         );
 
     }
 
 
-    /* 불 */
-
-    for(const p of firePools){
+    for(
+        const h
+        of fireHazards
+    ){
 
         const x =
-            p.x-cameraX;
+        h.x-cameraX;
 
-        ctx.fillStyle="#e74a2d";
+
+        ctx.fillStyle=
+        "#e8482e";
+
 
         ctx.fillRect(
             x,
-            p.y,
-            p.w,
-            p.h
+            h.y,
+            h.w,
+            h.h
         );
 
-        ctx.fillStyle="#ffb52d";
+
+        ctx.fillStyle=
+        "#ffb329";
+
 
         ctx.fillRect(
             x,
-            p.y,
-            p.w,
+            h.y,
+            h.w,
             5
         );
 
@@ -874,71 +1827,91 @@ function drawHazards(){
 
 }
 
+
+/* =====================================================
+   보석 그리기
+===================================================== */
 
 function drawGems(){
 
-    for(const g of waterGems){
+    for(
+        const g
+        of gems
+    ){
 
-        if(g.taken) continue;
+        if(g.taken)
+            continue;
 
-        drawDiamond(
-            g.x-cameraX,
-            g.y,
-            "#39baff"
+
+        const x =
+        g.x-cameraX;
+
+
+        ctx.beginPath();
+
+
+        ctx.moveTo(
+            x,
+            g.y-12
         );
 
-    }
 
-
-    for(const g of fireGems){
-
-        if(g.taken) continue;
-
-        drawDiamond(
-            g.x-cameraX,
-            g.y,
-            "#ff643c"
+        ctx.lineTo(
+            x+9,
+            g.y
         );
+
+
+        ctx.lineTo(
+            x,
+            g.y+12
+        );
+
+
+        ctx.lineTo(
+            x-9,
+            g.y
+        );
+
+
+        ctx.closePath();
+
+
+        ctx.fillStyle =
+        g.type==="water"
+        ?" #35baff"
+        :"#ff653c";
+
+
+        ctx.fill();
+
+
+        ctx.strokeStyle=
+        "white";
+
+
+        ctx.stroke();
 
     }
 
 }
 
 
-function drawDiamond(x,y,color){
-
-    ctx.beginPath();
-
-    ctx.moveTo(x,y-13);
-    ctx.lineTo(x+10,y);
-    ctx.lineTo(x,y+13);
-    ctx.lineTo(x-10,y);
-
-    ctx.closePath();
-
-    ctx.fillStyle=color;
-
-    ctx.fill();
-
-    ctx.strokeStyle="white";
-
-    ctx.stroke();
-
-}
-
-
-/* ==================================================
+/* =====================================================
    캐릭터
-================================================== */
+===================================================== */
 
-function drawPlayer(p){
+function drawCharacter(p){
 
     const x =
-        p.x-cameraX;
+    p.x-cameraX;
+
 
     /* 몸 */
 
-    ctx.fillStyle=p.color;
+    ctx.fillStyle=
+    p.color;
+
 
     ctx.fillRect(
         x,
@@ -952,156 +1925,150 @@ function drawPlayer(p){
 
     ctx.beginPath();
 
+
     ctx.arc(
         x+p.w/2,
-        p.y-8,
-        15,
+        p.y-7,
+        12,
         0,
         Math.PI*2
     );
 
-    ctx.fillStyle=p.color;
+
+    ctx.fillStyle=
+    p.color;
+
 
     ctx.fill();
 
 
     /* 눈 */
 
-    ctx.fillStyle="white";
+    ctx.fillStyle=
+    "white";
+
 
     ctx.beginPath();
 
+
     ctx.arc(
-        x+9,
-        p.y-10,
-        4,
+        x+7,
+        p.y-9,
+        3,
         0,
         Math.PI*2
     );
 
+
     ctx.arc(
-        x+19,
-        p.y-10,
-        4,
+        x+15,
+        p.y-9,
+        3,
         0,
         Math.PI*2
     );
+
 
     ctx.fill();
 
 
-    ctx.fillStyle="#222";
+    /* 이름 */
 
-    ctx.beginPath();
+    ctx.fillStyle=
+    "white";
 
-    ctx.arc(
-        x+10,
-        p.y-10,
-        2,
-        0,
-        Math.PI*2
+
+    ctx.font=
+    "bold 10px Arial";
+
+
+    ctx.textAlign=
+    "center";
+
+
+    ctx.fillText(
+
+        p===water
+        ?"WATER"
+        :"FIRE",
+
+        x+p.w/2,
+        p.y-23
+
     );
-
-    ctx.arc(
-        x+20,
-        p.y-10,
-        2,
-        0,
-        Math.PI*2
-    );
-
-    ctx.fill();
 
 }
 
 
-/* ==================================================
-   출구 그리기
-================================================== */
+/* =====================================================
+   출구
+===================================================== */
 
 function drawDoors(){
 
-    const x1 =
-        waterDoor.x-cameraX;
+    for(
+        const door
+        of doors
+    ){
 
-    const x2 =
-        fireDoor.x-cameraX;
-
-
-    ctx.fillStyle="#238fd5";
-
-    ctx.fillRect(
-        x1,
-        waterDoor.y,
-        waterDoor.w,
-        waterDoor.h
-    );
+        const x =
+        door.x-cameraX;
 
 
-    ctx.fillStyle="#e74c35";
-
-    ctx.fillRect(
-        x2,
-        fireDoor.y,
-        fireDoor.w,
-        fireDoor.h
-    );
+        ctx.fillStyle =
+        door.type==="water"
+        ?" #218edb"
+        :"#e74b32";
 
 
-    ctx.fillStyle="white";
-
-    ctx.font="bold 20px Arial";
-
-    ctx.fillText(
-        "💧",
-        x1+3,
-        waterDoor.y+35
-    );
-
-    ctx.fillText(
-        "🔥",
-        x2+3,
-        fireDoor.y+35
-    );
-
-}
+        ctx.fillRect(
+            x,
+            door.y,
+            door.w,
+            door.h
+        );
 
 
-/* ==================================================
-   UI 텍스트
-================================================== */
+        ctx.fillStyle=
+        "white";
 
-function drawInfo(){
 
-    ctx.fillStyle="white";
+        ctx.font=
+        "16px Arial";
 
-    ctx.font="bold 15px Arial";
 
-    ctx.fillText(
-        "💧 물: 왼쪽 버튼",
-        15,
-        H-145
-    );
+        ctx.fillText(
 
-    ctx.fillText(
-        "🔥 불: 오른쪽 버튼",
-        W-170,
-        H-145
-    );
+            door.type==="water"
+            ?"💧"
+            :"🔥",
+
+            x+4,
+            door.y+35
+
+        );
+
+    }
 
 }
 
 
-/* ==================================================
+/* =====================================================
    게임 업데이트
-================================================== */
+===================================================== */
 
 function update(){
 
-    if(won) return;
+    if(
+        gameState!=="playing"
+    ){
+
+        return;
+
+    }
 
 
-    updatePlayer(
+    updateCharacter(
         water,
         "a",
         "d",
@@ -1109,7 +2076,7 @@ function update(){
     );
 
 
-    updatePlayer(
+    updateCharacter(
         fire,
         "ArrowLeft",
         "ArrowRight",
@@ -1122,6 +2089,7 @@ function update(){
         "water"
     );
 
+
     checkHazards(
         fire,
         "fire"
@@ -1130,28 +2098,22 @@ function update(){
 
     collectGems();
 
+
     checkDoors();
 
+
+    /* 죽으면 즉시 멈춤 */
 
     if(
         water.dead ||
         fire.dead
     ){
 
-        gameOver=true;
+        showResult(
+            false
+        );
 
-        document
-        .getElementById("message")
-        .innerHTML=
-        "💥 실패!<br><small>위험 지역을 피하세요.</small>";
-
-        document
-        .getElementById("message")
-        .style.display="block";
-
-        document
-        .getElementById("restart")
-        .style.display="block";
+        return;
 
     }
 
@@ -1161,9 +2123,9 @@ function update(){
 }
 
 
-/* ==================================================
-   메인 그리기
-================================================== */
+/* =====================================================
+   그리기
+===================================================== */
 
 function draw(){
 
@@ -1177,18 +2139,20 @@ function draw(){
 
     drawDoors();
 
-    drawPlayer(water);
+    drawCharacter(
+        water
+    );
 
-    drawPlayer(fire);
-
-    drawInfo();
+    drawCharacter(
+        fire
+    );
 
 }
 
 
-/* ==================================================
+/* =====================================================
    게임 루프
-================================================== */
+===================================================== */
 
 function loop(){
 
@@ -1196,9 +2160,12 @@ function loop(){
 
     draw();
 
-    requestAnimationFrame(loop);
+    requestAnimationFrame(
+        loop
+    );
 
 }
+
 
 loop();
 
