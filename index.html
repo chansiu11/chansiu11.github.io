@@ -66,9 +66,25 @@
             display: flex;
             justify-content: space-between;
         }
-        input[type="range"] {
+        select, input[type="range"] {
             width: 100%;
+            padding: 8px;
+            background: #181820;
+            color: #fff;
+            border: 1px solid #333;
+            border-radius: 4px;
+        }
+        input[type="range"] {
+            padding: 0;
             accent-color: #4da6ff;
+        }
+        .preset-info {
+            background: #181820;
+            border-left: 3px solid #4da6ff;
+            padding: 8px 10px;
+            font-size: 0.8rem;
+            color: #ccc;
+            line-height: 1.4;
         }
         .btn-group {
             display: flex;
@@ -132,47 +148,30 @@
             height: 12px;
             border-radius: 2px;
         }
-        
-        /* Modal Style for Equation */
-        .info-box {
-            font-size: 0.8rem;
-            background: #181820;
-            padding: 10px;
-            border-radius: 4px;
-            color: #bbb;
-            line-height: 1.4;
-        }
     </style>
 </head>
 <body>
 
-    <h1>종양 성장 및 방사선/항암 치료 시뮬레이션</h1>
+    <h1>암종별 치료 및 종양 성장 예측 시뮬레이션</h1>
 
     <div class="container">
         <div class="panel controls">
-            <div class="info-box">
-                <strong>Gompertz 성장 모델 & 모의 치료</strong><br>
-                암세포는 밀도가 높아질수록 성장 속도가 감퇴합니다. 항암/방사선 투여 주기 시 치료제가 투입되며, 확률적으로 저항성 세포가 발현합니다.
+            <div class="control-group">
+                <label for="cancer-type">암종 선택</label>
+                <select id="cancer-type">
+                    <option value="breast">유방암 (중등도 증식 / 중간 내성)</option>
+                    <option value="gbm">뇌교종/GBM (고속 증식 / 높은 내성)</option>
+                    <option value="prostate">전립선암 (저속 증식 / 낮은 내성)</option>
+                    <option value="nsclc">비소세포폐암 (고속 증식 / 중등도 내성)</option>
+                </select>
             </div>
 
-            <div class="control-group">
-                <label>세포 증식율 (Gompertz a) <span id="val-growth">0.15</span></label>
-                <input type="range" id="param-growth" min="0.05" max="0.4" step="0.01" value="0.15">
-            </div>
+            <div class="preset-info" id="preset-details">
+                </div>
 
             <div class="control-group">
-                <label>치료제 사멸 효율 <span id="val-kill">0.70</span></label>
-                <input type="range" id="param-kill" min="0.1" max="0.95" step="0.05" value="0.70">
-            </div>
-
-            <div class="control-group">
-                <label>내성(저항성) 변이 확률 <span id="val-resist">0.05</span></label>
-                <input type="range" id="param-resist" min="0.0" max="0.2" step="0.01" value="0.05">
-            </div>
-
-            <div class="control-group">
-                <label>치료 주기 (Step) <span id="val-interval">40</span></label>
-                <input type="range" id="param-interval" min="10" max="100" step="5" value="40">
+                <label>치료 주기 <span id="val-interval">7일 (1주)</span></label>
+                <input type="range" id="param-interval" min="1" max="30" step="1" value="7">
             </div>
 
             <div class="btn-group">
@@ -193,8 +192,8 @@
             
             <div class="stats">
                 <div class="stat-card">
-                    <div>경과 시간 (Step)</div>
-                    <div class="stat-value" id="stat-step">0</div>
+                    <div>경과 시간</div>
+                    <div class="stat-value" id="stat-step">0일</div>
                 </div>
                 <div class="stat-card red">
                     <div>일반 암세포 수</div>
@@ -214,46 +213,81 @@
         const GRID_SIZE = 100;
         const CELL_SIZE = 4;
         
-        // 상태 정의: 0: 빈공간, 1: 일반 암세포, 2: 내성 암세포
         const EMPTY = 0;
         const NORMAL = 1;
         const RESISTANT = 2;
 
+        // 암종별 생물학적 파라미터 프리셋
+        const CANCER_PRESETS = {
+            breast: {
+                name: "유방암",
+                growth: 0.15,
+                kill: 0.70,
+                resist: 0.05,
+                desc: "증식 속도: 보통 | 치료 반응성: 양호 | 내성 변이율: 보통"
+            },
+            gbm: {
+                name: "뇌교종 (GBM)",
+                growth: 0.35,
+                kill: 0.45,
+                resist: 0.12,
+                desc: "증식 속도: 매우 빠름 | 치료 반응성: 낮음 | 내성 변이율: 높음"
+            },
+            prostate: {
+                name: "전립선암",
+                growth: 0.08,
+                kill: 0.85,
+                resist: 0.02,
+                desc: "증식 속도: 느림 | 치료 반응성: 높음 | 내성 변이율: 낮음"
+            },
+            nsclc: {
+                name: "비소세포폐암",
+                growth: 0.25,
+                kill: 0.60,
+                resist: 0.08,
+                desc: "증식 속도: 빠름 | 치료 반응성: 보통 | 내성 변이율: 높음"
+            }
+        };
+
+        let currentPreset = CANCER_PRESETS.breast;
+
         let grid = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(EMPTY));
         let isRunning = false;
-        let stepCount = 0;
+        let dayCount = 0;
         let animId = null;
 
-        // 히스토리 데이터 (그래프용)
         let historyNormal = [];
         let historyResistant = [];
 
-        // DOM 요소
         const simCanvas = document.getElementById('simCanvas');
         const simCtx = simCanvas.getContext('2d');
         const chartCanvas = document.getElementById('chartCanvas');
         const chartCtx = chartCanvas.getContext('2d');
 
-        // 파라미터 UI
-        const paramGrowth = document.getElementById('param-growth');
-        const paramKill = document.getElementById('param-kill');
-        const paramResist = document.getElementById('param-resist');
+        const cancerSelect = document.getElementById('cancer-type');
+        const presetDetails = document.getElementById('preset-details');
         const paramInterval = document.getElementById('param-interval');
 
-        // 값 표시 업데이트
-        paramGrowth.oninput = () => document.getElementById('val-growth').innerText = paramGrowth.value;
-        paramKill.oninput = () => document.getElementById('val-kill').innerText = paramKill.value;
-        paramResist.oninput = () => document.getElementById('val-resist').innerText = paramResist.value;
-        paramInterval.oninput = () => document.getElementById('val-interval').innerText = paramInterval.value;
+        function updatePresetUI() {
+            currentPreset = CANCER_PRESETS[cancerSelect.value];
+            presetDetails.innerHTML = `<strong>${currentPreset.name} 특성</strong><br>${currentPreset.desc}`;
+        }
 
-        // 시뮬레이션 초기화
+        cancerSelect.onchange = () => {
+            updatePresetUI();
+            initSimulation();
+        };
+
+        paramInterval.oninput = () => {
+            document.getElementById('val-interval').innerText = `${paramInterval.value}일 (${(paramInterval.value / 7).toFixed(1)}주)`;
+        };
+
         function initSimulation() {
             grid = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(EMPTY));
-            stepCount = 0;
+            dayCount = 0;
             historyNormal = [];
             historyResistant = [];
 
-            // 중앙에 시드 암세포 생성
             const center = Math.floor(GRID_SIZE / 2);
             for (let i = -2; i <= 2; i++) {
                 for (let j = -2; j <= 2; j++) {
@@ -268,7 +302,6 @@
             updateStats();
         }
 
-        // 세포 그리기
         function drawGrid() {
             simCtx.clearRect(0, 0, simCanvas.width, simCanvas.height);
             for (let r = 0; r < GRID_SIZE; r++) {
@@ -281,9 +314,8 @@
             }
         }
 
-        // 시뮬레이션 1 스텝 진행 (Gompertz 특성 + Cellular Automata 적용)
         function updateSimulation() {
-            stepCount++;
+            dayCount++;
             const newGrid = grid.map(arr => [...arr]);
             
             let totalCells = 0;
@@ -293,18 +325,16 @@
                 }
             }
 
-            // Gompertz 기반 성장 억제 인자 (지각 밀도가 높아질수록 성장율 감소)
             const maxCapacity = GRID_SIZE * GRID_SIZE * 0.7;
             const densityFactor = Math.max(0.01, 1 - Math.log(totalCells + 1) / Math.log(maxCapacity));
             
-            const baseGrowthRate = parseFloat(paramGrowth.value);
-            const resistRate = parseFloat(paramResist.value);
-            const killRate = parseFloat(paramKill.value);
+            const baseGrowthRate = currentPreset.growth;
+            const killRate = currentPreset.kill;
+            const resistRate = currentPreset.resist;
             const interval = parseInt(paramInterval.value);
 
-            const isTreatmentStep = (stepCount % interval === 0);
+            const isTreatmentDay = (dayCount % interval === 0);
 
-            // 주변 8방향 이웃 탐색 함수
             const getEmptyNeighbors = (r, c) => {
                 const neighbors = [];
                 for (let dr = -1; dr <= 1; dr++) {
@@ -321,28 +351,24 @@
                 return neighbors;
             };
 
-            // Cellular Automata 상태 업데이트
             for (let r = 0; r < GRID_SIZE; r++) {
                 for (let c = 0; c < GRID_SIZE; c++) {
                     const current = grid[r][c];
 
                     if (current !== EMPTY) {
-                        // 1. 치료제 투여 이벤트 처리
-                        if (isTreatmentStep) {
+                        if (isTreatmentDay) {
                             if (current === NORMAL && Math.random() < killRate) {
                                 newGrid[r][c] = EMPTY;
                                 continue;
                             }
                         }
 
-                        // 2. 세포 분열/증식 (비어있는 이웃 칸으로 전이)
                         const emptyNeighbors = getEmptyNeighbors(r, c);
                         if (emptyNeighbors.length > 0) {
                             const effectiveGrowth = baseGrowthRate * densityFactor;
                             if (Math.random() < effectiveGrowth) {
                                 const [targetR, targetC] = emptyNeighbors[Math.floor(Math.random() * emptyNeighbors.length)];
                                 
-                                // 일반 세포 분열 시 확률적으로 내성 변이 발생
                                 if (current === NORMAL) {
                                     newGrid[targetR][targetC] = (Math.random() < resistRate) ? RESISTANT : NORMAL;
                                 } else {
@@ -356,7 +382,6 @@
 
             grid = newGrid;
             
-            // 통계 업데이트
             let normalCnt = 0, resistCnt = 0;
             for (let r = 0; r < GRID_SIZE; r++) {
                 for (let c = 0; c < GRID_SIZE; c++) {
@@ -376,14 +401,12 @@
             drawGrid();
             drawChart();
 
-            // 치료 투여 시각 효과 (화면 잠깐 반짝)
-            if (isTreatmentStep) {
+            if (isTreatmentDay) {
                 simCtx.fillStyle = 'rgba(77, 166, 255, 0.3)';
                 simCtx.fillRect(0, 0, simCanvas.width, simCanvas.height);
             }
         }
 
-        // 실시간 그래프 그리기
         function drawChart() {
             chartCtx.clearRect(0, 0, chartCanvas.width, chartCanvas.height);
             
@@ -391,13 +414,11 @@
             const h = chartCanvas.height;
             const maxVal = Math.max(...historyNormal, ...historyResistant, 500);
 
-            // 가이드라인
             chartCtx.strokeStyle = '#333';
             chartCtx.beginPath();
             chartCtx.moveTo(0, h/2); chartCtx.lineTo(w, h/2);
             chartCtx.stroke();
 
-            // 일반 암세포 추이 (적색)
             chartCtx.strokeStyle = '#ff5252';
             chartCtx.lineWidth = 2;
             chartCtx.beginPath();
@@ -409,7 +430,6 @@
             }
             chartCtx.stroke();
 
-            // 내성 암세포 추이 (보라색)
             chartCtx.strokeStyle = '#ab47bc';
             chartCtx.beginPath();
             for (let i = 0; i < historyResistant.length; i++) {
@@ -422,7 +442,7 @@
         }
 
         function updateStats(normal = 0, resistant = 0) {
-            document.getElementById('stat-step').innerText = stepCount;
+            document.getElementById('stat-step').innerText = `${dayCount}일`;
             document.getElementById('stat-normal').innerText = normal;
             document.getElementById('stat-resistant').innerText = resistant;
         }
@@ -434,7 +454,6 @@
             }
         }
 
-        // 이벤트 리스너
         document.getElementById('btn-start').addEventListener('click', () => {
             if (!isRunning) {
                 isRunning = true;
@@ -453,7 +472,7 @@
             initSimulation();
         });
 
-        // 초기화 실행
+        updatePresetUI();
         initSimulation();
     </script>
 </body>
