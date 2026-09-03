@@ -163,7 +163,7 @@
         </div>
 
         <div class="controls-hint">
-            이동: WASD<br>
+            이동: WASD (Shift: 1.5배 가속)<br>
             공격 방향: 방향키 (↑ ↓ ← →)<br>
             대시: Spacebar | 전체지도: M
         </div>
@@ -247,6 +247,7 @@ class Player {
         this.x = WORLD.width / 2;
         this.y = WORLD.height / 2;
         this.radius = 16;
+        this.baseSpeed = 5.5;
         this.speed = 5.5;
         this.maxHp = 100;
         this.hp = 100;
@@ -261,6 +262,13 @@ class Player {
 
     update() {
         if (isFullMapOpen) return;
+
+        // Shift 키를 누르면 기존 속도의 1.5배 적용
+        if (keys['ShiftLeft'] || keys['ShiftRight']) {
+            this.speed = this.baseSpeed * 1.5;
+        } else {
+            this.speed = this.baseSpeed;
+        }
 
         let dx = 0, dy = 0;
         if (keys['KeyW']) dy -= 1;
@@ -312,8 +320,26 @@ class Player {
     draw() {
         ctx.save();
         ctx.translate(this.x - camera.x, this.y - camera.y);
-        ctx.rotate(this.angle);
 
+        // 플레이어 체력바 그리기 (캐릭터 머리 위)
+        const barWidth = 36;
+        const barHeight = 5;
+        const barX = -barWidth / 2;
+        const barY = -this.radius - 12;
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.fillRect(barX, barY, barWidth, barHeight);
+
+        const currentHpWidth = Math.max(0, (this.hp / this.maxHp) * barWidth);
+        ctx.fillStyle = '#2ecc71';
+        ctx.fillRect(barX, barY, currentHpWidth, barHeight);
+
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(barX, barY, barWidth, barHeight);
+
+        // 플레이어 본체 그리기
+        ctx.rotate(this.angle);
         ctx.fillStyle = '#bdc3c7';
         ctx.fillRect(10, -3, 16, 6);
 
@@ -518,10 +544,8 @@ function createPopup(x, y, text, color = '#fff') {
     popups.push(new Popup(x, y, text, color));
 }
 
-// 몬스터 생성 조건 수정 함수
 function spawnEnemies() {
     if (enemies.length < 250 && Math.random() < 0.03) {
-        // 1인칭 크기의 10배~15배 간격 거리 (8000px ~ 12000px)
         const minDistance = canvas.width * 10;
         const maxDistance = canvas.width * 15;
         const distance = Math.random() * (maxDistance - minDistance) + minDistance;
@@ -533,20 +557,17 @@ function spawnEnemies() {
         centerX = Math.max(200, Math.min(WORLD.width - 200, centerX));
         centerY = Math.max(200, Math.min(WORLD.height - 200, centerY));
 
-        // 맵 중앙 (0,0 기준 = WORLD.width/2, WORLD.height/2) 주변 검사
         const mapCenterX = WORLD.width / 2;
         const mapCenterY = WORLD.height / 2;
         const distFromCenter = Math.hypot(centerX - mapCenterX, centerY - mapCenterY);
 
-        // 1인칭 시점 1.5배 안전 범위 (반경 약 600px)
-        const safeZoneRadius = canvas.width * 0.75; 
+        // 스폰 세이프존 크기 1/5 축소 (기존 1.5배 -> 0.3배, 반경 약 240px)
+        const safeZoneRadius = canvas.width * 0.3; 
 
-        // 맵 중앙 중심 1.5배 영역 안이면 스폰 취소
         if (distFromCenter < safeZoneRadius) {
             return;
         }
 
-        // 해당 거점을 중심으로 몬스터 무리 소환
         const groupSize = Math.floor(Math.random() * 4) + 3;
         const groupTypeRand = Math.random();
         let type = 0;
