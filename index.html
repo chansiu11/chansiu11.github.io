@@ -55,19 +55,20 @@
             height: 14px;
             background: #444;
             border-radius: 7px;
-            margin-top: 5px;
+            margin-top: 6px;
             overflow: hidden;
         }
         .bar-fill {
             height: 100%;
             width: 100%;
-            transition: width 0.1s ease-out;
+            transition: width 0.05s linear;
         }
         #hp-fill { background: #e74c3c; }
+        #stamina-fill { background: #2ecc71; }
         #exp-fill { background: #f1c40f; }
         .text-stat {
             font-size: 14px;
-            margin-bottom: 2px;
+            margin-top: 6px;
             font-weight: bold;
         }
         #minimap-container {
@@ -148,14 +149,17 @@
     
     <div id="ui-layer">
         <div class="stats-panel">
-            <div class="text-stat" id="level-txt">LV. 1</div>
             <div class="bar-container">
                 <div id="hp-fill" class="bar-fill"></div>
             </div>
             <div class="bar-container">
+                <div id="stamina-fill" class="bar-fill"></div>
+            </div>
+            <div class="text-stat" id="level-txt">LV. 1</div>
+            <div class="bar-container">
                 <div id="exp-fill" class="bar-fill"></div>
             </div>
-            <div class="text-stat" id="score-txt" style="margin-top: 8px;">Score: 0</div>
+            <div class="text-stat" id="score-txt">Score: 0</div>
         </div>
 
         <div id="minimap-container">
@@ -163,9 +167,9 @@
         </div>
 
         <div class="controls-hint">
-            이동: WASD (Shift: 1.5배 가속)<br>
-            공격 방향: 방향키 (↑ ↓ ← →)<br>
-            대시: Spacebar | 전체지도: M
+            이동: WASD (Shift: 달리기)<br>
+            대시: Q | 공격 방향: 방향키 (↑ ↓ ← →)<br>
+            전체지도: M
         </div>
     </div>
 
@@ -177,7 +181,7 @@
     <div id="game-over-screen" class="hidden">
         <h1 style="font-size: 40px; color: #e74c3c; margin-bottom: 10px;">GAME OVER</h1>
         <p id="final-score" style="font-size: 18px;">최종 점수: 0</p>
-        <p class="restart-hint">스페이스바(Space)를 눌러 다시 시작</p>
+        <p class="restart-hint">Q 또는 스페이스바를 눌러 다시 시작</p>
     </div>
 </div>
 
@@ -213,7 +217,6 @@ const camera = {
 
 let keys = {};
 let lastAttackTime = 0;
-let lastDashTime = 0;
 let gameOver = false;
 let isFullMapOpen = false;
 
@@ -236,7 +239,7 @@ window.addEventListener('keydown', e => {
         }
     }
 
-    if (gameOver && e.code === 'Space') {
+    if (gameOver && (e.code === 'KeyQ' || e.code === 'Space')) {
         restartGame();
     }
 });
@@ -251,24 +254,27 @@ class Player {
         this.speed = 5.5;
         this.maxHp = 100;
         this.hp = 100;
+        
+        // 스태미나 관련 속성
+        this.maxStamina = 100;
+        this.stamina = 100;
+        this.staminaDrainRun = 0.4;  // 달리기 시 소모량
+        this.staminaCostDash = 25;  // Q 대시 1회당 소모량
+        this.staminaRegen = 0.3;    // 자동 회복량
+        
         this.level = 1;
         this.exp = 0;
         this.nextExp = 50;
         this.attackSpeed = 200;
         this.damage = 25;
         this.angle = 0;
-        this.dashCooldown = 1200;
+        
+        this.dashCooldown = 600;
+        this.lastDashTime = 0;
     }
 
     update() {
         if (isFullMapOpen) return;
-
-        // Shift 키를 누르면 기존 속도의 1.5배 적용
-        if (keys['ShiftLeft'] || keys['ShiftRight']) {
-            this.speed = this.baseSpeed * 1.5;
-        } else {
-            this.speed = this.baseSpeed;
-        }
 
         let dx = 0, dy = 0;
         if (keys['KeyW']) dy -= 1;
@@ -281,13 +287,32 @@ class Player {
             dy *= 0.7071;
         }
 
+        const isMoving = (dx !== 0 || dy !== 0);
+        const isShiftPressed = keys['ShiftLeft'] || keys['ShiftRight'];
+
+        // 달리기 상태 관리 (스태미나 유무 확인)
+        if (isMoving && isShiftPressed && this.stamina > 0) {
+            this.speed = this.baseSpeed * 1.5;
+            this.stamina = Math.max(0, this.stamina - this.staminaDrainRun);
+        } else {
+            this.speed = this.baseSpeed;
+            // 움직이지 않거나 달리기를 안할 때 스태미나 회복
+            if (!isShiftPressed) {
+                this.stamina = Math.min(this.maxStamina, this.stamina + this.staminaRegen);
+            }
+        }
+
         const now = Date.now();
-        if (keys['Space'] && now - lastDashTime > this.dashCooldown && (dx !== 0 || dy !== 0)) {
-            this.x += dx * 100;
-            this.y += dy * 100;
-            lastDashTime = now;
-            for (let i = 0; i < 10; i++) {
-                particles.push(new Particle(this.x, this.y, '#3498db'));
+        // Q키를 누르면 대시 사용 (스태미나 25 이상 필요)
+        if (keys['KeyQ'] && now - this.lastDashTime > this.dashCooldown && isMoving) {
+            if (this.stamina >= this.staminaCostDash) {
+                this.stamina -= this.staminaCostDash;
+                this.x += dx * 110;
+                this.y += dy * 110;
+                this.lastDashTime = now;
+                for (let i = 0; i < 10; i++) {
+                    particles.push(new Particle(this.x, this.y, '#3498db'));
+                }
             }
         } else {
             this.x += dx * this.speed;
@@ -307,6 +332,8 @@ class Player {
             this.angle = Math.atan2(attackDy, attackDx);
             this.attack();
         }
+
+        updateUI();
     }
 
     attack() {
@@ -321,7 +348,7 @@ class Player {
         ctx.save();
         ctx.translate(this.x - camera.x, this.y - camera.y);
 
-        // 플레이어 체력바 그리기 (캐릭터 머리 위)
+        // 플레이어 캐릭터 머리 위 HP 바
         const barWidth = 36;
         const barHeight = 5;
         const barX = -barWidth / 2;
@@ -338,7 +365,7 @@ class Player {
         ctx.lineWidth = 1;
         ctx.strokeRect(barX, barY, barWidth, barHeight);
 
-        // 플레이어 본체 그리기
+        // 플레이어 몸체
         ctx.rotate(this.angle);
         ctx.fillStyle = '#bdc3c7';
         ctx.fillRect(10, -3, 16, 6);
@@ -362,6 +389,8 @@ class Player {
             this.nextExp = Math.floor(this.nextExp * 1.5);
             this.maxHp += 15;
             this.hp = this.maxHp;
+            this.maxStamina += 10;
+            this.stamina = this.maxStamina;
             this.damage += 5;
             createPopup(this.x, this.y - 20, "LEVEL UP!", "#f1c40f");
         }
@@ -561,8 +590,7 @@ function spawnEnemies() {
         const mapCenterY = WORLD.height / 2;
         const distFromCenter = Math.hypot(centerX - mapCenterX, centerY - mapCenterY);
 
-        // 스폰 세이프존 크기 1/5 축소 (기존 1.5배 -> 0.3배, 반경 약 240px)
-        const safeZoneRadius = canvas.width * 0.3; 
+        const safeZoneRadius = canvas.width * 0.3;
 
         if (distFromCenter < safeZoneRadius) {
             return;
@@ -583,8 +611,9 @@ function spawnEnemies() {
 }
 
 function updateUI() {
-    document.getElementById('level-txt').innerText = `LV. ${player.level}`;
     document.getElementById('hp-fill').style.width = `${Math.max(0, (player.hp / player.maxHp) * 100)}%`;
+    document.getElementById('stamina-fill').style.width = `${Math.max(0, (player.stamina / player.maxStamina) * 100)}%`;
+    document.getElementById('level-txt').innerText = `LV. ${player.level}`;
     document.getElementById('exp-fill').style.width = `${(player.exp / player.nextExp) * 100}%`;
     document.getElementById('score-txt').innerText = `Score: ${score}`;
 }
