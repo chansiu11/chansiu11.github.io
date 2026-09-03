@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>100x Ultra Large Map RPG - Improved Enemy AI</title>
+    <title>100x Ultra Large Map RPG - Gun & Ammo System</title>
     <style>
         * {
             box-sizing: border-box;
@@ -69,6 +69,12 @@
         #exp-fill { background: #f1c40f; }
         .text-stat {
             font-size: 14px;
+            margin-top: 6px;
+            font-weight: bold;
+        }
+        #ammo-stat {
+            color: #f39c12;
+            font-size: 16px;
             margin-top: 6px;
             font-weight: bold;
         }
@@ -153,6 +159,7 @@
             <div class="bar-container">
                 <div id="hp-fill" class="bar-fill"></div>
             </div>
+            <div id="ammo-stat">무기: 맨손 (총알: -)</div>
             <div class="bar-container">
                 <div id="stamina-fill" class="bar-fill"></div>
             </div>
@@ -169,10 +176,10 @@
         </div>
 
         <div class="controls-hint">
-            이동: WASD (Shift: 달리기 - 속도 2.5)<br>
+            이동: WASD (Shift: 달리기)<br>
+            무기교체: 1(맨손) / 2(총)<br>
             시점/타겟지정: 방향키 (↑ ↓ ← →)<br>
-            공격: 스페이스바<br>
-            대시: Q | 전체지도: M
+            공격: 스페이스바 | 대시: Q | 전체지도: M
         </div>
     </div>
 
@@ -231,6 +238,8 @@ let houses = [
     { id: 20, x: 14500, y: 11500, width: 330, height: 260, wallThickness: 17, doorWidth: 75, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#4a3b32', floorColor: '#5c4a3e' }
 ];
 
+let ammoBoxes = [];
+
 function generateRandomHouses(count) {
     const roofColors = ['#2980b9', '#8e44ad', '#16a085', '#d35400', '#2c3e50', '#7f8c8d', '#c0392b'];
     const floorColors = ['#34495e', '#2c3e50', '#4a4e54', '#5c4a3e', '#283747', '#342224'];
@@ -263,6 +272,25 @@ function generateRandomHouses(count) {
     }
 }
 generateRandomHouses(5);
+
+function initAmmoInHouses() {
+    ammoBoxes = [];
+    houses.forEach(house => {
+        // 60% 확률로 집에 총알 상자 배치 (5~8개), 40% 확률로 없음
+        if (Math.random() < 0.6) {
+            const count = Math.floor(Math.random() * 4) + 5; // 5 ~ 8
+            const bx = house.x + house.wallThickness + 20 + Math.random() * (house.width - house.wallThickness * 2 - 40);
+            const by = house.y + house.wallThickness + 20 + Math.random() * (house.height - house.wallThickness * 2 - 40);
+            ammoBoxes.push({
+                x: bx,
+                y: by,
+                amount: count,
+                radius: 10,
+                taken: false
+            });
+        }
+    });
+}
 
 function getHouseContainingPoint(px, py) {
     return houses.find(house => 
@@ -312,7 +340,6 @@ function checkWallCollision(nextX, nextY, radius) {
     return { x: correctedX, y: correctedY };
 }
 
-// 총알 및 대시 벽 충돌 체크 함수
 function checkLineWallCollision(x1, y1, x2, y2) {
     for (let house of houses) {
         const t = house.wallThickness;
@@ -367,6 +394,16 @@ let usedSpawnPoints = [];
 window.addEventListener('keydown', e => {
     if (e.code === 'Space') e.preventDefault();
     keys[e.code] = true;
+    
+    if (e.code === 'Digit1') {
+        player.weapon = 'none';
+        updateUI();
+    }
+    if (e.code === 'Digit2') {
+        player.weapon = 'gun';
+        updateUI();
+    }
+
     if (e.code === 'KeyM' && !gameOver) {
         isFullMapOpen = !isFullMapOpen;
         const modal = document.getElementById('fullmap-modal');
@@ -399,6 +436,10 @@ class Player {
         this.lastStaminaUseTime = 0;
         this.isExhausted = false;
         
+        this.weapon = 'none'; // 'none' 또는 'gun'
+        this.ammo = 15;
+        this.maxAmmo = 30;
+
         this.level = 1;
         this.exp = 0;
         this.nextExp = 50;
@@ -454,7 +495,6 @@ class Player {
         let targetX = this.x;
         let targetY = this.y;
 
-        // 대시 처리 (벽 통과하지 못하도록 레이캐스팅 방식으로 이동)
         if (keys['KeyQ'] && now - this.lastDashTime > this.dashCooldown && isMoving && !this.isExhausted) {
             if (this.stamina >= this.staminaCostDash) {
                 this.stamina -= this.staminaCostDash;
@@ -471,7 +511,7 @@ class Player {
                     
                     let pos = checkWallCollision(nextDashX, nextDashY, this.radius);
                     if (Math.abs(pos.x - nextDashX) > 0.1 || Math.abs(pos.y - nextDashY) > 0.1) {
-                        break; // 벽에 막히면 스톱
+                        break;
                     }
                     currentDashX = nextDashX;
                     currentDashY = nextDashY;
@@ -495,6 +535,20 @@ class Player {
         const posAfterWall = checkWallCollision(targetX, targetY, this.radius);
         this.x = Math.max(this.radius, Math.min(WORLD.width - this.radius, posAfterWall.x));
         this.y = Math.max(this.radius, Math.min(WORLD.height - this.radius, posAfterWall.y));
+
+        // 총알 루팅 체크
+        ammoBoxes.forEach(box => {
+            if (!box.taken) {
+                const dist = Math.hypot(this.x - box.x, this.y - box.y);
+                if (dist < this.radius + box.radius) {
+                    box.taken = true;
+                    const gained = Math.min(box.amount, this.maxAmmo - this.ammo);
+                    this.ammo = Math.min(this.maxAmmo, this.ammo + box.amount);
+                    createPopup(box.x, box.y, `+${gained} AMMO`, '#f39c12');
+                    updateUI();
+                }
+            }
+        });
 
         if (lockedTarget && (lockedTarget.markedForDeletion || lockedTarget.hp <= 0)) {
             lockedTarget = null;
@@ -547,8 +601,17 @@ class Player {
     attack() {
         const now = Date.now();
         if (now - lastAttackTime > this.attackSpeed) {
-            projectiles.push(new Projectile(this.x, this.y, this.angle, this.damage));
-            lastAttackTime = now;
+            if (this.weapon === 'gun') {
+                if (this.ammo > 0) {
+                    this.ammo--;
+                    projectiles.push(new Projectile(this.x, this.y, this.angle, this.damage));
+                    lastAttackTime = now;
+                    updateUI();
+                } else {
+                    createPopup(this.x, this.y - 20, "NO AMMO!", "#e74c3c");
+                    lastAttackTime = now;
+                }
+            }
         }
     }
 
@@ -573,8 +636,11 @@ class Player {
         ctx.strokeRect(barX, barY, barWidth, barHeight);
 
         ctx.rotate(this.angle);
-        ctx.fillStyle = '#bdc3c7';
-        ctx.fillRect(10, -3, 16, 6);
+
+        if (this.weapon === 'gun') {
+            ctx.fillStyle = '#bdc3c7';
+            ctx.fillRect(10, -3, 16, 6);
+        }
 
         ctx.beginPath();
         ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
@@ -665,20 +731,25 @@ function drawHousesInterior() {
 
         ctx.fillStyle = '#f39c12';
         ctx.fillRect(doorCenterX - house.doorWidth / 2, doorBottomY, house.doorWidth, 12);
-        
-        ctx.fillStyle = '#f1c40f';
-        ctx.beginPath();
-        ctx.moveTo(doorCenterX, doorBottomY + 3);
-        ctx.lineTo(doorCenterX - 10, doorBottomY + 18);
-        ctx.lineTo(doorCenterX + 10, doorBottomY + 18);
-        ctx.closePath();
-        ctx.fill();
-
-        ctx.fillStyle = '#e67e22';
-        ctx.fillRect(doorCenterX - house.doorWidth / 2 - 4, doorBottomY - t - 2, 6, t + 4);
-        ctx.fillRect(doorCenterX + house.doorWidth / 2 - 2, doorBottomY - t - 2, 6, t + 4);
 
         ctx.restore();
+    });
+
+    // 총알 상자 그리기
+    ammoBoxes.forEach(box => {
+        if (!box.taken) {
+            ctx.save();
+            ctx.fillStyle = '#f39c12';
+            ctx.fillRect(box.x - camera.x - 8, box.y - camera.y - 6, 16, 12);
+            ctx.strokeStyle = '#d35400';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(box.x - camera.x - 8, box.y - camera.y - 6, 16, 12);
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 9px Segoe UI';
+            ctx.textAlign = 'center';
+            ctx.fillText(box.amount, box.x - camera.x, box.y - camera.y + 3);
+            ctx.restore();
+        }
     });
 }
 
@@ -702,15 +773,6 @@ function drawHousesRoof() {
         ctx.lineWidth = 3;
         ctx.strokeRect(screenX - 12, screenY - 12, house.width + 24, house.height + 24);
 
-        ctx.strokeStyle = 'rgba(0,0,0,0.2)';
-        ctx.lineWidth = 2;
-        for (let i = screenY - 12; i <= screenY + house.height + 12; i += 20) {
-            ctx.beginPath();
-            ctx.moveTo(screenX - 12, i);
-            ctx.lineTo(screenX + house.width + 12, i);
-            ctx.stroke();
-        }
-
         ctx.restore();
     });
 }
@@ -731,7 +793,6 @@ class Projectile {
         this.x += this.vx;
         this.y += this.vy;
         
-        // 총알이 벽에 부딪히면 제거
         if (checkLineWallCollision(this.x - this.vx, this.y - this.vy, this.x, this.y)) {
             this.markedForDeletion = true;
             return;
@@ -767,7 +828,6 @@ class EnemyProjectile {
         this.x += this.vx;
         this.y += this.vy;
 
-        // 적 총알도 벽에 부딪히면 소멸
         if (checkLineWallCollision(this.x - this.vx, this.y - this.vy, this.x, this.y)) {
             this.markedForDeletion = true;
             return;
@@ -860,7 +920,6 @@ class Enemy {
 
         let moveTarget = { x: player.x, y: player.y };
 
-        // 플레이어가 집 안에 있고 적은 밖에 있는 경우, 남쪽 문 앞으로 경유해서 돌아 들어오도록 유도
         if (playerHouse && enemyHouse !== playerHouse) {
             const doorFrontX = playerHouse.x + playerHouse.width / 2;
             const doorFrontY = playerHouse.y + playerHouse.height + this.radius + 15;
@@ -877,7 +936,7 @@ class Enemy {
         let targetX = this.x;
         let targetY = this.y;
 
-        const dashAttackRange = 110 * (7 / 8); // 96.25px
+        const dashAttackRange = 110 * (7 / 8);
 
         if (this.type === 0) {
             if (this.attackState === 'idle') {
@@ -960,14 +1019,6 @@ class Enemy {
             ctx.stroke();
         }
 
-        if (this.type === 0 && this.attackState === 'charging') {
-            ctx.strokeStyle = '#e74c3c';
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.arc(0, 0, 110 * (7 / 8), 0, Math.PI * 2);
-            ctx.stroke();
-        }
-
         ctx.fillStyle = this.color;
         ctx.beginPath();
 
@@ -989,15 +1040,6 @@ class Enemy {
             ctx.closePath();
         }
         ctx.fill();
-
-        if (this.type === 0 && this.attackState === 'slashing') {
-            ctx.rotate(this.slashAngle);
-            ctx.beginPath();
-            ctx.arc(0, 0, 110 * (7 / 8), -Math.PI / 3, Math.PI / 3);
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 4;
-            ctx.stroke();
-        }
 
         if (this.hp < this.maxHp) {
             ctx.fillStyle = 'rgba(0,0,0,0.5)';
@@ -1116,6 +1158,13 @@ function updateUI() {
         staminaFill.classList.add('exhausted');
     } else {
         staminaFill.classList.remove('exhausted');
+    }
+
+    const ammoStat = document.getElementById('ammo-stat');
+    if (player.weapon === 'gun') {
+        ammoStat.innerText = `무기: 총 (총알: ${player.ammo}/${player.maxAmmo})`;
+    } else {
+        ammoStat.innerText = `무기: 맨손 (총알: -)`;
     }
 
     document.getElementById('level-txt').innerText = `LV. ${player.level}`;
@@ -1248,6 +1297,9 @@ function init() {
     score = 0;
     gameOver = false;
     isFullMapOpen = false;
+    
+    initAmmoInHouses();
+
     document.getElementById('fullmap-modal').classList.add('hidden');
     document.getElementById('game-over-screen').classList.add('hidden');
 
