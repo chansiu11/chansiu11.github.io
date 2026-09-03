@@ -259,8 +259,8 @@ class Player {
         this.x = WORLD.width / 2;
         this.y = WORLD.height / 2;
         this.radius = 16;
-        this.baseSpeed = 2.75;
-        this.speed = 2.75;
+        this.baseSpeed = 1; // 이동 속도 1로 변경
+        this.speed = 1;     // 기본 속도 1로 변경
         this.maxHp = 100;
         this.hp = 100;
         
@@ -270,7 +270,7 @@ class Player {
         this.staminaCostDash = 25;
         this.staminaRegen = 0.3;
         this.lastStaminaUseTime = 0;
-        this.isExhausted = false; // 스테미너 완전 고갈 상태 플래그
+        this.isExhausted = false;
         
         this.level = 1;
         this.exp = 0;
@@ -307,12 +307,10 @@ class Player {
         const isMoving = (dx !== 0 || dy !== 0);
         const isShiftPressed = keys['ShiftLeft'] || keys['ShiftRight'];
 
-        // 스테미너가 100% 회복되면 고갈 상태 해제
         if (this.isExhausted && this.stamina >= this.maxStamina) {
             this.isExhausted = false;
         }
 
-        // 달리기 상태 처리
         if (isMoving && isShiftPressed && !this.isExhausted && this.stamina > 0) {
             this.speed = this.baseSpeed * 1.5;
             this.stamina = Math.max(0, this.stamina - this.staminaDrainRun);
@@ -323,13 +321,11 @@ class Player {
             }
         } else {
             this.speed = this.baseSpeed;
-            // 사용 후 0.5초(500ms) 지나야 회복 시작
             if (now - this.lastStaminaUseTime > 500) {
                 this.stamina = Math.min(this.maxStamina, this.stamina + this.staminaRegen);
             }
         }
 
-        // 대시 처리
         if (keys['KeyQ'] && now - this.lastDashTime > this.dashCooldown && isMoving && !this.isExhausted) {
             if (this.stamina >= this.staminaCostDash) {
                 this.stamina -= this.staminaCostDash;
@@ -479,7 +475,6 @@ class Projectile {
         this.x += this.vx;
         this.y += this.vy;
         
-        // 화면 밖으로 나가면 삭제
         if (this.x < camera.x || this.x > camera.x + camera.width ||
             this.y < camera.y || this.y > camera.y + camera.height) {
             this.markedForDeletion = true;
@@ -510,7 +505,6 @@ class EnemyProjectile {
         this.x += this.vx;
         this.y += this.vy;
         
-        // 화면 밖으로 나가면 삭제
         if (this.x < camera.x || this.x > camera.x + camera.width ||
             this.y < camera.y || this.y > camera.y + camera.height) {
             this.markedForDeletion = true;
@@ -541,7 +535,6 @@ class Enemy {
         this.type = type;
         
         if (type === 0) {
-            // 일반 근접몹 (네모): 공격력 2배 상향(40), 이동속도 상향(2.8)
             this.radius = 14;
             this.speed = 2.8;
             this.hp = 40;
@@ -554,7 +547,6 @@ class Enemy {
             this.slashTimer = 0;
             this.slashAngle = 0;
         } else if (type === 1) {
-            // 달리는 몹 (세모): 공격력 50% 낮춤 (0.6 -> 0.3)
             this.radius = 10;
             this.speed = 3.6;
             this.hp = 20;
@@ -562,7 +554,6 @@ class Enemy {
             this.expValue = 20;
             this.scoreValue = 150;
         } else {
-            // 원거리/탱커몹 (오각형)
             this.radius = 28;
             this.speed = 1.3;
             this.hp = 220;
@@ -599,7 +590,7 @@ class Enemy {
                     this.slashAngle = angle;
                     
                     if (dist <= 60) {
-                        player.hp -= 40; // 공격력 2배 적용 (20 -> 40)
+                        player.hp -= 40;
                         createPopup(player.x, player.y - 15, "-40", "#e74c3c");
                         if (player.hp <= 0) endGame();
                         updateUI();
@@ -616,7 +607,7 @@ class Enemy {
                 this.y += Math.sin(angle) * this.speed;
             }
             if (dist < player.radius + this.radius) {
-                player.hp -= 0.3; // 공격력 50% 감축 (0.6 -> 0.3)
+                player.hp -= 0.3;
                 if (player.hp <= 0) endGame();
                 updateUI();
             }
