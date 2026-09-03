@@ -167,9 +167,9 @@
         </div>
 
         <div class="controls-hint">
-            이동: WASD (Shift: 달리기)<br>
+            이동: WASD / 마우스 클릭 (Shift: 달리기)<br>
             대시: Q | 공격 방향: 방향키 (↑ ↓ ← →)<br>
-            전체지도: M
+            전체지도: M (방향키 조작 시 마우스 무시)
         </div>
     </div>
 
@@ -216,6 +216,7 @@ const camera = {
 };
 
 let keys = {};
+let mouse = { x: 0, y: 0, isDown: false };
 let lastAttackTime = 0;
 let gameOver = false;
 let isFullMapOpen = false;
@@ -245,6 +246,19 @@ window.addEventListener('keydown', e => {
 });
 window.addEventListener('keyup', e => keys[e.code] = false);
 
+// 마우스 이벤트 리스너 등록
+canvas.addEventListener('mousemove', e => {
+    const rect = canvas.getBoundingClientRect();
+    mouse.x = e.clientX - rect.left;
+    mouse.y = e.clientY - rect.top;
+});
+canvas.addEventListener('mousedown', e => {
+    if (e.button === 0) mouse.isDown = true;
+});
+canvas.addEventListener('mouseup', e => {
+    if (e.button === 0) mouse.isDown = false;
+});
+
 class Player {
     constructor() {
         this.x = WORLD.width / 2;
@@ -255,12 +269,11 @@ class Player {
         this.maxHp = 100;
         this.hp = 100;
         
-        // 스태미나 관련 속성
         this.maxStamina = 100;
         this.stamina = 100;
-        this.staminaDrainRun = 0.4;  // 달리기 시 소모량
-        this.staminaCostDash = 25;  // Q 대시 1회당 소모량
-        this.staminaRegen = 0.3;    // 자동 회복량
+        this.staminaDrainRun = 0.4;
+        this.staminaCostDash = 25;
+        this.staminaRegen = 0.3;
         
         this.level = 1;
         this.exp = 0;
@@ -276,34 +289,50 @@ class Player {
     update() {
         if (isFullMapOpen) return;
 
+        // 키보드 이동 및 공격 키 입력 여부 체크
+        const hasKeyMove = keys['KeyW'] || keys['KeyS'] || keys['KeyA'] || keys['KeyD'];
+        const hasKeyAttack = keys['ArrowUp'] || keys['ArrowDown'] || keys['ArrowLeft'] || keys['ArrowRight'];
+        
         let dx = 0, dy = 0;
-        if (keys['KeyW']) dy -= 1;
-        if (keys['KeyS']) dy += 1;
-        if (keys['KeyA']) dx -= 1;
-        if (keys['KeyD']) dx += 1;
 
-        if (dx !== 0 && dy !== 0) {
-            dx *= 0.7071;
-            dy *= 0.7071;
+        if (hasKeyMove) {
+            // 방향키/WASD 이동 시 마우스 조작 무시
+            if (keys['KeyW']) dy -= 1;
+            if (keys['KeyS']) dy += 1;
+            if (keys['KeyA']) dx -= 1;
+            if (keys['KeyD']) dx += 1;
+
+            if (dx !== 0 && dy !== 0) {
+                dx *= 0.7071;
+                dy *= 0.7071;
+            }
+        } else if (mouse.isDown) {
+            // 키보드 입력이 없고 마우스 클릭 시 마우스 방향으로 이동
+            const playerScreenX = this.x - camera.x;
+            const playerScreenY = this.y - camera.y;
+            const mAngle = Math.atan2(mouse.y - playerScreenY, mouse.x - playerScreenX);
+            const dist = Math.hypot(mouse.x - playerScreenX, mouse.y - playerScreenY);
+            
+            if (dist > 5) {
+                dx = Math.cos(mAngle);
+                dy = Math.sin(mAngle);
+            }
         }
 
         const isMoving = (dx !== 0 || dy !== 0);
         const isShiftPressed = keys['ShiftLeft'] || keys['ShiftRight'];
 
-        // 달리기 상태 관리 (스태미나 유무 확인)
         if (isMoving && isShiftPressed && this.stamina > 0) {
             this.speed = this.baseSpeed * 1.5;
             this.stamina = Math.max(0, this.stamina - this.staminaDrainRun);
         } else {
             this.speed = this.baseSpeed;
-            // 움직이지 않거나 달리기를 안할 때 스태미나 회복
             if (!isShiftPressed) {
                 this.stamina = Math.min(this.maxStamina, this.stamina + this.staminaRegen);
             }
         }
 
         const now = Date.now();
-        // Q키를 누르면 대시 사용 (스태미나 25 이상 필요)
         if (keys['KeyQ'] && now - this.lastDashTime > this.dashCooldown && isMoving) {
             if (this.stamina >= this.staminaCostDash) {
                 this.stamina -= this.staminaCostDash;
@@ -322,15 +351,24 @@ class Player {
         this.x = Math.max(this.radius, Math.min(WORLD.width - this.radius, this.x));
         this.y = Math.max(this.radius, Math.min(WORLD.height - this.radius, this.y));
 
-        let attackDx = 0, attackDy = 0;
-        if (keys['ArrowUp']) attackDy -= 1;
-        if (keys['ArrowDown']) attackDy += 1;
-        if (keys['ArrowLeft']) attackDx -= 1;
-        if (keys['ArrowRight']) attackDx += 1;
+        // 캐릭터 조준 및 공격
+        if (hasKeyAttack) {
+            // 키보드 공격 방향키 누를 시 해당 방향 사용
+            let attackDx = 0, attackDy = 0;
+            if (keys['ArrowUp']) attackDy -= 1;
+            if (keys['ArrowDown']) attackDy += 1;
+            if (keys['ArrowLeft']) attackDx -= 1;
+            if (keys['ArrowRight']) attackDx += 1;
 
-        if (attackDx !== 0 || attackDy !== 0) {
-            this.angle = Math.atan2(attackDy, attackDx);
-            this.attack();
+            if (attackDx !== 0 || attackDy !== 0) {
+                this.angle = Math.atan2(attackDy, attackDx);
+                this.attack();
+            }
+        } else {
+            // 공격 방향키를 안 누르면 마우스 커서 방향을 바라봄
+            const playerScreenX = this.x - camera.x;
+            const playerScreenY = this.y - camera.y;
+            this.angle = Math.atan2(mouse.y - playerScreenY, mouse.x - playerScreenX);
         }
 
         updateUI();
@@ -348,7 +386,6 @@ class Player {
         ctx.save();
         ctx.translate(this.x - camera.x, this.y - camera.y);
 
-        // 플레이어 캐릭터 머리 위 HP 바
         const barWidth = 36;
         const barHeight = 5;
         const barX = -barWidth / 2;
@@ -365,7 +402,6 @@ class Player {
         ctx.lineWidth = 1;
         ctx.strokeRect(barX, barY, barWidth, barHeight);
 
-        // 플레이어 몸체
         ctx.rotate(this.angle);
         ctx.fillStyle = '#bdc3c7';
         ctx.fillRect(10, -3, 16, 6);
@@ -590,7 +626,7 @@ function spawnEnemies() {
         const mapCenterY = WORLD.height / 2;
         const distFromCenter = Math.hypot(centerX - mapCenterX, centerY - mapCenterY);
 
-        const safeZoneRadius = canvas.width * 0.3;
+        const safeZoneRadius = 50;
 
         if (distFromCenter < safeZoneRadius) {
             return;
