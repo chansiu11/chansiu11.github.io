@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>100x Ultra Large Map RPG - Multiple Stone Houses</title>
+    <title>100x Ultra Large Map RPG - Multi-Houses & Clear SafeZone</title>
     <style>
         * {
             box-sizing: border-box;
@@ -208,28 +208,39 @@ const SAFE_ZONE_CENTER = { x: WORLD.width / 2, y: WORLD.height / 2 };
 const SAFE_ZONE_RADIUS = DETECT_RANGE * 2; // 700px
 const AUTO_TARGET_RANGE = 300;
 
-// 10개의 다양한 크기와 스타일의 석조 집 정의 (맵 전체 배치)
+// SafeZone 바깥에 고르게 배치된 20개의 집 데이터
 const houses = [
-    // 1. 안전지대 중앙 기본 집
-    { id: 1, x: SAFE_ZONE_CENTER.x - 150, y: SAFE_ZONE_CENTER.y - 120, width: 300, height: 240, wallThickness: 16, doorWidth: 70, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#373a40', floorColor: '#4a4e54' },
-    // 2. 좌측 상단 대형 요새 집
-    { id: 2, x: 3000, y: 2500, width: 450, height: 350, wallThickness: 20, doorWidth: 90, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#2c3e50', floorColor: '#34495e' },
-    // 3. 우측 상단 오두막 집
-    { id: 3, x: 20000, y: 3000, width: 220, height: 180, wallThickness: 14, doorWidth: 55, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#4a3b32', floorColor: '#5c4a3e' },
-    // 4. 좌측 하단 정사각형 집
-    { id: 4, x: 4000, y: 14000, width: 280, height: 280, wallThickness: 16, doorWidth: 65, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#34495e', floorColor: '#2c3e50' },
-    // 5. 우측 하단 대형 저택
-    { id: 5, x: 19000, y: 13500, width: 500, height: 380, wallThickness: 22, doorWidth: 100, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#1a252f', floorColor: '#2c3e50' },
-    // 6. 중앙 상단 긴 창고형 집
-    { id: 6, x: 11500, y: 2000, width: 400, height: 200, wallThickness: 16, doorWidth: 80, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#342224', floorColor: '#4a3335' },
-    // 7. 중앙 하단 소형 경비 초소
-    { id: 7, x: 12500, y: 15500, width: 180, height: 160, wallThickness: 12, doorWidth: 50, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#2e4053', floorColor: '#34495e' },
-    // 8. 좌측 중앙 중형 집
-    { id: 8, x: 2500, y: 8500, width: 320, height: 250, wallThickness: 16, doorWidth: 70, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#3e2723', floorColor: '#4e342e' },
-    // 9. 우측 중앙 긴 타원형 느낌의 석조 집
-    { id: 9, x: 20500, y: 8000, width: 360, height: 220, wallThickness: 18, doorWidth: 75, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#212f3d', floorColor: '#283747' },
-    // 10. 안전지대 약간 우측 상단 전초기지
-    { id: 10, x: 15000, y: 6500, width: 260, height: 220, wallThickness: 15, doorWidth: 60, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#1b2631', floorColor: '#2e4053' }
+    // SafeZone 인근 (외곽 1000px 이상 떨어진 위치)
+    { id: 1, x: SAFE_ZONE_CENTER.x - 1200, y: SAFE_ZONE_CENTER.y - 1000, width: 300, height: 240, wallThickness: 16, doorWidth: 70, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#373a40', floorColor: '#4a4e54' },
+    { id: 2, x: SAFE_ZONE_CENTER.x + 1000, y: SAFE_ZONE_CENTER.y + 900, width: 280, height: 220, wallThickness: 16, doorWidth: 65, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#2c3e50', floorColor: '#34495e' },
+    { id: 3, x: SAFE_ZONE_CENTER.x - 1100, y: SAFE_ZONE_CENTER.y + 1100, width: 320, height: 250, wallThickness: 18, doorWidth: 75, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#4a3b32', floorColor: '#5c4a3e' },
+    { id: 4, x: SAFE_ZONE_CENTER.x + 1200, y: SAFE_ZONE_CENTER.y - 1200, width: 260, height: 200, wallThickness: 15, doorWidth: 60, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#1b2631', floorColor: '#2e4053' },
+    
+    // 북쪽 / 북서쪽 / 북동쪽 외곽
+    { id: 5, x: 2500, y: 2000, width: 450, height: 350, wallThickness: 20, doorWidth: 90, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#2c3e50', floorColor: '#34495e' },
+    { id: 6, x: 8000, y: 2500, width: 340, height: 260, wallThickness: 16, doorWidth: 70, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#3e2723', floorColor: '#4e342e' },
+    { id: 7, x: 16000, y: 2200, width: 380, height: 280, wallThickness: 18, doorWidth: 80, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#212f3d', floorColor: '#283747' },
+    { id: 8, x: 21500, y: 2500, width: 250, height: 200, wallThickness: 14, doorWidth: 60, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#342224', floorColor: '#4a3335' },
+
+    // 서쪽 중단 / 외곽
+    { id: 9, x: 2000, y: 8500, width: 360, height: 280, wallThickness: 18, doorWidth: 80, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#34495e', floorColor: '#2c3e50' },
+    { id: 10, x: 6500, y: 9000, width: 290, height: 230, wallThickness: 16, doorWidth: 65, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#2e4053', floorColor: '#34495e' },
+    
+    // 동쪽 중단 / 외곽
+    { id: 11, x: 17500, y: 8500, width: 320, height: 260, wallThickness: 16, doorWidth: 70, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#1a252f', floorColor: '#2c3e50' },
+    { id: 12, x: 21800, y: 9200, width: 400, height: 300, wallThickness: 20, doorWidth: 85, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#373a40', floorColor: '#4a4e54' },
+
+    // 남쪽 / 남서쪽 / 남동쪽 외곽
+    { id: 13, x: 2500, y: 15500, width: 300, height: 240, wallThickness: 16, doorWidth: 70, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#4e342e', floorColor: '#5c4a3e' },
+    { id: 14, x: 7500, y: 15000, width: 420, height: 320, wallThickness: 20, doorWidth: 90, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#2c3e50', floorColor: '#34495e' },
+    { id: 15, x: 12000, y: 15800, width: 280, height: 220, wallThickness: 15, doorWidth: 65, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#212f3d', floorColor: '#283747' },
+    { id: 16, x: 16500, y: 15200, width: 350, height: 270, wallThickness: 18, doorWidth: 75, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#342224', floorColor: '#4a3335' },
+    { id: 17, x: 21000, y: 15000, width: 480, height: 360, wallThickness: 22, doorWidth: 100, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#1b2631', floorColor: '#2e4053' },
+
+    // 모서리 중간 간격 채우기용 추가 집
+    { id: 18, x: 5000, y: 5500, width: 260, height: 210, wallThickness: 14, doorWidth: 60, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#2e4053', floorColor: '#34495e' },
+    { id: 19, x: 19000, y: 5500, width: 310, height: 250, wallThickness: 16, doorWidth: 70, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#373a40', floorColor: '#4a4e54' },
+    { id: 20, x: 14500, y: 11500, width: 330, height: 260, wallThickness: 17, doorWidth: 75, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#4a3b32', floorColor: '#5c4a3e' }
 ];
 
 const camera = {
@@ -286,7 +297,7 @@ window.addEventListener('keyup', e => keys[e.code] = false);
 class Player {
     constructor() {
         this.x = SAFE_ZONE_CENTER.x;
-        this.y = SAFE_ZONE_CENTER.y + 160;
+        this.y = SAFE_ZONE_CENTER.y;
         this.radius = 16;
         this.baseSpeed = 1.3;
         this.runSpeed = 2.5;
@@ -313,7 +324,6 @@ class Player {
         this.lastDashTime = 0;
     }
 
-    // 모든 집의 벽과의 충돌 처리 함수
     checkWallCollision(nextX, nextY) {
         let correctedX = nextX;
         let correctedY = nextY;
@@ -323,13 +333,12 @@ class Player {
             const doorLeft = house.x + (house.width - house.doorWidth) / 2;
             const doorRight = house.x + (house.width + house.doorWidth) / 2;
 
-            // 특정 집의 벽 영역 정의
             const walls = [
-                { x: house.x, y: house.y, w: house.width, h: t }, // 상단 벽
-                { x: house.x, y: house.y, w: t, h: house.height }, // 좌측 벽
-                { x: house.x + house.width - t, y: house.y, w: t, h: house.height }, // 우측 벽
-                { x: house.x, y: house.y + house.height - t, w: doorLeft - house.x, h: t }, // 하단 좌측 벽
-                { x: doorRight, y: house.y + house.height - t, w: (house.x + house.width) - doorRight, h: t } // 하단 우측 벽
+                { x: house.x, y: house.y, w: house.width, h: t },
+                { x: house.x, y: house.y, w: t, h: house.height },
+                { x: house.x + house.width - t, y: house.y, w: t, h: house.height },
+                { x: house.x, y: house.y + house.height - t, w: doorLeft - house.x, h: t },
+                { x: doorRight, y: house.y + house.height - t, w: (house.x + house.width) - doorRight, h: t }
             ];
 
             walls.forEach(w => {
@@ -420,7 +429,6 @@ class Player {
             targetY += dy * this.speed;
         }
 
-        // 벽 충돌 체크 적용
         const posAfterWall = this.checkWallCollision(targetX, targetY);
         this.x = Math.max(this.radius, Math.min(WORLD.width - this.radius, posAfterWall.x));
         this.y = Math.max(this.radius, Math.min(WORLD.height - this.radius, posAfterWall.y));
@@ -535,7 +543,6 @@ class Player {
     }
 }
 
-// 각 집의 내부 투명도 업데이트
 function updateHousesVisibility() {
     houses.forEach(house => {
         const isInside = (
@@ -550,7 +557,6 @@ function updateHousesVisibility() {
     });
 }
 
-// 모든 집의 내부, 벽, 문 및 입구 표시 레이어 렌더링
 function drawHousesInterior() {
     houses.forEach(house => {
         const screenX = house.x - camera.x;
@@ -563,7 +569,6 @@ function drawHousesInterior() {
 
         ctx.save();
         
-        // 석재 타일 바닥
         ctx.fillStyle = house.floorColor;
         ctx.fillRect(screenX, screenY, house.width, house.height);
 
@@ -576,40 +581,31 @@ function drawHousesInterior() {
             ctx.beginPath(); ctx.moveTo(screenX, y); ctx.lineTo(screenX + house.width, y); ctx.stroke();
         }
 
-        // 석조 외벽
         const t = house.wallThickness;
         const doorLeft = house.width / 2 - house.doorWidth / 2;
         const doorRight = house.width / 2 + house.doorWidth / 2;
 
         ctx.fillStyle = '#686d76';
-        
-        // 상/좌/우 벽
         ctx.fillRect(screenX, screenY, house.width, t);
         ctx.fillRect(screenX, screenY, t, house.height);
         ctx.fillRect(screenX + house.width - t, screenY, t, house.height);
-        
-        // 하단 벽 (출입구 제외)
         ctx.fillRect(screenX, screenY + house.height - t, doorLeft, t);
         ctx.fillRect(screenX + doorRight, screenY + house.height - t, house.width - doorRight, t);
 
-        // 벽 테두리 선
         ctx.strokeStyle = '#2b2d31';
         ctx.lineWidth = 2;
         ctx.strokeRect(screenX, screenY, house.width, house.height);
 
-        // 문 통로 바닥
         ctx.fillStyle = '#333538';
         ctx.fillRect(screenX + doorLeft, screenY + house.height - t, house.doorWidth, t);
 
-        // --- [문 입구 시각적 표식] ---
+        // 입구 안내 표식
         const doorCenterX = screenX + house.width / 2;
         const doorBottomY = screenY + house.height;
 
-        // 1. 문 앞 진입 매트/발판
         ctx.fillStyle = '#f39c12';
         ctx.fillRect(doorCenterX - house.doorWidth / 2, doorBottomY, house.doorWidth, 12);
         
-        // 2. 문 앞 밝은 노란색 진입 화살표
         ctx.fillStyle = '#f1c40f';
         ctx.beginPath();
         ctx.moveTo(doorCenterX, doorBottomY + 3);
@@ -618,7 +614,6 @@ function drawHousesInterior() {
         ctx.closePath();
         ctx.fill();
 
-        // 3. 문 좌우 기둥 강조 (안내등)
         ctx.fillStyle = '#e67e22';
         ctx.fillRect(doorCenterX - house.doorWidth / 2 - 4, doorBottomY - t - 2, 6, t + 4);
         ctx.fillRect(doorCenterX + house.doorWidth / 2 - 2, doorBottomY - t - 2, 6, t + 4);
@@ -627,7 +622,6 @@ function drawHousesInterior() {
     });
 }
 
-// 모든 집의 석조 지붕 레이어 렌더링
 function drawHousesRoof() {
     houses.forEach(house => {
         const screenX = house.x - camera.x;
@@ -641,11 +635,9 @@ function drawHousesRoof() {
         ctx.save();
         ctx.globalAlpha = house.roofAlpha;
 
-        // 개별 지붕 색상 적용
         ctx.fillStyle = house.roofColor;
         ctx.fillRect(screenX - 12, screenY - 12, house.width + 24, house.height + 24);
 
-        // 지붕 음영 패턴 및 테두리
         ctx.strokeStyle = '#1e2022';
         ctx.lineWidth = 3;
         ctx.strokeRect(screenX - 12, screenY - 12, house.width + 24, house.height + 24);
@@ -982,9 +974,9 @@ function isSpawnPointUsed(x, y) {
 }
 
 function spawnEnemies() {
-    if (enemies.length >= 30) return;
+    if (enemies.length >= 35) return;
 
-    if (Math.random() < 0.03) {
+    if (Math.random() < 0.04) {
         const minDistance = 300;
         const maxDistance = 800;
         const distance = Math.random() * (maxDistance - minDistance) + minDistance;
@@ -1047,9 +1039,9 @@ function drawSafeZone() {
     ctx.stroke();
 
     ctx.fillStyle = '#2ecc71';
-    ctx.font = 'bold 16px Segoe UI';
+    ctx.font = 'bold 18px Segoe UI';
     ctx.textAlign = 'center';
-    ctx.fillText("SAFE ZONE (0,0)", screenX, screenY - houses[0].height / 2 - 20);
+    ctx.fillText("SAFE ZONE (0,0)", screenX, screenY);
     ctx.restore();
 }
 
@@ -1072,7 +1064,6 @@ function drawMinimap() {
     minimapCtx.arc(szMinimapX, szMinimapY, SAFE_ZONE_RADIUS * scaleX, 0, Math.PI * 2);
     minimapCtx.fill();
 
-    // 모든 집을 미니맵에 표시
     houses.forEach(h => {
         minimapCtx.fillStyle = '#686d76';
         minimapCtx.fillRect(
@@ -1122,7 +1113,6 @@ function drawFullMap() {
     fullmapCtx.fillStyle = 'rgba(46, 204, 113, 0.4)';
     fullmapCtx.fill();
 
-    // 모든 집을 전체 지도에 표시
     houses.forEach(h => {
         fullmapCtx.fillStyle = '#8e99a2';
         fullmapCtx.fillRect(h.x * scaleX, h.y * scaleY, h.width * scaleX, h.height * scaleY);
@@ -1163,7 +1153,7 @@ function init() {
     document.getElementById('fullmap-modal').classList.add('hidden');
     document.getElementById('game-over-screen').classList.add('hidden');
 
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 6; i++) {
         spawnEnemies();
     }
     updateUI();
