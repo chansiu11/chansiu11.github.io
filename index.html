@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>100x Ultra Large Map RPG - SafeZone Added</title>
+    <title>100x Ultra Large Map RPG - SafeZone Center</title>
     <style>
         * {
             box-sizing: border-box;
@@ -161,7 +161,7 @@
                 <div id="exp-fill" class="bar-fill"></div>
             </div>
             <div class="text-stat" id="score-txt">Score: 0</div>
-            <div class="text-stat" style="color: #2ecc71;">SafeZone: (0,0) / R: 700px</div>
+            <div class="text-stat" style="color: #2ecc71;">SafeZone: 맵 중앙 (0,0) / R: 700px</div>
         </div>
 
         <div id="minimap-container">
@@ -203,10 +203,10 @@ const WORLD = {
     height: 18000
 };
 
-// 인식 범위 및 SafeZone 설정
+// 맵 중앙을 SafeZone의 중심점(0,0 개념)으로 설정
 const DETECT_RANGE = 350;
-const SAFE_ZONE_CENTER = { x: 0, y: 0 };
-const SAFE_ZONE_RADIUS = DETECT_RANGE * 2; // (0,0) 기준 인식 범위의 2배 (700)
+const SAFE_ZONE_CENTER = { x: WORLD.width / 2, y: WORLD.height / 2 };
+const SAFE_ZONE_RADIUS = DETECT_RANGE * 2; // (700px)
 const AUTO_TARGET_RANGE = 300;
 
 const camera = {
@@ -236,7 +236,6 @@ let particles = [];
 let popups = [];
 let score = 0;
 
-// 한 번 스폰에 사용된 지점을 기록하는 배열 (중복 스폰 방지)
 let usedSpawnPoints = [];
 
 window.addEventListener('keydown', e => {
@@ -263,12 +262,12 @@ window.addEventListener('keyup', e => keys[e.code] = false);
 
 class Player {
     constructor() {
-        // SafeZone(0,0) 외부의 위치에서 시작
-        this.x = 800;
-        this.y = 800;
+        // SafeZone(맵 중앙) 내부 안전지대에서 시작
+        this.x = SAFE_ZONE_CENTER.x;
+        this.y = SAFE_ZONE_CENTER.y;
         this.radius = 16;
-        this.baseSpeed = 1.3; // 속력 1.3 설정
-        this.speed = 1.3;     // 속력 1.3 설정
+        this.baseSpeed = 1.3;
+        this.speed = 1.3;
         this.maxHp = 100;
         this.hp = 100;
         
@@ -759,13 +758,11 @@ function createPopup(x, y, text, color = '#fff') {
     popups.push(new Popup(x, y, text, color));
 }
 
-// 스폰 중복 검사 (기존 위치와 150px 이내면 중복 간주)
 function isSpawnPointUsed(x, y) {
     return usedSpawnPoints.some(pt => Math.hypot(pt.x - x, pt.y - y) < 150);
 }
 
 function spawnEnemies() {
-    // 최대 스폰 수 감축 (기존 250개 -> 최대 30개 제한)
     if (enemies.length >= 30) return;
 
     if (Math.random() < 0.03) {
@@ -780,16 +777,15 @@ function spawnEnemies() {
         centerX = Math.max(200, Math.min(WORLD.width - 200, centerX));
         centerY = Math.max(200, Math.min(WORLD.height - 200, centerY));
 
-        // (0,0) 기준 SafeZone 영역에는 스폰 제한
+        // 맵 중앙 SafeZone 영역 스폰 금지
         const distFromZero = Math.hypot(centerX - SAFE_ZONE_CENTER.x, centerY - SAFE_ZONE_CENTER.y);
         if (distFromZero <= SAFE_ZONE_RADIUS) return;
 
-        // 이미 스폰된 위치면 차단 (1회만 스폰)
         if (isSpawnPointUsed(centerX, centerY)) return;
 
         usedSpawnPoints.push({ x: centerX, y: centerY });
 
-        const groupSize = Math.floor(Math.random() * 2) + 1; // 스폰 무리 크기 감축
+        const groupSize = Math.floor(Math.random() * 2) + 1;
         const groupTypeRand = Math.random();
         let type = 0;
         if (groupTypeRand > 0.7 && groupTypeRand < 0.92) type = 1;
@@ -819,7 +815,7 @@ function updateUI() {
     document.getElementById('score-txt').innerText = `Score: ${score}`;
 }
 
-// (0,0) 기준 SafeZone 시각화 함수
+// 맵 중앙의 SafeZone 그리기
 function drawSafeZone() {
     const screenX = SAFE_ZONE_CENTER.x - camera.x;
     const screenY = SAFE_ZONE_CENTER.y - camera.y;
@@ -834,8 +830,9 @@ function drawSafeZone() {
     ctx.stroke();
 
     ctx.fillStyle = '#2ecc71';
-    ctx.font = 'bold 14px Segoe UI';
-    ctx.fillText("SAFE ZONE (0,0)", screenX + 10, screenY + 20);
+    ctx.font = 'bold 16px Segoe UI';
+    ctx.textAlign = 'center';
+    ctx.fillText("SAFE ZONE (0,0)", screenX, screenY);
     ctx.restore();
 }
 
@@ -850,6 +847,14 @@ function drawMinimap() {
 
     const scaleX = minimapCanvas.width / rangeX;
     const scaleY = minimapCanvas.height / rangeY;
+
+    // 미니맵 SafeZone 표시
+    const szMinimapX = (SAFE_ZONE_CENTER.x - startX) * scaleX;
+    const szMinimapY = (SAFE_ZONE_CENTER.y - startY) * scaleY;
+    minimapCtx.fillStyle = 'rgba(46, 204, 113, 0.3)';
+    minimapCtx.beginPath();
+    minimapCtx.arc(szMinimapX, szMinimapY, SAFE_ZONE_RADIUS * scaleX, 0, Math.PI * 2);
+    minimapCtx.fill();
 
     minimapCtx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
     minimapCtx.lineWidth = 1;
@@ -885,10 +890,10 @@ function drawFullMap() {
     fullmapCtx.strokeStyle = '#333';
     fullmapCtx.strokeRect(0, 0, fullmapCanvas.width, fullmapCanvas.height);
 
-    // 전체지도 SafeZone 표시
+    // 전체지도 SafeZone(맵 중앙) 표시
     fullmapCtx.beginPath();
     fullmapCtx.arc(SAFE_ZONE_CENTER.x * scaleX, SAFE_ZONE_CENTER.y * scaleY, SAFE_ZONE_RADIUS * scaleX, 0, Math.PI * 2);
-    fullmapCtx.fillStyle = 'rgba(46, 204, 113, 0.3)';
+    fullmapCtx.fillStyle = 'rgba(46, 204, 113, 0.4)';
     fullmapCtx.fill();
 
     fullmapCtx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
@@ -1012,7 +1017,7 @@ function loop() {
     ctx.lineWidth = 6;
     ctx.strokeRect(-camera.x, -camera.y, WORLD.width, WORLD.height);
 
-    // SafeZone 영역 그리기
+    // SafeZone 그리기 (맵 중앙)
     drawSafeZone();
 
     particles.forEach(p => p.draw());
