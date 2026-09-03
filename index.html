@@ -167,9 +167,9 @@
         </div>
 
         <div class="controls-hint">
-            이동: WASD / 마우스 클릭 (Shift: 달리기)<br>
-            대시: Q | 공격 방향: 방향키 (↑ ↓ ← →)<br>
-            전체지도: M (방향키 조작 시 마우스 무시)
+            이동: WASD / 마우스 우클릭 (Shift: 달리기)<br>
+            공격: 마우스 좌클릭 / 방향키 (↑ ↓ ← →)<br>
+            대시: Q | 전체지도: M (방향키 사용 시 마우스 무시)
         </div>
     </div>
 
@@ -216,7 +216,14 @@ const camera = {
 };
 
 let keys = {};
-let mouse = { x: 0, y: 0, isDown: false };
+let mouse = { 
+    x: 0, 
+    y: 0, 
+    leftDown: false, 
+    rightDown: false, 
+    isMoving: false 
+};
+let mouseStopTimeout = null;
 let lastAttackTime = 0;
 let gameOver = false;
 let isFullMapOpen = false;
@@ -246,17 +253,30 @@ window.addEventListener('keydown', e => {
 });
 window.addEventListener('keyup', e => keys[e.code] = false);
 
-// 마우스 이벤트 리스너 등록
+// 우클릭 기본 컨텍스트 메뉴 차단
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+// 마우스 움직임 감지 (움직이지 않을 때 모션 감지 해제)
 canvas.addEventListener('mousemove', e => {
     const rect = canvas.getBoundingClientRect();
     mouse.x = e.clientX - rect.left;
     mouse.y = e.clientY - rect.top;
+    mouse.isMoving = true;
+
+    clearTimeout(mouseStopTimeout);
+    mouseStopTimeout = setTimeout(() => {
+        mouse.isMoving = false;
+    }, 150);
 });
+
 canvas.addEventListener('mousedown', e => {
-    if (e.button === 0) mouse.isDown = true;
+    if (e.button === 0) mouse.leftDown = true;
+    if (e.button === 2) mouse.rightDown = true;
 });
+
 canvas.addEventListener('mouseup', e => {
-    if (e.button === 0) mouse.isDown = false;
+    if (e.button === 0) mouse.leftDown = false;
+    if (e.button === 2) mouse.rightDown = false;
 });
 
 class Player {
@@ -289,14 +309,14 @@ class Player {
     update() {
         if (isFullMapOpen) return;
 
-        // 키보드 이동 및 공격 키 입력 여부 체크
         const hasKeyMove = keys['KeyW'] || keys['KeyS'] || keys['KeyA'] || keys['KeyD'];
         const hasKeyAttack = keys['ArrowUp'] || keys['ArrowDown'] || keys['ArrowLeft'] || keys['ArrowRight'];
         
         let dx = 0, dy = 0;
 
+        // 이동 제어
         if (hasKeyMove) {
-            // 방향키/WASD 이동 시 마우스 조작 무시
+            // 키보드 이동 시 마우스 입력 무시
             if (keys['KeyW']) dy -= 1;
             if (keys['KeyS']) dy += 1;
             if (keys['KeyA']) dx -= 1;
@@ -306,14 +326,14 @@ class Player {
                 dx *= 0.7071;
                 dy *= 0.7071;
             }
-        } else if (mouse.isDown) {
-            // 키보드 입력이 없고 마우스 클릭 시 마우스 방향으로 이동
+        } else if (mouse.rightDown) {
+            // 우클릭 누르고 있는 동안 마우스 위치로 이동
             const playerScreenX = this.x - camera.x;
             const playerScreenY = this.y - camera.y;
             const mAngle = Math.atan2(mouse.y - playerScreenY, mouse.x - playerScreenX);
             const dist = Math.hypot(mouse.x - playerScreenX, mouse.y - playerScreenY);
             
-            if (dist > 5) {
+            if (dist > 8) {
                 dx = Math.cos(mAngle);
                 dy = Math.sin(mAngle);
             }
@@ -351,9 +371,9 @@ class Player {
         this.x = Math.max(this.radius, Math.min(WORLD.width - this.radius, this.x));
         this.y = Math.max(this.radius, Math.min(WORLD.height - this.radius, this.y));
 
-        // 캐릭터 조준 및 공격
+        // 조준 및 공격 제어
         if (hasKeyAttack) {
-            // 키보드 공격 방향키 누를 시 해당 방향 사용
+            // 공격 방향키가 눌렸을 땐 마우스 무시하고 해당 방향 조준 및 공격
             let attackDx = 0, attackDy = 0;
             if (keys['ArrowUp']) attackDy -= 1;
             if (keys['ArrowDown']) attackDy += 1;
@@ -365,10 +385,17 @@ class Player {
                 this.attack();
             }
         } else {
-            // 공격 방향키를 안 누르면 마우스 커서 방향을 바라봄
-            const playerScreenX = this.x - camera.x;
-            const playerScreenY = this.y - camera.y;
-            this.angle = Math.atan2(mouse.y - playerScreenY, mouse.x - playerScreenX);
+            // 마우스 사용 중일 때 (마우스가 움직이거나 클릭 상태일 때만 방향 변경)
+            if (mouse.isMoving || mouse.leftDown || mouse.rightDown) {
+                const playerScreenX = this.x - camera.x;
+                const playerScreenY = this.y - camera.y;
+                this.angle = Math.atan2(mouse.y - playerScreenY, mouse.x - playerScreenX);
+            }
+
+            // 좌클릭 공격
+            if (mouse.leftDown) {
+                this.attack();
+            }
         }
 
         updateUI();
