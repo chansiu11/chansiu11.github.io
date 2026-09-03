@@ -70,14 +70,15 @@
             margin-bottom: 2px;
             font-weight: bold;
         }
+        /* 미니맵 크기 반으로 축소 (90x90) */
         #minimap-container {
             position: absolute;
             top: 15px;
             right: 15px;
-            width: 180px;
-            height: 180px;
+            width: 90px;
+            height: 90px;
             border: 2px solid rgba(255, 255, 255, 0.5);
-            border-radius: 8px;
+            border-radius: 6px;
             overflow: hidden;
             background: rgba(0, 0, 0, 0.7);
         }
@@ -85,6 +86,28 @@
             width: 100%;
             height: 100%;
             display: block;
+        }
+        /* 전체 맵 (M키 누를 시 창) */
+        #fullmap-modal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(4px);
+        }
+        #fullmap-modal.hidden {
+            display: none;
+        }
+        canvas#fullmapCanvas {
+            border: 2px solid #555;
+            border-radius: 8px;
+            background: #000;
         }
         #game-over-screen {
             position: absolute;
@@ -138,14 +161,19 @@
         </div>
 
         <div id="minimap-container">
-            <canvas id="minimapCanvas" width="180" height="180"></canvas>
+            <canvas id="minimapCanvas" width="90" height="90"></canvas>
         </div>
 
         <div class="controls-hint">
             이동: WASD<br>
             공격 방향: 방향키 (↑ ↓ ← →)<br>
-            대시: Spacebar
+            대시: Spacebar | 전체지도: M
         </div>
+    </div>
+
+    <div id="fullmap-modal" class="hidden">
+        <h2 style="margin-bottom: 10px; color: #3498db;">WORLD MAP (M으로 닫기)</h2>
+        <canvas id="fullmapCanvas" width="500" height="375"></canvas>
     </div>
 
     <div id="game-over-screen" class="hidden">
@@ -162,14 +190,16 @@ const ctx = canvas.getContext('2d');
 const minimapCanvas = document.getElementById('minimapCanvas');
 const minimapCtx = minimapCanvas.getContext('2d');
 
-// 기존 맵(2400x1800) 대비 면적 100배 확장 (가로/세로 각각 10배)
+const fullmapCanvas = document.getElementById('fullmapCanvas');
+const fullmapCtx = fullmapCanvas.getContext('2d');
+
 const WORLD = {
     width: 24000,
     height: 18000
 };
 
-// 맵 대각선 전체 길이의 1/2를 계산 (몬스터 인지 거리)
-const DETECT_RANGE = Math.hypot(WORLD.width, WORLD.height) / 2; // 약 15000px
+// 몬스터 인식 범위 대폭 축소 (350px - 화면 근처에 와야 공격)
+const DETECT_RANGE = 350;
 
 const camera = {
     x: 0,
@@ -188,6 +218,7 @@ let keys = {};
 let lastAttackTime = 0;
 let lastDashTime = 0;
 let gameOver = false;
+let isFullMapOpen = false;
 
 let player;
 let projectiles = [];
@@ -198,6 +229,18 @@ let score = 0;
 
 window.addEventListener('keydown', e => {
     keys[e.code] = true;
+    
+    // M키 토글 (전체 맵 보기)
+    if (e.code === 'KeyM' && !gameOver) {
+        isFullMapOpen = !isFullMapOpen;
+        const modal = document.getElementById('fullmap-modal');
+        if (isFullMapOpen) {
+            modal.classList.remove('hidden');
+        } else {
+            modal.classList.add('hidden');
+        }
+    }
+
     if (gameOver && e.code === 'Space') {
         restartGame();
     }
@@ -209,7 +252,7 @@ class Player {
         this.x = WORLD.width / 2;
         this.y = WORLD.height / 2;
         this.radius = 16;
-        this.speed = 5.5; // 넓은 맵을 위해 속도 살짝 증가
+        this.speed = 5.5;
         this.maxHp = 100;
         this.hp = 100;
         this.level = 1;
@@ -222,6 +265,8 @@ class Player {
     }
 
     update() {
+        if (isFullMapOpen) return; // 맵 켜진 상태에선 캐릭터 정지
+
         let dx = 0, dy = 0;
         if (keys['KeyW']) dy -= 1;
         if (keys['KeyS']) dy += 1;
@@ -367,7 +412,7 @@ class Enemy {
     update() {
         const dist = Math.hypot(player.x - this.x, player.y - this.y);
         
-        // 맵 전체 크기의 1/2 거리 이내로 접근했을 때만 추적 동작
+        // 크게 줄어든 몬스터 인지 거리 (350px 내 부근 장소 진입 시에만 추격)
         if (dist <= DETECT_RANGE) {
             const angle = Math.atan2(player.y - this.y, player.x - this.x);
             this.x += Math.cos(angle) * this.speed;
@@ -382,7 +427,6 @@ class Enemy {
     }
 
     draw() {
-        // 화면 안쪽 근처에 있을 때만 렌더링 (성능 최적화)
         if (this.x < camera.x - 100 || this.x > camera.x + camera.width + 100 ||
             this.y < camera.y - 100 || this.y > camera.y + camera.height + 100) {
             return;
@@ -481,7 +525,7 @@ function createPopup(x, y, text, color = '#fff') {
 }
 
 function spawnEnemies() {
-    if (enemies.length < 150 && Math.random() < 0.1) {
+    if (enemies.length < 200 && Math.random() < 0.1) {
         const angle = Math.random() * Math.PI * 2;
         const distance = Math.random() * 1500 + 600;
         let x = player.x + Math.cos(angle) * distance;
@@ -506,24 +550,22 @@ function updateUI() {
     document.getElementById('score-txt').innerText = `Score: ${score}`;
 }
 
-// 플레이어 화면 크기의 3배 영역을 감싸 보여주는 미니맵
+// 90x90 사이즈로 작아진 미니맵
 function drawMinimap() {
     minimapCtx.clearRect(0, 0, minimapCanvas.width, minimapCanvas.height);
 
-    // 미니맵 영역 크기: 화면의 3배 (2400 x 1800)
     const rangeX = canvas.width * 3;
     const rangeY = canvas.height * 3;
 
-    // 미니맵 좌표계의 좌상단 시작점 (플레이어 중심)
     const startX = player.x - rangeX / 2;
     const startY = player.y - rangeY / 2;
 
     const scaleX = minimapCanvas.width / rangeX;
     const scaleY = minimapCanvas.height / rangeY;
 
-    // 현재 화면 영역 표시 (중앙)
+    // 현재 카메라 화면 박스
     minimapCtx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-    minimapCtx.lineWidth = 1.5;
+    minimapCtx.lineWidth = 1;
     minimapCtx.strokeRect(
         (camera.x - startX) * scaleX,
         (camera.y - startY) * scaleY,
@@ -531,29 +573,55 @@ function drawMinimap() {
         camera.height * scaleY
     );
 
-    // 미니맵 범위를 벗어나는 영역 암두 처리
-    minimapCtx.strokeStyle = 'rgba(255, 0, 0, 0.3)';
-    minimapCtx.strokeRect(
-        (0 - startX) * scaleX,
-        (0 - startY) * scaleY,
-        WORLD.width * scaleX,
-        WORLD.height * scaleY
-    );
-
-    // 범위 내 몬스터만 미니맵 표시
     enemies.forEach(e => {
         if (e.x >= startX && e.x <= startX + rangeX &&
             e.y >= startY && e.y <= startY + rangeY) {
             minimapCtx.fillStyle = e.color;
-            minimapCtx.fillRect((e.x - startX) * scaleX - 1.5, (e.y - startY) * scaleY - 1.5, 3, 3);
+            minimapCtx.fillRect((e.x - startX) * scaleX - 1, (e.y - startY) * scaleY - 1, 2, 2);
         }
     });
 
-    // 플레이어 (중앙)
+    // 플레이어
     minimapCtx.fillStyle = '#00ffcc';
     minimapCtx.beginPath();
-    minimapCtx.arc((player.x - startX) * scaleX, (player.y - startY) * scaleY, 4, 0, Math.PI * 2);
+    minimapCtx.arc((player.x - startX) * scaleX, (player.y - startY) * scaleY, 2.5, 0, Math.PI * 2);
     minimapCtx.fill();
+}
+
+// M버튼 클릭시 노출되는 맵 전체 오버레이 창
+function drawFullMap() {
+    if (!isFullMapOpen) return;
+
+    fullmapCtx.clearRect(0, 0, fullmapCanvas.width, fullmapCanvas.height);
+
+    const scaleX = fullmapCanvas.width / WORLD.width;
+    const scaleY = fullmapCanvas.height / WORLD.height;
+
+    // 전체 월드 범위 박스
+    fullmapCtx.strokeStyle = '#333';
+    fullmapCtx.strokeRect(0, 0, fullmapCanvas.width, fullmapCanvas.height);
+
+    // 현재 플레이어 시야 박스
+    fullmapCtx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+    fullmapCtx.lineWidth = 1;
+    fullmapCtx.strokeRect(
+        camera.x * scaleX,
+        camera.y * scaleY,
+        camera.width * scaleX,
+        camera.height * scaleY
+    );
+
+    // 적 전체 배치 위치
+    enemies.forEach(e => {
+        fullmapCtx.fillStyle = e.color;
+        fullmapCtx.fillRect(e.x * scaleX, e.y * scaleY, 2, 2);
+    });
+
+    // 플레이어 전체 위치 (초록)
+    fullmapCtx.fillStyle = '#00ffcc';
+    fullmapCtx.beginPath();
+    fullmapCtx.arc(player.x * scaleX, player.y * scaleY, 4, 0, Math.PI * 2);
+    fullmapCtx.fill();
 }
 
 function init() {
@@ -564,6 +632,8 @@ function init() {
     popups = [];
     score = 0;
     gameOver = false;
+    isFullMapOpen = false;
+    document.getElementById('fullmap-modal').classList.add('hidden');
     document.getElementById('game-over-screen').classList.add('hidden');
     updateUI();
 }
@@ -579,7 +649,7 @@ function restartGame() {
 }
 
 function loop() {
-    if (!gameOver) {
+    if (!gameOver && !isFullMapOpen) {
         spawnEnemies();
         player.update();
         camera.update(player.x, player.y);
@@ -622,7 +692,7 @@ function loop() {
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 격자 배경
+    // 격자
     ctx.strokeStyle = '#2d2d42';
     ctx.lineWidth = 1;
     const startX = Math.floor(camera.x / 50) * 50;
@@ -643,7 +713,7 @@ function loop() {
         ctx.stroke();
     }
 
-    // 외곽 경계선
+    // 경계선
     ctx.strokeStyle = '#e74c3c';
     ctx.lineWidth = 6;
     ctx.strokeRect(-camera.x, -camera.y, WORLD.width, WORLD.height);
@@ -655,6 +725,7 @@ function loop() {
     popups.forEach(p => p.draw());
 
     drawMinimap();
+    drawFullMap();
 
     requestAnimationFrame(loop);
 }
