@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>100x Ultra Large Map RPG - Multi-Houses & Clear SafeZone</title>
+    <title>100x Ultra Large Map RPG - Door Only Enemies & Random Houses</title>
     <style>
         * {
             box-sizing: border-box;
@@ -208,40 +208,103 @@ const SAFE_ZONE_CENTER = { x: WORLD.width / 2, y: WORLD.height / 2 };
 const SAFE_ZONE_RADIUS = DETECT_RANGE * 2; // 700px
 const AUTO_TARGET_RANGE = 300;
 
-// SafeZone 바깥에 고르게 배치된 20개의 집 데이터
-const houses = [
-    // SafeZone 인근 (외곽 1000px 이상 떨어진 위치)
+// 기존 고정 배치 20개 집
+let houses = [
     { id: 1, x: SAFE_ZONE_CENTER.x - 1200, y: SAFE_ZONE_CENTER.y - 1000, width: 300, height: 240, wallThickness: 16, doorWidth: 70, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#373a40', floorColor: '#4a4e54' },
     { id: 2, x: SAFE_ZONE_CENTER.x + 1000, y: SAFE_ZONE_CENTER.y + 900, width: 280, height: 220, wallThickness: 16, doorWidth: 65, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#2c3e50', floorColor: '#34495e' },
     { id: 3, x: SAFE_ZONE_CENTER.x - 1100, y: SAFE_ZONE_CENTER.y + 1100, width: 320, height: 250, wallThickness: 18, doorWidth: 75, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#4a3b32', floorColor: '#5c4a3e' },
     { id: 4, x: SAFE_ZONE_CENTER.x + 1200, y: SAFE_ZONE_CENTER.y - 1200, width: 260, height: 200, wallThickness: 15, doorWidth: 60, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#1b2631', floorColor: '#2e4053' },
-    
-    // 북쪽 / 북서쪽 / 북동쪽 외곽
     { id: 5, x: 2500, y: 2000, width: 450, height: 350, wallThickness: 20, doorWidth: 90, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#2c3e50', floorColor: '#34495e' },
     { id: 6, x: 8000, y: 2500, width: 340, height: 260, wallThickness: 16, doorWidth: 70, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#3e2723', floorColor: '#4e342e' },
     { id: 7, x: 16000, y: 2200, width: 380, height: 280, wallThickness: 18, doorWidth: 80, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#212f3d', floorColor: '#283747' },
     { id: 8, x: 21500, y: 2500, width: 250, height: 200, wallThickness: 14, doorWidth: 60, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#342224', floorColor: '#4a3335' },
-
-    // 서쪽 중단 / 외곽
     { id: 9, x: 2000, y: 8500, width: 360, height: 280, wallThickness: 18, doorWidth: 80, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#34495e', floorColor: '#2c3e50' },
     { id: 10, x: 6500, y: 9000, width: 290, height: 230, wallThickness: 16, doorWidth: 65, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#2e4053', floorColor: '#34495e' },
-    
-    // 동쪽 중단 / 외곽
     { id: 11, x: 17500, y: 8500, width: 320, height: 260, wallThickness: 16, doorWidth: 70, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#1a252f', floorColor: '#2c3e50' },
     { id: 12, x: 21800, y: 9200, width: 400, height: 300, wallThickness: 20, doorWidth: 85, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#373a40', floorColor: '#4a4e54' },
-
-    // 남쪽 / 남서쪽 / 남동쪽 외곽
     { id: 13, x: 2500, y: 15500, width: 300, height: 240, wallThickness: 16, doorWidth: 70, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#4e342e', floorColor: '#5c4a3e' },
     { id: 14, x: 7500, y: 15000, width: 420, height: 320, wallThickness: 20, doorWidth: 90, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#2c3e50', floorColor: '#34495e' },
     { id: 15, x: 12000, y: 15800, width: 280, height: 220, wallThickness: 15, doorWidth: 65, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#212f3d', floorColor: '#283747' },
     { id: 16, x: 16500, y: 15200, width: 350, height: 270, wallThickness: 18, doorWidth: 75, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#342224', floorColor: '#4a3335' },
     { id: 17, x: 21000, y: 15000, width: 480, height: 360, wallThickness: 22, doorWidth: 100, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#1b2631', floorColor: '#2e4053' },
-
-    // 모서리 중간 간격 채우기용 추가 집
     { id: 18, x: 5000, y: 5500, width: 260, height: 210, wallThickness: 14, doorWidth: 60, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#2e4053', floorColor: '#34495e' },
     { id: 19, x: 19000, y: 5500, width: 310, height: 250, wallThickness: 16, doorWidth: 70, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#373a40', floorColor: '#4a4e54' },
     { id: 20, x: 14500, y: 11500, width: 330, height: 260, wallThickness: 17, doorWidth: 75, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#4a3b32', floorColor: '#5c4a3e' }
 ];
+
+// 랜덤 집 5개 추가 함수 (SafeZone 외부에 위치 및 무작위 외형 설정)
+function generateRandomHouses(count) {
+    const roofColors = ['#2980b9', '#8e44ad', '#16a085', '#d35400', '#2c3e50', '#7f8c8d', '#c0392b'];
+    const floorColors = ['#34495e', '#2c3e50', '#4a4e54', '#5c4a3e', '#283747', '#342224'];
+
+    for (let i = 0; i < count; i++) {
+        let rx, ry, distToSafeZone;
+        let w = Math.floor(Math.random() * 180) + 250; // 250 ~ 430
+        let h = Math.floor(Math.random() * 140) + 200; // 200 ~ 340
+        
+        do {
+            rx = Math.floor(Math.random() * (WORLD.width - w - 1000)) + 500;
+            ry = Math.floor(Math.random() * (WORLD.height - h - 1000)) + 500;
+            distToSafeZone = Math.hypot(rx + w/2 - SAFE_ZONE_CENTER.x, ry + h/2 - SAFE_ZONE_CENTER.y);
+        } while (distToSafeZone < SAFE_ZONE_RADIUS + 400); // SafeZone과 최소 1100px 거리 유격
+
+        houses.push({
+            id: 21 + i,
+            x: rx,
+            y: ry,
+            width: w,
+            height: h,
+            wallThickness: Math.floor(Math.random() * 8) + 14,
+            doorWidth: Math.floor(Math.random() * 30) + 65,
+            roofAlpha: 1.0,
+            targetAlpha: 1.0,
+            fadeSpeed: 0.08,
+            roofColor: roofColors[Math.floor(Math.random() * roofColors.length)],
+            floorColor: floorColors[Math.floor(Math.random() * floorColors.length)]
+        });
+    }
+}
+generateRandomHouses(5);
+
+// 공통 집 벽 충돌 체크 알고리즘 (플레이어 및 적에게 적용)
+function checkWallCollision(nextX, nextY, radius) {
+    let correctedX = nextX;
+    let correctedY = nextY;
+
+    houses.forEach(house => {
+        const t = house.wallThickness;
+        const doorLeft = house.x + (house.width - house.doorWidth) / 2;
+        const doorRight = house.x + (house.width + house.doorWidth) / 2;
+
+        const walls = [
+            { x: house.x, y: house.y, w: house.width, h: t }, // 상단 벽
+            { x: house.x, y: house.y, w: t, h: house.height }, // 좌측 벽
+            { x: house.x + house.width - t, y: house.y, w: t, h: house.height }, // 우측 벽
+            { x: house.x, y: house.y + house.height - t, w: doorLeft - house.x, h: t }, // 하단 좌측 벽
+            { x: doorRight, y: house.y + house.height - t, w: (house.x + house.width) - doorRight, h: t } // 하단 우측 벽
+        ];
+
+        walls.forEach(w => {
+            const closestX = Math.max(w.x, Math.min(correctedX, w.x + w.w));
+            const closestY = Math.max(w.y, Math.min(correctedY, w.y + w.h));
+            const distX = correctedX - closestX;
+            const distY = correctedY - closestY;
+            const distance = Math.hypot(distX, distY);
+
+            if (distance < radius) {
+                const overlap = radius - distance;
+                if (distance === 0) {
+                    correctedY += overlap;
+                } else {
+                    correctedX += (distX / distance) * overlap;
+                    correctedY += (distY / distance) * overlap;
+                }
+            }
+        });
+    });
+
+    return { x: correctedX, y: correctedY };
+}
 
 const camera = {
     x: 0,
@@ -269,23 +332,16 @@ let enemies = [];
 let particles = [];
 let popups = [];
 let score = 0;
-
 let usedSpawnPoints = [];
 
 window.addEventListener('keydown', e => {
-    if (e.code === 'Space') {
-        e.preventDefault();
-    }
-    
+    if (e.code === 'Space') e.preventDefault();
     keys[e.code] = true;
     if (e.code === 'KeyM' && !gameOver) {
         isFullMapOpen = !isFullMapOpen;
         const modal = document.getElementById('fullmap-modal');
-        if (isFullMapOpen) {
-            modal.classList.remove('hidden');
-        } else {
-            modal.classList.add('hidden');
-        }
+        if (isFullMapOpen) modal.classList.remove('hidden');
+        else modal.classList.add('hidden');
     }
 
     if (gameOver && (e.code === 'KeyQ' || e.code === 'Space')) {
@@ -324,45 +380,6 @@ class Player {
         this.lastDashTime = 0;
     }
 
-    checkWallCollision(nextX, nextY) {
-        let correctedX = nextX;
-        let correctedY = nextY;
-
-        houses.forEach(house => {
-            const t = house.wallThickness;
-            const doorLeft = house.x + (house.width - house.doorWidth) / 2;
-            const doorRight = house.x + (house.width + house.doorWidth) / 2;
-
-            const walls = [
-                { x: house.x, y: house.y, w: house.width, h: t },
-                { x: house.x, y: house.y, w: t, h: house.height },
-                { x: house.x + house.width - t, y: house.y, w: t, h: house.height },
-                { x: house.x, y: house.y + house.height - t, w: doorLeft - house.x, h: t },
-                { x: doorRight, y: house.y + house.height - t, w: (house.x + house.width) - doorRight, h: t }
-            ];
-
-            walls.forEach(w => {
-                const closestX = Math.max(w.x, Math.min(correctedX, w.x + w.w));
-                const closestY = Math.max(w.y, Math.min(correctedY, w.y + w.h));
-                const distX = correctedX - closestX;
-                const distY = correctedY - closestY;
-                const distance = Math.hypot(distX, distY);
-
-                if (distance < this.radius) {
-                    const overlap = this.radius - distance;
-                    if (distance === 0) {
-                        correctedY += overlap;
-                    } else {
-                        correctedX += (distX / distance) * overlap;
-                        correctedY += (distY / distance) * overlap;
-                    }
-                }
-            });
-        });
-
-        return { x: correctedX, y: correctedY };
-    }
-
     update() {
         if (isFullMapOpen) return;
 
@@ -396,9 +413,7 @@ class Player {
             this.stamina = Math.max(0, this.stamina - this.staminaDrainRun);
             this.lastStaminaUseTime = now;
 
-            if (this.stamina === 0) {
-                this.isExhausted = true;
-            }
+            if (this.stamina === 0) this.isExhausted = true;
         } else {
             this.speed = this.baseSpeed;
             if (now - this.lastStaminaUseTime > 500) {
@@ -420,16 +435,14 @@ class Player {
                     particles.push(new Particle(this.x, this.y, '#3498db'));
                 }
 
-                if (this.stamina === 0) {
-                    this.isExhausted = true;
-                }
+                if (this.stamina === 0) this.isExhausted = true;
             }
         } else {
             targetX += dx * this.speed;
             targetY += dy * this.speed;
         }
 
-        const posAfterWall = this.checkWallCollision(targetX, targetY);
+        const posAfterWall = checkWallCollision(targetX, targetY, this.radius);
         this.x = Math.max(this.radius, Math.min(WORLD.width - this.radius, posAfterWall.x));
         this.y = Math.max(this.radius, Math.min(WORLD.height - this.radius, posAfterWall.y));
 
@@ -476,9 +489,7 @@ class Player {
             this.angle = Math.atan2(lockedTarget.y - this.y, lockedTarget.x - this.x);
         }
 
-        if (keys['Space']) {
-            this.attack();
-        }
+        if (keys['Space']) this.attack();
 
         updateUI();
     }
@@ -599,7 +610,6 @@ function drawHousesInterior() {
         ctx.fillStyle = '#333538';
         ctx.fillRect(screenX + doorLeft, screenY + house.height - t, house.doorWidth, t);
 
-        // 입구 안내 표식
         const doorCenterX = screenX + house.width / 2;
         const doorBottomY = screenY + house.height;
 
@@ -786,11 +796,14 @@ class Enemy {
         const angle = Math.atan2(player.y - this.y, player.x - this.x);
         const now = Date.now();
 
+        let targetX = this.x;
+        let targetY = this.y;
+
         if (this.type === 0) {
             if (this.attackState === 'idle') {
                 if (dist <= DETECT_RANGE) {
-                    this.x += Math.cos(angle) * this.speed;
-                    this.y += Math.sin(angle) * this.speed;
+                    targetX += Math.cos(angle) * this.speed;
+                    targetY += Math.sin(angle) * this.speed;
                 }
                 if (dist <= 45) {
                     this.attackState = 'charging';
@@ -816,8 +829,8 @@ class Enemy {
             }
         } else if (this.type === 1) {
             if (dist <= DETECT_RANGE) {
-                this.x += Math.cos(angle) * this.speed;
-                this.y += Math.sin(angle) * this.speed;
+                targetX += Math.cos(angle) * this.speed;
+                targetY += Math.sin(angle) * this.speed;
             }
             if (dist < player.radius + this.radius) {
                 player.hp -= 0.3;
@@ -826,11 +839,11 @@ class Enemy {
             }
         } else if (this.type === 2) {
             if (dist <= DETECT_RANGE && dist > 180) {
-                this.x += Math.cos(angle) * this.speed;
-                this.y += Math.sin(angle) * this.speed;
+                targetX += Math.cos(angle) * this.speed;
+                targetY += Math.sin(angle) * this.speed;
             } else if (dist < 120) {
-                this.x -= Math.cos(angle) * (this.speed * 0.8);
-                this.y -= Math.sin(angle) * (this.speed * 0.8);
+                targetX -= Math.cos(angle) * (this.speed * 0.8);
+                targetY -= Math.sin(angle) * (this.speed * 0.8);
             }
 
             if (dist <= DETECT_RANGE && now - this.lastShootTime > this.shootInterval) {
@@ -841,6 +854,11 @@ class Enemy {
                 this.lastShootTime = now;
             }
         }
+
+        // 적 또한 집 벽을 통과하지 못하도록 똑같이 충돌 체크 적용
+        const posAfterWall = checkWallCollision(targetX, targetY, this.radius);
+        this.x = posAfterWall.x;
+        this.y = posAfterWall.y;
 
         this.keepOutOfSafeZone();
     }
@@ -1242,7 +1260,6 @@ function loop() {
     ctx.strokeRect(-camera.x, -camera.y, WORLD.width, WORLD.height);
 
     drawSafeZone();
-
     drawHousesInterior();
 
     particles.forEach(p => p.draw());
