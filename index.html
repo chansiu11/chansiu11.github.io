@@ -225,6 +225,7 @@ let isFullMapOpen = false;
 
 let player;
 let projectiles = [];
+let enemyProjectiles = [];
 let enemies = [];
 let particles = [];
 let popups = [];
@@ -469,6 +470,43 @@ class Projectile {
     }
 }
 
+class EnemyProjectile {
+    constructor(x, y, angle, damage) {
+        this.x = x;
+        this.y = y;
+        this.speed = 6;
+        this.vx = Math.cos(angle) * this.speed;
+        this.vy = Math.sin(angle) * this.speed;
+        this.radius = 6;
+        this.damage = damage;
+        this.markedForDeletion = false;
+    }
+
+    update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        if (this.x < 0 || this.x > WORLD.width || this.y < 0 || this.y > WORLD.height) {
+            this.markedForDeletion = true;
+        }
+
+        const dist = Math.hypot(player.x - this.x, player.y - this.y);
+        if (dist < player.radius + this.radius) {
+            player.hp -= this.damage;
+            createPopup(player.x, player.y - 15, `-${this.damage}`, '#e74c3c');
+            this.markedForDeletion = true;
+            if (player.hp <= 0) endGame();
+            updateUI();
+        }
+    }
+
+    draw() {
+        ctx.beginPath();
+        ctx.arc(this.x - camera.x, this.y - camera.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = '#9b59b6';
+        ctx.fill();
+    }
+}
+
 class Enemy {
     constructor(x, y, type) {
         this.x = x;
@@ -476,26 +514,36 @@ class Enemy {
         this.type = type;
         
         if (type === 0) {
+            // 일반 근접몹 (네모): 다가와서 선딜레이 후 검 휘두르기
             this.radius = 14;
-            this.speed = 2.2;
+            this.speed = 2.0;
             this.hp = 40;
             this.color = '#e74c3c';
             this.expValue = 15;
             this.scoreValue = 100;
+            
+            this.attackState = 'idle'; // 'idle', 'charging', 'slashing'
+            this.chargeTimer = 0;
+            this.slashTimer = 0;
+            this.slashAngle = 0;
         } else if (type === 1) {
+            // 빠른 돌진몹 (세모): 단순 몸통 부딪히기
             this.radius = 10;
-            this.speed = 3.8;
+            this.speed = 3.6;
             this.hp = 20;
             this.color = '#e67e22';
             this.expValue = 20;
             this.scoreValue = 150;
         } else {
+            // 원거리/탱커몹 (오각형): 거리를 유지하며 탄환 발사
             this.radius = 28;
-            this.speed = 1.4;
+            this.speed = 1.3;
             this.hp = 220;
             this.color = '#9b59b6';
             this.expValue = 80;
             this.scoreValue = 500;
+            this.lastShootTime = 0;
+            this.shootInterval = 1800;
         }
         
         this.maxHp = this.hp;
@@ -504,17 +552,67 @@ class Enemy {
 
     update() {
         const dist = Math.hypot(player.x - this.x, player.y - this.y);
-        
-        if (dist <= DETECT_RANGE) {
-            const angle = Math.atan2(player.y - this.y, player.x - this.x);
-            this.x += Math.cos(angle) * this.speed;
-            this.y += Math.sin(angle) * this.speed;
-        }
+        const angle = Math.atan2(player.y - this.y, player.x - this.x);
+        const now = Date.now();
 
-        if (dist < player.radius + this.radius) {
-            player.hp -= 0.6;
-            if (player.hp <= 0) endGame();
-            updateUI();
+        if (this.type === 0) {
+            // TYPE 0: 근접 접근 -> 딜레이(차징) -> 칼 휘두르기 공격
+            if (this.attackState === 'idle') {
+                if (dist <= DETECT_RANGE) {
+                    this.x += Math.cos(angle) * this.speed;
+                    this.y += Math.sin(angle) * this.speed;
+                }
+                if (dist <= 45) { // 공격 개시 거리
+                    this.attackState = 'charging';
+                    this.chargeTimer = now;
+                }
+            } else if (this.attackState === 'charging') {
+                // 0.5초 동안 공격 준비 모션
+                if (now - this.chargeTimer > 500) {
+                    this.attackState = 'slashing';
+                    this.slashTimer = now;
+                    this.slashAngle = angle;
+                    
+                    // 칼 휘두르기 시 플레이어 판정 체크
+                    if (dist <= 60) {
+                        player.hp -= 20;
+                        createPopup(player.x, player.y - 15, "-20", "#e74c3c");
+                        if (player.hp <= 0) endGame();
+                        updateUI();
+                    }
+                }
+            } else if (this.attackState === 'slashing') {
+                // 0.2초 칼 이펙트 유지 후 다시 idle
+                if (now - this.slashTimer > 200) {
+                    this.attackState = 'idle';
+                }
+            }
+        } else if (this.type === 1) {
+            // TYPE 1: 빠른 몸통 충돌
+            if (dist <= DETECT_RANGE) {
+                this.x += Math.cos(angle) * this.speed;
+                this.y += Math.sin(angle) * this.speed;
+            }
+            if (dist < player.radius + this.radius) {
+                player.hp -= 0.6;
+                if (player.hp <= 0) endGame();
+                updateUI();
+            }
+        } else if (this.type === 2) {
+            // TYPE 2: 일정 거리 유지 후 발사
+            if (dist <= DETECT_RANGE && dist > 180) {
+                this.x += Math.cos(angle) * this.speed;
+                this.y += Math.sin(angle) * this.speed;
+            } else if (dist < 120) {
+                // 너무 가까워지면 뒤로 물러남
+                this.x -= Math.cos(angle) * (this.speed * 0.8);
+                this.y -= Math.sin(angle) * (this.speed * 0.8);
+            }
+
+            if (dist <= DETECT_RANGE && now - this.lastShootTime > this.shootInterval) {
+                enemyProjectiles.push(new EnemyProjectile(this.x, this.y, angle, 15));
+                this.lastShootTime = now;
+            }
         }
     }
 
@@ -532,6 +630,15 @@ class Enemy {
             ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.arc(0, 0, this.radius + 8, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        // TYPE 0 공격 차징 표시 (붉은색 테두리 경고)
+        if (this.type === 0 && this.attackState === 'charging') {
+            ctx.strokeStyle = '#e74c3c';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(0, 0, this.radius + 12, 0, Math.PI * 2);
             ctx.stroke();
         }
 
@@ -556,6 +663,16 @@ class Enemy {
             ctx.closePath();
         }
         ctx.fill();
+
+        // TYPE 0 칼 휘두르기 궤적 이펙트
+        if (this.type === 0 && this.attackState === 'slashing') {
+            ctx.rotate(this.slashAngle);
+            ctx.beginPath();
+            ctx.arc(0, 0, 45, -Math.PI / 3, Math.PI / 3);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+        }
 
         if (this.hp < this.maxHp) {
             ctx.fillStyle = 'rgba(0,0,0,0.5)';
@@ -729,6 +846,7 @@ function drawFullMap() {
 function init() {
     player = new Player();
     projectiles = [];
+    enemyProjectiles = [];
     enemies = [];
     particles = [];
     popups = [];
@@ -762,6 +880,7 @@ function loop() {
         camera.update(player.x, player.y);
 
         projectiles.forEach(p => p.update());
+        enemyProjectiles.forEach(ep => ep.update());
         enemies.forEach(e => e.update());
         particles.forEach(p => p.update());
         popups.forEach(p => p.update());
@@ -792,6 +911,7 @@ function loop() {
         });
 
         projectiles = projectiles.filter(p => !p.markedForDeletion);
+        enemyProjectiles = enemyProjectiles.filter(ep => !ep.markedForDeletion);
         enemies = enemies.filter(e => !e.markedForDeletion);
         particles = particles.filter(p => p.alpha > 0);
         popups = popups.filter(p => p.alpha > 0);
@@ -825,6 +945,7 @@ function loop() {
 
     particles.forEach(p => p.draw());
     projectiles.forEach(p => p.draw());
+    enemyProjectiles.forEach(ep => ep.draw());
     enemies.forEach(e => e.draw());
     if (!gameOver) player.draw();
     popups.forEach(p => p.draw());
