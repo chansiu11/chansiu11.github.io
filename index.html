@@ -229,7 +229,6 @@ let popups = [];
 let score = 0;
 
 window.addEventListener('keydown', e => {
-    // 스페이스바 입력 시 화면 스크롤 방지
     if (e.code === 'Space') {
         e.preventDefault();
     }
@@ -286,7 +285,6 @@ class Player {
         
         let dx = 0, dy = 0;
 
-        // WASD 이동 조작
         if (hasKeyMove) {
             if (keys['KeyW']) dy -= 1;
             if (keys['KeyS']) dy += 1;
@@ -331,7 +329,6 @@ class Player {
         this.x = Math.max(this.radius, Math.min(WORLD.width - this.radius, this.x));
         this.y = Math.max(this.radius, Math.min(WORLD.height - this.radius, this.y));
 
-        // 방향키로 시점(조준 방향) 변경
         if (hasKeyAim) {
             let aimDx = 0, aimDy = 0;
             if (keys['ArrowUp']) aimDy -= 1;
@@ -344,7 +341,6 @@ class Player {
             }
         }
 
-        // 스페이스바 눌렀을 때 공격 실행
         if (keys['Space']) {
             this.attack();
         }
@@ -602,7 +598,8 @@ function spawnEnemies() {
         centerY = Math.max(200, Math.min(WORLD.height - 200, centerY));
 
         const distFromZero = Math.hypot(centerX, centerY);
-        const safeZoneRadius = 500;
+        // 세이프존 크기를 100px로 대폭 감소
+        const safeZoneRadius = 100;
 
         if (distFromZero < safeZoneRadius) {
             return;
@@ -680,133 +677,4 @@ function drawFullMap() {
     fullmapCtx.lineWidth = 1;
     fullmapCtx.strokeRect(
         camera.x * scaleX,
-        camera.y * scaleY,
-        camera.width * scaleX,
-        camera.height * scaleY
-    );
-
-    enemies.forEach(e => {
-        fullmapCtx.fillStyle = e.color;
-        fullmapCtx.fillRect(e.x * scaleX, e.y * scaleY, 2, 2);
-    });
-
-    fullmapCtx.fillStyle = '#00ffcc';
-    fullmapCtx.beginPath();
-    fullmapCtx.arc(player.x * scaleX, player.y * scaleY, 4, 0, Math.PI * 2);
-    fullmapCtx.fill();
-}
-
-function init() {
-    player = new Player();
-    projectiles = [];
-    enemies = [];
-    particles = [];
-    popups = [];
-    score = 0;
-    gameOver = false;
-    isFullMapOpen = false;
-    document.getElementById('fullmap-modal').classList.add('hidden');
-    document.getElementById('game-over-screen').classList.add('hidden');
-
-    for (let i = 0; i < 20; i++) {
-        spawnEnemies();
-    }
-    updateUI();
-}
-
-function endGame() {
-    gameOver = true;
-    document.getElementById('final-score').innerText = `최종 점수: ${score}`;
-    document.getElementById('game-over-screen').classList.remove('hidden');
-}
-
-function restartGame() {
-    init();
-}
-
-function loop() {
-    if (!gameOver && !isFullMapOpen) {
-        spawnEnemies();
-        player.update();
-        camera.update(player.x, player.y);
-
-        projectiles.forEach(p => p.update());
-        enemies.forEach(e => e.update());
-        particles.forEach(p => p.update());
-        popups.forEach(p => p.update());
-
-        projectiles.forEach(p => {
-            enemies.forEach(e => {
-                const dist = Math.hypot(p.x - e.x, p.y - e.y);
-                if (dist < p.radius + e.radius) {
-                    p.markedForDeletion = true;
-                    e.hp -= p.damage;
-
-                    for (let i = 0; i < 5; i++) {
-                        particles.push(new Particle(p.x, p.y, e.color));
-                    }
-                    createPopup(e.x, e.y, Math.floor(p.damage));
-
-                    if (e.hp <= 0) {
-                        e.markedForDeletion = true;
-                        score += e.scoreValue;
-                        player.addExp(e.expValue);
-
-                        for (let i = 0; i < 12; i++) {
-                            particles.push(new Particle(e.x, e.y, e.color));
-                        }
-                    }
-                }
-            });
-        });
-
-        projectiles = projectiles.filter(p => !p.markedForDeletion);
-        enemies = enemies.filter(e => !e.markedForDeletion);
-        particles = particles.filter(p => p.alpha > 0);
-        popups = popups.filter(p => p.alpha > 0);
-    }
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    ctx.strokeStyle = '#2d2d42';
-    ctx.lineWidth = 1;
-    const startX = Math.floor(camera.x / 50) * 50;
-    const endX = startX + canvas.width + 50;
-    const startY = Math.floor(camera.y / 50) * 50;
-    const endY = startY + canvas.height + 50;
-
-    for (let x = startX; x < endX; x += 50) {
-        ctx.beginPath();
-        ctx.moveTo(x - camera.x, 0);
-        ctx.lineTo(x - camera.x, canvas.height);
-        ctx.stroke();
-    }
-    for (let y = startY; y < endY; y += 50) {
-        ctx.beginPath();
-        ctx.moveTo(0, y - camera.y);
-        ctx.lineTo(canvas.width, y - camera.y);
-        ctx.stroke();
-    }
-
-    ctx.strokeStyle = '#e74c3c';
-    ctx.lineWidth = 6;
-    ctx.strokeRect(-camera.x, -camera.y, WORLD.width, WORLD.height);
-
-    particles.forEach(p => p.draw());
-    projectiles.forEach(p => p.draw());
-    enemies.forEach(e => e.draw());
-    if (!gameOver) player.draw();
-    popups.forEach(p => p.draw());
-
-    drawMinimap();
-    drawFullMap();
-
-    requestAnimationFrame(loop);
-}
-
-init();
-loop();
-</script>
-
-</body>
-</html>
+        camera.y * scaleY
