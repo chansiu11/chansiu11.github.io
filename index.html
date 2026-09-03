@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>100x Ultra Large Map RPG - Door Only Enemies & Random Houses</title>
+    <title>100x Ultra Large Map RPG - Improved Enemy AI</title>
     <style>
         * {
             box-sizing: border-box;
@@ -208,7 +208,6 @@ const SAFE_ZONE_CENTER = { x: WORLD.width / 2, y: WORLD.height / 2 };
 const SAFE_ZONE_RADIUS = DETECT_RANGE * 2; // 700px
 const AUTO_TARGET_RANGE = 300;
 
-// 기존 고정 배치 20개 집
 let houses = [
     { id: 1, x: SAFE_ZONE_CENTER.x - 1200, y: SAFE_ZONE_CENTER.y - 1000, width: 300, height: 240, wallThickness: 16, doorWidth: 70, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#373a40', floorColor: '#4a4e54' },
     { id: 2, x: SAFE_ZONE_CENTER.x + 1000, y: SAFE_ZONE_CENTER.y + 900, width: 280, height: 220, wallThickness: 16, doorWidth: 65, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#2c3e50', floorColor: '#34495e' },
@@ -232,21 +231,20 @@ let houses = [
     { id: 20, x: 14500, y: 11500, width: 330, height: 260, wallThickness: 17, doorWidth: 75, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#4a3b32', floorColor: '#5c4a3e' }
 ];
 
-// 랜덤 집 5개 추가 함수 (SafeZone 외부에 위치 및 무작위 외형 설정)
 function generateRandomHouses(count) {
     const roofColors = ['#2980b9', '#8e44ad', '#16a085', '#d35400', '#2c3e50', '#7f8c8d', '#c0392b'];
     const floorColors = ['#34495e', '#2c3e50', '#4a4e54', '#5c4a3e', '#283747', '#342224'];
 
     for (let i = 0; i < count; i++) {
         let rx, ry, distToSafeZone;
-        let w = Math.floor(Math.random() * 180) + 250; // 250 ~ 430
-        let h = Math.floor(Math.random() * 140) + 200; // 200 ~ 340
+        let w = Math.floor(Math.random() * 180) + 250;
+        let h = Math.floor(Math.random() * 140) + 200;
         
         do {
             rx = Math.floor(Math.random() * (WORLD.width - w - 1000)) + 500;
             ry = Math.floor(Math.random() * (WORLD.height - h - 1000)) + 500;
             distToSafeZone = Math.hypot(rx + w/2 - SAFE_ZONE_CENTER.x, ry + h/2 - SAFE_ZONE_CENTER.y);
-        } while (distToSafeZone < SAFE_ZONE_RADIUS + 400); // SafeZone과 최소 1100px 거리 유격
+        } while (distToSafeZone < SAFE_ZONE_RADIUS + 400);
 
         houses.push({
             id: 21 + i,
@@ -266,7 +264,15 @@ function generateRandomHouses(count) {
 }
 generateRandomHouses(5);
 
-// 공통 집 벽 충돌 체크 알고리즘 (플레이어 및 적에게 적용)
+function getHouseContainingPoint(px, py) {
+    return houses.find(house => 
+        px >= house.x + house.wallThickness &&
+        px <= house.x + house.width - house.wallThickness &&
+        py >= house.y + house.wallThickness &&
+        py <= house.y + house.height - house.wallThickness
+    );
+}
+
 function checkWallCollision(nextX, nextY, radius) {
     let correctedX = nextX;
     let correctedY = nextY;
@@ -277,11 +283,11 @@ function checkWallCollision(nextX, nextY, radius) {
         const doorRight = house.x + (house.width + house.doorWidth) / 2;
 
         const walls = [
-            { x: house.x, y: house.y, w: house.width, h: t }, // 상단 벽
-            { x: house.x, y: house.y, w: t, h: house.height }, // 좌측 벽
-            { x: house.x + house.width - t, y: house.y, w: t, h: house.height }, // 우측 벽
-            { x: house.x, y: house.y + house.height - t, w: doorLeft - house.x, h: t }, // 하단 좌측 벽
-            { x: doorRight, y: house.y + house.height - t, w: (house.x + house.width) - doorRight, h: t } // 하단 우측 벽
+            { x: house.x, y: house.y, w: house.width, h: t },
+            { x: house.x, y: house.y, w: t, h: house.height },
+            { x: house.x + house.width - t, y: house.y, w: t, h: house.height },
+            { x: house.x, y: house.y + house.height - t, w: doorLeft - house.x, h: t },
+            { x: doorRight, y: house.y + house.height - t, w: (house.x + house.width) - doorRight, h: t }
         ];
 
         walls.forEach(w => {
@@ -748,7 +754,7 @@ class Enemy {
         
         if (type === 0) {
             this.radius = 14;
-            this.speed = 2.8;
+            this.speed = 2.4;
             this.hp = 40;
             this.color = '#e74c3c';
             this.expValue = 15;
@@ -792,70 +798,87 @@ class Enemy {
     }
 
     update() {
-        const dist = Math.hypot(player.x - this.x, player.y - this.y);
-        const angle = Math.atan2(player.y - this.y, player.x - this.x);
+        const distToPlayer = Math.hypot(player.x - this.x, player.y - this.y);
+        const playerHouse = getHouseContainingPoint(player.x, player.y);
+        const enemyHouse = getHouseContainingPoint(this.x, this.y);
+
+        let moveTarget = { x: player.x, y: player.y };
+
+        if (playerHouse && enemyHouse !== playerHouse) {
+            const doorX = playerHouse.x + playerHouse.width / 2;
+            const doorY = playerHouse.y + playerHouse.height + this.radius + 10;
+            const distToDoor = Math.hypot(doorX - this.x, doorY - this.y);
+
+            if (distToDoor > 20) {
+                moveTarget = { x: doorX, y: doorY };
+            }
+        }
+
+        const angle = Math.atan2(moveTarget.y - this.y, moveTarget.x - this.x);
         const now = Date.now();
 
         let targetX = this.x;
         let targetY = this.y;
 
+        const dashAttackRange = 110 * (7 / 8); // 대시 거리 110px의 7/8 = 96.25px
+
         if (this.type === 0) {
             if (this.attackState === 'idle') {
-                if (dist <= DETECT_RANGE) {
+                if (distToPlayer <= DETECT_RANGE) {
                     targetX += Math.cos(angle) * this.speed;
                     targetY += Math.sin(angle) * this.speed;
                 }
-                if (dist <= 45) {
+                if (distToPlayer <= dashAttackRange) {
                     this.attackState = 'charging';
                     this.chargeTimer = now;
                 }
             } else if (this.attackState === 'charging') {
-                if (now - this.chargeTimer > 500) {
+                if (now - this.chargeTimer > 500) { // 0.5초 선딜레이
                     this.attackState = 'slashing';
                     this.slashTimer = now;
-                    this.slashAngle = angle;
+                    this.slashAngle = Math.atan2(player.y - this.y, player.x - this.x);
                     
-                    if (dist <= 60) {
-                        player.hp -= 40;
-                        createPopup(player.x, player.y - 15, "-40", "#e74c3c");
+                    if (distToPlayer <= dashAttackRange) {
+                        player.hp -= 30;
+                        createPopup(player.x, player.y - 15, "-30", "#e74c3c");
                         if (player.hp <= 0) endGame();
                         updateUI();
                     }
                 }
             } else if (this.attackState === 'slashing') {
-                if (now - this.slashTimer > 200) {
+                if (now - this.slashTimer > 250) {
                     this.attackState = 'idle';
                 }
             }
         } else if (this.type === 1) {
-            if (dist <= DETECT_RANGE) {
+            if (distToPlayer <= DETECT_RANGE) {
                 targetX += Math.cos(angle) * this.speed;
                 targetY += Math.sin(angle) * this.speed;
             }
-            if (dist < player.radius + this.radius) {
+            if (distToPlayer < player.radius + this.radius) {
                 player.hp -= 0.3;
                 if (player.hp <= 0) endGame();
                 updateUI();
             }
         } else if (this.type === 2) {
-            if (dist <= DETECT_RANGE && dist > 180) {
+            if (distToPlayer <= DETECT_RANGE && distToPlayer > 180) {
                 targetX += Math.cos(angle) * this.speed;
                 targetY += Math.sin(angle) * this.speed;
-            } else if (dist < 120) {
+            } else if (distToPlayer < 120) {
                 targetX -= Math.cos(angle) * (this.speed * 0.8);
                 targetY -= Math.sin(angle) * (this.speed * 0.8);
             }
 
-            if (dist <= DETECT_RANGE && now - this.lastShootTime > this.shootInterval) {
+            if (distToPlayer <= DETECT_RANGE && now - this.lastShootTime > this.shootInterval) {
                 const playerDistFromCenter = Math.hypot(player.x - SAFE_ZONE_CENTER.x, player.y - SAFE_ZONE_CENTER.y);
                 if (playerDistFromCenter > SAFE_ZONE_RADIUS) {
-                    enemyProjectiles.push(new EnemyProjectile(this.x, this.y, angle, 15));
+                    const shootAngle = Math.atan2(player.y - this.y, player.x - this.x);
+                    enemyProjectiles.push(new EnemyProjectile(this.x, this.y, shootAngle, 15));
                 }
                 this.lastShootTime = now;
             }
         }
 
-        // 적 또한 집 벽을 통과하지 못하도록 똑같이 충돌 체크 적용
         const posAfterWall = checkWallCollision(targetX, targetY, this.radius);
         this.x = posAfterWall.x;
         this.y = posAfterWall.y;
@@ -884,7 +907,7 @@ class Enemy {
             ctx.strokeStyle = '#e74c3c';
             ctx.lineWidth = 3;
             ctx.beginPath();
-            ctx.arc(0, 0, this.radius + 12, 0, Math.PI * 2);
+            ctx.arc(0, 0, 110 * (7 / 8), 0, Math.PI * 2);
             ctx.stroke();
         }
 
@@ -913,7 +936,7 @@ class Enemy {
         if (this.type === 0 && this.attackState === 'slashing') {
             ctx.rotate(this.slashAngle);
             ctx.beginPath();
-            ctx.arc(0, 0, 45, -Math.PI / 3, Math.PI / 3);
+            ctx.arc(0, 0, 110 * (7 / 8), -Math.PI / 3, Math.PI / 3);
             ctx.strokeStyle = '#ffffff';
             ctx.lineWidth = 4;
             ctx.stroke();
