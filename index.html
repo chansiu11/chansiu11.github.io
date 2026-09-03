@@ -167,9 +167,10 @@
         </div>
 
         <div class="controls-hint">
-            이동: WASD / 마우스 우클릭 목표 지정 (Shift: 달리기)<br>
+            이동: WASD / 마우스 우클릭<br>
+            타겟 고정: 적 우클릭 (땅 우클릭 시 해제)<br>
             공격: 마우스 좌클릭 / 방향키 (↑ ↓ ← →)<br>
-            대시: Q | 전체지도: M (키보드 조작 시 우클릭 목표 취소)
+            대시: Q | 전체지도: M
         </div>
     </div>
 
@@ -201,6 +202,7 @@ const WORLD = {
 };
 
 const DETECT_RANGE = 350;
+const AUTO_TARGET_RANGE = 250; // 방향키 조작 시 에임 고정 감지 거리
 
 const camera = {
     x: 0,
@@ -223,7 +225,8 @@ let mouse = {
     isMoving: false 
 };
 let mouseStopTimeout = null;
-let targetPos = null; // 우클릭 지정 목적지 좌표 {x, y}
+let targetPos = null; 
+let lockedTarget = null; // 고정된 적 타겟 객체
 let lastAttackTime = 0;
 let gameOver = false;
 let isFullMapOpen = false;
@@ -270,15 +273,28 @@ canvas.addEventListener('mousemove', e => {
 canvas.addEventListener('mousedown', e => {
     if (e.button === 0) mouse.leftDown = true;
     if (e.button === 2) {
-        // 우클릭 시 클릭한 화면 위치를 전체 월드 좌표로 계산하여 목표 지정
         const rect = canvas.getBoundingClientRect();
         const screenX = e.clientX - rect.left;
         const screenY = e.clientY - rect.top;
-        
-        targetPos = {
-            x: camera.x + screenX,
-            y: camera.y + screenY
-        };
+        const clickWorldX = camera.x + screenX;
+        const clickWorldY = camera.y + screenY;
+
+        // 클릭 위치에 적이 있는지 판별
+        let clickedEnemy = null;
+        for (let enemy of enemies) {
+            const dist = Math.hypot(enemy.x - clickWorldX, enemy.y - clickWorldY);
+            if (dist <= enemy.radius + 10) {
+                clickedEnemy = enemy;
+                break;
+            }
+        }
+
+        if (clickedEnemy) {
+            lockedTarget = clickedEnemy; // 적을 클릭하면 에임 고정
+        } else {
+            lockedTarget = null; // 빈 땅을 클릭하면 에임 고정 해제
+            targetPos = { x: clickWorldX, y: clickWorldY }; // 이동 목표 좌표 지정
+        }
     }
 });
 
@@ -291,8 +307,8 @@ class Player {
         this.x = WORLD.width / 2;
         this.y = WORLD.height / 2;
         this.radius = 16;
-        this.baseSpeed = 5.5;
-        this.speed = 5.5;
+        this.baseSpeed = 2.75; // 기존 속도(5.5) 대비 50% 감소
+        this.speed = 2.75;
         this.maxHp = 100;
         this.hp = 100;
         
@@ -322,7 +338,6 @@ class Player {
         let dx = 0, dy = 0;
 
         if (hasKeyMove) {
-            // 키보드 이동 시 마우스 우클릭 지정 좌표 취소
             targetPos = null;
             if (keys['KeyW']) dy -= 1;
             if (keys['KeyS']) dy += 1;
@@ -334,14 +349,13 @@ class Player {
                 dy *= 0.7071;
             }
         } else if (targetPos) {
-            // 지정된 우클릭 좌표로 자동 이동
             const dist = Math.hypot(targetPos.x - this.x, targetPos.y - this.y);
             if (dist > 5) {
                 const moveAngle = Math.atan2(targetPos.y - this.y, targetPos.x - this.x);
                 dx = Math.cos(moveAngle);
                 dy = Math.sin(moveAngle);
             } else {
-                targetPos = null; // 도착 시 목적지 초기화
+                targetPos = null;
             }
         }
 
@@ -377,27 +391,67 @@ class Player {
         this.x = Math.max(this.radius, Math.min(WORLD.width - this.radius, this.x));
         this.y = Math.max(this.radius, Math.min(WORLD.height - this.radius, this.y));
 
+        // 고정된 타겟의 사망 여부 확인
+        if (lockedTarget && (lockedTarget.markedForDeletion || lockedTarget.hp <= 0)) {
+            lockedTarget = null;
+        }
+
+        // 키보드로 입력 중일 때 일정 거리 안의 적 탐색 (방향키 에임 고정 기능)
+        let keyDirAngle = null;
         if (hasKeyAttack) {
             let attackDx = 0, attackDy = 0;
             if (keys['ArrowUp']) attackDy -= 1;
             if (keys['ArrowDown']) attackDy += 1;
             if (keys['ArrowLeft']) attackDx -= 1;
             if (keys['ArrowRight']) attackDx += 1;
-
             if (attackDx !== 0 || attackDy !== 0) {
-                this.angle = Math.atan2(attackDy, attackDx);
-                this.attack();
+                keyDirAngle = Math.atan2(attackDy, attackDx);
             }
-        } else {
-            if (mouse.isMoving || mouse.leftDown) {
-                const playerScreenX = this.x - camera.x;
-                const playerScreenY = this.y - camera.y;
-                this.angle = Math.atan2(mouse.y - playerScreenY, mouse.x - playerScreenX);
+        } else if (hasKeyMove && !lockedTarget) {
+            keyDirAngle = Math.atan2(dy, dx);
+        }
+
+        if (keyDirAngle !== null) {
+            // 눌린 키의 방향으로 일정 거리 안에 적이 있는지 확인
+            let foundEnemy = null;
+            let minDiff = Math.PI / 3; // 각도 허용 오차 약 60도
+
+            for (let enemy of enemies) {
+                const dist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
+                if (dist <= AUTO_TARGET_RANGE) {
+                    const angleToEnemy = Math.atan2(enemy.y - this.y, enemy.x - this.x);
+                    let diff = Math.abs(keyDirAngle - angleToEnemy);
+                    if (diff > Math.PI) diff = Math.PI * 2 - diff;
+
+                    if (diff < minDiff) {
+                        minDiff = diff;
+                        foundEnemy = enemy;
+                    }
+                }
             }
 
-            if (mouse.leftDown) {
-                this.attack();
+            if (foundEnemy) {
+                lockedTarget = foundEnemy; // 바라보는 방향에 적이 있으면 고정
+            } else if (hasKeyAttack || hasKeyMove) {
+                lockedTarget = null; // 적이 없는 방향으로 누르면 고정 해제
             }
+        }
+
+        // 최종 에임 결정
+        if (lockedTarget) {
+            // 적에게 에임이 고정된 상태
+            this.angle = Math.atan2(lockedTarget.y - this.y, lockedTarget.x - this.x);
+        } else if (hasKeyAttack && keyDirAngle !== null) {
+            this.angle = keyDirAngle;
+        } else if (mouse.isMoving || mouse.leftDown) {
+            const playerScreenX = this.x - camera.x;
+            const playerScreenY = this.y - camera.y;
+            this.angle = Math.atan2(mouse.y - playerScreenY, mouse.x - playerScreenX);
+        }
+
+        // 공격 실행
+        if (hasKeyAttack || mouse.leftDown) {
+            this.attack();
         }
 
         updateUI();
@@ -548,6 +602,16 @@ class Enemy {
 
         ctx.save();
         ctx.translate(this.x - camera.x, this.y - camera.y);
+
+        // 타겟으로 고정된 적 표시 (붉은색 표적 원)
+        if (lockedTarget === this) {
+            ctx.strokeStyle = '#ff0000';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(0, 0, this.radius + 8, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
         ctx.fillStyle = this.color;
         ctx.beginPath();
 
@@ -651,7 +715,6 @@ function spawnEnemies() {
         centerX = Math.max(200, Math.min(WORLD.width - 200, centerX));
         centerY = Math.max(200, Math.min(WORLD.height - 200, centerY));
 
-        // 안전지대 기준: (0,0) 중심 반경 500px
         const distFromZero = Math.hypot(centerX, centerY);
         const safeZoneRadius = 500;
 
@@ -754,6 +817,7 @@ function init() {
     particles = [];
     popups = [];
     targetPos = null;
+    lockedTarget = null;
     score = 0;
     gameOver = false;
     isFullMapOpen = false;
@@ -840,7 +904,6 @@ function loop() {
         ctx.stroke();
     }
 
-    // 지정된 우클릭 이동 목적지 표시 (마커)
     if (targetPos) {
         ctx.save();
         ctx.strokeStyle = '#2ecc71';
