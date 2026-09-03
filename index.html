@@ -518,12 +518,12 @@ function createPopup(x, y, text, color = '#fff') {
     popups.push(new Popup(x, y, text, color));
 }
 
-// 몬스터 무리 스폰 함수
+// 몬스터 생성 조건 수정 함수
 function spawnEnemies() {
     if (enemies.length < 250 && Math.random() < 0.03) {
-        // 화면 대각선 기준 3배~5배 거리 간격 적용 (2400px ~ 4000px)
-        const minDistance = canvas.width * 3;
-        const maxDistance = canvas.width * 5;
+        // 1인칭 크기의 10배~15배 간격 거리 (8000px ~ 12000px)
+        const minDistance = canvas.width * 10;
+        const maxDistance = canvas.width * 15;
         const distance = Math.random() * (maxDistance - minDistance) + minDistance;
         const angle = Math.random() * Math.PI * 2;
 
@@ -533,7 +533,20 @@ function spawnEnemies() {
         centerX = Math.max(200, Math.min(WORLD.width - 200, centerX));
         centerY = Math.max(200, Math.min(WORLD.height - 200, centerY));
 
-        // 해당 거점을 중심으로 3~6마리의 몬스터 뭉쳐서 생성
+        // 맵 중앙 (0,0 기준 = WORLD.width/2, WORLD.height/2) 주변 검사
+        const mapCenterX = WORLD.width / 2;
+        const mapCenterY = WORLD.height / 2;
+        const distFromCenter = Math.hypot(centerX - mapCenterX, centerY - mapCenterY);
+
+        // 1인칭 시점 1.5배 안전 범위 (반경 약 600px)
+        const safeZoneRadius = canvas.width * 0.75; 
+
+        // 맵 중앙 중심 1.5배 영역 안이면 스폰 취소
+        if (distFromCenter < safeZoneRadius) {
+            return;
+        }
+
+        // 해당 거점을 중심으로 몬스터 무리 소환
         const groupSize = Math.floor(Math.random() * 4) + 3;
         const groupTypeRand = Math.random();
         let type = 0;
@@ -633,8 +646,7 @@ function init() {
     document.getElementById('fullmap-modal').classList.add('hidden');
     document.getElementById('game-over-screen').classList.add('hidden');
 
-    // 게임 시작 시 초기 몬스터 무리 배치
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 20; i++) {
         spawnEnemies();
     }
     updateUI();
