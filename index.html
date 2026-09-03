@@ -312,6 +312,30 @@ function checkWallCollision(nextX, nextY, radius) {
     return { x: correctedX, y: correctedY };
 }
 
+// 총알 및 대시 벽 충돌 체크 함수
+function checkLineWallCollision(x1, y1, x2, y2) {
+    for (let house of houses) {
+        const t = house.wallThickness;
+        const doorLeft = house.x + (house.width - house.doorWidth) / 2;
+        const doorRight = house.x + (house.width + house.doorWidth) / 2;
+
+        const walls = [
+            { x: house.x, y: house.y, w: house.width, h: t },
+            { x: house.x, y: house.y, w: t, h: house.height },
+            { x: house.x + house.width - t, y: house.y, w: t, h: house.height },
+            { x: house.x, y: house.y + house.height - t, w: doorLeft - house.x, h: t },
+            { x: doorRight, y: house.y + house.height - t, w: (house.x + house.width) - doorRight, h: t }
+        ];
+
+        for (let w of walls) {
+            if (x2 >= w.x && x2 <= w.x + w.w && y2 >= w.y && y2 <= w.y + w.h) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 const camera = {
     x: 0,
     y: 0,
@@ -430,12 +454,32 @@ class Player {
         let targetX = this.x;
         let targetY = this.y;
 
+        // 대시 처리 (벽 통과하지 못하도록 레이캐스팅 방식으로 이동)
         if (keys['KeyQ'] && now - this.lastDashTime > this.dashCooldown && isMoving && !this.isExhausted) {
             if (this.stamina >= this.staminaCostDash) {
                 this.stamina -= this.staminaCostDash;
                 this.lastStaminaUseTime = now;
-                targetX += dx * 110;
-                targetY += dy * 110;
+                
+                const dashDist = 110;
+                const steps = 15;
+                let currentDashX = this.x;
+                let currentDashY = this.y;
+
+                for (let i = 1; i <= steps; i++) {
+                    let nextDashX = this.x + (dx * dashDist * (i / steps));
+                    let nextDashY = this.y + (dy * dashDist * (i / steps));
+                    
+                    let pos = checkWallCollision(nextDashX, nextDashY, this.radius);
+                    if (Math.abs(pos.x - nextDashX) > 0.1 || Math.abs(pos.y - nextDashY) > 0.1) {
+                        break; // 벽에 막히면 스톱
+                    }
+                    currentDashX = nextDashX;
+                    currentDashY = nextDashY;
+                }
+
+                targetX = currentDashX;
+                targetY = currentDashY;
+
                 this.lastDashTime = now;
                 for (let i = 0; i < 10; i++) {
                     particles.push(new Particle(this.x, this.y, '#3498db'));
@@ -687,6 +731,12 @@ class Projectile {
         this.x += this.vx;
         this.y += this.vy;
         
+        // 총알이 벽에 부딪히면 제거
+        if (checkLineWallCollision(this.x - this.vx, this.y - this.vy, this.x, this.y)) {
+            this.markedForDeletion = true;
+            return;
+        }
+
         if (this.x < camera.x || this.x > camera.x + camera.width ||
             this.y < camera.y || this.y > camera.y + camera.height) {
             this.markedForDeletion = true;
@@ -716,6 +766,12 @@ class EnemyProjectile {
     update() {
         this.x += this.vx;
         this.y += this.vy;
+
+        // 적 총알도 벽에 부딪히면 소멸
+        if (checkLineWallCollision(this.x - this.vx, this.y - this.vy, this.x, this.y)) {
+            this.markedForDeletion = true;
+            return;
+        }
 
         const distFromCenter = Math.hypot(this.x - SAFE_ZONE_CENTER.x, this.y - SAFE_ZONE_CENTER.y);
         if (distFromCenter <= SAFE_ZONE_RADIUS) {
@@ -804,13 +860,14 @@ class Enemy {
 
         let moveTarget = { x: player.x, y: player.y };
 
+        // 플레이어가 집 안에 있고 적은 밖에 있는 경우, 남쪽 문 앞으로 경유해서 돌아 들어오도록 유도
         if (playerHouse && enemyHouse !== playerHouse) {
-            const doorX = playerHouse.x + playerHouse.width / 2;
-            const doorY = playerHouse.y + playerHouse.height + this.radius + 10;
-            const distToDoor = Math.hypot(doorX - this.x, doorY - this.y);
+            const doorFrontX = playerHouse.x + playerHouse.width / 2;
+            const doorFrontY = playerHouse.y + playerHouse.height + this.radius + 15;
+            const distToDoorFront = Math.hypot(doorFrontX - this.x, doorFrontY - this.y);
 
-            if (distToDoor > 20) {
-                moveTarget = { x: doorX, y: doorY };
+            if (distToDoorFront > 20) {
+                moveTarget = { x: doorFrontX, y: doorFrontY };
             }
         }
 
@@ -820,7 +877,7 @@ class Enemy {
         let targetX = this.x;
         let targetY = this.y;
 
-        const dashAttackRange = 110 * (7 / 8); // 대시 거리 110px의 7/8 = 96.25px
+        const dashAttackRange = 110 * (7 / 8); // 96.25px
 
         if (this.type === 0) {
             if (this.attackState === 'idle') {
@@ -833,7 +890,7 @@ class Enemy {
                     this.chargeTimer = now;
                 }
             } else if (this.attackState === 'charging') {
-                if (now - this.chargeTimer > 500) { // 0.5초 선딜레이
+                if (now - this.chargeTimer > 500) {
                     this.attackState = 'slashing';
                     this.slashTimer = now;
                     this.slashAngle = Math.atan2(player.y - this.y, player.x - this.x);
