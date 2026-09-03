@@ -169,7 +169,7 @@
         </div>
 
         <div class="controls-hint">
-            이동: WASD (Shift: 달리기)<br>
+            이동: WASD (Shift: 달리기 - 속도 2.5)<br>
             시점/타겟지정: 방향키 (↑ ↓ ← →)<br>
             공격: 스페이스바<br>
             대시: Q | 전체지도: M
@@ -203,11 +203,22 @@ const WORLD = {
     height: 18000
 };
 
-// 맵 중앙을 SafeZone의 중심점(0,0 개념)으로 설정
 const DETECT_RANGE = 350;
 const SAFE_ZONE_CENTER = { x: WORLD.width / 2, y: WORLD.height / 2 };
-const SAFE_ZONE_RADIUS = DETECT_RANGE * 2; // (700px)
+const SAFE_ZONE_RADIUS = DETECT_RANGE * 2; // 700px
 const AUTO_TARGET_RANGE = 300;
+
+// SafeZone 내부에 배치될 집 객체 정의
+const house = {
+    x: SAFE_ZONE_CENTER.x - 150,
+    y: SAFE_ZONE_CENTER.y - 120,
+    width: 300,
+    height: 240,
+    doorWidth: 60,
+    roofAlpha: 1.0,
+    targetAlpha: 1.0,
+    fadeSpeed: 0.08
+};
 
 const camera = {
     x: 0,
@@ -262,11 +273,11 @@ window.addEventListener('keyup', e => keys[e.code] = false);
 
 class Player {
     constructor() {
-        // SafeZone(맵 중앙) 내부 안전지대에서 시작
         this.x = SAFE_ZONE_CENTER.x;
         this.y = SAFE_ZONE_CENTER.y;
         this.radius = 16;
         this.baseSpeed = 1.3;
+        this.runSpeed = 2.5;
         this.speed = 1.3;
         this.maxHp = 100;
         this.hp = 100;
@@ -319,7 +330,7 @@ class Player {
         }
 
         if (isMoving && isShiftPressed && !this.isExhausted && this.stamina > 0) {
-            this.speed = this.baseSpeed * 1.5;
+            this.speed = this.runSpeed;
             this.stamina = Math.max(0, this.stamina - this.staminaDrainRun);
             this.lastStaminaUseTime = now;
 
@@ -466,6 +477,89 @@ class Player {
     }
 }
 
+// 집 진입 여부 판정 및 투명도 계산 로직
+function updateHouseVisibility() {
+    const isInside = (
+        player.x >= house.x &&
+        player.x <= house.x + house.width &&
+        player.y >= house.y &&
+        player.y <= house.y + house.height
+    );
+
+    house.targetAlpha = isInside ? 0.2 : 1.0;
+    house.roofAlpha += (house.targetAlpha - house.roofAlpha) * house.fadeSpeed;
+}
+
+// 1. 집 내부(바닥 및 가구) 렌더링
+function drawHouseInterior() {
+    const screenX = house.x - camera.x;
+    const screenY = house.y - camera.y;
+
+    if (screenX + house.width < 0 || screenX > canvas.width ||
+        screenY + house.height < 0 || screenY > canvas.height) {
+        return;
+    }
+
+    ctx.save();
+    
+    // 바닥
+    ctx.fillStyle = '#d2b48c';
+    ctx.fillRect(screenX, screenY, house.width, house.height);
+
+    // 내부 테두리 벽
+    ctx.strokeStyle = '#8b5a2b';
+    ctx.lineWidth = 6;
+    ctx.strokeRect(screenX, screenY, house.width, house.height);
+
+    // 침대 가구
+    ctx.fillStyle = '#4169e1';
+    ctx.fillRect(screenX + 20, screenY + 20, 60, 90);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(screenX + 25, screenY + 25, 50, 25);
+
+    // 테이블 가구
+    ctx.fillStyle = '#8b4513';
+    ctx.beginPath();
+    ctx.arc(screenX + 200, screenY + 120, 30, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 출입구 입구
+    ctx.fillStyle = '#704214';
+    ctx.fillRect(screenX + house.width / 2 - house.doorWidth / 2, screenY + house.height - 4, house.doorWidth, 8);
+
+    ctx.restore();
+}
+
+// 2. 지붕 레이어 렌더링 (투명도 적용)
+function drawHouseRoof() {
+    const screenX = house.x - camera.x;
+    const screenY = house.y - camera.y;
+
+    if (screenX + house.width < 0 || screenX > canvas.width ||
+        screenY + house.height < 0 || screenY > canvas.height) {
+        return;
+    }
+
+    ctx.save();
+    ctx.globalAlpha = house.roofAlpha;
+
+    // 지붕 기본 면적
+    ctx.fillStyle = '#a52a2a';
+    ctx.fillRect(screenX - 10, screenY - 10, house.width + 20, house.height + 20);
+
+    // 지붕 텍스처 줄무늬
+    ctx.strokeStyle = '#800000';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    for (let i = screenY; i <= screenY + house.height; i += 30) {
+        ctx.moveTo(screenX - 10, i);
+        ctx.lineTo(screenX + house.width + 10, i);
+    }
+    ctx.stroke();
+
+    ctx.restore();
+}
+
 class Projectile {
     constructor(x, y, angle, damage) {
         this.x = x;
@@ -511,6 +605,12 @@ class EnemyProjectile {
     update() {
         this.x += this.vx;
         this.y += this.vy;
+
+        const distFromCenter = Math.hypot(this.x - SAFE_ZONE_CENTER.x, this.y - SAFE_ZONE_CENTER.y);
+        if (distFromCenter <= SAFE_ZONE_RADIUS) {
+            this.markedForDeletion = true;
+            return;
+        }
         
         if (this.x < camera.x || this.x > camera.x + camera.width ||
             this.y < camera.y || this.y > camera.y + camera.height) {
@@ -575,6 +675,17 @@ class Enemy {
         this.markedForDeletion = false;
     }
 
+    keepOutOfSafeZone() {
+        const distFromCenter = Math.hypot(this.x - SAFE_ZONE_CENTER.x, this.y - SAFE_ZONE_CENTER.y);
+        const minAllowedDist = SAFE_ZONE_RADIUS + this.radius;
+
+        if (distFromCenter < minAllowedDist) {
+            const angleFromCenter = Math.atan2(this.y - SAFE_ZONE_CENTER.y, this.x - SAFE_ZONE_CENTER.x);
+            this.x = SAFE_ZONE_CENTER.x + Math.cos(angleFromCenter) * minAllowedDist;
+            this.y = SAFE_ZONE_CENTER.y + Math.sin(angleFromCenter) * minAllowedDist;
+        }
+    }
+
     update() {
         const dist = Math.hypot(player.x - this.x, player.y - this.y);
         const angle = Math.atan2(player.y - this.y, player.x - this.x);
@@ -628,10 +739,15 @@ class Enemy {
             }
 
             if (dist <= DETECT_RANGE && now - this.lastShootTime > this.shootInterval) {
-                enemyProjectiles.push(new EnemyProjectile(this.x, this.y, angle, 15));
+                const playerDistFromCenter = Math.hypot(player.x - SAFE_ZONE_CENTER.x, player.y - SAFE_ZONE_CENTER.y);
+                if (playerDistFromCenter > SAFE_ZONE_RADIUS) {
+                    enemyProjectiles.push(new EnemyProjectile(this.x, this.y, angle, 15));
+                }
                 this.lastShootTime = now;
             }
         }
+
+        this.keepOutOfSafeZone();
     }
 
     draw() {
@@ -777,9 +893,8 @@ function spawnEnemies() {
         centerX = Math.max(200, Math.min(WORLD.width - 200, centerX));
         centerY = Math.max(200, Math.min(WORLD.height - 200, centerY));
 
-        // 맵 중앙 SafeZone 영역 스폰 금지
         const distFromZero = Math.hypot(centerX - SAFE_ZONE_CENTER.x, centerY - SAFE_ZONE_CENTER.y);
-        if (distFromZero <= SAFE_ZONE_RADIUS) return;
+        if (distFromZero <= SAFE_ZONE_RADIUS + 50) return;
 
         if (isSpawnPointUsed(centerX, centerY)) return;
 
@@ -815,7 +930,6 @@ function updateUI() {
     document.getElementById('score-txt').innerText = `Score: ${score}`;
 }
 
-// 맵 중앙의 SafeZone 그리기
 function drawSafeZone() {
     const screenX = SAFE_ZONE_CENTER.x - camera.x;
     const screenY = SAFE_ZONE_CENTER.y - camera.y;
@@ -832,7 +946,7 @@ function drawSafeZone() {
     ctx.fillStyle = '#2ecc71';
     ctx.font = 'bold 16px Segoe UI';
     ctx.textAlign = 'center';
-    ctx.fillText("SAFE ZONE (0,0)", screenX, screenY);
+    ctx.fillText("SAFE ZONE (0,0)", screenX, screenY - house.height / 2 - 20);
     ctx.restore();
 }
 
@@ -848,13 +962,21 @@ function drawMinimap() {
     const scaleX = minimapCanvas.width / rangeX;
     const scaleY = minimapCanvas.height / rangeY;
 
-    // 미니맵 SafeZone 표시
     const szMinimapX = (SAFE_ZONE_CENTER.x - startX) * scaleX;
     const szMinimapY = (SAFE_ZONE_CENTER.y - startY) * scaleY;
     minimapCtx.fillStyle = 'rgba(46, 204, 113, 0.3)';
     minimapCtx.beginPath();
     minimapCtx.arc(szMinimapX, szMinimapY, SAFE_ZONE_RADIUS * scaleX, 0, Math.PI * 2);
     minimapCtx.fill();
+
+    // 미니맵 집 표시
+    minimapCtx.fillStyle = '#8b4513';
+    minimapCtx.fillRect(
+        (house.x - startX) * scaleX,
+        (house.y - startY) * scaleY,
+        house.width * scaleX,
+        house.height * scaleY
+    );
 
     minimapCtx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
     minimapCtx.lineWidth = 1;
@@ -890,11 +1012,14 @@ function drawFullMap() {
     fullmapCtx.strokeStyle = '#333';
     fullmapCtx.strokeRect(0, 0, fullmapCanvas.width, fullmapCanvas.height);
 
-    // 전체지도 SafeZone(맵 중앙) 표시
     fullmapCtx.beginPath();
     fullmapCtx.arc(SAFE_ZONE_CENTER.x * scaleX, SAFE_ZONE_CENTER.y * scaleY, SAFE_ZONE_RADIUS * scaleX, 0, Math.PI * 2);
     fullmapCtx.fillStyle = 'rgba(46, 204, 113, 0.4)';
     fullmapCtx.fill();
+
+    // 월드맵 집 표시
+    fullmapCtx.fillStyle = '#8b4513';
+    fullmapCtx.fillRect(house.x * scaleX, house.y * scaleY, house.width * scaleX, house.height * scaleY);
 
     fullmapCtx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
     fullmapCtx.lineWidth = 1;
@@ -951,6 +1076,7 @@ function loop() {
     if (!gameOver && !isFullMapOpen) {
         spawnEnemies();
         player.update();
+        updateHouseVisibility(); // 지붕 투명도 갱신
         camera.update(player.x, player.y);
 
         projectiles.forEach(p => p.update());
@@ -1017,14 +1143,18 @@ function loop() {
     ctx.lineWidth = 6;
     ctx.strokeRect(-camera.x, -camera.y, WORLD.width, WORLD.height);
 
-    // SafeZone 그리기 (맵 중앙)
     drawSafeZone();
+
+    // 렌더링 순서: 집 내부 -> 파티클 -> 투사체 -> 적 -> 플레이어 -> 지붕 -> 팝업
+    drawHouseInterior();
 
     particles.forEach(p => p.draw());
     projectiles.forEach(p => p.draw());
     enemyProjectiles.forEach(ep => ep.draw());
     enemies.forEach(e => e.draw());
     if (!gameOver) player.draw();
+
+    drawHouseRoof(); // 지붕 레이어 렌더링
     popups.forEach(p => p.draw());
 
     drawMinimap();
