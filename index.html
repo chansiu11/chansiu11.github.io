@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>100x RPG - Fixed Wave & Custom Enemies</title>
+    <title>100x RPG - Pattern & Skill Delay Updated</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
         body { background-color: #111118; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; }
@@ -111,8 +111,7 @@ function generateRandomHouses(count) {
 
         houses.push({
             id: i + 1, x: rx, y: ry, width: w, height: h,
-            wallThickness: 16,
-            doorWidth: 70,
+            wallThickness: 16, doorWidth: 70,
             roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08,
             roofColor: roofColors[i % roofColors.length],
             floorColor: floorColors[i % floorColors.length]
@@ -309,6 +308,7 @@ class Player {
             return;
         }
 
+        // 선디레이/대기 후 공격 또는 스킬 실행
         if (this.pendingAttack && now >= this.pendingAttack.executeTime) {
             this.executePendingAttack(this.pendingAttack);
             this.pendingAttack = null;
@@ -427,8 +427,10 @@ class Player {
         const now = Date.now();
         if (now < this.attackBlockedUntil || now - (this.lastSkillTimes[key] || 0) < this.skillCooldowns[key] || this.pendingAttack) return;
 
-        this.pendingAttack = { executeTime: now + 50, type: `skill_${key}` };
+        // 스킬 시전 0.15초 (150ms) 준비 후 발동
+        this.pendingAttack = { executeTime: now + 150, type: `skill_${key}` };
         this.lastSkillTimes[key] = now;
+        createPopup(this.x, this.y - 25, "READY...", "#3498db");
         updateUI();
     }
 
@@ -522,15 +524,17 @@ class Enemy {
         this.stunnedUntil = 0;
         this.markedForDeletion = false;
         
-        if (type === 0) {
-            this.color = '#f1c40f'; this.hp = 120; this.speed = 2.0;
-            this.attackRange = 400; this.attackCooldown = 2500;
-        } else if (type === 1) {
-            this.color = '#e74c3c'; this.hp = 220; this.speed = 2.3;
-            this.attackRange = 60; this.attackCooldown = 1800;
-        } else if (type === 2) {
-            this.color = '#9b59b6'; this.hp = 180; this.speed = 2.1;
-            this.attackRange = 320; this.attackCooldown = 4000;
+        // 몬스터 체력 기존 대비 10배 적용
+        if (type === 0) { // 노란색 (원거리/거리유지)
+            this.color = '#f1c40f'; this.hp = 1200; this.speed = 2.0;
+            this.attackRange = 400; this.attackCooldown = 2000;
+            this.keepDistance = 250; // 거리를 두는 기준
+        } else if (type === 1) { // 빨간색 (근접 전용 칼 공격)
+            this.color = '#e74c3c'; this.hp = 2200; this.speed = 2.4;
+            this.attackRange = 70; this.attackCooldown = 1500;
+        } else if (type === 2) { // 보라색 (돌진 후 대기)
+            this.color = '#9b59b6'; this.hp = 1800; this.speed = 2.0;
+            this.attackRange = 350; this.attackCooldown = 3500;
         }
         this.maxHp = this.hp;
         this.lastAttackTime = Date.now() + Math.random() * 2000;
@@ -561,6 +565,7 @@ class Enemy {
         const now = Date.now();
         if (now < this.stunnedUntil) return;
 
+        // 보라색 몬스터 돌진 중 처리
         if (this.isDashing) {
             this.x += this.dashVx;
             this.y += this.dashVy;
@@ -581,7 +586,7 @@ class Enemy {
         const angleToPlayer = Math.atan2(player.y - this.y, player.x - this.x);
 
         if (this.isPreparingAttack) {
-            if (now - this.attackPrepareStartTime >= 500) {
+            if (now - this.attackPrepareStartTime >= 400) {
                 this.isPreparingAttack = false;
                 this.executeAttack(angleToPlayer, distToPlayer);
             }
@@ -589,9 +594,22 @@ class Enemy {
         }
 
         if (distToPlayer <= DETECT_RANGE) {
-            this.x += Math.cos(angleToPlayer) * this.speed;
-            this.y += Math.sin(angleToPlayer) * this.speed;
+            // 노란색: 거리 조절 (가까워지면 후퇴, 너무 멀어지면 다가옴)
+            if (this.type === 0) {
+                if (distToPlayer < this.keepDistance - 30) {
+                    this.x -= Math.cos(angleToPlayer) * this.speed;
+                    this.y -= Math.sin(angleToPlayer) * this.speed;
+                } else if (distToPlayer > this.keepDistance + 50) {
+                    this.x += Math.cos(angleToPlayer) * this.speed;
+                    this.y += Math.sin(angleToPlayer) * this.speed;
+                }
+            } else {
+                // 빨간색 / 보라색: 이동
+                this.x += Math.cos(angleToPlayer) * this.speed;
+                this.y += Math.sin(angleToPlayer) * this.speed;
+            }
 
+            // 공격 수행 판단
             if (now - this.lastAttackTime > this.attackCooldown && distToPlayer <= this.attackRange) {
                 if (this.type === 0) {
                     this.executeAttack(angleToPlayer, distToPlayer);
@@ -617,14 +635,17 @@ class Enemy {
     executeAttack(angle, dist) {
         this.lastAttackTime = Date.now();
         if (this.type === 0) {
+            // 노란색 원거리 격발
             enemyProjectiles.push(new Projectile(this.x, this.y, angle, 18, '#f1c40f', 8));
         } else if (this.type === 1) {
+            // 빨간색 항상 칼 근접 공격
             visualEffects.push(new SlashEffect(this.x, this.y, angle, 80, '#e74c3c', 'basic_slash'));
             if (dist <= 85) player.takeDamage(25, false, 0.5);
         } else if (this.type === 2) {
+            // 보라색 돌진 실행
             this.isDashing = true;
-            this.dashEndTime = Date.now() + 400;
-            const dashSpeed = 14;
+            this.dashEndTime = Date.now() + 450;
+            const dashSpeed = 15;
             this.dashVx = Math.cos(angle) * dashSpeed;
             this.dashVy = Math.sin(angle) * dashSpeed;
         }
@@ -706,7 +727,6 @@ class Projectile {
     }
 }
 
-// 스킬 이펙트 가시성 강화 및 개선 클래스
 class SlashEffect {
     constructor(x, y, angle, range, color, style) {
         this.x = x; this.y = y; this.angle = angle; this.range = range;
@@ -813,7 +833,6 @@ class Popup {
 
 function createPopup(x, y, text, color = '#fff') { popups.push(new Popup(x, y, text, color)); }
 
-// 이동감을 체감할 수 있는 필드 그리드 맵 라인 및 패턴 드로잉
 function drawBackgroundGrid() {
     ctx.save();
     const gridSize = 200;
@@ -1055,10 +1074,7 @@ function loop() {
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 1. 배경 그리드 및 이동 표시(#) 렌더링
     drawBackgroundGrid();
-
-    // 2. 안쪽 구조 및 개체 렌더링
     drawZones();
     drawHousesInterior();
 
@@ -1067,15 +1083,12 @@ function loop() {
     enemyProjectiles.forEach(ep => ep.draw());
     enemies.forEach(e => e.draw());
 
-    // 3. 지붕 렌더링
     drawHousesRoof();
 
-    // 4. 스킬 이펙트 및 상위 렌더링 (지붕 위에 선명하게 렌더링되도록 변경)
     visualEffects.forEach(v => v.draw());
     if (!gameOver) player.draw();
     popups.forEach(p => p.draw());
 
-    // 5. 지도 UI
     drawMinimap();
     drawFullMap();
 
