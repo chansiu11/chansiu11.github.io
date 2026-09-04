@@ -179,7 +179,7 @@
             <div id="weapon-stat">무기: 칼 (Knife)</div>
             <div id="stack-stat">칼 스택: 0 / 5</div>
             <div id="ammo-stat">총알: -</div>
-            <div id="cooldown-stat">스킬 쿨타임 - C: 준비 | V: 준비 | E: 준비 | R: 준비</div>
+            <div id="cooldown-stat">스킬 쿨타임 - Z: 준비 | X: 준비 | C: 준비 | V: 준비</div>
             <div class="bar-container">
                 <div id="stamina-fill" class="bar-fill"></div>
             </div>
@@ -198,8 +198,8 @@
         <div class="controls-hint">
             이동: WASD (Shift: 달리기)<br>
             무기교체: 1 (칼 <-> 맨손) / 2 (총)<br>
-            스킬 (칼 전용): C (찌르기) | V (회전) | E (파동) | R (궁극기)<br>
-            시점/타겟지정: 방향키 | 공격: 스페이스바 | 대시: Q | 전체지도: M
+            스킬 (칼 전용): Z (찌르기) | X (회전) | C (파동) | V (궁극기)<br>
+            공격: 방향키 (위/아래/왼쪽/오른쪽) | 대시: Q | 전체지도: M
         </div>
     </div>
 
@@ -211,7 +211,7 @@
     <div id="game-over-screen" class="hidden">
         <h1 style="font-size: 40px; color: #e74c3c; margin-bottom: 10px;">GAME OVER</h1>
         <p id="final-score" style="font-size: 18px;">최종 점수: 0</p>
-        <p class="restart-hint">Q 또는 스페이스바를 눌러 다시 시작</p>
+        <p class="restart-hint">Q 또는 방향키를 눌러 다시 시작</p>
     </div>
 </div>
 
@@ -240,6 +240,7 @@ let houses = [
 ];
 
 let ammoBoxes = [];
+let hasSpawnedAfterSafeZone = false; // 스폰 제한 플래그
 
 function generateRandomHouses(count) {
     const roofColors = ['#2980b9', '#8e44ad', '#16a085', '#d35400', '#2c3e50'];
@@ -363,7 +364,7 @@ let visualEffects = [];
 let score = 0;
 
 window.addEventListener('keydown', e => {
-    if (e.code === 'Space') e.preventDefault();
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
     keys[e.code] = true;
     
     if (e.code === 'Digit1') {
@@ -377,10 +378,10 @@ window.addEventListener('keydown', e => {
     }
 
     if (!gameOver && player) {
+        if (e.code === 'KeyZ') player.useSkill('Z');
+        if (e.code === 'KeyX') player.useSkill('X');
         if (e.code === 'KeyC') player.useSkill('C');
         if (e.code === 'KeyV') player.useSkill('V');
-        if (e.code === 'KeyE') player.useSkill('E');
-        if (e.code === 'KeyR') player.useSkill('R');
     }
 
     if (e.code === 'KeyM' && !gameOver) {
@@ -388,7 +389,7 @@ window.addEventListener('keydown', e => {
         document.getElementById('fullmap-modal').classList.toggle('hidden', !isFullMapOpen);
     }
 
-    if (gameOver && (e.code === 'KeyQ' || e.code === 'Space')) {
+    if (gameOver && (e.code === 'KeyQ' || e.code.startsWith('Arrow'))) {
         restartGame();
     }
 });
@@ -434,7 +435,6 @@ class Player {
 
         this.stunnedUntil = 0;
         
-        // 스택(스텟) 및 1초 공격 금지 시스템
         this.knifeStack = 0;
         this.lastKnifeAttackTime = 0;
         this.attackBlockedUntil = 0;
@@ -442,32 +442,35 @@ class Player {
         this.pendingAttack = null;
         
         this.skillCooldowns = {
-            C: 3000,
-            V: 5000,
-            E: 6000,
-            R: 12000
+            Z: 3000,
+            X: 5000,
+            C: 6000,
+            V: 12000
         };
-        this.lastSkillTimes = { C: 0, V: 0, E: 0, R: 0 };
+        this.lastSkillTimes = { Z: 0, X: 0, C: 0, V: 0 };
     }
 
     update() {
         if (isFullMapOpen) return;
         const now = Date.now();
 
-        // 1초 동안 칼 공격을 하지 않으면 스택 초기화
+        // SAFE존 진입 시 스폰 리셋
+        const distToSafeZone = Math.hypot(this.x - SAFE_ZONE_CENTER.x, this.y - SAFE_ZONE_CENTER.y);
+        if (distToSafeZone <= SAFE_ZONE_RADIUS) {
+            hasSpawnedAfterSafeZone = false;
+        }
+
         if (this.knifeStack > 0 && now - this.lastKnifeAttackTime >= 1000) {
             this.knifeStack = 0;
             updateUI();
         }
 
-        // 기절 처리
         if (now < this.stunnedUntil) {
             this.pendingAttack = null;
             updateUI();
             return;
         }
 
-        // 선딜레이 공격 실행 처리
         if (this.pendingAttack && now >= this.pendingAttack.executeTime) {
             this.executePendingAttack(this.pendingAttack);
             this.pendingAttack = null;
@@ -508,7 +511,6 @@ class Player {
         let targetX = this.x;
         let targetY = this.y;
 
-        // 대시
         if (keys['KeyQ'] && now - this.lastDashTime > this.dashCooldown && isMoving && !this.isExhausted) {
             if (this.stamina >= this.staminaCostDash) {
                 this.stamina -= this.staminaCostDash;
@@ -544,7 +546,6 @@ class Player {
         this.x = Math.max(this.radius, Math.min(WORLD.width - this.radius, posAfterWall.x));
         this.y = Math.max(this.radius, Math.min(WORLD.height - this.radius, posAfterWall.y));
 
-        // 총알 루팅
         ammoBoxes.forEach(box => {
             if (!box.taken) {
                 const dist = Math.hypot(this.x - box.x, this.y - box.y);
@@ -558,7 +559,7 @@ class Player {
             }
         });
 
-        // 타겟팅
+        // 방향키 조준 및 눌렀을 때 공격 실행
         if (hasKeyAim) {
             let aimDx = 0, aimDy = 0;
             if (keys['ArrowUp']) aimDy -= 1;
@@ -567,30 +568,10 @@ class Player {
             if (keys['ArrowRight']) aimDx += 1;
 
             if (aimDx !== 0 || aimDy !== 0) {
-                const keyAngle = Math.atan2(aimDy, aimDx);
-                let foundEnemy = null;
-                let minDiff = Math.PI / 3;
-
-                for (let enemy of enemies) {
-                    const dist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
-                    if (dist <= AUTO_TARGET_RANGE) {
-                        const enemyAngle = Math.atan2(enemy.y - this.y, enemy.x - this.x);
-                        let diff = Math.abs(keyAngle - enemyAngle);
-                        if (diff > Math.PI) diff = Math.PI * 2 - diff;
-                        if (diff < minDiff) { minDiff = diff; foundEnemy = enemy; }
-                    }
-                }
-                if (foundEnemy) lockedTarget = foundEnemy;
-                else { lockedTarget = null; this.angle = keyAngle; }
+                this.angle = Math.atan2(aimDy, aimDx);
+                this.attack(); // 방향키 입력 시 자동 공격
             }
         }
-
-        if (lockedTarget) {
-            if (lockedTarget.markedForDeletion || lockedTarget.hp <= 0) lockedTarget = null;
-            else this.angle = Math.atan2(lockedTarget.y - this.y, lockedTarget.x - this.x);
-        }
-
-        if (keys['Space']) this.attack();
 
         updateUI();
     }
@@ -629,13 +610,12 @@ class Player {
                 updateUI();
             } else createPopup(this.x, this.y - 20, "NO AMMO!", "#e74c3c");
         } else if (this.weapon === 'knife') {
-            // 칼 공격 시 스택(스텟) 증가 및 제한 체크
             this.knifeStack++;
             this.lastKnifeAttackTime = now;
 
             if (this.knifeStack >= 5) {
                 this.knifeStack = 0;
-                this.attackBlockedUntil = now + 1000; // 1초간 공격 불가
+                this.attackBlockedUntil = now + 1000;
                 createPopup(this.x, this.y - 30, "OVERHEAT! 1s LOCK", "#e74c3c");
             } else {
                 createPopup(this.x, this.y - 30, `STACK ${this.knifeStack}`, "#e67e22");
@@ -667,7 +647,7 @@ class Player {
             this.performMeleeAttack(80, this.knifeDamage, 0.5, '#ecf0f1', 'basic_slash');
         } else if (type === 'bare_basic') {
             this.performMeleeAttack(60, this.knifeDamage * 0.1, 0.5, '#f39c12', 'punch');
-        } else if (type === 'skill_C') {
+        } else if (type === 'skill_Z') {
             const range = 140;
             visualEffects.push(new SlashEffect(this.x, this.y, this.angle, range, '#e74c3c', 'thrust'));
             enemies.forEach(e => {
@@ -676,25 +656,25 @@ class Player {
                 let diff = Math.abs(this.angle - angleTo);
                 if (diff > Math.PI) diff = Math.PI * 2 - diff;
                 if (dist <= range && diff < Math.PI / 4) {
-                    e.takeDamage(this.knifeDamage * 1.8, true, 0.5);
+                    e.takeDamage(this.knifeDamage * 1.8, true, 1.2);
                 }
             });
-        } else if (type === 'skill_V') {
+        } else if (type === 'skill_X') {
             visualEffects.push(new SlashEffect(this.x, this.y, 0, 110, '#3498db', 'spin'));
             enemies.forEach(e => {
                 const dist = Math.hypot(e.x - this.x, e.y - this.y);
-                if (dist <= 110) e.takeDamage(this.knifeDamage * 1.5, true, 0.5);
+                if (dist <= 110) e.takeDamage(this.knifeDamage * 1.5, true, 1.3);
             });
-        } else if (type === 'skill_E') {
+        } else if (type === 'skill_C') {
             for (let i = -1; i <= 1; i++) {
-                projectiles.push(new WaveProjectile(this.x, this.y, this.angle + (i * 0.15), this.knifeDamage * 1.3, 0.5));
+                projectiles.push(new WaveProjectile(this.x, this.y, this.angle + (i * 0.15), this.knifeDamage * 1.3, 1.5));
             }
-        } else if (type === 'skill_R') {
+        } else if (type === 'skill_V') {
             visualEffects.push(new UltimateEffect(this.x, this.y, this.angle));
             enemies.forEach(e => {
                 const dist = Math.hypot(e.x - this.x, e.y - this.y);
                 if (dist <= 180) {
-                    e.takeDamage(this.knifeDamage * 3.5, true, 0.5);
+                    e.takeDamage(this.knifeDamage * 3.5, true, 2.0);
                 }
             });
         }
@@ -1153,8 +1133,13 @@ function createPopup(x, y, text, color = '#fff') {
 }
 
 function spawnEnemies() {
+    // 이미 스폰되었고 SAFE존에 들어가지 않았다면 스폰 차단
+    if (hasSpawnedAfterSafeZone) return;
+
     if (enemies.length >= 35) return;
-    if (Math.random() < 0.04) {
+    
+    // 기존 스폰율(0.04) 대비 70% 감소 -> 0.012
+    if (Math.random() < 0.012) {
         const distance = Math.random() * 500 + 300;
         const angle = Math.random() * Math.PI * 2;
         let cx = player.x + Math.cos(angle) * distance;
@@ -1168,6 +1153,7 @@ function spawnEnemies() {
         else if (rand >= 0.92) type = 2;
 
         enemies.push(new Enemy(cx, cy, type));
+        hasSpawnedAfterSafeZone = true; // 스폰 기록
     }
 }
 
@@ -1189,13 +1175,13 @@ function updateUI() {
     ammoStat.innerText = player.weapon === 'gun' ? `총알: ${player.ammo}/${player.maxAmmo}` : `총알: -`;
 
     const now = Date.now();
+    const zRem = Math.max(0, Math.ceil((player.skillCooldowns.Z - (now - player.lastSkillTimes.Z)) / 1000));
+    const xRem = Math.max(0, Math.ceil((player.skillCooldowns.X - (now - player.lastSkillTimes.X)) / 1000));
     const cRem = Math.max(0, Math.ceil((player.skillCooldowns.C - (now - player.lastSkillTimes.C)) / 1000));
     const vRem = Math.max(0, Math.ceil((player.skillCooldowns.V - (now - player.lastSkillTimes.V)) / 1000));
-    const eRem = Math.max(0, Math.ceil((player.skillCooldowns.E - (now - player.lastSkillTimes.E)) / 1000));
-    const rRem = Math.max(0, Math.ceil((player.skillCooldowns.R - (now - player.lastSkillTimes.R)) / 1000));
 
     document.getElementById('cooldown-stat').innerText = 
-        `스킬 쿨타임 - C: ${cRem ? cRem+'s' : '준비'} | V: ${vRem ? vRem+'s' : '준비'} | E: ${eRem ? eRem+'s' : '준비'} | R: ${rRem ? rRem+'s' : '준비'}`;
+        `스킬 쿨타임 - Z: ${zRem ? zRem+'s' : '준비'} | X: ${xRem ? xRem+'s' : '준비'} | C: ${cRem ? cRem+'s' : '준비'} | V: ${vRem ? vRem+'s' : '준비'}`;
 
     document.getElementById('level-txt').innerText = `LV. ${player.level}`;
     document.getElementById('exp-fill').style.width = `${(player.exp / player.nextExp) * 100}%`;
@@ -1258,6 +1244,7 @@ function init() {
     score = 0;
     gameOver = false;
     isFullMapOpen = false;
+    hasSpawnedAfterSafeZone = false;
     
     initAmmoInHouses();
 
