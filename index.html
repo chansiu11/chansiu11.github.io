@@ -8,7 +8,7 @@
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
         body { background-color: #111118; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; }
         #game-container { position: relative; box-shadow: 0 0 20px rgba(0,0,0,0.8); border-radius: 8px; overflow: hidden; }
-        canvas#gameCanvas { background-color: #1e1e2d; display: block; }
+        canvas#gameCanvas { background-color: #1a1a24; display: block; }
         #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; padding: 15px; display: flex; flex-direction: column; justify-content: space-between; }
         .stats-panel { background: rgba(0, 0, 0, 0.65); padding: 10px 15px; border-radius: 8px; backdrop-filter: blur(5px); width: fit-content; }
         .bar-container { width: 200px; height: 14px; background: #444; border-radius: 7px; margin-top: 6px; overflow: hidden; }
@@ -50,7 +50,7 @@
             <div class="bar-container"><div id="exp-fill" class="bar-fill"></div></div>
             <div class="text-stat" id="score-txt">Score: 0</div>
             <div class="text-stat" id="enemy-txt" style="color: #e74c3c;">남은 몬스터: 0</div>
-            <div class="text-stat" style="color: #2ecc71;">SafeZone: 맵 중앙 (0,0)</div>
+            <div class="text-stat" style="color: #2ecc71;">SafeZone: 맵 중앙</div>
         </div>
 
         <div id="minimap-container">
@@ -93,7 +93,6 @@ const SAFE_ZONE_RADIUS = 700;
 let houses = [];
 let ammoBoxes = [];
 
-// 집 25개 임의 생성
 function generateRandomHouses(count) {
     houses = [];
     const roofColors = ['#2980b9', '#8e44ad', '#16a085', '#d35400', '#2c3e50'];
@@ -428,7 +427,7 @@ class Player {
         const now = Date.now();
         if (now < this.attackBlockedUntil || now - (this.lastSkillTimes[key] || 0) < this.skillCooldowns[key] || this.pendingAttack) return;
 
-        this.pendingAttack = { executeTime: now + 120, type: `skill_${key}` };
+        this.pendingAttack = { executeTime: now + 50, type: `skill_${key}` };
         this.lastSkillTimes[key] = now;
         updateUI();
     }
@@ -516,7 +515,6 @@ class Player {
     }
 }
 
-// 신규 몬스터 클래스 (노란 세모, 빨간 네모, 보라 오각형)
 class Enemy {
     constructor(x, y, type) {
         this.x = x; this.y = y; this.type = type;
@@ -524,7 +522,6 @@ class Enemy {
         this.stunnedUntil = 0;
         this.markedForDeletion = false;
         
-        // 0: 노란 삼각형(활), 1: 빨간 사각형(칼/경고 0.5초), 2: 보라 오각형(고속 돌진/경고 0.5초)
         if (type === 0) {
             this.color = '#f1c40f'; this.hp = 120; this.speed = 2.0;
             this.attackRange = 400; this.attackCooldown = 2500;
@@ -538,7 +535,6 @@ class Enemy {
         this.maxHp = this.hp;
         this.lastAttackTime = Date.now() + Math.random() * 2000;
 
-        // 공격 경고 시각화 상태 변수
         this.isPreparingAttack = false;
         this.attackPrepareStartTime = 0;
         this.attackTargetAngle = 0;
@@ -550,7 +546,7 @@ class Enemy {
     takeDamage(amount, isSkill = false, stunDuration = 0.5) {
         applyStun(this, stunDuration);
         this.hp -= amount;
-        this.isPreparingAttack = false; // 타격 시 패턴 취소
+        this.isPreparingAttack = false;
         this.isDashing = false;
         createPopup(this.x, this.y - 15, `${Math.floor(amount)}`, isSkill ? '#f1c40f' : '#fff');
 
@@ -565,7 +561,6 @@ class Enemy {
         const now = Date.now();
         if (now < this.stunnedUntil) return;
 
-        // 보라색 몬스터 고속 돌진 실행 중 처리
         if (this.isDashing) {
             this.x += this.dashVx;
             this.y += this.dashVy;
@@ -585,25 +580,22 @@ class Enemy {
         const distToPlayer = Math.hypot(player.x - this.x, player.y - this.y);
         const angleToPlayer = Math.atan2(player.y - this.y, player.x - this.x);
 
-        // 공격 전 0.5초 경고 진행 중인 경우
         if (this.isPreparingAttack) {
-            if (now - this.attackPrepareStartTime >= 500) { // 0.5초 경고 완료 후 공격 발동
+            if (now - this.attackPrepareStartTime >= 500) {
                 this.isPreparingAttack = false;
                 this.executeAttack(angleToPlayer, distToPlayer);
             }
-            return; // 준비 중엔 이동 정지
+            return;
         }
 
-        // 일반 추적 이동
         if (distToPlayer <= DETECT_RANGE) {
             this.x += Math.cos(angleToPlayer) * this.speed;
             this.y += Math.sin(angleToPlayer) * this.speed;
 
-            // 공격 조건 체크
             if (now - this.lastAttackTime > this.attackCooldown && distToPlayer <= this.attackRange) {
-                if (this.type === 0) { // 노란 삼각형: 선경고 없이 즉시 활 조준
+                if (this.type === 0) {
                     this.executeAttack(angleToPlayer, distToPlayer);
-                } else { // 빨강, 보라: 0.5초 선경고 링 발동
+                } else {
                     this.isPreparingAttack = true;
                     this.attackPrepareStartTime = now;
                     this.attackTargetAngle = angleToPlayer;
@@ -614,7 +606,6 @@ class Enemy {
         const posAfterWall = checkWallCollision(this.x, this.y, this.radius);
         this.x = posAfterWall.x; this.y = posAfterWall.y;
 
-        // 세이프존 내부 침입 방지
         const distFromCenter = Math.hypot(this.x - SAFE_ZONE_CENTER.x, this.y - SAFE_ZONE_CENTER.y);
         if (distFromCenter < SAFE_ZONE_RADIUS + this.radius) {
             const angleFromCenter = Math.atan2(this.y - SAFE_ZONE_CENTER.y, this.x - SAFE_ZONE_CENTER.x);
@@ -625,14 +616,14 @@ class Enemy {
 
     executeAttack(angle, dist) {
         this.lastAttackTime = Date.now();
-        if (this.type === 0) { // 노란 세모: 활 발사
+        if (this.type === 0) {
             enemyProjectiles.push(new Projectile(this.x, this.y, angle, 18, '#f1c40f', 8));
-        } else if (this.type === 1) { // 빨간 네모: 근접 칼
+        } else if (this.type === 1) {
             visualEffects.push(new SlashEffect(this.x, this.y, angle, 80, '#e74c3c', 'basic_slash'));
             if (dist <= 85) player.takeDamage(25, false, 0.5);
-        } else if (this.type === 2) { // 보라 5각형: 고속 돌진
+        } else if (this.type === 2) {
             this.isDashing = true;
-            this.dashEndTime = Date.now() + 400; // 0.4초간 돌진
+            this.dashEndTime = Date.now() + 400;
             const dashSpeed = 14;
             this.dashVx = Math.cos(angle) * dashSpeed;
             this.dashVy = Math.sin(angle) * dashSpeed;
@@ -646,7 +637,6 @@ class Enemy {
         ctx.save();
         ctx.translate(this.x - camera.x, this.y - camera.y);
 
-        // 0.5초 경고 표시 (몹 주변 원형 빛 이펙트)
         if (this.isPreparingAttack) {
             ctx.beginPath();
             ctx.arc(0, 0, this.radius + 14, 0, Math.PI * 2);
@@ -661,13 +651,13 @@ class Enemy {
         ctx.fillStyle = this.color;
         ctx.beginPath();
 
-        if (this.type === 0) { // 노란색 삼각형
+        if (this.type === 0) {
             ctx.moveTo(0, -this.radius - 2);
             ctx.lineTo(this.radius + 2, this.radius);
             ctx.lineTo(-this.radius - 2, this.radius);
-        } else if (this.type === 1) { // 빨간색 사각형
+        } else if (this.type === 1) {
             ctx.rect(-this.radius, -this.radius, this.radius * 2, this.radius * 2);
-        } else if (this.type === 2) { // 보라색 오각형
+        } else if (this.type === 2) {
             for (let i = 0; i < 5; i++) {
                 const a = (Math.PI * 2 / 5) * i - Math.PI / 2;
                 const px = Math.cos(a) * (this.radius + 2);
@@ -702,7 +692,6 @@ class Projectile {
         this.x += this.vx; this.y += this.vy;
         if (checkLineWallCollision(this.x - this.vx, this.y - this.vy, this.x, this.y)) this.markedForDeletion = true;
         
-        // 몬스터 활 화살이 플레이어 맞춤 체크
         if (this.color === '#f1c40f') {
             if (Math.hypot(player.x - this.x, player.y - this.y) < player.radius + this.radius) {
                 player.takeDamage(this.damage, false, 0.4);
@@ -717,10 +706,11 @@ class Projectile {
     }
 }
 
+// 스킬 이펙트 가시성 강화 및 개선 클래스
 class SlashEffect {
     constructor(x, y, angle, range, color, style) {
         this.x = x; this.y = y; this.angle = angle; this.range = range;
-        this.color = color; this.style = style; this.life = 1.0; this.decay = 0.08;
+        this.color = color; this.style = style; this.life = 1.0; this.decay = 0.05;
     }
     update() { this.life -= this.decay; }
     draw() {
@@ -732,11 +722,22 @@ class SlashEffect {
         if (this.style === 'spin_filled') {
             const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, this.range);
             grad.addColorStop(0, 'rgba(0, 210, 211, 0.8)');
-            grad.addColorStop(1, 'rgba(95, 39, 205, 0)');
+            grad.addColorStop(1, 'rgba(95, 39, 205, 0.1)');
             ctx.beginPath(); ctx.arc(0, 0, this.range, 0, Math.PI * 2);
             ctx.fillStyle = grad; ctx.fill();
+            ctx.strokeStyle = '#00d2d3'; ctx.lineWidth = 4; ctx.stroke();
+        } else if (this.style === 'thrust_wide') {
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(this.range, -40);
+            ctx.lineTo(this.range + 20, 0);
+            ctx.lineTo(this.range, 40);
+            ctx.closePath();
+            ctx.fillStyle = 'rgba(255, 71, 87, 0.4)';
+            ctx.fill();
+            ctx.strokeStyle = this.color; ctx.lineWidth = 4; ctx.stroke();
         } else {
-            ctx.strokeStyle = this.color; ctx.lineWidth = 4;
+            ctx.strokeStyle = this.color; ctx.lineWidth = 8;
             ctx.beginPath(); ctx.arc(0, 0, this.range, -Math.PI/3, Math.PI/3); ctx.stroke();
         }
         ctx.restore();
@@ -746,7 +747,7 @@ class SlashEffect {
 class DashSlashEffect {
     constructor(startX, startY, endX, endY) {
         this.startX = startX; this.startY = startY; this.endX = endX; this.endY = endY;
-        this.life = 1.0; this.decay = 0.08;
+        this.life = 1.0; this.decay = 0.05;
     }
     update() { this.life -= this.decay; }
     draw() {
@@ -755,14 +756,14 @@ class DashSlashEffect {
         ctx.beginPath();
         ctx.moveTo(this.startX - camera.x, this.startY - camera.y);
         ctx.lineTo(this.endX - camera.x, this.endY - camera.y);
-        ctx.strokeStyle = '#2ed573'; ctx.lineWidth = 20; ctx.stroke();
+        ctx.strokeStyle = '#2ed573'; ctx.lineWidth = 14; ctx.stroke();
         ctx.restore();
     }
 }
 
 class UltimateEffect {
     constructor(x, y, range) {
-        this.x = x; this.y = y; this.range = range; this.life = 1.0; this.decay = 0.04;
+        this.x = x; this.y = y; this.range = range; this.life = 1.0; this.decay = 0.02;
     }
     update() { this.life -= this.decay; }
     draw() {
@@ -770,8 +771,8 @@ class UltimateEffect {
         ctx.globalAlpha = Math.max(0, this.life);
         ctx.beginPath();
         ctx.arc(this.x - camera.x, this.y - camera.y, this.range, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(165, 94, 234, 0.4)'; ctx.fill();
-        ctx.strokeStyle = '#a55eea'; ctx.lineWidth = 5; ctx.stroke();
+        ctx.fillStyle = 'rgba(165, 94, 234, 0.35)'; ctx.fill();
+        ctx.strokeStyle = '#a55eea'; ctx.lineWidth = 6; ctx.stroke();
         ctx.restore();
     }
 }
@@ -812,18 +813,57 @@ class Popup {
 
 function createPopup(x, y, text, color = '#fff') { popups.push(new Popup(x, y, text, color)); }
 
-// 지정 스폰존 제거 및 세이프존 제외 단 1회 전체배치 소환
+// 이동감을 체감할 수 있는 필드 그리드 맵 라인 및 패턴 드로잉
+function drawBackgroundGrid() {
+    ctx.save();
+    const gridSize = 200;
+    const startX = Math.floor(camera.x / gridSize) * gridSize;
+    const startY = Math.floor(camera.y / gridSize) * gridSize;
+    const endX = startX + camera.width + gridSize;
+    const endY = startY + camera.height + gridSize;
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+    ctx.lineWidth = 1;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.font = '12px monospace';
+
+    for (let x = startX; x <= endX; x += gridSize) {
+        if (x < 0 || x > WORLD.width) continue;
+        const screenX = x - camera.x;
+        ctx.beginPath();
+        ctx.moveTo(screenX, 0);
+        ctx.lineTo(screenX, canvas.height);
+        ctx.stroke();
+
+        for (let y = startY; y <= endY; y += gridSize) {
+            if (y < 0 || y > WORLD.height) continue;
+            const screenY = y - camera.y;
+            ctx.fillText(`#`, screenX + 5, screenY + 15);
+        }
+    }
+
+    for (let y = startY; y <= endY; y += gridSize) {
+        if (y < 0 || y > WORLD.height) continue;
+        const screenY = y - camera.y;
+        ctx.beginPath();
+        ctx.moveTo(0, screenY);
+        ctx.lineTo(canvas.width, screenY);
+        ctx.stroke();
+    }
+    ctx.restore();
+}
+
 function spawnEnemiesOnce() {
     if (hasSpawnedOnce) return;
 
     enemies = [];
-    const step = 800; // 몬스터 배치 간격
+    const step = 800;
 
     for (let x = 1000; x < WORLD.width - 1000; x += step) {
         for (let y = 1000; y < WORLD.height - 1000; y += step) {
             const distToSafe = Math.hypot(x - SAFE_ZONE_CENTER.x, y - SAFE_ZONE_CENTER.y);
             if (distToSafe > SAFE_ZONE_RADIUS + 300) {
-                const type = Math.floor(Math.random() * 3); // 0, 1, 2 균등 소환
+                const type = Math.floor(Math.random() * 3);
                 enemies.push(new Enemy(x + (Math.random() * 100 - 50), y + (Math.random() * 100 - 50), type));
             }
         }
@@ -882,7 +922,6 @@ function drawHousesInterior() {
         ctx.fillRect(screenX, screenY + house.height - t, doorLeft, t);
         ctx.fillRect(screenX + doorRight, screenY + house.height - t, house.width - doorRight, t);
 
-        // 문 영역에 시각적 이펙트 라인
         ctx.fillStyle = '#2ecc71';
         ctx.fillRect(screenX + doorLeft, screenY + house.height - t, house.doorWidth, 3);
         ctx.restore();
@@ -933,35 +972,29 @@ function drawZones() {
     ctx.restore();
 }
 
-// 미니맵 시각화 (집 문 위치 표시 개선)
 function renderMapGraphic(cCtx, width, height, isFull = false) {
     cCtx.clearRect(0, 0, width, height);
     const scaleX = width / WORLD.width;
     const scaleY = height / WORLD.height;
 
-    // 세이프존
     cCtx.beginPath();
     cCtx.arc(SAFE_ZONE_CENTER.x * scaleX, SAFE_ZONE_CENTER.y * scaleY, SAFE_ZONE_RADIUS * scaleX, 0, Math.PI * 2);
     cCtx.strokeStyle = '#2ecc71'; cCtx.lineWidth = 2; cCtx.stroke();
 
-    // 집 및 문 표시
     houses.forEach(h => {
         cCtx.fillStyle = '#7f8c8d';
         cCtx.fillRect(h.x * scaleX, h.y * scaleY, h.width * scaleX, h.height * scaleY);
 
-        // 초록색 문 표시
         const doorLeft = h.x + (h.width - h.doorWidth) / 2;
         cCtx.fillStyle = '#2ecc71';
         cCtx.fillRect(doorLeft * scaleX, (h.y + h.height - 10) * scaleY, h.doorWidth * scaleX, 10 * scaleY);
     });
 
-    // 몬스터
     enemies.forEach(e => {
         cCtx.fillStyle = e.color;
         cCtx.fillRect(e.x * scaleX, e.y * scaleY, isFull ? 3 : 2, isFull ? 3 : 2);
     });
 
-    // 플레이어
     cCtx.fillStyle = '#00ffcc';
     cCtx.fillRect(player.x * scaleX - 2, player.y * scaleY - 2, 5, 5);
 }
@@ -1022,6 +1055,10 @@ function loop() {
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    // 1. 배경 그리드 및 이동 표시(#) 렌더링
+    drawBackgroundGrid();
+
+    // 2. 안쪽 구조 및 개체 렌더링
     drawZones();
     drawHousesInterior();
 
@@ -1029,13 +1066,16 @@ function loop() {
     projectiles.forEach(p => p.draw());
     enemyProjectiles.forEach(ep => ep.draw());
     enemies.forEach(e => e.draw());
-    visualEffects.forEach(v => v.draw());
-    
-    if (!gameOver) player.draw();
 
+    // 3. 지붕 렌더링
     drawHousesRoof();
+
+    // 4. 스킬 이펙트 및 상위 렌더링 (지붕 위에 선명하게 렌더링되도록 변경)
+    visualEffects.forEach(v => v.draw());
+    if (!gameOver) player.draw();
     popups.forEach(p => p.draw());
 
+    // 5. 지도 UI
     drawMinimap();
     drawFullMap();
 
