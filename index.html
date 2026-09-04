@@ -3,167 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>100x Ultra Large Map RPG - Advanced VFX & Skill System</title>
+    <title>100x RPG - Fixed Wave & Custom Enemies</title>
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            user-select: none;
-        }
-        body {
-            background-color: #111118;
-            color: #fff;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            overflow: hidden;
-        }
-        #game-container {
-            position: relative;
-            box-shadow: 0 0 20px rgba(0,0,0,0.8);
-            border-radius: 8px;
-            overflow: hidden;
-        }
-        canvas#gameCanvas {
-            background-color: #1e1e2d;
-            display: block;
-        }
-        #ui-layer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            padding: 15px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-        }
-        .stats-panel {
-            background: rgba(0, 0, 0, 0.65);
-            padding: 10px 15px;
-            border-radius: 8px;
-            backdrop-filter: blur(5px);
-            width: fit-content;
-        }
-        .bar-container {
-            width: 200px;
-            height: 14px;
-            background: #444;
-            border-radius: 7px;
-            margin-top: 6px;
-            overflow: hidden;
-        }
-        .bar-fill {
-            height: 100%;
-            width: 100%;
-            transition: width 0.05s linear;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        body { background-color: #111118; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; }
+        #game-container { position: relative; box-shadow: 0 0 20px rgba(0,0,0,0.8); border-radius: 8px; overflow: hidden; }
+        canvas#gameCanvas { background-color: #1e1e2d; display: block; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; padding: 15px; display: flex; flex-direction: column; justify-content: space-between; }
+        .stats-panel { background: rgba(0, 0, 0, 0.65); padding: 10px 15px; border-radius: 8px; backdrop-filter: blur(5px); width: fit-content; }
+        .bar-container { width: 200px; height: 14px; background: #444; border-radius: 7px; margin-top: 6px; overflow: hidden; }
+        .bar-fill { height: 100%; width: 100%; transition: width 0.05s linear; }
         #hp-fill { background: #e74c3c; }
         #stamina-fill { background: #2ecc71; }
         #stamina-fill.exhausted { background: #e67e22; }
         #exp-fill { background: #f1c40f; }
-        .text-stat {
-            font-size: 14px;
-            margin-top: 6px;
-            font-weight: bold;
-        }
-        #weapon-stat {
-            color: #3498db;
-            font-size: 15px;
-            margin-top: 6px;
-            font-weight: bold;
-        }
-        #stack-stat {
-            color: #e67e22;
-            font-size: 14px;
-            margin-top: 2px;
-            font-weight: bold;
-        }
-        #ammo-stat {
-            color: #f39c12;
-            font-size: 14px;
-            margin-top: 2px;
-            font-weight: bold;
-        }
-        #cooldown-stat {
-            color: #e74c3c;
-            font-size: 12px;
-            margin-top: 4px;
-        }
-        #minimap-container {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            width: 90px;
-            height: 90px;
-            border: 2px solid rgba(255, 255, 255, 0.5);
-            border-radius: 6px;
-            overflow: hidden;
-            background: rgba(0, 0, 0, 0.7);
-        }
-        canvas#minimapCanvas {
-            width: 100%;
-            height: 100%;
-            display: block;
-        }
-        #fullmap-modal {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.85);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            backdrop-filter: blur(4px);
-        }
-        #fullmap-modal.hidden {
-            display: none;
-        }
-        canvas#fullmapCanvas {
-            border: 2px solid #555;
-            border-radius: 8px;
-            background: #000;
-        }
-        #game-over-screen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.85);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-        }
-        #game-over-screen.hidden {
-            display: none;
-        }
-        .restart-hint {
-            margin-top: 15px;
-            font-size: 16px;
-            color: #f1c40f;
-            font-weight: bold;
-        }
-        .controls-hint {
-            position: absolute;
-            bottom: 15px;
-            right: 15px;
-            background: rgba(0, 0, 0, 0.65);
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            color: #aaa;
-            text-align: right;
-        }
+        .text-stat { font-size: 14px; margin-top: 6px; font-weight: bold; }
+        #weapon-stat { color: #3498db; font-size: 15px; margin-top: 6px; font-weight: bold; }
+        #stack-stat { color: #e67e22; font-size: 14px; margin-top: 2px; font-weight: bold; }
+        #ammo-stat { color: #f39c12; font-size: 14px; margin-top: 2px; font-weight: bold; }
+        #cooldown-stat { color: #e74c3c; font-size: 12px; margin-top: 4px; }
+        #minimap-container { position: absolute; top: 15px; right: 15px; width: 120px; height: 120px; border: 2px solid rgba(255, 255, 255, 0.5); border-radius: 6px; overflow: hidden; background: rgba(0, 0, 0, 0.7); }
+        canvas#minimapCanvas { width: 100%; height: 100%; display: block; }
+        #fullmap-modal { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); display: flex; flex-direction: column; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
+        #fullmap-modal.hidden { display: none; }
+        canvas#fullmapCanvas { border: 2px solid #555; border-radius: 8px; background: #000; }
+        #game-over-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        #game-over-screen.hidden { display: none; }
+        .restart-hint { margin-top: 15px; font-size: 16px; color: #f1c40f; font-weight: bold; }
+        .controls-hint { position: absolute; bottom: 15px; right: 15px; background: rgba(0, 0, 0, 0.65); padding: 8px 12px; border-radius: 6px; font-size: 12px; color: #aaa; text-align: right; }
     </style>
 </head>
 <body>
@@ -173,34 +40,28 @@
     
     <div id="ui-layer">
         <div class="stats-panel">
-            <div class="bar-container">
-                <div id="hp-fill" class="bar-fill"></div>
-            </div>
+            <div class="bar-container"><div id="hp-fill" class="bar-fill"></div></div>
             <div id="weapon-stat">무기: 칼 (Knife)</div>
             <div id="stack-stat">칼 스택: 0 / 5</div>
             <div id="ammo-stat">총알: -</div>
             <div id="cooldown-stat">스킬 쿨타임 - Z: 준비 | X: 준비 | C: 준비 | V: 준비</div>
-            <div class="bar-container">
-                <div id="stamina-fill" class="bar-fill"></div>
-            </div>
+            <div class="bar-container"><div id="stamina-fill" class="bar-fill"></div></div>
             <div class="text-stat" id="level-txt">LV. 1</div>
-            <div class="bar-container">
-                <div id="exp-fill" class="bar-fill"></div>
-            </div>
+            <div class="bar-container"><div id="exp-fill" class="bar-fill"></div></div>
             <div class="text-stat" id="score-txt">Score: 0</div>
-            <div class="text-stat" style="color: #2ecc71;">SafeZone: 맵 중앙 (0,0) / R: 700px</div>
-            <div class="text-stat" style="color: #e74c3c;">SpawnZone: 지정 스폰 구역 (빨간 테두리)</div>
+            <div class="text-stat" id="enemy-txt" style="color: #e74c3c;">남은 몬스터: 0</div>
+            <div class="text-stat" style="color: #2ecc71;">SafeZone: 맵 중앙 (0,0)</div>
         </div>
 
         <div id="minimap-container">
-            <canvas id="minimapCanvas" width="90" height="90"></canvas>
+            <canvas id="minimapCanvas" width="120" height="120"></canvas>
         </div>
 
         <div class="controls-hint">
             이동: WASD (Shift: 달리기)<br>
             무기교체: 1 (칼 <-> 맨손) / 2 (총)<br>
-            스킬 (칼 전용): Z (확대 찌르기) | X (채워진 챔버) | C (돌진 베기) | V (파멸의 전장)<br>
-            공격: 방향키 (위/아래/왼쪽/오른쪽) | 대시: Q | 전체지도: M
+            스킬: Z (찌르기) | X (회전) | C (돌진) | V (궁극기 5초 스턴)<br>
+            공격: 방향키 | 대시: Q | 전체지도: M
         </div>
     </div>
 
@@ -219,37 +80,22 @@
 <script>
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-
 const minimapCanvas = document.getElementById('minimapCanvas');
 const minimapCtx = minimapCanvas.getContext('2d');
-
 const fullmapCanvas = document.getElementById('fullmapCanvas');
 const fullmapCtx = fullmapCanvas.getContext('2d');
 
 const WORLD = { width: 24000, height: 18000 };
-const DETECT_RANGE = 350;
+const DETECT_RANGE = 450;
 const SAFE_ZONE_CENTER = { x: WORLD.width / 2, y: WORLD.height / 2 };
-const SAFE_ZONE_RADIUS = DETECT_RANGE * 2;
+const SAFE_ZONE_RADIUS = 700;
 
-const SPAWN_ZONE = {
-    x: SAFE_ZONE_CENTER.x + 2000,
-    y: SAFE_ZONE_CENTER.y - 3000,
-    width: 2500,
-    height: 2500
-};
-
-let houses = [
-    { id: 1, x: SAFE_ZONE_CENTER.x - 1200, y: SAFE_ZONE_CENTER.y - 1000, width: 300, height: 240, wallThickness: 16, doorWidth: 70, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#373a40', floorColor: '#4a4e54' },
-    { id: 2, x: SAFE_ZONE_CENTER.x + 1000, y: SAFE_ZONE_CENTER.y + 900, width: 280, height: 220, wallThickness: 16, doorWidth: 65, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#2c3e50', floorColor: '#34495e' },
-    { id: 3, x: SAFE_ZONE_CENTER.x - 1100, y: SAFE_ZONE_CENTER.y + 1100, width: 320, height: 250, wallThickness: 18, doorWidth: 75, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#4a3b32', floorColor: '#5c4a3e' },
-    { id: 4, x: SAFE_ZONE_CENTER.x + 1200, y: SAFE_ZONE_CENTER.y - 1200, width: 260, height: 200, wallThickness: 15, doorWidth: 60, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#1b2631', floorColor: '#2e4053' },
-    { id: 5, x: 2500, y: 2000, width: 450, height: 350, wallThickness: 20, doorWidth: 90, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#2c3e50', floorColor: '#34495e' }
-];
-
+let houses = [];
 let ammoBoxes = [];
-let hasSpawnedAfterSafeZone = false;
 
+// 집 25개 임의 생성
 function generateRandomHouses(count) {
+    houses = [];
     const roofColors = ['#2980b9', '#8e44ad', '#16a085', '#d35400', '#2c3e50'];
     const floorColors = ['#34495e', '#2c3e50', '#4a4e54', '#5c4a3e'];
 
@@ -262,25 +108,24 @@ function generateRandomHouses(count) {
             rx = Math.floor(Math.random() * (WORLD.width - w - 1000)) + 500;
             ry = Math.floor(Math.random() * (WORLD.height - h - 1000)) + 500;
             distToSafeZone = Math.hypot(rx + w/2 - SAFE_ZONE_CENTER.x, ry + h/2 - SAFE_ZONE_CENTER.y);
-        } while (distToSafeZone < SAFE_ZONE_RADIUS + 400);
+        } while (distToSafeZone < SAFE_ZONE_RADIUS + 300);
 
         houses.push({
-            id: 21 + i, x: rx, y: ry, width: w, height: h,
-            wallThickness: Math.floor(Math.random() * 8) + 14,
-            doorWidth: Math.floor(Math.random() * 30) + 65,
+            id: i + 1, x: rx, y: ry, width: w, height: h,
+            wallThickness: 16,
+            doorWidth: 70,
             roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08,
-            roofColor: roofColors[Math.floor(Math.random() * roofColors.length)],
-            floorColor: floorColors[Math.floor(Math.random() * floorColors.length)]
+            roofColor: roofColors[i % roofColors.length],
+            floorColor: floorColors[i % floorColors.length]
         });
     }
 }
-generateRandomHouses(5);
 
 function initAmmoInHouses() {
     ammoBoxes = [];
     houses.forEach(house => {
-        if (Math.random() < 0.6) {
-            const count = Math.floor(Math.random() * 4) + 5;
+        if (Math.random() < 0.7) {
+            const count = Math.floor(Math.random() * 5) + 5;
             const bx = house.x + house.wallThickness + 20 + Math.random() * (house.width - house.wallThickness * 2 - 40);
             const by = house.y + house.wallThickness + 20 + Math.random() * (house.height - house.wallThickness * 2 - 40);
             ammoBoxes.push({ x: bx, y: by, amount: count, radius: 10, taken: false });
@@ -368,14 +213,14 @@ let particles = [];
 let popups = [];
 let visualEffects = [];
 let score = 0;
+let hasSpawnedOnce = false;
 
 window.addEventListener('keydown', e => {
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
     keys[e.code] = true;
     
     if (e.code === 'Digit1') {
-        if (player.weapon === 'knife') player.weapon = 'bare';
-        else player.weapon = 'knife';
+        player.weapon = player.weapon === 'knife' ? 'bare' : 'knife';
         updateUI();
     }
     if (e.code === 'Digit2') {
@@ -395,9 +240,7 @@ window.addEventListener('keydown', e => {
         document.getElementById('fullmap-modal').classList.toggle('hidden', !isFullMapOpen);
     }
 
-    if (gameOver && (e.code === 'KeyQ' || e.code.startsWith('Arrow'))) {
-        restartGame();
-    }
+    if (gameOver && (e.code === 'KeyQ' || e.code.startsWith('Arrow'))) restartGame();
 });
 window.addEventListener('keyup', e => keys[e.code] = false);
 
@@ -405,11 +248,8 @@ function applyStun(entity, duration = 0.5) {
     entity.stunnedUntil = Math.max(entity.stunnedUntil || 0, Date.now() + duration * 1000);
 }
 
-// 화려한 커스텀 파티클 생성기
 function createSparks(x, y, color, count = 12, speedMult = 1.0) {
-    for (let i = 0; i < count; i++) {
-        particles.push(new Particle(x, y, color, speedMult));
-    }
+    for (let i = 0; i < count; i++) particles.push(new Particle(x, y, color, speedMult));
 }
 
 class Player {
@@ -417,13 +257,12 @@ class Player {
         this.x = SAFE_ZONE_CENTER.x;
         this.y = SAFE_ZONE_CENTER.y;
         this.radius = 16;
-        this.baseSpeed = 1.3;
-        this.runSpeed = 2.5;
-        this.speed = 1.3;
+        this.baseSpeed = 1.4;
+        this.runSpeed = 2.6;
+        this.speed = 1.4;
         
         this.maxHp = 300;
         this.hp = 300;
-        
         this.maxStamina = 100;
         this.stamina = 100;
         this.staminaDrainRun = 0.4;
@@ -433,8 +272,8 @@ class Player {
         this.isExhausted = false;
         
         this.weapon = 'knife';
-        this.ammo = 15;
-        this.maxAmmo = 30;
+        this.ammo = 20;
+        this.maxAmmo = 40;
 
         this.level = 1;
         this.exp = 0;
@@ -445,36 +284,20 @@ class Player {
         
         this.dashCooldown = 500;
         this.lastDashTime = 0;
-
         this.stunnedUntil = 0;
         
         this.knifeStack = 0;
         this.lastKnifeAttackTime = 0;
         this.attackBlockedUntil = 0;
-
         this.pendingAttack = null;
         
-        // V스킬 쿨타임 30초로 변경
-        this.skillCooldowns = {
-            Z: 3000,
-            X: 5000,
-            C: 6000,
-            V: 30000
-        };
+        this.skillCooldowns = { Z: 3000, X: 5000, C: 6000, V: 30000 };
         this.lastSkillTimes = { Z: 0, X: 0, C: 0, V: 0 };
     }
 
     update() {
         if (isFullMapOpen) return;
         const now = Date.now();
-
-        const distToSafeZone = Math.hypot(this.x - SAFE_ZONE_CENTER.x, this.y - SAFE_ZONE_CENTER.y);
-        if (distToSafeZone <= SAFE_ZONE_RADIUS) {
-            if (hasSpawnedAfterSafeZone) {
-                hasSpawnedAfterSafeZone = false;
-                createPopup(this.x, this.y - 40, "SPAWN RESET!", "#2ecc71");
-            }
-        }
 
         if (this.knifeStack > 0 && now - this.lastKnifeAttackTime >= 1000) {
             this.knifeStack = 0;
@@ -492,27 +315,22 @@ class Player {
             this.pendingAttack = null;
         }
 
-        const hasKeyMove = keys['KeyW'] || keys['KeyS'] || keys['KeyA'] || keys['KeyD'];
-        const hasKeyAim = keys['ArrowUp'] || keys['ArrowDown'] || keys['ArrowLeft'] || keys['ArrowRight'];
-        
         let dx = 0, dy = 0;
-        if (hasKeyMove) {
-            if (keys['KeyW']) dy -= 1;
-            if (keys['KeyS']) dy += 1;
-            if (keys['KeyA']) dx -= 1;
-            if (keys['KeyD']) dx += 1;
-            if (dx !== 0 && dy !== 0) { dx *= 0.7071; dy *= 0.7071; }
-        }
+        if (keys['KeyW']) dy -= 1;
+        if (keys['KeyS']) dy += 1;
+        if (keys['KeyA']) dx -= 1;
+        if (keys['KeyD']) dx += 1;
+        if (dx !== 0 && dy !== 0) { dx *= 0.7071; dy *= 0.7071; }
 
         const isMoving = (dx !== 0 || dy !== 0);
-        const isShiftPressed = keys['ShiftLeft'] || keys['ShiftRight'];
+        const isShift = keys['ShiftLeft'] || keys['ShiftRight'];
 
         if (this.isExhausted && this.stamina >= this.maxStamina) this.isExhausted = false;
 
         let currentBaseSpeed = this.baseSpeed + (this.weapon === 'bare' ? 0.3 : 0);
         let currentRunSpeed = this.runSpeed + (this.weapon === 'bare' ? 0.3 : 0);
 
-        if (isMoving && isShiftPressed && !this.isExhausted && this.stamina > 0) {
+        if (isMoving && isShift && !this.isExhausted && this.stamina > 0) {
             this.speed = currentRunSpeed;
             this.stamina = Math.max(0, this.stamina - this.staminaDrainRun);
             this.lastStaminaUseTime = now;
@@ -524,38 +342,19 @@ class Player {
             }
         }
 
-        let targetX = this.x;
-        let targetY = this.y;
+        let targetX = this.x + dx * this.speed;
+        let targetY = this.y + dy * this.speed;
 
         if (keys['KeyQ'] && now - this.lastDashTime > this.dashCooldown && isMoving && !this.isExhausted) {
             if (this.stamina >= this.staminaCostDash) {
                 this.stamina -= this.staminaCostDash;
                 this.lastStaminaUseTime = now;
-                
-                const dashDist = 110;
-                const steps = 15;
-                let currentDashX = this.x;
-                let currentDashY = this.y;
-
-                for (let i = 1; i <= steps; i++) {
-                    let nextDashX = this.x + (dx * dashDist * (i / steps));
-                    let nextDashY = this.y + (dy * dashDist * (i / steps));
-                    let pos = checkWallCollision(nextDashX, nextDashY, this.radius);
-                    if (Math.abs(pos.x - nextDashX) > 0.1 || Math.abs(pos.y - nextDashY) > 0.1) break;
-                    currentDashX = nextDashX;
-                    currentDashY = nextDashY;
-                }
-
-                targetX = currentDashX;
-                targetY = currentDashY;
+                const dashDist = 120;
+                targetX = this.x + dx * dashDist;
+                targetY = this.y + dy * dashDist;
                 this.lastDashTime = now;
-
                 createSparks(this.x, this.y, '#3498db', 15);
-                if (this.stamina === 0) this.isExhausted = true;
             }
-        } else {
-            targetX += dx * this.speed;
-            targetY += dy * this.speed;
         }
 
         const posAfterWall = checkWallCollision(targetX, targetY, this.radius);
@@ -563,29 +362,24 @@ class Player {
         this.y = Math.max(this.radius, Math.min(WORLD.height - this.radius, posAfterWall.y));
 
         ammoBoxes.forEach(box => {
-            if (!box.taken) {
-                const dist = Math.hypot(this.x - box.x, this.y - box.y);
-                if (dist < this.radius + box.radius) {
-                    box.taken = true;
-                    const gained = Math.min(box.amount, this.maxAmmo - this.ammo);
-                    this.ammo = Math.min(this.maxAmmo, this.ammo + box.amount);
-                    createPopup(box.x, box.y, `+${gained} AMMO`, '#f39c12');
-                    updateUI();
-                }
+            if (!box.taken && Math.hypot(this.x - box.x, this.y - box.y) < this.radius + box.radius) {
+                box.taken = true;
+                const gained = Math.min(box.amount, this.maxAmmo - this.ammo);
+                this.ammo = Math.min(this.maxAmmo, this.ammo + box.amount);
+                createPopup(box.x, box.y, `+${gained} AMMO`, '#f39c12');
+                updateUI();
             }
         });
 
-        if (hasKeyAim) {
-            let aimDx = 0, aimDy = 0;
-            if (keys['ArrowUp']) aimDy -= 1;
-            if (keys['ArrowDown']) aimDy += 1;
-            if (keys['ArrowLeft']) aimDx -= 1;
-            if (keys['ArrowRight']) aimDx += 1;
+        let aimDx = 0, aimDy = 0;
+        if (keys['ArrowUp']) aimDy -= 1;
+        if (keys['ArrowDown']) aimDy += 1;
+        if (keys['ArrowLeft']) aimDx -= 1;
+        if (keys['ArrowRight']) aimDx += 1;
 
-            if (aimDx !== 0 || aimDy !== 0) {
-                this.angle = Math.atan2(aimDy, aimDx);
-                this.attack();
-            }
+        if (aimDx !== 0 || aimDy !== 0) {
+            this.angle = Math.atan2(aimDy, aimDx);
+            this.attack();
         }
 
         updateUI();
@@ -593,15 +387,7 @@ class Player {
 
     takeDamage(amount, isSkill = false, stunDuration = 0.5) {
         if (Date.now() < this.stunnedUntil) return;
-
-        if (this.pendingAttack && !this.pendingAttack.isSuperArmor) {
-            this.pendingAttack = null;
-            createPopup(this.x, this.y - 30, "CANCELLED!", "#e74c3c");
-            applyStun(this, stunDuration);
-        } else if (!this.pendingAttack || !this.pendingAttack.isSuperArmor) {
-            applyStun(this, stunDuration);
-        }
-
+        applyStun(this, stunDuration);
         this.hp -= amount;
         createPopup(this.x, this.y - 15, `-${Math.floor(amount)}`, '#e74c3c');
         if (this.hp <= 0) endGame();
@@ -610,17 +396,12 @@ class Player {
 
     attack() {
         const now = Date.now();
-        if (now < this.attackBlockedUntil) {
-            createPopup(this.x, this.y - 20, "ATTACK BLOCKED!", "#e74c3c");
-            return;
-        }
-        if (now - lastAttackTime < this.attackSpeed) return;
-        if (this.pendingAttack) return;
+        if (now < this.attackBlockedUntil || now - lastAttackTime < this.attackSpeed || this.pendingAttack) return;
 
         if (this.weapon === 'gun') {
             if (this.ammo > 0) {
                 this.ammo--;
-                projectiles.push(new Projectile(this.x, this.y, this.angle, 30));
+                projectiles.push(new Projectile(this.x, this.y, this.angle, 35, '#f39c12'));
                 lastAttackTime = now;
                 updateUI();
             } else createPopup(this.x, this.y - 20, "NO AMMO!", "#e74c3c");
@@ -631,15 +412,13 @@ class Player {
             if (this.knifeStack >= 5) {
                 this.knifeStack = 0;
                 this.attackBlockedUntil = now + 1000;
-                createPopup(this.x, this.y - 30, "OVERHEAT! 1s LOCK", "#e74c3c");
-            } else {
-                createPopup(this.x, this.y - 30, `STACK ${this.knifeStack}`, "#e67e22");
+                createPopup(this.x, this.y - 30, "OVERHEAT!", "#e74c3c");
             }
 
-            this.pendingAttack = { executeTime: now + 100, type: 'knife_basic', isSuperArmor: false };
+            this.pendingAttack = { executeTime: now + 80, type: 'knife_basic' };
             lastAttackTime = now;
         } else if (this.weapon === 'bare') {
-            this.pendingAttack = { executeTime: now + 50, type: 'bare_basic', isSuperArmor: false };
+            this.pendingAttack = { executeTime: now + 50, type: 'bare_basic' };
             lastAttackTime = now;
         }
     }
@@ -647,11 +426,9 @@ class Player {
     useSkill(key) {
         if (this.weapon !== 'knife') return;
         const now = Date.now();
-        if (now < this.attackBlockedUntil) return;
-        if (now - (this.lastSkillTimes[key] || 0) < this.skillCooldowns[key]) return;
-        if (this.pendingAttack) return;
+        if (now < this.attackBlockedUntil || now - (this.lastSkillTimes[key] || 0) < this.skillCooldowns[key] || this.pendingAttack) return;
 
-        this.pendingAttack = { executeTime: now + 150, type: `skill_${key}`, isSuperArmor: true };
+        this.pendingAttack = { executeTime: now + 120, type: `skill_${key}` };
         this.lastSkillTimes[key] = now;
         updateUI();
     }
@@ -662,80 +439,34 @@ class Player {
             this.performMeleeAttack(90, this.knifeDamage, 0.5, '#ffffff', 'basic_slash');
         } else if (type === 'bare_basic') {
             this.performMeleeAttack(65, this.knifeDamage * 0.1, 0.5, '#f39c12', 'punch');
-        } 
-        // Z 스킬: 유지하되 크기 대폭 확대 (220px)
-        else if (type === 'skill_Z') {
+        } else if (type === 'skill_Z') {
             const range = 220;
             visualEffects.push(new SlashEffect(this.x, this.y, this.angle, range, '#ff4757', 'thrust_wide'));
-            createSparks(this.x + Math.cos(this.angle) * (range / 2), this.y + Math.sin(this.angle) * (range / 2), '#ff6b81', 25, 1.5);
             enemies.forEach(e => {
-                const dist = Math.hypot(e.x - this.x, e.y - this.y);
-                const angleTo = Math.atan2(e.y - this.y, e.x - this.x);
-                let diff = Math.abs(this.angle - angleTo);
-                if (diff > Math.PI) diff = Math.PI * 2 - diff;
-                if (dist <= range && diff < Math.PI / 3) {
-                    e.takeDamage(this.knifeDamage * 2.2, true, 1.5);
-                }
+                if (Math.hypot(e.x - this.x, e.y - this.y) <= range) e.takeDamage(this.knifeDamage * 2.2, true, 1.5);
             });
-        } 
-        // X 스킬: 속까지 채워진 화려한 챔버 공격
-        else if (type === 'skill_X') {
+        } else if (type === 'skill_X') {
             const range = 160;
             visualEffects.push(new SlashEffect(this.x, this.y, 0, range, '#00d2d3', 'spin_filled'));
-            createSparks(this.x, this.y, '#54a0ff', 40, 2.0);
             enemies.forEach(e => {
-                const dist = Math.hypot(e.x - this.x, e.y - this.y);
-                if (dist <= range) e.takeDamage(this.knifeDamage * 2.0, true, 1.5);
+                if (Math.hypot(e.x - this.x, e.y - this.y) <= range) e.takeDamage(this.knifeDamage * 2.0, true, 1.5);
             });
-        } 
-        // C 스킬: 돌진 연계기 (공을 날리지 않고 전방으로 연속 돌진 공격)
-        else if (type === 'skill_C') {
+        } else if (type === 'skill_C') {
             const dashDist = 280;
             const targetX = this.x + Math.cos(this.angle) * dashDist;
             const targetY = this.y + Math.sin(this.angle) * dashDist;
+            visualEffects.push(new DashSlashEffect(this.x, this.y, targetX, targetY));
 
-            // 이동 경로 애니메이션 효과 추가
-            visualEffects.push(new DashSlashEffect(this.x, this.y, targetX, targetY, this.angle));
-            createSparks(this.x, this.y, '#2ed573', 20);
-
-            // 위치 이동 (벽 충돌 체크)
-            let steps = 20;
-            let finalX = this.x;
-            let finalY = this.y;
-
-            for (let i = 1; i <= steps; i++) {
-                let tempX = this.x + Math.cos(this.angle) * (dashDist * (i / steps));
-                let tempY = this.y + Math.sin(this.angle) * (dashDist * (i / steps));
-                let pos = checkWallCollision(tempX, tempY, this.radius);
-                if (Math.abs(pos.x - tempX) > 0.1 || Math.abs(pos.y - tempY) > 0.1) break;
-                finalX = tempX;
-                finalY = tempY;
-
-                // 경로 주변 적 감지 및 데미지 부여
-                enemies.forEach(e => {
-                    if (Math.hypot(e.x - tempX, e.y - tempY) < 60) {
-                        e.takeDamage(this.knifeDamage * 1.8, true, 1.2);
-                    }
-                });
-            }
-
-            this.x = finalX;
-            this.y = finalY;
-            createSparks(this.x, this.y, '#7bed9f', 25, 1.8);
-        } 
-        // V 스킬: 쿨타임 30초, 범위 폭발적 증대, 대미지 대폭 강화, 기절 5초
-        else if (type === 'skill_V') {
-            const range = 320; // 확 트인 넓은 범위
-            visualEffects.push(new UltimateEffect(this.x, this.y, range));
-            createSparks(this.x, this.y, '#a55eea', 70, 3.0);
-            createSparks(this.x, this.y, '#ff4757', 50, 2.5);
-
+            let pos = checkWallCollision(targetX, targetY, this.radius);
+            this.x = pos.x; this.y = pos.y;
             enemies.forEach(e => {
-                const dist = Math.hypot(e.x - this.x, e.y - this.y);
-                if (dist <= range) {
-                    // 기절 5초 적용, 데미지 6.5배 증대
-                    e.takeDamage(this.knifeDamage * 6.5, true, 5.0);
-                }
+                if (Math.hypot(e.x - this.x, e.y - this.y) < 120) e.takeDamage(this.knifeDamage * 1.8, true, 1.2);
+            });
+        } else if (type === 'skill_V') {
+            const range = 320;
+            visualEffects.push(new UltimateEffect(this.x, this.y, range));
+            enemies.forEach(e => {
+                if (Math.hypot(e.x - this.x, e.y - this.y) <= range) e.takeDamage(this.knifeDamage * 6.5, true, 5.0);
             });
         }
     }
@@ -743,14 +474,7 @@ class Player {
     performMeleeAttack(range, damage, stunDuration, color, effectStyle) {
         visualEffects.push(new SlashEffect(this.x, this.y, this.angle, range, color, effectStyle));
         enemies.forEach(e => {
-            const dist = Math.hypot(e.x - this.x, e.y - this.y);
-            const angleTo = Math.atan2(e.y - this.y, e.x - this.x);
-            let diff = Math.abs(this.angle - angleTo);
-            if (diff > Math.PI) diff = Math.PI * 2 - diff;
-
-            if (dist <= range && diff < Math.PI / 3) {
-                e.takeDamage(damage, false, stunDuration);
-            }
+            if (Math.hypot(e.x - this.x, e.y - this.y) <= range) e.takeDamage(damage, false, stunDuration);
         });
     }
 
@@ -759,38 +483,22 @@ class Player {
         ctx.translate(this.x - camera.x, this.y - camera.y);
 
         if (Date.now() < this.stunnedUntil) {
-            ctx.fillStyle = '#f1c40f';
-            ctx.font = 'bold 14px Segoe UI';
-            ctx.textAlign = 'center';
+            ctx.fillStyle = '#f1c40f'; ctx.font = 'bold 14px Segoe UI'; ctx.textAlign = 'center';
             ctx.fillText("★ STUN ★", 0, -this.radius - 22);
-        } else if (Date.now() < this.attackBlockedUntil) {
-            ctx.fillStyle = '#e74c3c';
-            ctx.font = 'bold 12px Segoe UI';
-            ctx.textAlign = 'center';
-            ctx.fillText("LOCKED", 0, -this.radius - 22);
         }
 
         const barWidth = 36, barHeight = 5, barX = -barWidth / 2, barY = -this.radius - 12;
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-        ctx.fillRect(barX, barY, barWidth, barHeight);
-        ctx.fillStyle = '#2ecc71';
-        ctx.fillRect(barX, barY, Math.max(0, (this.hp / this.maxHp) * barWidth), barHeight);
-        ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.strokeRect(barX, barY, barWidth, barHeight);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'; ctx.fillRect(barX, barY, barWidth, barHeight);
+        ctx.fillStyle = '#2ecc71'; ctx.fillRect(barX, barY, Math.max(0, (this.hp / this.maxHp) * barWidth), barHeight);
 
         ctx.rotate(this.angle);
-
-        if (this.weapon === 'gun') {
-            ctx.fillStyle = '#bdc3c7'; ctx.fillRect(10, -3, 16, 6);
-        } else if (this.weapon === 'knife') {
-            ctx.fillStyle = '#ff4757'; ctx.fillRect(12, -3, 18, 6);
-        }
+        if (this.weapon === 'gun') { ctx.fillStyle = '#bdc3c7'; ctx.fillRect(10, -3, 16, 6); }
+        else if (this.weapon === 'knife') { ctx.fillStyle = '#ff4757'; ctx.fillRect(12, -3, 18, 6); }
 
         ctx.beginPath();
         ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-        ctx.fillStyle = this.pendingAttack && this.pendingAttack.isSuperArmor ? '#f39c12' : '#3498db';
-        ctx.fill();
+        ctx.fillStyle = '#3498db'; ctx.fill();
         ctx.lineWidth = 3; ctx.strokeStyle = '#2980b9'; ctx.stroke();
-
         ctx.restore();
     }
 
@@ -800,8 +508,7 @@ class Player {
             this.exp -= this.nextExp;
             this.level++;
             this.nextExp = Math.floor(this.nextExp * 1.5);
-            this.maxHp += 45;
-            this.hp = this.maxHp;
+            this.maxHp += 45; this.hp = this.maxHp;
             this.knifeDamage += 10;
             createPopup(this.x, this.y - 20, "LEVEL UP!", "#f1c40f");
         }
@@ -809,239 +516,48 @@ class Player {
     }
 }
 
-// 화려한 커스텀 VFX 클래스들
-class SlashEffect {
-    constructor(x, y, angle, range, color, style) {
-        this.x = x; this.y = y; this.angle = angle; this.range = range;
-        this.color = color; this.style = style;
-        this.life = 1.0; this.decay = 0.08;
-    }
-    update() { this.life -= this.decay; }
-    draw() {
-        ctx.save();
-        ctx.translate(this.x - camera.x, this.y - camera.y);
-        ctx.rotate(this.angle);
-        ctx.globalAlpha = Math.max(0, this.life);
-
-        if (this.style === 'spin_filled') {
-            // X 스킬: 원 안쪽 면을 꽉 채운 궤적 이펙트
-            const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, this.range);
-            grad.addColorStop(0, 'rgba(0, 210, 211, 0.8)');
-            grad.addColorStop(0.6, 'rgba(84, 160, 255, 0.5)');
-            grad.addColorStop(1, 'rgba(95, 39, 205, 0)');
-            
-            ctx.beginPath();
-            ctx.arc(0, 0, this.range, 0, Math.PI * 2);
-            ctx.fillStyle = grad;
-            ctx.fill();
-
-            ctx.strokeStyle = '#00d2d3';
-            ctx.lineWidth = 4;
-            ctx.stroke();
-        } else if (this.style === 'thrust_wide') {
-            // Z 스킬: 넓고 강렬한 베기/찌르기 파장
-            ctx.beginPath();
-            ctx.moveTo(0, -this.range * 0.3);
-            ctx.lineTo(this.range, 0);
-            ctx.lineTo(0, this.range * 0.3);
-            ctx.closePath();
-            
-            const grad = ctx.createLinearGradient(0, 0, this.range, 0);
-            grad.addColorStop(0, 'rgba(255, 71, 87, 0.9)');
-            grad.addColorStop(1, 'rgba(255, 165, 2, 0)');
-            ctx.fillStyle = grad;
-            ctx.fill();
-
-            ctx.strokeStyle = '#ff4757';
-            ctx.lineWidth = 5;
-            ctx.stroke();
-        } else {
-            ctx.strokeStyle = this.color;
-            ctx.lineWidth = 5;
-            ctx.beginPath();
-            ctx.arc(0, 0, this.range, -Math.PI/3, Math.PI/3);
-            ctx.stroke();
-        }
-        ctx.restore();
-    }
-}
-
-// C 스킬 (연계 돌진 잔상 이펙트)
-class DashSlashEffect {
-    constructor(startX, startY, endX, endY, angle) {
-        this.startX = startX; this.startY = startY;
-        this.endX = endX; this.endY = endY;
-        this.angle = angle;
-        this.life = 1.0; this.decay = 0.07;
-    }
-    update() { this.life -= this.decay; }
-    draw() {
-        ctx.save();
-        ctx.globalAlpha = Math.max(0, this.life);
-        
-        ctx.beginPath();
-        ctx.moveTo(this.startX - camera.x, this.startY - camera.y);
-        ctx.lineTo(this.endX - camera.x, this.endY - camera.y);
-        ctx.strokeStyle = '#2ed573';
-        ctx.lineWidth = 30;
-        ctx.lineCap = 'round';
-        ctx.stroke();
-
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 10;
-        ctx.stroke();
-        ctx.restore();
-    }
-}
-
-// V 스킬 (대형 궁극기 연출)
-class UltimateEffect {
-    constructor(x, y, range) {
-        this.x = x; this.y = y; this.range = range;
-        this.life = 1.0; this.decay = 0.03;
-        this.rotation = 0;
-    }
-    update() {
-        this.life -= this.decay;
-        this.rotation += 0.05;
-    }
-    draw() {
-        ctx.save();
-        ctx.translate(this.x - camera.x, this.y - camera.y);
-        ctx.rotate(this.rotation);
-        ctx.globalAlpha = Math.max(0, this.life);
-
-        // 채워진 바닥 영역
-        const grad = ctx.createRadialGradient(0, 0, 10, 0, 0, this.range);
-        grad.addColorStop(0, 'rgba(165, 94, 234, 0.8)');
-        grad.addColorStop(0.5, 'rgba(255, 71, 87, 0.4)');
-        grad.addColorStop(1, 'rgba(47, 53, 66, 0)');
-
-        ctx.beginPath();
-        ctx.arc(0, 0, this.range, 0, Math.PI * 2);
-        ctx.fillStyle = grad;
-        ctx.fill();
-
-        // 외곽선 및 화려한 문양 레이어
-        ctx.strokeStyle = '#a55eea';
-        ctx.lineWidth = 6;
-        ctx.stroke();
-
-        for (let i = 0; i < 12; i++) {
-            ctx.rotate(Math.PI / 6);
-            ctx.beginPath();
-            ctx.moveTo(0, 0);
-            ctx.lineTo(this.range, 0);
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-        }
-        ctx.restore();
-    }
-}
-
-class Projectile {
-    constructor(x, y, angle, damage) {
-        this.x = x; this.y = y; this.speed = 13;
-        this.vx = Math.cos(angle) * this.speed;
-        this.vy = Math.sin(angle) * this.speed;
-        this.radius = 5; this.damage = damage;
-        this.markedForDeletion = false;
-    }
-    update() {
-        this.x += this.vx; this.y += this.vy;
-        if (checkLineWallCollision(this.x - this.vx, this.y - this.vy, this.x, this.y)) this.markedForDeletion = true;
-    }
-    draw() {
-        ctx.beginPath();
-        ctx.arc(this.x - camera.x, this.y - camera.y, this.radius, 0, Math.PI * 2);
-        ctx.fillStyle = '#f39c12'; ctx.fill();
-    }
-}
-
-class EnemyProjectile {
-    constructor(x, y, angle, damage) {
-        this.x = x; this.y = y; this.speed = 6;
-        this.vx = Math.cos(angle) * this.speed;
-        this.vy = Math.sin(angle) * this.speed;
-        this.radius = 6; this.damage = damage;
-        this.markedForDeletion = false;
-    }
-    update() {
-        this.x += this.vx; this.y += this.vy;
-        if (checkLineWallCollision(this.x - this.vx, this.y - this.vy, this.x, this.y)) {
-            this.markedForDeletion = true;
-            return;
-        }
-
-        const dist = Math.hypot(player.x - this.x, player.y - this.y);
-        if (dist < player.radius + this.radius) {
-            player.takeDamage(this.damage, false, 0.5);
-            this.markedForDeletion = true;
-        }
-    }
-    draw() {
-        ctx.beginPath();
-        ctx.arc(this.x - camera.x, this.y - camera.y, this.radius, 0, Math.PI * 2);
-        ctx.fillStyle = '#9b59b6'; ctx.fill();
-    }
-}
-
+// 신규 몬스터 클래스 (노란 세모, 빨간 네모, 보라 오각형)
 class Enemy {
     constructor(x, y, type) {
         this.x = x; this.y = y; this.type = type;
-        
-        this.isSpecial = Math.random() < 0.1;
-        this.hasHpBoost = this.isSpecial && Math.random() < 0.5;
-        this.hasSkill = this.isSpecial && Math.random() < 0.5;
-        this.hasRanged = this.isSpecial && Math.random() < 0.5;
-
-        let hpMultiplier = 10 * (this.hasHpBoost ? 5 : 1);
-
-        if (type === 0) {
-            this.radius = 14; this.speed = 2.4;
-            this.hp = 40 * hpMultiplier;
-            this.color = '#e74c3c';
-            this.expValue = 15; this.scoreValue = 100;
-        } else if (type === 1) {
-            this.radius = 10; this.speed = 3.6;
-            this.hp = 20 * hpMultiplier;
-            this.color = '#e67e22';
-            this.expValue = 20; this.scoreValue = 150;
-        } else {
-            this.radius = 28; this.speed = 1.3;
-            this.hp = 220 * hpMultiplier;
-            this.color = '#9b59b6';
-            this.expValue = 80; this.scoreValue = 500;
-        }
-
-        this.maxHp = this.hp;
-        this.markedForDeletion = false;
+        this.radius = 16;
         this.stunnedUntil = 0;
-        this.nextSkillTime = Date.now() + Math.random() * 3000 + 2000;
-        this.lastAttackTime = 0;
+        this.markedForDeletion = false;
+        
+        // 0: 노란 삼각형(활), 1: 빨간 사각형(칼/경고 0.5초), 2: 보라 오각형(고속 돌진/경고 0.5초)
+        if (type === 0) {
+            this.color = '#f1c40f'; this.hp = 120; this.speed = 2.0;
+            this.attackRange = 400; this.attackCooldown = 2500;
+        } else if (type === 1) {
+            this.color = '#e74c3c'; this.hp = 220; this.speed = 2.3;
+            this.attackRange = 60; this.attackCooldown = 1800;
+        } else if (type === 2) {
+            this.color = '#9b59b6'; this.hp = 180; this.speed = 2.1;
+            this.attackRange = 320; this.attackCooldown = 4000;
+        }
+        this.maxHp = this.hp;
+        this.lastAttackTime = Date.now() + Math.random() * 2000;
+
+        // 공격 경고 시각화 상태 변수
+        this.isPreparingAttack = false;
+        this.attackPrepareStartTime = 0;
+        this.attackTargetAngle = 0;
+        this.isDashing = false;
+        this.dashEndTime = 0;
+        this.dashVx = 0; this.dashVy = 0;
     }
 
     takeDamage(amount, isSkill = false, stunDuration = 0.5) {
         applyStun(this, stunDuration);
         this.hp -= amount;
+        this.isPreparingAttack = false; // 타격 시 패턴 취소
+        this.isDashing = false;
         createPopup(this.x, this.y - 15, `${Math.floor(amount)}`, isSkill ? '#f1c40f' : '#fff');
 
         if (this.hp <= 0) {
             this.markedForDeletion = true;
-            score += this.scoreValue;
-            player.addExp(this.expValue);
-        }
-    }
-
-    keepOutOfSafeZone() {
-        const distFromCenter = Math.hypot(this.x - SAFE_ZONE_CENTER.x, this.y - SAFE_ZONE_CENTER.y);
-        const minAllowedDist = SAFE_ZONE_RADIUS + this.radius;
-
-        if (distFromCenter < minAllowedDist) {
-            const angleFromCenter = Math.atan2(this.y - SAFE_ZONE_CENTER.y, this.x - SAFE_ZONE_CENTER.x);
-            this.x = SAFE_ZONE_CENTER.x + Math.cos(angleFromCenter) * minAllowedDist;
-            this.y = SAFE_ZONE_CENTER.y + Math.sin(angleFromCenter) * minAllowedDist;
+            score += 150;
+            player.addExp(25);
         }
     }
 
@@ -1049,46 +565,78 @@ class Enemy {
         const now = Date.now();
         if (now < this.stunnedUntil) return;
 
-        const distToPlayer = Math.hypot(player.x - this.x, player.y - this.y);
-        const angle = Math.atan2(player.y - this.y, player.x - this.x);
+        // 보라색 몬스터 고속 돌진 실행 중 처리
+        if (this.isDashing) {
+            this.x += this.dashVx;
+            this.y += this.dashVy;
+            createSparks(this.x, this.y, '#9b59b6', 2, 0.5);
 
-        if (this.hasRanged && this.hasSkill) {
-            if (distToPlayer > 120) {
-                this.x += Math.cos(angle) * this.speed;
-                this.y += Math.sin(angle) * this.speed;
-                if (now - this.lastAttackTime > 2000) {
-                    enemyProjectiles.push(new EnemyProjectile(this.x, this.y, angle, 15));
-                    this.lastAttackTime = now;
-                }
-            } else {
-                if (now - this.lastAttackTime > 1000) {
-                    player.takeDamage(20, false, 0.5);
-                    this.lastAttackTime = now;
-                }
-            }
-        } else {
-            if (distToPlayer <= DETECT_RANGE) {
-                this.x += Math.cos(angle) * this.speed;
-                this.y += Math.sin(angle) * this.speed;
+            if (Math.hypot(player.x - this.x, player.y - this.y) < player.radius + this.radius) {
+                player.takeDamage(35, true, 0.8);
+                this.isDashing = false;
             }
 
-            if (distToPlayer < player.radius + this.radius && now - this.lastAttackTime > 800) {
-                player.takeDamage(15, false, 0.5);
-                this.lastAttackTime = now;
-            }
+            if (now >= this.dashEndTime) this.isDashing = false;
+            const pos = checkWallCollision(this.x, this.y, this.radius);
+            this.x = pos.x; this.y = pos.y;
+            return;
         }
 
-        if (this.hasSkill && now >= this.nextSkillTime) {
-            visualEffects.push(new SlashEffect(this.x, this.y, angle, 100, '#e74c3c', 'spin_filled'));
-            if (distToPlayer <= 100) player.takeDamage(35, true, 0.5);
-            this.nextSkillTime = now + Math.random() * 4000 + 3000;
+        const distToPlayer = Math.hypot(player.x - this.x, player.y - this.y);
+        const angleToPlayer = Math.atan2(player.y - this.y, player.x - this.x);
+
+        // 공격 전 0.5초 경고 진행 중인 경우
+        if (this.isPreparingAttack) {
+            if (now - this.attackPrepareStartTime >= 500) { // 0.5초 경고 완료 후 공격 발동
+                this.isPreparingAttack = false;
+                this.executeAttack(angleToPlayer, distToPlayer);
+            }
+            return; // 준비 중엔 이동 정지
+        }
+
+        // 일반 추적 이동
+        if (distToPlayer <= DETECT_RANGE) {
+            this.x += Math.cos(angleToPlayer) * this.speed;
+            this.y += Math.sin(angleToPlayer) * this.speed;
+
+            // 공격 조건 체크
+            if (now - this.lastAttackTime > this.attackCooldown && distToPlayer <= this.attackRange) {
+                if (this.type === 0) { // 노란 삼각형: 선경고 없이 즉시 활 조준
+                    this.executeAttack(angleToPlayer, distToPlayer);
+                } else { // 빨강, 보라: 0.5초 선경고 링 발동
+                    this.isPreparingAttack = true;
+                    this.attackPrepareStartTime = now;
+                    this.attackTargetAngle = angleToPlayer;
+                }
+            }
         }
 
         const posAfterWall = checkWallCollision(this.x, this.y, this.radius);
-        this.x = posAfterWall.x;
-        this.y = posAfterWall.y;
+        this.x = posAfterWall.x; this.y = posAfterWall.y;
 
-        this.keepOutOfSafeZone();
+        // 세이프존 내부 침입 방지
+        const distFromCenter = Math.hypot(this.x - SAFE_ZONE_CENTER.x, this.y - SAFE_ZONE_CENTER.y);
+        if (distFromCenter < SAFE_ZONE_RADIUS + this.radius) {
+            const angleFromCenter = Math.atan2(this.y - SAFE_ZONE_CENTER.y, this.x - SAFE_ZONE_CENTER.x);
+            this.x = SAFE_ZONE_CENTER.x + Math.cos(angleFromCenter) * (SAFE_ZONE_RADIUS + this.radius);
+            this.y = SAFE_ZONE_CENTER.y + Math.sin(angleFromCenter) * (SAFE_ZONE_RADIUS + this.radius);
+        }
+    }
+
+    executeAttack(angle, dist) {
+        this.lastAttackTime = Date.now();
+        if (this.type === 0) { // 노란 세모: 활 발사
+            enemyProjectiles.push(new Projectile(this.x, this.y, angle, 18, '#f1c40f', 8));
+        } else if (this.type === 1) { // 빨간 네모: 근접 칼
+            visualEffects.push(new SlashEffect(this.x, this.y, angle, 80, '#e74c3c', 'basic_slash'));
+            if (dist <= 85) player.takeDamage(25, false, 0.5);
+        } else if (this.type === 2) { // 보라 5각형: 고속 돌진
+            this.isDashing = true;
+            this.dashEndTime = Date.now() + 400; // 0.4초간 돌진
+            const dashSpeed = 14;
+            this.dashVx = Math.cos(angle) * dashSpeed;
+            this.dashVy = Math.sin(angle) * dashSpeed;
+        }
     }
 
     draw() {
@@ -1098,46 +646,132 @@ class Enemy {
         ctx.save();
         ctx.translate(this.x - camera.x, this.y - camera.y);
 
-        if (Date.now() < this.stunnedUntil) {
-            ctx.fillStyle = '#f1c40f';
-            ctx.font = 'bold 12px Segoe UI';
-            ctx.textAlign = 'center';
-            ctx.fillText("★ STUN ★", 0, -this.radius - 12);
+        // 0.5초 경고 표시 (몹 주변 원형 빛 이펙트)
+        if (this.isPreparingAttack) {
+            ctx.beginPath();
+            ctx.arc(0, 0, this.radius + 14, 0, Math.PI * 2);
+            ctx.strokeStyle = this.type === 1 ? 'rgba(231, 76, 60, 0.9)' : 'rgba(155, 89, 182, 0.9)';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+
+            ctx.fillStyle = this.type === 1 ? 'rgba(231, 76, 60, 0.3)' : 'rgba(155, 89, 182, 0.3)';
+            ctx.fill();
         }
 
         ctx.fillStyle = this.color;
         ctx.beginPath();
 
-        if (this.type === 0) {
-            for (let i = 0; i < 8; i++) {
-                const a = (Math.PI / 4) * i;
-                const r = i % 2 === 0 ? this.radius : this.radius * 0.5;
-                ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
-            }
-        } else if (this.type === 1) {
-            ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-        } else {
-            for (let i = 0; i < 6; i++) {
-                const a = (Math.PI / 3) * i;
-                ctx.lineTo(Math.cos(a) * this.radius, Math.sin(a) * this.radius);
+        if (this.type === 0) { // 노란색 삼각형
+            ctx.moveTo(0, -this.radius - 2);
+            ctx.lineTo(this.radius + 2, this.radius);
+            ctx.lineTo(-this.radius - 2, this.radius);
+        } else if (this.type === 1) { // 빨간색 사각형
+            ctx.rect(-this.radius, -this.radius, this.radius * 2, this.radius * 2);
+        } else if (this.type === 2) { // 보라색 오각형
+            for (let i = 0; i < 5; i++) {
+                const a = (Math.PI * 2 / 5) * i - Math.PI / 2;
+                const px = Math.cos(a) * (this.radius + 2);
+                const py = Math.sin(a) * (this.radius + 2);
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
             }
         }
         ctx.closePath();
         ctx.fill();
-
-        if (this.isSpecial) {
-            ctx.strokeStyle = '#f1c40f';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-        }
+        ctx.lineWidth = 2; ctx.strokeStyle = '#000'; ctx.stroke();
 
         if (this.hp < this.maxHp) {
             ctx.fillStyle = 'rgba(0,0,0,0.5)';
-            ctx.fillRect(-this.radius, -this.radius - 8, this.radius * 2, 4);
+            ctx.fillRect(-this.radius, -this.radius - 10, this.radius * 2, 4);
             ctx.fillStyle = '#2ecc71';
-            ctx.fillRect(-this.radius, -this.radius - 8, (this.radius * 2) * (this.hp / this.maxHp), 4);
+            ctx.fillRect(-this.radius, -this.radius - 10, (this.radius * 2) * (this.hp / this.maxHp), 4);
         }
+        ctx.restore();
+    }
+}
 
+class Projectile {
+    constructor(x, y, angle, damage, color = '#f39c12', speed = 12) {
+        this.x = x; this.y = y; this.speed = speed;
+        this.vx = Math.cos(angle) * this.speed;
+        this.vy = Math.sin(angle) * this.speed;
+        this.radius = 5; this.damage = damage; this.color = color;
+        this.markedForDeletion = false;
+    }
+    update() {
+        this.x += this.vx; this.y += this.vy;
+        if (checkLineWallCollision(this.x - this.vx, this.y - this.vy, this.x, this.y)) this.markedForDeletion = true;
+        
+        // 몬스터 활 화살이 플레이어 맞춤 체크
+        if (this.color === '#f1c40f') {
+            if (Math.hypot(player.x - this.x, player.y - this.y) < player.radius + this.radius) {
+                player.takeDamage(this.damage, false, 0.4);
+                this.markedForDeletion = true;
+            }
+        }
+    }
+    draw() {
+        ctx.beginPath();
+        ctx.arc(this.x - camera.x, this.y - camera.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = this.color; ctx.fill();
+    }
+}
+
+class SlashEffect {
+    constructor(x, y, angle, range, color, style) {
+        this.x = x; this.y = y; this.angle = angle; this.range = range;
+        this.color = color; this.style = style; this.life = 1.0; this.decay = 0.08;
+    }
+    update() { this.life -= this.decay; }
+    draw() {
+        ctx.save();
+        ctx.translate(this.x - camera.x, this.y - camera.y);
+        ctx.rotate(this.angle);
+        ctx.globalAlpha = Math.max(0, this.life);
+
+        if (this.style === 'spin_filled') {
+            const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, this.range);
+            grad.addColorStop(0, 'rgba(0, 210, 211, 0.8)');
+            grad.addColorStop(1, 'rgba(95, 39, 205, 0)');
+            ctx.beginPath(); ctx.arc(0, 0, this.range, 0, Math.PI * 2);
+            ctx.fillStyle = grad; ctx.fill();
+        } else {
+            ctx.strokeStyle = this.color; ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.arc(0, 0, this.range, -Math.PI/3, Math.PI/3); ctx.stroke();
+        }
+        ctx.restore();
+    }
+}
+
+class DashSlashEffect {
+    constructor(startX, startY, endX, endY) {
+        this.startX = startX; this.startY = startY; this.endX = endX; this.endY = endY;
+        this.life = 1.0; this.decay = 0.08;
+    }
+    update() { this.life -= this.decay; }
+    draw() {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, this.life);
+        ctx.beginPath();
+        ctx.moveTo(this.startX - camera.x, this.startY - camera.y);
+        ctx.lineTo(this.endX - camera.x, this.endY - camera.y);
+        ctx.strokeStyle = '#2ed573'; ctx.lineWidth = 20; ctx.stroke();
+        ctx.restore();
+    }
+}
+
+class UltimateEffect {
+    constructor(x, y, range) {
+        this.x = x; this.y = y; this.range = range; this.life = 1.0; this.decay = 0.04;
+    }
+    update() { this.life -= this.decay; }
+    draw() {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, this.life);
+        ctx.beginPath();
+        ctx.arc(this.x - camera.x, this.y - camera.y, this.range, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(165, 94, 234, 0.4)'; ctx.fill();
+        ctx.strokeStyle = '#a55eea'; ctx.lineWidth = 5; ctx.stroke();
         ctx.restore();
     }
 }
@@ -1145,12 +779,12 @@ class Enemy {
 class Particle {
     constructor(x, y, color, speedMult = 1.0) {
         this.x = x; this.y = y; this.color = color;
-        this.radius = Math.random() * 4 + 1.5;
-        this.vx = (Math.random() - 0.5) * 8 * speedMult;
-        this.vy = (Math.random() - 0.5) * 8 * speedMult;
+        this.radius = Math.random() * 3 + 1;
+        this.vx = (Math.random() - 0.5) * 6 * speedMult;
+        this.vy = (Math.random() - 0.5) * 6 * speedMult;
         this.alpha = 1;
     }
-    update() { this.x += this.vx; this.y += this.vy; this.alpha -= 0.025; }
+    update() { this.x += this.vx; this.y += this.vy; this.alpha -= 0.03; }
     draw() {
         ctx.save();
         ctx.globalAlpha = Math.max(0, this.alpha);
@@ -1170,50 +804,46 @@ class Popup {
     draw() {
         ctx.save();
         ctx.globalAlpha = Math.max(0, this.alpha);
-        ctx.font = 'bold 14px Segoe UI';
-        ctx.fillStyle = this.color;
+        ctx.font = 'bold 14px Segoe UI'; ctx.fillStyle = this.color;
         ctx.fillText(this.text, this.x - camera.x, this.y - camera.y);
         ctx.restore();
     }
 }
 
-function createPopup(x, y, text, color = '#fff') {
-    popups.push(new Popup(x, y, text, color));
-}
+function createPopup(x, y, text, color = '#fff') { popups.push(new Popup(x, y, text, color)); }
 
-function spawnEnemies() {
-    if (hasSpawnedAfterSafeZone) return;
+// 지정 스폰존 제거 및 세이프존 제외 단 1회 전체배치 소환
+function spawnEnemiesOnce() {
+    if (hasSpawnedOnce) return;
 
-    if (enemies.length >= 35) return;
-    
-    const cx = SPAWN_ZONE.x + Math.random() * SPAWN_ZONE.width;
-    const cy = SPAWN_ZONE.y + Math.random() * SPAWN_ZONE.height;
+    enemies = [];
+    const step = 800; // 몬스터 배치 간격
 
-    let type = 0;
-    const rand = Math.random();
-    if (rand > 0.7 && rand < 0.92) type = 1;
-    else if (rand >= 0.92) type = 2;
-
-    enemies.push(new Enemy(cx, cy, type));
-    hasSpawnedAfterSafeZone = true;
+    for (let x = 1000; x < WORLD.width - 1000; x += step) {
+        for (let y = 1000; y < WORLD.height - 1000; y += step) {
+            const distToSafe = Math.hypot(x - SAFE_ZONE_CENTER.x, y - SAFE_ZONE_CENTER.y);
+            if (distToSafe > SAFE_ZONE_RADIUS + 300) {
+                const type = Math.floor(Math.random() * 3); // 0, 1, 2 균등 소환
+                enemies.push(new Enemy(x + (Math.random() * 100 - 50), y + (Math.random() * 100 - 50), type));
+            }
+        }
+    }
+    hasSpawnedOnce = true;
 }
 
 function updateUI() {
     document.getElementById('hp-fill').style.width = `${Math.max(0, (player.hp / player.maxHp) * 100)}%`;
-    
     const staminaFill = document.getElementById('stamina-fill');
     staminaFill.style.width = `${Math.max(0, (player.stamina / player.maxStamina) * 100)}%`;
     staminaFill.classList.toggle('exhausted', player.isExhausted);
 
     const weaponStat = document.getElementById('weapon-stat');
     if (player.weapon === 'knife') weaponStat.innerText = `무기: 칼 (Knife)`;
-    else if (player.weapon === 'bare') weaponStat.innerText = `무기: 맨손 (Bare Hands - 속도+0.3, 딜 1/10)`;
+    else if (player.weapon === 'bare') weaponStat.innerText = `무기: 맨손 (Bare Hands)`;
     else weaponStat.innerText = `무기: 총 (Gun)`;
 
     document.getElementById('stack-stat').innerText = `칼 스택: ${player.knifeStack} / 5`;
-
-    const ammoStat = document.getElementById('ammo-stat');
-    ammoStat.innerText = player.weapon === 'gun' ? `총알: ${player.ammo}/${player.maxAmmo}` : `총알: -`;
+    document.getElementById('ammo-stat').innerText = player.weapon === 'gun' ? `총알: ${player.ammo}/${player.maxAmmo}` : `총알: -`;
 
     const now = Date.now();
     const zRem = Math.max(0, Math.ceil((player.skillCooldowns.Z - (now - player.lastSkillTimes.Z)) / 1000));
@@ -1227,13 +857,13 @@ function updateUI() {
     document.getElementById('level-txt').innerText = `LV. ${player.level}`;
     document.getElementById('exp-fill').style.width = `${(player.exp / player.nextExp) * 100}%`;
     document.getElementById('score-txt').innerText = `Score: ${score}`;
+    document.getElementById('enemy-txt').innerText = `남은 몬스터: ${enemies.length}`;
 }
 
 function drawHousesInterior() {
     houses.forEach(house => {
         const screenX = house.x - camera.x;
         const screenY = house.y - camera.y;
-
         if (screenX + house.width < -100 || screenX > canvas.width + 100 ||
             screenY + house.height < -100 || screenY > canvas.height + 100) return;
 
@@ -1252,15 +882,16 @@ function drawHousesInterior() {
         ctx.fillRect(screenX, screenY + house.height - t, doorLeft, t);
         ctx.fillRect(screenX + doorRight, screenY + house.height - t, house.width - doorRight, t);
 
+        // 문 영역에 시각적 이펙트 라인
+        ctx.fillStyle = '#2ecc71';
+        ctx.fillRect(screenX + doorLeft, screenY + house.height - t, house.doorWidth, 3);
         ctx.restore();
     });
 
     ammoBoxes.forEach(box => {
         if (!box.taken) {
-            ctx.save();
             ctx.fillStyle = '#f39c12';
             ctx.fillRect(box.x - camera.x - 8, box.y - camera.y - 6, 16, 12);
-            ctx.restore();
         }
     });
 }
@@ -1282,77 +913,61 @@ function drawHousesRoof() {
     houses.forEach(house => {
         const screenX = house.x - camera.x;
         const screenY = house.y - camera.y;
-
         if (screenX + house.width < -100 || screenX > canvas.width + 100 ||
             screenY + house.height < -100 || screenY > canvas.height + 100) return;
 
         ctx.save();
         ctx.globalAlpha = house.roofAlpha;
         ctx.fillStyle = house.roofColor;
-        ctx.fillRect(screenX - 12, screenY - 12, house.width + 24, house.height + 24);
+        ctx.fillRect(screenX - 10, screenY - 10, house.width + 20, house.height + 20);
         ctx.restore();
     });
 }
 
 function drawZones() {
-    const safeScreenX = SAFE_ZONE_CENTER.x - camera.x;
-    const safeScreenY = SAFE_ZONE_CENTER.y - camera.y;
-
     ctx.save();
     ctx.beginPath();
-    ctx.arc(safeScreenX, safeScreenY, SAFE_ZONE_RADIUS, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(46, 204, 113, 0.15)';
-    ctx.fill();
-    ctx.strokeStyle = '#2ecc71';
-    ctx.lineWidth = 3;
-    ctx.stroke();
-
-    const spawnScreenX = SPAWN_ZONE.x - camera.x;
-    const spawnScreenY = SPAWN_ZONE.y - camera.y;
-    ctx.strokeStyle = 'rgba(231, 76, 60, 0.6)';
-    ctx.lineWidth = 4;
-    ctx.strokeRect(spawnScreenX, spawnScreenY, SPAWN_ZONE.width, SPAWN_ZONE.height);
-    ctx.fillStyle = 'rgba(231, 76, 60, 0.05)';
-    ctx.fillRect(spawnScreenX, spawnScreenY, SPAWN_ZONE.width, SPAWN_ZONE.height);
-
+    ctx.arc(SAFE_ZONE_CENTER.x - camera.x, SAFE_ZONE_CENTER.y - camera.y, SAFE_ZONE_RADIUS, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(46, 204, 113, 0.12)'; ctx.fill();
+    ctx.strokeStyle = '#2ecc71'; ctx.lineWidth = 3; ctx.stroke();
     ctx.restore();
 }
 
-function drawMinimap() {
-    minimapCtx.clearRect(0, 0, minimapCanvas.width, minimapCanvas.height);
-    const range = canvas.width * 3;
-    const startX = player.x - range / 2, startY = player.y - range / 2;
-    const scale = minimapCanvas.width / range;
+// 미니맵 시각화 (집 문 위치 표시 개선)
+function renderMapGraphic(cCtx, width, height, isFull = false) {
+    cCtx.clearRect(0, 0, width, height);
+    const scaleX = width / WORLD.width;
+    const scaleY = height / WORLD.height;
 
-    minimapCtx.strokeStyle = '#e74c3c';
-    minimapCtx.strokeRect((SPAWN_ZONE.x - startX) * scale, (SPAWN_ZONE.y - startY) * scale, SPAWN_ZONE.width * scale, SPAWN_ZONE.height * scale);
+    // 세이프존
+    cCtx.beginPath();
+    cCtx.arc(SAFE_ZONE_CENTER.x * scaleX, SAFE_ZONE_CENTER.y * scaleY, SAFE_ZONE_RADIUS * scaleX, 0, Math.PI * 2);
+    cCtx.strokeStyle = '#2ecc71'; cCtx.lineWidth = 2; cCtx.stroke();
 
-    enemies.forEach(e => {
-        minimapCtx.fillStyle = e.color;
-        minimapCtx.fillRect((e.x - startX) * scale, (e.y - startY) * scale, 2, 2);
+    // 집 및 문 표시
+    houses.forEach(h => {
+        cCtx.fillStyle = '#7f8c8d';
+        cCtx.fillRect(h.x * scaleX, h.y * scaleY, h.width * scaleX, h.height * scaleY);
+
+        // 초록색 문 표시
+        const doorLeft = h.x + (h.width - h.doorWidth) / 2;
+        cCtx.fillStyle = '#2ecc71';
+        cCtx.fillRect(doorLeft * scaleX, (h.y + h.height - 10) * scaleY, h.doorWidth * scaleX, 10 * scaleY);
     });
 
-    minimapCtx.fillStyle = '#00ffcc';
-    minimapCtx.fillRect((player.x - startX) * scale, (player.y - startY) * scale, 3, 3);
-}
-
-function drawFullMap() {
-    if (!isFullMapOpen) return;
-    fullmapCtx.clearRect(0, 0, fullmapCanvas.width, fullmapCanvas.height);
-    const scaleX = fullmapCanvas.width / WORLD.width;
-    const scaleY = fullmapCanvas.height / WORLD.height;
-
-    fullmapCtx.strokeStyle = '#e74c3c';
-    fullmapCtx.strokeRect(SPAWN_ZONE.x * scaleX, SPAWN_ZONE.y * scaleY, SPAWN_ZONE.width * scaleX, SPAWN_ZONE.height * scaleY);
-
+    // 몬스터
     enemies.forEach(e => {
-        fullmapCtx.fillStyle = e.color;
-        fullmapCtx.fillRect(e.x * scaleX, e.y * scaleY, 2, 2);
+        cCtx.fillStyle = e.color;
+        cCtx.fillRect(e.x * scaleX, e.y * scaleY, isFull ? 3 : 2, isFull ? 3 : 2);
     });
 
-    fullmapCtx.fillStyle = '#00ffcc';
-    fullmapCtx.fillRect(player.x * scaleX, player.y * scaleY, 4, 4);
+    // 플레이어
+    cCtx.fillStyle = '#00ffcc';
+    cCtx.fillRect(player.x * scaleX - 2, player.y * scaleY - 2, 5, 5);
 }
+
+function drawMinimap() { renderMapGraphic(minimapCtx, minimapCanvas.width, minimapCanvas.height, false); }
+function drawFullMap() { if (isFullMapOpen) renderMapGraphic(fullmapCtx, fullmapCanvas.width, fullmapCanvas.height, true); }
 
 function init() {
     player = new Player();
@@ -1365,14 +980,14 @@ function init() {
     score = 0;
     gameOver = false;
     isFullMapOpen = false;
-    hasSpawnedAfterSafeZone = false;
+    hasSpawnedOnce = false;
     
+    generateRandomHouses(25);
     initAmmoInHouses();
+    spawnEnemiesOnce();
 
     document.getElementById('fullmap-modal').classList.add('hidden');
     document.getElementById('game-over-screen').classList.add('hidden');
-
-    spawnEnemies();
     updateUI();
 }
 
@@ -1386,7 +1001,6 @@ function restartGame() { init(); }
 
 function loop() {
     if (!gameOver && !isFullMapOpen) {
-        spawnEnemies();
         player.update();
         updateHousesVisibility();
         camera.update(player.x, player.y);
@@ -1400,11 +1014,7 @@ function loop() {
 
         projectiles = projectiles.filter(p => !p.markedForDeletion);
         enemyProjectiles = enemyProjectiles.filter(ep => !ep.markedForDeletion);
-        enemies.forEach((e, idx) => {
-            if (e.markedForDeletion) {
-                enemies.splice(idx, 1);
-            }
-        });
+        enemies = enemies.filter(e => !e.markedForDeletion);
         particles = particles.filter(p => p.alpha > 0);
         popups = popups.filter(p => p.alpha > 0);
         visualEffects = visualEffects.filter(v => v.life > 0);
