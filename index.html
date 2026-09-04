@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>100x RPG - Yellow Enemy Removed</title>
+    <title>100x RPG - Red Range x4.5 Extended</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
         body { background-color: #111118; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; }
@@ -535,10 +535,10 @@ class Enemy {
         this.stunnedUntil = 0;
         this.markedForDeletion = false;
         
-        if (type === 1) { // 빨간색 (근접형 - 원래 칼 공격 패턴 유지)
+        if (type === 1) { // 빨간색 (근접형 - 사거리 4.5배 적용: 70 * 4.5 = 315)
             this.color = '#e74c3c'; this.hp = 2200; this.speed = 2.4;
-            this.attackRange = 70; this.attackCooldown = 1500;
-            this.minDistance = 50;
+            this.attackRange = 315; this.attackCooldown = 1500;
+            this.minDistance = 225;
         } else if (type === 2) { // 보라색 (대시형)
             this.color = '#9b59b6'; this.hp = 1800; this.speed = 2.0;
             this.attackRange = 350; this.attackCooldown = 3500;
@@ -648,9 +648,9 @@ class Enemy {
 
     executeAttack(angle, dist) {
         this.lastAttackTime = Date.now();
-        if (this.type === 1) { // 빨간색: 칼 베기 공격
-            visualEffects.push(new SlashEffect(this.x, this.y, angle, 48, '#e74c3c', 'basic_slash'));
-            if (dist <= 60) player.takeDamage(25, false, 0.5);
+        if (this.type === 1) { // 빨간색: 칼 베기 공격 (사거리 315 및 판정 범위 확장)
+            visualEffects.push(new SlashEffect(this.x, this.y, angle, 315, '#e74c3c', 'basic_slash'));
+            if (dist <= 315) player.takeDamage(25, false, 0.5);
         } else if (this.type === 2) { // 보라색: 대시 공격
             this.isDashing = true;
             this.dashEndTime = Date.now() + 450;
@@ -883,7 +883,6 @@ function spawnEnemiesOnce() {
         for (let y = 1000; y < WORLD.height - 1000; y += step) {
             const distToSafe = Math.hypot(x - SAFE_ZONE_CENTER.x, y - SAFE_ZONE_CENTER.y);
             if (distToSafe > SAFE_ZONE_RADIUS + 300) {
-                // 노란색(Type 0) 삭제 -> 빨간색(1)과 보라색(2)만 생성
                 const type = Math.random() < 0.5 ? 1 : 2;
                 enemies.push(new Enemy(x + (Math.random() * 100 - 50), y + (Math.random() * 100 - 50), type));
             }
@@ -1068,7 +1067,7 @@ function loop() {
 
         projectiles = projectiles.filter(p => !p.markedForDeletion);
         enemyProjectiles = enemyProjectiles.filter(ep => !ep.markedForDeletion);
-        enemies = enemies.filter(e => !e.markedForDeletion);
+        enemies.forEach(e => e.update());
         particles = particles.filter(p => p.alpha > 0);
         popups = popups.filter(p => p.alpha > 0);
         visualEffects = visualEffects.filter(v => v.life > 0);
