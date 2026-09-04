@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>100x RPG - Skill HP Cost & Range Rebalanced</title>
+    <title>100x RPG - Range & Enemy Distance Adjusted</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
         body { background-color: #111118; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; }
@@ -261,12 +261,11 @@ class Player {
         
         this.maxHp = 300;
         this.hp = 300;
-        // 스테미너 20배 상향 (100 -> 2000)
         this.maxStamina = 2000;
         this.stamina = 2000;
         this.staminaDrainRun = 0.4;
         this.staminaCostDash = 25;
-        this.staminaRegen = 0.3 * 20; // 재생량도 동일 비율로 증가
+        this.staminaRegen = 0.3 * 20;
         this.lastStaminaUseTime = 0;
         this.isExhausted = false;
         
@@ -293,7 +292,6 @@ class Player {
         this.skillCooldowns = { Z: 3000, X: 5000, C: 6000, V: 30000 };
         this.lastSkillTimes = { Z: 0, X: 0, C: 0, V: 0 };
         
-        // 각 스킬이 부여하는 기절 시간(초 단위) 정의
         this.skillStunDurations = { Z: 1.5, X: 1.5, C: 1.2, V: 5.0 };
     }
 
@@ -430,7 +428,6 @@ class Player {
         const now = Date.now();
         if (now < this.attackBlockedUntil || now - (this.lastSkillTimes[key] || 0) < this.skillCooldowns[key] || this.pendingAttack) return;
 
-        // 스킬 발동 시 기절 시간(초) * 20 에 해당하는 HP를 소모
         const stunSec = this.skillStunDurations[key] || 1.0;
         const hpCost = stunSec * 20;
 
@@ -451,11 +448,11 @@ class Player {
     executePendingAttack(atk) {
         const type = atk.type;
         if (type === 'knife_basic') {
-            // 사거리: 기존 90 * 0.4 = 36
-            this.performMeleeAttack(36, this.knifeDamage, 0.5, '#ffffff', 'basic_slash');
+            // 사거리: 기존 36 -> 0.5배 증가하여 54로 변경
+            this.performMeleeAttack(54, this.knifeDamage, 0.5, '#ffffff', 'basic_slash');
         } else if (type === 'bare_basic') {
-            // 사거리: 기존 65 * 0.4 = 26
-            this.performMeleeAttack(26, this.knifeDamage * 0.1, 0.5, '#f39c12', 'punch');
+            // 사거리: 기존 26 -> 0.5배 증가하여 39로 변경
+            this.performMeleeAttack(39, this.knifeDamage * 0.1, 0.5, '#f39c12', 'punch');
         } else if (type === 'skill_Z') {
             const range = 220;
             visualEffects.push(new SlashEffect(this.x, this.y, this.angle, range, '#ff4757', 'thrust_wide'));
@@ -540,16 +537,18 @@ class Enemy {
         this.stunnedUntil = 0;
         this.markedForDeletion = false;
         
-        if (type === 0) { // 노란색
+        if (type === 0) { // 노란색 (원거리형)
             this.color = '#f1c40f'; this.hp = 1200; this.speed = 2.0;
             this.attackRange = 400; this.attackCooldown = 2000;
-            this.keepDistance = 250;
-        } else if (type === 1) { // 빨간색
+            this.minDistance = 180; // 플레이어에게 다가오지 않는 최소거리
+        } else if (type === 1) { // 빨간색 (근접형)
             this.color = '#e74c3c'; this.hp = 2200; this.speed = 2.4;
             this.attackRange = 70; this.attackCooldown = 1500;
-        } else if (type === 2) { // 보라색
+            this.minDistance = 50; // 플레이어와 겹치지 않고 근접 공격을 유지할 거리
+        } else if (type === 2) { // 보라색 (돌진형)
             this.color = '#9b59b6'; this.hp = 1800; this.speed = 2.0;
             this.attackRange = 350; this.attackCooldown = 3500;
+            this.minDistance = 70; // 대시 준비 전 유지 거리
         }
         this.maxHp = this.hp;
         this.lastAttackTime = Date.now() + Math.random() * 2000;
@@ -593,6 +592,7 @@ class Enemy {
             if (now >= this.dashEndTime) this.isDashing = false;
             const pos = checkWallCollision(this.x, this.y, this.radius);
             this.x = pos.x; this.y = pos.y;
+            this.resolvePlayerCollision(); // 플레이어와 겹침 방지
             return;
         }
 
@@ -608,15 +608,11 @@ class Enemy {
         }
 
         if (distToPlayer <= DETECT_RANGE) {
-            if (this.type === 0) {
-                if (distToPlayer < this.keepDistance - 30) {
-                    this.x -= Math.cos(angleToPlayer) * this.speed;
-                    this.y -= Math.sin(angleToPlayer) * this.speed;
-                } else if (distToPlayer > this.keepDistance + 50) {
-                    this.x += Math.cos(angleToPlayer) * this.speed;
-                    this.y += Math.sin(angleToPlayer) * this.speed;
-                }
-            } else {
+            // 특성에 맞춰 플레이어와의 최소 거리를 조절하며 접근/후퇴
+            if (distToPlayer < this.minDistance - 10) {
+                this.x -= Math.cos(angleToPlayer) * this.speed;
+                this.y -= Math.sin(angleToPlayer) * this.speed;
+            } else if (distToPlayer > this.minDistance + 10) {
                 this.x += Math.cos(angleToPlayer) * this.speed;
                 this.y += Math.sin(angleToPlayer) * this.speed;
             }
@@ -635,6 +631,9 @@ class Enemy {
         const posAfterWall = checkWallCollision(this.x, this.y, this.radius);
         this.x = posAfterWall.x; this.y = posAfterWall.y;
 
+        // 플레이어와 완전히 겹치지 않도록 히트박스 밀쳐내기
+        this.resolvePlayerCollision();
+
         const distFromCenter = Math.hypot(this.x - SAFE_ZONE_CENTER.x, this.y - SAFE_ZONE_CENTER.y);
         if (distFromCenter < SAFE_ZONE_RADIUS + this.radius) {
             const angleFromCenter = Math.atan2(this.y - SAFE_ZONE_CENTER.y, this.x - SAFE_ZONE_CENTER.x);
@@ -643,14 +642,24 @@ class Enemy {
         }
     }
 
+    resolvePlayerCollision() {
+        const dist = Math.hypot(player.x - this.x, player.y - this.y);
+        const minDist = player.radius + this.radius;
+        if (dist < minDist && dist > 0) {
+            const overlap = minDist - dist;
+            const angle = Math.atan2(this.y - player.y, this.x - player.x);
+            this.x += Math.cos(angle) * overlap;
+            this.y += Math.sin(angle) * overlap;
+        }
+    }
+
     executeAttack(angle, dist) {
         this.lastAttackTime = Date.now();
         if (this.type === 0) {
             enemyProjectiles.push(new Projectile(this.x, this.y, angle, 18, '#f1c40f', 8));
         } else if (this.type === 1) {
-            // 몬스터 공격도 넓이 축소 반영 (기존 80 -> 사거리 32)
-            visualEffects.push(new SlashEffect(this.x, this.y, angle, 32, '#e74c3c', 'basic_slash'));
-            if (dist <= 40) player.takeDamage(25, false, 0.5);
+            visualEffects.push(new SlashEffect(this.x, this.y, angle, 48, '#e74c3c', 'basic_slash'));
+            if (dist <= 60) player.takeDamage(25, false, 0.5);
         } else if (this.type === 2) {
             this.isDashing = true;
             this.dashEndTime = Date.now() + 450;
@@ -766,7 +775,6 @@ class SlashEffect {
             ctx.fill();
             ctx.strokeStyle = this.color; ctx.lineWidth = 4; ctx.stroke();
         } else {
-            // 평타 부채꼴 넓이 기존(PI/3 * 2 = 120도) -> 3분의 1(PI/9 * 2 = 40도)로 축소
             const angleSpan = (Math.PI / 3) / 3;
             ctx.strokeStyle = this.color; ctx.lineWidth = 8;
             ctx.beginPath(); 
