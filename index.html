@@ -189,6 +189,7 @@
             </div>
             <div class="text-stat" id="score-txt">Score: 0</div>
             <div class="text-stat" style="color: #2ecc71;">SafeZone: 맵 중앙 (0,0) / R: 700px</div>
+            <div class="text-stat" style="color: #e74c3c;">SpawnZone: 지정 스폰 구역 (빨간 테두리)</div>
         </div>
 
         <div id="minimap-container">
@@ -229,7 +230,14 @@ const WORLD = { width: 24000, height: 18000 };
 const DETECT_RANGE = 350;
 const SAFE_ZONE_CENTER = { x: WORLD.width / 2, y: WORLD.height / 2 };
 const SAFE_ZONE_RADIUS = DETECT_RANGE * 2;
-const AUTO_TARGET_RANGE = 300;
+
+// 지정된 스폰 전용 구역 (원하는 위치와 크기로 수정 가능)
+const SPAWN_ZONE = {
+    x: SAFE_ZONE_CENTER.x + 2000,
+    y: SAFE_ZONE_CENTER.y - 3000,
+    width: 2500,
+    height: 2500
+};
 
 let houses = [
     { id: 1, x: SAFE_ZONE_CENTER.x - 1200, y: SAFE_ZONE_CENTER.y - 1000, width: 300, height: 240, wallThickness: 16, doorWidth: 70, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#373a40', floorColor: '#4a4e54' },
@@ -240,7 +248,7 @@ let houses = [
 ];
 
 let ammoBoxes = [];
-let hasSpawnedAfterSafeZone = false; // 스폰 제한 플래그
+let hasSpawnedAfterSafeZone = false; // SafeZone 재방문 전까지 스폰 금지 플래그
 
 function generateRandomHouses(count) {
     const roofColors = ['#2980b9', '#8e44ad', '#16a085', '#d35400', '#2c3e50'];
@@ -349,7 +357,6 @@ const camera = {
 };
 
 let keys = {};
-let lockedTarget = null;
 let lastAttackTime = 0;
 let gameOver = false;
 let isFullMapOpen = false;
@@ -419,7 +426,7 @@ class Player {
         this.lastStaminaUseTime = 0;
         this.isExhausted = false;
         
-        this.weapon = 'knife'; // 'knife', 'bare', 'gun'
+        this.weapon = 'knife';
         this.ammo = 15;
         this.maxAmmo = 30;
 
@@ -454,10 +461,13 @@ class Player {
         if (isFullMapOpen) return;
         const now = Date.now();
 
-        // SAFE존 진입 시 스폰 리셋
+        // SafeZone 진입 시 스폰 리셋 (SafeZone에 들어가야만 다시 스폰 가능)
         const distToSafeZone = Math.hypot(this.x - SAFE_ZONE_CENTER.x, this.y - SAFE_ZONE_CENTER.y);
         if (distToSafeZone <= SAFE_ZONE_RADIUS) {
-            hasSpawnedAfterSafeZone = false;
+            if (hasSpawnedAfterSafeZone) {
+                hasSpawnedAfterSafeZone = false;
+                createPopup(this.x, this.y - 40, "SPAWN RESET!", "#2ecc71");
+            }
         }
 
         if (this.knifeStack > 0 && now - this.lastKnifeAttackTime >= 1000) {
@@ -559,7 +569,6 @@ class Player {
             }
         });
 
-        // 방향키 조준 및 눌렀을 때 공격 실행
         if (hasKeyAim) {
             let aimDx = 0, aimDy = 0;
             if (keys['ArrowUp']) aimDy -= 1;
@@ -569,7 +578,7 @@ class Player {
 
             if (aimDx !== 0 || aimDy !== 0) {
                 this.angle = Math.atan2(aimDy, aimDx);
-                this.attack(); // 방향키 입력 시 자동 공격
+                this.attack();
             }
         }
 
@@ -964,8 +973,6 @@ class Enemy {
             this.expValue = 80; this.scoreValue = 500;
         }
 
-        this.shapeType = type; 
-
         this.maxHp = this.hp;
         this.markedForDeletion = false;
         this.stunnedUntil = 0;
@@ -1133,28 +1140,22 @@ function createPopup(x, y, text, color = '#fff') {
 }
 
 function spawnEnemies() {
-    // 이미 스폰되었고 SAFE존에 들어가지 않았다면 스폰 차단
+    // 1. SafeZone 재방문 전까지 스폰 차단
     if (hasSpawnedAfterSafeZone) return;
 
     if (enemies.length >= 35) return;
     
-    // 기존 스폰율(0.04) 대비 70% 감소 -> 0.012
-    if (Math.random() < 0.012) {
-        const distance = Math.random() * 500 + 300;
-        const angle = Math.random() * Math.PI * 2;
-        let cx = player.x + Math.cos(angle) * distance;
-        let cy = player.y + Math.sin(angle) * distance;
+    // 2. 지정된 SPAWN_ZONE 내부에서만 좌표 생성
+    const cx = SPAWN_ZONE.x + Math.random() * SPAWN_ZONE.width;
+    const cy = SPAWN_ZONE.y + Math.random() * SPAWN_ZONE.height;
 
-        if (Math.hypot(cx - SAFE_ZONE_CENTER.x, cy - SAFE_ZONE_CENTER.y) <= SAFE_ZONE_RADIUS + 50) return;
+    let type = 0;
+    const rand = Math.random();
+    if (rand > 0.7 && rand < 0.92) type = 1;
+    else if (rand >= 0.92) type = 2;
 
-        let type = 0;
-        const rand = Math.random();
-        if (rand > 0.7 && rand < 0.92) type = 1;
-        else if (rand >= 0.92) type = 2;
-
-        enemies.push(new Enemy(cx, cy, type));
-        hasSpawnedAfterSafeZone = true; // 스폰 기록
-    }
+    enemies.push(new Enemy(cx, cy, type));
+    hasSpawnedAfterSafeZone = true; // 스폰 1회 완료 -> SafeZone에 들어가기 전까지 스폰 멈춤
 }
 
 function updateUI() {
@@ -1188,18 +1189,29 @@ function updateUI() {
     document.getElementById('score-txt').innerText = `Score: ${score}`;
 }
 
-function drawSafeZone() {
-    const screenX = SAFE_ZONE_CENTER.x - camera.x;
-    const screenY = SAFE_ZONE_CENTER.y - camera.y;
+function drawZones() {
+    // SafeZone 그리기 (초록색)
+    const safeScreenX = SAFE_ZONE_CENTER.x - camera.x;
+    const safeScreenY = SAFE_ZONE_CENTER.y - camera.y;
 
     ctx.save();
     ctx.beginPath();
-    ctx.arc(screenX, screenY, SAFE_ZONE_RADIUS, 0, Math.PI * 2);
+    ctx.arc(safeScreenX, safeScreenY, SAFE_ZONE_RADIUS, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(46, 204, 113, 0.15)';
     ctx.fill();
     ctx.strokeStyle = '#2ecc71';
     ctx.lineWidth = 3;
     ctx.stroke();
+
+    // SpawnZone 그리기 (지정된 스폰 구역 영역 표시)
+    const spawnScreenX = SPAWN_ZONE.x - camera.x;
+    const spawnScreenY = SPAWN_ZONE.y - camera.y;
+    ctx.strokeStyle = 'rgba(231, 76, 60, 0.6)';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(spawnScreenX, spawnScreenY, SPAWN_ZONE.width, SPAWN_ZONE.height);
+    ctx.fillStyle = 'rgba(231, 76, 60, 0.05)';
+    ctx.fillRect(spawnScreenX, spawnScreenY, SPAWN_ZONE.width, SPAWN_ZONE.height);
+
     ctx.restore();
 }
 
@@ -1208,6 +1220,10 @@ function drawMinimap() {
     const range = canvas.width * 3;
     const startX = player.x - range / 2, startY = player.y - range / 2;
     const scale = minimapCanvas.width / range;
+
+    // SpawnZone 표시 (미니맵)
+    minimapCtx.strokeStyle = '#e74c3c';
+    minimapCtx.strokeRect((SPAWN_ZONE.x - startX) * scale, (SPAWN_ZONE.y - startY) * scale, SPAWN_ZONE.width * scale, SPAWN_ZONE.height * scale);
 
     enemies.forEach(e => {
         minimapCtx.fillStyle = e.color;
@@ -1223,6 +1239,10 @@ function drawFullMap() {
     fullmapCtx.clearRect(0, 0, fullmapCanvas.width, fullmapCanvas.height);
     const scaleX = fullmapCanvas.width / WORLD.width;
     const scaleY = fullmapCanvas.height / WORLD.height;
+
+    // SpawnZone 표시 (전체지도)
+    fullmapCtx.strokeStyle = '#e74c3c';
+    fullmapCtx.strokeRect(SPAWN_ZONE.x * scaleX, SPAWN_ZONE.y * scaleY, SPAWN_ZONE.width * scaleX, SPAWN_ZONE.height * scaleY);
 
     enemies.forEach(e => {
         fullmapCtx.fillStyle = e.color;
@@ -1251,7 +1271,7 @@ function init() {
     document.getElementById('fullmap-modal').classList.add('hidden');
     document.getElementById('game-over-screen').classList.add('hidden');
 
-    for (let i = 0; i < 6; i++) spawnEnemies();
+    spawnEnemies();
     updateUI();
 }
 
@@ -1279,7 +1299,11 @@ function loop() {
 
         projectiles = projectiles.filter(p => !p.markedForDeletion);
         enemyProjectiles = enemyProjectiles.filter(ep => !ep.markedForDeletion);
-        enemies = enemies.filter(e => !e.markedForDeletion);
+        enemies.forEach((e, idx) => {
+            if (e.markedForDeletion) {
+                enemies.splice(idx, 1);
+            }
+        });
         particles = particles.filter(p => p.alpha > 0);
         popups = popups.filter(p => p.alpha > 0);
         visualEffects = visualEffects.filter(v => v.life > 0);
@@ -1287,7 +1311,7 @@ function loop() {
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    drawSafeZone();
+    drawZones();
     drawHousesInterior();
 
     particles.forEach(p => p.draw());
