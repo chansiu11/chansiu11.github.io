@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>100x RPG - Range & Enemy Distance Adjusted</title>
+    <title>100x RPG - Yellow Enemy Removed</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
         body { background-color: #111118; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; }
@@ -448,10 +448,8 @@ class Player {
     executePendingAttack(atk) {
         const type = atk.type;
         if (type === 'knife_basic') {
-            // 사거리: 기존 36 -> 0.5배 증가하여 54로 변경
             this.performMeleeAttack(54, this.knifeDamage, 0.5, '#ffffff', 'basic_slash');
         } else if (type === 'bare_basic') {
-            // 사거리: 기존 26 -> 0.5배 증가하여 39로 변경
             this.performMeleeAttack(39, this.knifeDamage * 0.1, 0.5, '#f39c12', 'punch');
         } else if (type === 'skill_Z') {
             const range = 220;
@@ -537,18 +535,14 @@ class Enemy {
         this.stunnedUntil = 0;
         this.markedForDeletion = false;
         
-        if (type === 0) { // 노란색 (원거리형)
-            this.color = '#f1c40f'; this.hp = 1200; this.speed = 2.0;
-            this.attackRange = 400; this.attackCooldown = 2000;
-            this.minDistance = 180; // 플레이어에게 다가오지 않는 최소거리
-        } else if (type === 1) { // 빨간색 (근접형)
+        if (type === 1) { // 빨간색 (근접형 - 원래 칼 공격 패턴 유지)
             this.color = '#e74c3c'; this.hp = 2200; this.speed = 2.4;
             this.attackRange = 70; this.attackCooldown = 1500;
-            this.minDistance = 50; // 플레이어와 겹치지 않고 근접 공격을 유지할 거리
-        } else if (type === 2) { // 보라색 (돌진형)
+            this.minDistance = 50;
+        } else if (type === 2) { // 보라색 (대시형)
             this.color = '#9b59b6'; this.hp = 1800; this.speed = 2.0;
             this.attackRange = 350; this.attackCooldown = 3500;
-            this.minDistance = 70; // 대시 준비 전 유지 거리
+            this.minDistance = 70;
         }
         this.maxHp = this.hp;
         this.lastAttackTime = Date.now() + Math.random() * 2000;
@@ -592,7 +586,7 @@ class Enemy {
             if (now >= this.dashEndTime) this.isDashing = false;
             const pos = checkWallCollision(this.x, this.y, this.radius);
             this.x = pos.x; this.y = pos.y;
-            this.resolvePlayerCollision(); // 플레이어와 겹침 방지
+            this.resolvePlayerCollision();
             return;
         }
 
@@ -608,7 +602,6 @@ class Enemy {
         }
 
         if (distToPlayer <= DETECT_RANGE) {
-            // 특성에 맞춰 플레이어와의 최소 거리를 조절하며 접근/후퇴
             if (distToPlayer < this.minDistance - 10) {
                 this.x -= Math.cos(angleToPlayer) * this.speed;
                 this.y -= Math.sin(angleToPlayer) * this.speed;
@@ -618,9 +611,10 @@ class Enemy {
             }
 
             if (now - this.lastAttackTime > this.attackCooldown && distToPlayer <= this.attackRange) {
-                if (this.type === 0) {
+                if (this.type === 1) {
+                    // 빨간색 칼 공격 수행
                     this.executeAttack(angleToPlayer, distToPlayer);
-                } else {
+                } else if (this.type === 2) {
                     this.isPreparingAttack = true;
                     this.attackPrepareStartTime = now;
                     this.attackTargetAngle = angleToPlayer;
@@ -631,7 +625,6 @@ class Enemy {
         const posAfterWall = checkWallCollision(this.x, this.y, this.radius);
         this.x = posAfterWall.x; this.y = posAfterWall.y;
 
-        // 플레이어와 완전히 겹치지 않도록 히트박스 밀쳐내기
         this.resolvePlayerCollision();
 
         const distFromCenter = Math.hypot(this.x - SAFE_ZONE_CENTER.x, this.y - SAFE_ZONE_CENTER.y);
@@ -655,12 +648,10 @@ class Enemy {
 
     executeAttack(angle, dist) {
         this.lastAttackTime = Date.now();
-        if (this.type === 0) {
-            enemyProjectiles.push(new Projectile(this.x, this.y, angle, 18, '#f1c40f', 8));
-        } else if (this.type === 1) {
+        if (this.type === 1) { // 빨간색: 칼 베기 공격
             visualEffects.push(new SlashEffect(this.x, this.y, angle, 48, '#e74c3c', 'basic_slash'));
             if (dist <= 60) player.takeDamage(25, false, 0.5);
-        } else if (this.type === 2) {
+        } else if (this.type === 2) { // 보라색: 대시 공격
             this.isDashing = true;
             this.dashEndTime = Date.now() + 450;
             const dashSpeed = 15;
@@ -679,22 +670,18 @@ class Enemy {
         if (this.isPreparingAttack) {
             ctx.beginPath();
             ctx.arc(0, 0, this.radius + 14, 0, Math.PI * 2);
-            ctx.strokeStyle = this.type === 1 ? 'rgba(231, 76, 60, 0.9)' : 'rgba(155, 89, 182, 0.9)';
+            ctx.strokeStyle = 'rgba(155, 89, 182, 0.9)';
             ctx.lineWidth = 4;
             ctx.stroke();
 
-            ctx.fillStyle = this.type === 1 ? 'rgba(231, 76, 60, 0.3)' : 'rgba(155, 89, 182, 0.3)';
+            ctx.fillStyle = 'rgba(155, 89, 182, 0.3)';
             ctx.fill();
         }
 
         ctx.fillStyle = this.color;
         ctx.beginPath();
 
-        if (this.type === 0) {
-            ctx.moveTo(0, -this.radius - 2);
-            ctx.lineTo(this.radius + 2, this.radius);
-            ctx.lineTo(-this.radius - 2, this.radius);
-        } else if (this.type === 1) {
+        if (this.type === 1) {
             ctx.rect(-this.radius, -this.radius, this.radius * 2, this.radius * 2);
         } else if (this.type === 2) {
             for (let i = 0; i < 5; i++) {
@@ -730,13 +717,6 @@ class Projectile {
     update() {
         this.x += this.vx; this.y += this.vy;
         if (checkLineWallCollision(this.x - this.vx, this.y - this.vy, this.x, this.y)) this.markedForDeletion = true;
-        
-        if (this.color === '#f1c40f') {
-            if (Math.hypot(player.x - this.x, player.y - this.y) < player.radius + this.radius) {
-                player.takeDamage(this.damage, false, 0.4);
-                this.markedForDeletion = true;
-            }
-        }
     }
     draw() {
         ctx.beginPath();
@@ -903,7 +883,8 @@ function spawnEnemiesOnce() {
         for (let y = 1000; y < WORLD.height - 1000; y += step) {
             const distToSafe = Math.hypot(x - SAFE_ZONE_CENTER.x, y - SAFE_ZONE_CENTER.y);
             if (distToSafe > SAFE_ZONE_RADIUS + 300) {
-                const type = Math.floor(Math.random() * 3);
+                // 노란색(Type 0) 삭제 -> 빨간색(1)과 보라색(2)만 생성
+                const type = Math.random() < 0.5 ? 1 : 2;
                 enemies.push(new Enemy(x + (Math.random() * 100 - 50), y + (Math.random() * 100 - 50), type));
             }
         }
