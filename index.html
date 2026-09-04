@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>100x RPG - Red Range x4.5 Extended</title>
+    <title>100x RPG - Red Range Half Extended</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
         body { background-color: #111118; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; }
@@ -535,10 +535,10 @@ class Enemy {
         this.stunnedUntil = 0;
         this.markedForDeletion = false;
         
-        if (type === 1) { // 빨간색 (근접형 - 사거리 4.5배 적용: 70 * 4.5 = 315)
+        if (type === 1) { // 빨간색 (사거리 315의 절반인 158로 변경)
             this.color = '#e74c3c'; this.hp = 2200; this.speed = 2.4;
-            this.attackRange = 315; this.attackCooldown = 1500;
-            this.minDistance = 225;
+            this.attackRange = 158; this.attackCooldown = 1500;
+            this.minDistance = 110;
         } else if (type === 2) { // 보라색 (대시형)
             this.color = '#9b59b6'; this.hp = 1800; this.speed = 2.0;
             this.attackRange = 350; this.attackCooldown = 3500;
@@ -612,7 +612,6 @@ class Enemy {
 
             if (now - this.lastAttackTime > this.attackCooldown && distToPlayer <= this.attackRange) {
                 if (this.type === 1) {
-                    // 빨간색 칼 공격 수행
                     this.executeAttack(angleToPlayer, distToPlayer);
                 } else if (this.type === 2) {
                     this.isPreparingAttack = true;
@@ -648,9 +647,9 @@ class Enemy {
 
     executeAttack(angle, dist) {
         this.lastAttackTime = Date.now();
-        if (this.type === 1) { // 빨간색: 칼 베기 공격 (사거리 315 및 판정 범위 확장)
-            visualEffects.push(new SlashEffect(this.x, this.y, angle, 315, '#e74c3c', 'basic_slash'));
-            if (dist <= 315) player.takeDamage(25, false, 0.5);
+        if (this.type === 1) { // 빨간색: 칼 베기 공격 (사거리 158 적용)
+            visualEffects.push(new SlashEffect(this.x, this.y, angle, 158, '#e74c3c', 'basic_slash'));
+            if (dist <= 158) player.takeDamage(25, false, 0.5);
         } else if (this.type === 2) { // 보라색: 대시 공격
             this.isDashing = true;
             this.dashEndTime = Date.now() + 450;
