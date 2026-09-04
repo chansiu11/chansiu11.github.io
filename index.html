@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>100x Ultra Large Map RPG - Advanced Combat System</title>
+    <title>100x Ultra Large Map RPG - Knife & Skill System</title>
     <style>
         * {
             box-sizing: border-box;
@@ -72,11 +72,22 @@
             margin-top: 6px;
             font-weight: bold;
         }
-        #ammo-stat {
-            color: #f39c12;
-            font-size: 16px;
+        #weapon-stat {
+            color: #3498db;
+            font-size: 15px;
             margin-top: 6px;
             font-weight: bold;
+        }
+        #ammo-stat {
+            color: #f39c12;
+            font-size: 14px;
+            margin-top: 2px;
+            font-weight: bold;
+        }
+        #cooldown-stat {
+            color: #e74c3c;
+            font-size: 12px;
+            margin-top: 4px;
         }
         #minimap-container {
             position: absolute;
@@ -159,7 +170,9 @@
             <div class="bar-container">
                 <div id="hp-fill" class="bar-fill"></div>
             </div>
-            <div id="ammo-stat">무기: 맨손 (속도 +0.3)</div>
+            <div id="weapon-stat">무기: 칼 (Knife)</div>
+            <div id="ammo-stat">총알: -</div>
+            <div id="cooldown-stat">스킬 쿨타임 - C: 준비 | V: 준비 | E: 준비 | R: 준비</div>
             <div class="bar-container">
                 <div id="stamina-fill" class="bar-fill"></div>
             </div>
@@ -177,9 +190,9 @@
 
         <div class="controls-hint">
             이동: WASD (Shift: 달리기)<br>
-            무기교체: 1(맨손) / 2(칼) / 3(총)<br>
-            스킬: C (찌르기), V (회전베기), E (섬광베기), R (궁극기: 검기파동)<br>
-            공격: 스페이스바 | 대시: Q (0.5초) | 지도: M
+            무기교체: 1 (칼 <-> 맨손) / 2 (총)<br>
+            스킬 (칼 전용): C (찌르기) | V (회전) | E (파동) | R (궁극기)<br>
+            시점/타겟지정: 방향키 | 공격: 스페이스바 | 대시: Q | 전체지도: M
         </div>
     </div>
 
@@ -208,26 +221,28 @@ const fullmapCtx = fullmapCanvas.getContext('2d');
 const WORLD = { width: 24000, height: 18000 };
 const DETECT_RANGE = 350;
 const SAFE_ZONE_CENTER = { x: WORLD.width / 2, y: WORLD.height / 2 };
-const SAFE_ZONE_RADIUS = DETECT_RANGE * 2;
+const SAFE_ZONE_RADIUS = DETECT_RANGE * 2; // 700px
 const AUTO_TARGET_RANGE = 300;
 
 let houses = [
     { id: 1, x: SAFE_ZONE_CENTER.x - 1200, y: SAFE_ZONE_CENTER.y - 1000, width: 300, height: 240, wallThickness: 16, doorWidth: 70, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#373a40', floorColor: '#4a4e54' },
     { id: 2, x: SAFE_ZONE_CENTER.x + 1000, y: SAFE_ZONE_CENTER.y + 900, width: 280, height: 220, wallThickness: 16, doorWidth: 65, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#2c3e50', floorColor: '#34495e' },
     { id: 3, x: SAFE_ZONE_CENTER.x - 1100, y: SAFE_ZONE_CENTER.y + 1100, width: 320, height: 250, wallThickness: 18, doorWidth: 75, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#4a3b32', floorColor: '#5c4a3e' },
-    { id: 4, x: SAFE_ZONE_CENTER.x + 1200, y: SAFE_ZONE_CENTER.y - 1200, width: 260, height: 200, wallThickness: 15, doorWidth: 60, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#1b2631', floorColor: '#2e4053' }
+    { id: 4, x: SAFE_ZONE_CENTER.x + 1200, y: SAFE_ZONE_CENTER.y - 1200, width: 260, height: 200, wallThickness: 15, doorWidth: 60, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#1b2631', floorColor: '#2e4053' },
+    { id: 5, x: 2500, y: 2000, width: 450, height: 350, wallThickness: 20, doorWidth: 90, roofAlpha: 1.0, targetAlpha: 1.0, fadeSpeed: 0.08, roofColor: '#2c3e50', floorColor: '#34495e' }
 ];
 
 let ammoBoxes = [];
 
 function generateRandomHouses(count) {
     const roofColors = ['#2980b9', '#8e44ad', '#16a085', '#d35400', '#2c3e50'];
-    const floorColors = ['#34495e', '#2c3e50', '#4a4e54', '#5c4a3e', '#283747'];
+    const floorColors = ['#34495e', '#2c3e50', '#4a4e54', '#5c4a3e'];
 
     for (let i = 0; i < count; i++) {
         let rx, ry, distToSafeZone;
         let w = Math.floor(Math.random() * 180) + 250;
         let h = Math.floor(Math.random() * 140) + 200;
+        
         do {
             rx = Math.floor(Math.random() * (WORLD.width - w - 1000)) + 500;
             ry = Math.floor(Math.random() * (WORLD.height - h - 1000)) + 500;
@@ -244,26 +259,26 @@ function generateRandomHouses(count) {
         });
     }
 }
-generateRandomHouses(15);
+generateRandomHouses(5);
 
 function initAmmoInHouses() {
     ammoBoxes = [];
     houses.forEach(house => {
         if (Math.random() < 0.6) {
             const count = Math.floor(Math.random() * 4) + 5;
-            ammoBoxes.push({
-                x: house.x + house.wallThickness + 20 + Math.random() * (house.width - house.wallThickness * 2 - 40),
-                y: house.y + house.wallThickness + 20 + Math.random() * (house.height - house.wallThickness * 2 - 40),
-                amount: count, radius: 10, taken: false
-            });
+            const bx = house.x + house.wallThickness + 20 + Math.random() * (house.width - house.wallThickness * 2 - 40);
+            const by = house.y + house.wallThickness + 20 + Math.random() * (house.height - house.wallThickness * 2 - 40);
+            ammoBoxes.push({ x: bx, y: by, amount: count, radius: 10, taken: false });
         }
     });
 }
 
 function getHouseContainingPoint(px, py) {
     return houses.find(house => 
-        px >= house.x + house.wallThickness && px <= house.x + house.width - house.wallThickness &&
-        py >= house.y + house.wallThickness && py <= house.y + house.height - house.wallThickness
+        px >= house.x + house.wallThickness &&
+        px <= house.x + house.width - house.wallThickness &&
+        py >= house.y + house.wallThickness &&
+        py <= house.y + house.height - house.wallThickness
     );
 }
 
@@ -346,37 +361,45 @@ let enemyProjectiles = [];
 let enemies = [];
 let particles = [];
 let popups = [];
+let visualEffects = [];
 let score = 0;
 let usedSpawnPoints = [];
-
-function applyStun(target, duration, isSuperArmor = false) {
-    if (isSuperArmor && target === player) return;
-    target.stunTimer = Date.now() + (duration * 1000);
-}
 
 window.addEventListener('keydown', e => {
     if (e.code === 'Space') e.preventDefault();
     keys[e.code] = true;
     
-    if (e.code === 'Digit1') { player.weapon = 'bare'; updateUI(); }
-    if (e.code === 'Digit2') { player.weapon = 'sword'; updateUI(); }
-    if (e.code === 'Digit3') { player.weapon = 'gun'; updateUI(); }
-
-    if (e.code === 'KeyM' && !gameOver) {
-        isFullMapOpen = !isFullMapOpen;
-        document.getElementById('fullmap-modal').classList.toggle('hidden', !isFullMapOpen);
+    if (e.code === 'Digit1') {
+        if (player.weapon === 'knife') player.weapon = 'bare';
+        else player.weapon = 'knife';
+        updateUI();
+    }
+    if (e.code === 'Digit2') {
+        player.weapon = 'gun';
+        updateUI();
     }
 
-    if (!gameOver && !isFullMapOpen && player.weapon === 'sword') {
+    if (!gameOver && player) {
         if (e.code === 'KeyC') player.useSkill('C');
         if (e.code === 'KeyV') player.useSkill('V');
         if (e.code === 'KeyE') player.useSkill('E');
         if (e.code === 'KeyR') player.useSkill('R');
     }
 
-    if (gameOver && (e.code === 'KeyQ' || e.code === 'Space')) restartGame();
+    if (e.code === 'KeyM' && !gameOver) {
+        isFullMapOpen = !isFullMapOpen;
+        document.getElementById('fullmap-modal').classList.toggle('hidden', !isFullMapOpen);
+    }
+
+    if (gameOver && (e.code === 'KeyQ' || e.code === 'Space')) {
+        restartGame();
+    }
 });
 window.addEventListener('keyup', e => keys[e.code] = false);
+
+function applyStun(entity, duration) {
+    entity.stunnedUntil = Math.max(entity.stunnedUntil || 0, Date.now() + duration * 1000);
+}
 
 class Player {
     constructor() {
@@ -387,7 +410,7 @@ class Player {
         this.runSpeed = 2.5;
         this.speed = 1.3;
         
-        // 3. 기본 체력 3배 (100 -> 300)
+        // 규칙 3: 기본 체력 3배
         this.maxHp = 300;
         this.hp = 300;
         
@@ -399,55 +422,52 @@ class Player {
         this.lastStaminaUseTime = 0;
         this.isExhausted = false;
         
-        this.weapon = 'bare'; // 'bare', 'sword', 'gun'
+        // 규칙 1: 칼, 맨손, 총 시스템
+        this.weapon = 'knife'; // 'knife', 'bare', 'gun'
         this.ammo = 15;
         this.maxAmmo = 30;
 
         this.level = 1;
         this.exp = 0;
         this.nextExp = 50;
-        this.attackSpeed = 200;
-        this.damage = 50; // 기본 칼 데미지
+        this.attackSpeed = 300;
+        this.knifeDamage = 45;
         this.angle = 0;
         
-        // 5. 대시 쿨타임 0.5초 (500ms)
+        // 규칙 5: 대쉬 쿨타임 0.5초
         this.dashCooldown = 500;
         this.lastDashTime = 0;
 
-        // 6. 기절 및 7. 메커니즘 관련
-        this.stunTimer = 0;
-        this.isCasting = false;
-        this.castType = null; // 'normal', 'skill'
-        this.castEndTime = 0;
-        this.isSuperArmor = false;
-        this.pendingAttackAction = null;
-
-        // 스킬 및 이펙트
-        this.slashAnimTimer = 0;
-        this.slashAnimAngle = 0;
-        this.slashAnimType = 'normal';
+        this.stunnedUntil = 0;
+        
+        // 선딜레이 및 스킬 관리
+        this.pendingAttack = null; // { executeTime, type, isSuperArmor }
+        
+        this.skillCooldowns = {
+            C: 3000,
+            V: 5000,
+            E: 6000,
+            R: 12000
+        };
+        this.lastSkillTimes = { C: 0, V: 0, E: 0, R: 0 };
     }
 
     update() {
         if (isFullMapOpen) return;
         const now = Date.now();
 
-        // 6. 기절 처리
-        if (now < this.stunTimer) return;
-
-        // 7. 공격/스킬 캐스팅 판정 완료 처리
-        if (this.isCasting && now >= this.castEndTime) {
-            this.isCasting = false;
-            this.isSuperArmor = false;
-            if (this.pendingAttackAction) {
-                this.pendingAttackAction();
-                this.pendingAttackAction = null;
-            }
+        // 기절 처리
+        if (now < this.stunnedUntil) {
+            this.pendingAttack = null; // 공격 취소
+            updateUI();
+            return;
         }
 
-        const speedBonus = (this.weapon === 'bare') ? 0.3 : 0;
-        const currentBaseSpeed = this.baseSpeed + speedBonus;
-        const currentRunSpeed = this.runSpeed + speedBonus;
+        // 선딜레이 공격 실행 처리
+        if (this.pendingAttack && now >= this.pendingAttack.executeTime) {
+            this.executePendingAttack(this.pendingAttack);
+            this.pendingAttack = null;
+        }
 
         const hasKeyMove = keys['KeyW'] || keys['KeyS'] || keys['KeyA'] || keys['KeyD'];
         const hasKeyAim = keys['ArrowUp'] || keys['ArrowDown'] || keys['ArrowLeft'] || keys['ArrowRight'];
@@ -466,6 +486,10 @@ class Player {
 
         if (this.isExhausted && this.stamina >= this.maxStamina) this.isExhausted = false;
 
+        // 이동 속도 결정 (맨손일 때 속도 0.3 증가)
+        let currentBaseSpeed = this.baseSpeed + (this.weapon === 'bare' ? 0.3 : 0);
+        let currentRunSpeed = this.runSpeed + (this.weapon === 'bare' ? 0.3 : 0);
+
         if (isMoving && isShiftPressed && !this.isExhausted && this.stamina > 0) {
             this.speed = currentRunSpeed;
             this.stamina = Math.max(0, this.stamina - this.staminaDrainRun);
@@ -481,18 +505,20 @@ class Player {
         let targetX = this.x;
         let targetY = this.y;
 
-        // 대시 처리 (쿨타임 0.5초)
+        // 대시
         if (keys['KeyQ'] && now - this.lastDashTime > this.dashCooldown && isMoving && !this.isExhausted) {
             if (this.stamina >= this.staminaCostDash) {
                 this.stamina -= this.staminaCostDash;
                 this.lastStaminaUseTime = now;
+                
                 const dashDist = 110;
+                const steps = 15;
                 let currentDashX = this.x;
                 let currentDashY = this.y;
 
-                for (let i = 1; i <= 15; i++) {
-                    let nextDashX = this.x + (dx * dashDist * (i / 15));
-                    let nextDashY = this.y + (dy * dashDist * (i / 15));
+                for (let i = 1; i <= steps; i++) {
+                    let nextDashX = this.x + (dx * dashDist * (i / steps));
+                    let nextDashY = this.y + (dy * dashDist * (i / steps));
                     let pos = checkWallCollision(nextDashX, nextDashY, this.radius);
                     if (Math.abs(pos.x - nextDashX) > 0.1 || Math.abs(pos.y - nextDashY) > 0.1) break;
                     currentDashX = nextDashX;
@@ -502,6 +528,7 @@ class Player {
                 targetX = currentDashX;
                 targetY = currentDashY;
                 this.lastDashTime = now;
+
                 for (let i = 0; i < 10; i++) particles.push(new Particle(this.x, this.y, '#3498db'));
                 if (this.stamina === 0) this.isExhausted = true;
             }
@@ -514,9 +541,11 @@ class Player {
         this.x = Math.max(this.radius, Math.min(WORLD.width - this.radius, posAfterWall.x));
         this.y = Math.max(this.radius, Math.min(WORLD.height - this.radius, posAfterWall.y));
 
+        // 총알 루팅
         ammoBoxes.forEach(box => {
             if (!box.taken) {
-                if (Math.hypot(this.x - box.x, this.y - box.y) < this.radius + box.radius) {
+                const dist = Math.hypot(this.x - box.x, this.y - box.y);
+                if (dist < this.radius + box.radius) {
                     box.taken = true;
                     const gained = Math.min(box.amount, this.maxAmmo - this.ammo);
                     this.ammo = Math.min(this.maxAmmo, this.ammo + box.amount);
@@ -526,6 +555,7 @@ class Player {
             }
         });
 
+        // 타겟팅
         if (hasKeyAim) {
             let aimDx = 0, aimDy = 0;
             if (keys['ArrowUp']) aimDy -= 1;
@@ -539,8 +569,10 @@ class Player {
                 let minDiff = Math.PI / 3;
 
                 for (let enemy of enemies) {
-                    if (Math.hypot(enemy.x - this.x, enemy.y - this.y) <= AUTO_TARGET_RANGE) {
-                        let diff = Math.abs(keyAngle - Math.atan2(enemy.y - this.y, enemy.x - this.x));
+                    const dist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
+                    if (dist <= AUTO_TARGET_RANGE) {
+                        const enemyAngle = Math.atan2(enemy.y - this.y, enemy.x - this.x);
+                        let diff = Math.abs(keyAngle - enemyAngle);
                         if (diff > Math.PI) diff = Math.PI * 2 - diff;
                         if (diff < minDiff) { minDiff = diff; foundEnemy = enemy; }
                     }
@@ -556,121 +588,20 @@ class Player {
         }
 
         if (keys['Space']) this.attack();
+
         updateUI();
     }
 
-    attack() {
-        const now = Date.now();
-        if (now - lastAttackTime < this.attackSpeed || this.isCasting) return;
+    takeDamage(amount, isSkill = false, stunDuration = 0.2) {
+        if (Date.now() < this.stunnedUntil) return;
 
-        if (this.weapon === 'bare') {
-            // 1. 주먹: 칼 데미지의 1/10
-            const fistDamage = this.damage * 0.1;
-            this.executeMelee(fistDamage, 50, '#cccccc', 'bare');
-            lastAttackTime = now;
-        } else if (this.weapon === 'sword') {
-            // 7. 칼: 0.1초 선딜레이 & 취소 가능
-            this.isCasting = true;
-            this.castType = 'normal';
-            this.isSuperArmor = false;
-            this.castEndTime = now + 100; // 0.1초
-            this.pendingAttackAction = () => {
-                this.executeMelee(this.damage, 70, '#e74c3c', 'sword');
-            };
-            lastAttackTime = now;
-        } else if (this.weapon === 'gun') {
-            if (this.ammo > 0) {
-                this.ammo--;
-                projectiles.push(new Projectile(this.x, this.y, this.angle, this.damage * 0.8));
-                lastAttackTime = now;
-                updateUI();
-            } else {
-                createPopup(this.x, this.y - 20, "NO AMMO!", "#e74c3c");
-                lastAttackTime = now;
-            }
-        }
-    }
-
-    // 2. 스킬 구현 (C, V, E, R)
-    useSkill(key) {
-        const now = Date.now();
-        if (this.isCasting) return;
-
-        // 7. 스킬: 0.2초 선딜레이 & 슈퍼아머 (기절 안당함)
-        this.isCasting = true;
-        this.castType = 'skill';
-        this.isSuperArmor = true;
-        this.castEndTime = now + 200; // 0.2초
-
-        this.pendingAttackAction = () => {
-            if (key === 'C') { // C: 찌르기 (기절 0.5초)
-                this.slashAnimTimer = Date.now();
-                this.slashAnimAngle = this.angle;
-                this.slashAnimType = 'C';
-                this.executeAreaDamage(120, this.damage * 1.5, 0.5);
-            } else if (key === 'V') { // V: 회전베기 (기절 0.8초)
-                this.slashAnimTimer = Date.now();
-                this.slashAnimAngle = this.angle;
-                this.slashAnimType = 'V';
-                this.executeAreaDamage(100, this.damage * 2.0, 0.8, true);
-            } else if (key === 'E') { // E: 섬광베기 (대시 공격, 기절 1.0초)
-                this.slashAnimTimer = Date.now();
-                this.slashAnimAngle = this.angle;
-                this.slashAnimType = 'E';
-                this.x += Math.cos(this.angle) * 150;
-                this.y += Math.sin(this.angle) * 150;
-                const pos = checkWallCollision(this.x, this.y, this.radius);
-                this.x = pos.x; this.y = pos.y;
-                this.executeAreaDamage(110, this.damage * 2.5, 1.0);
-            } else if (key === 'R') { // R: 궁극기 검기파동 (기절 2.0초)
-                this.slashAnimTimer = Date.now();
-                this.slashAnimAngle = this.angle;
-                this.slashAnimType = 'R';
-                for (let i = -2; i <= 2; i++) {
-                    const swordWaveAngle = this.angle + (i * 0.15);
-                    projectiles.push(new Projectile(this.x, this.y, swordWaveAngle, this.damage * 3, true, 2.0));
-                }
-            }
-        };
-    }
-
-    executeMelee(dmg, range, color, type) {
-        this.slashAnimTimer = Date.now();
-        this.slashAnimAngle = this.angle;
-        this.slashAnimType = type;
-
-        enemies.forEach(e => {
-            if (Math.hypot(e.x - this.x, e.y - this.y) - e.radius <= range) {
-                e.takeDamage(dmg, 0.2); // 일반공격 기절 0.2초
-                for (let i = 0; i < 6; i++) particles.push(new Particle(e.x, e.y, color));
-            }
-        });
-    }
-
-    executeAreaDamage(range, dmg, stunDuration, fullCircle = false) {
-        enemies.forEach(e => {
-            const dist = Math.hypot(e.x - this.x, e.y - this.y);
-            if (dist <= range) {
-                if (fullCircle) {
-                    e.takeDamage(dmg, stunDuration);
-                } else {
-                    let diff = Math.abs(this.angle - Math.atan2(e.y - this.y, e.x - this.x));
-                    if (diff > Math.PI) diff = Math.PI * 2 - diff;
-                    if (diff <= Math.PI / 3) e.takeDamage(dmg, stunDuration);
-                }
-            }
-        });
-    }
-
-    takeDamage(amount, stunTime) {
-        // 7. 칼 공격 선딜레이 중 피격 시 취소 및 기절
-        if (this.isCasting && this.castType === 'normal') {
-            this.isCasting = false;
-            this.pendingAttackAction = null;
-            applyStun(this, stunTime, false);
-            createPopup(this.x, this.y - 30, "ATTACK CANCELED!", "#e74c3c");
-        } else {
-            applyStun(this, stunTime, this.isSuperArmor);
+        // 규칙 7: 일반공격 선딜 중 피해 입으면 공격 취소 및 기절
+        if (this.pendingAttack && !this.pendingAttack.isSuperArmor) {
+            this.pendingAttack = null;
+            createPopup(this.x, this.y - 30, "CANCELLED!", "#e74c3c");
+            applyStun(this, stunDuration);
+        } else if (!this.pendingAttack || !this.pendingAttack.isSuperArmor) {
+            applyStun(this, stunDuration);
         }
 
         this.hp -= amount;
@@ -679,73 +610,130 @@ class Player {
         updateUI();
     }
 
+    attack() {
+        const now = Date.now();
+        if (now - lastAttackTime < this.attackSpeed) return;
+        if (this.pendingAttack) return;
+
+        if (this.weapon === 'gun') {
+            if (this.ammo > 0) {
+                this.ammo--;
+                projectiles.push(new Projectile(this.x, this.y, this.angle, 30));
+                lastAttackTime = now;
+                updateUI();
+            } else createPopup(this.x, this.y - 20, "NO AMMO!", "#e74c3c");
+        } else if (this.weapon === 'knife') {
+            // 규칙 7: 칼 공격 0.1초 선딜레이
+            this.pendingAttack = { executeTime: now + 100, type: 'knife_basic', isSuperArmor: false };
+            lastAttackTime = now;
+        } else if (this.weapon === 'bare') {
+            // 맨손 공격: 데미지는 칼의 1/10
+            this.pendingAttack = { executeTime: now + 50, type: 'bare_basic', isSuperArmor: false };
+            lastAttackTime = now;
+        }
+    }
+
+    useSkill(key) {
+        if (this.weapon !== 'knife') return;
+        const now = Date.now();
+        if (now - (this.lastSkillTimes[key] || 0) < this.skillCooldowns[key]) return;
+        if (this.pendingAttack) return;
+
+        // 규칙 7: 스킬 0.2초 선딜레이, 대미지 받아도 기절X (슈퍼아머)
+        this.pendingAttack = { executeTime: now + 200, type: `skill_${key}`, isSuperArmor: true };
+        this.lastSkillTimes[key] = now;
+        updateUI();
+    }
+
+    executePendingAttack(atk) {
+        const type = atk.type;
+        if (type === 'knife_basic') {
+            this.performMeleeAttack(80, this.knifeDamage, 0.2, '#ecf0f1', 'basic_slash');
+        } else if (type === 'bare_basic') {
+            this.performMeleeAttack(60, this.knifeDamage * 0.1, 0.2, '#f39c12', 'punch');
+        } else if (type === 'skill_C') { // C: 찌르기 (기절 0.5초)
+            const range = 140;
+            visualEffects.push(new SlashEffect(this.x, this.y, this.angle, range, '#e74c3c', 'thrust'));
+            enemies.forEach(e => {
+                const dist = Math.hypot(e.x - this.x, e.y - this.y);
+                const angleTo = Math.atan2(e.y - this.y, e.x - this.x);
+                let diff = Math.abs(this.angle - angleTo);
+                if (diff > Math.PI) diff = Math.PI * 2 - diff;
+                if (dist <= range && diff < Math.PI / 4) {
+                    e.takeDamage(this.knifeDamage * 1.8, true, 0.5);
+                }
+            });
+        } else if (type === 'skill_V') { // V: 360도 회전 베기 (기절 0.4초)
+            visualEffects.push(new SlashEffect(this.x, this.y, 0, 110, '#3498db', 'spin'));
+            enemies.forEach(e => {
+                const dist = Math.hypot(e.x - this.x, e.y - this.y);
+                if (dist <= 110) e.takeDamage(this.knifeDamage * 1.5, true, 0.4);
+            });
+        } else if (type === 'skill_E') { // E: 칼날 검기 파동 (기절 0.6초)
+            for (let i = -1; i <= 1; i++) {
+                projectiles.push(new WaveProjectile(this.x, this.y, this.angle + (i * 0.15), this.knifeDamage * 1.3, 0.6));
+            }
+        } else if (type === 'skill_R') { // R: 궁극기 - 화려한 연속 난무 (기절 1.2초)
+            visualEffects.push(new UltimateEffect(this.x, this.y, this.angle));
+            enemies.forEach(e => {
+                const dist = Math.hypot(e.x - this.x, e.y - this.y);
+                if (dist <= 180) {
+                    e.takeDamage(this.knifeDamage * 3.5, true, 1.2);
+                }
+            });
+        }
+    }
+
+    performMeleeAttack(range, damage, stunDuration, color, effectStyle) {
+        visualEffects.push(new SlashEffect(this.x, this.y, this.angle, range, color, effectStyle));
+        enemies.forEach(e => {
+            const dist = Math.hypot(e.x - this.x, e.y - this.y);
+            const angleTo = Math.atan2(e.y - this.y, e.x - this.x);
+            let diff = Math.abs(this.angle - angleTo);
+            if (diff > Math.PI) diff = Math.PI * 2 - diff;
+
+            if (dist <= range && diff < Math.PI / 3) {
+                e.takeDamage(damage, false, stunDuration);
+            }
+        });
+    }
+
     draw() {
         ctx.save();
         ctx.translate(this.x - camera.x, this.y - camera.y);
 
-        // HP 바
-        const barWidth = 36, barHeight = 5;
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-        ctx.fillRect(-barWidth / 2, -this.radius - 12, barWidth, barHeight);
-        ctx.fillStyle = '#2ecc71';
-        ctx.fillRect(-barWidth / 2, -this.radius - 12, Math.max(0, (this.hp / this.maxHp) * barWidth), barHeight);
-
-        // 6. 기절 이펙트
-        if (Date.now() < this.stunTimer) {
+        // 기절 표시
+        if (Date.now() < this.stunnedUntil) {
             ctx.fillStyle = '#f1c40f';
-            ctx.font = 'bold 12px Segoe UI';
+            ctx.font = 'bold 14px Segoe UI';
             ctx.textAlign = 'center';
-            ctx.fillText("★STUN★", 0, -this.radius - 20);
+            ctx.fillText("★ STUN ★", 0, -this.radius - 22);
         }
 
+        // 체력바
+        const barWidth = 36, barHeight = 5, barX = -barWidth / 2, barY = -this.radius - 12;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.fillRect(barX, barY, barWidth, barHeight);
+        ctx.fillStyle = '#2ecc71';
+        ctx.fillRect(barX, barY, Math.max(0, (this.hp / this.maxHp) * barWidth), barHeight);
+        ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.strokeRect(barX, barY, barWidth, barHeight);
+
         ctx.rotate(this.angle);
+
+        // 무기 외형
         if (this.weapon === 'gun') {
             ctx.fillStyle = '#bdc3c7'; ctx.fillRect(10, -3, 16, 6);
-        } else if (this.weapon === 'sword') {
-            ctx.fillStyle = '#e74c3c'; ctx.fillRect(8, -2, 20, 4);
+        } else if (this.weapon === 'knife') {
+            ctx.fillStyle = '#e74c3c'; ctx.fillRect(12, -2, 14, 4);
         }
 
         ctx.beginPath();
         ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-        ctx.fillStyle = '#3498db';
+        ctx.fillStyle = this.pendingAttack && this.pendingAttack.isSuperArmor ? '#f39c12' : '#3498db';
         ctx.fill();
-        ctx.lineWidth = 3;
-        ctx.strokeStyle = '#2980b9';
-        ctx.stroke();
+        ctx.lineWidth = 3; ctx.strokeStyle = '#2980b9'; ctx.stroke();
+
         ctx.restore();
-
-        // 2. 스킬 이펙트 연출
-        const now = Date.now();
-        if (now - this.slashAnimTimer < 200) {
-            ctx.save();
-            ctx.translate(this.x - camera.x, this.y - camera.y);
-            ctx.rotate(this.slashAnimAngle);
-            ctx.beginPath();
-
-            if (this.slashAnimType === 'C') {
-                ctx.fillStyle = 'rgba(231, 76, 60, 0.6)';
-                ctx.fillRect(0, -10, 120, 20);
-            } else if (this.slashAnimType === 'V') {
-                ctx.arc(0, 0, 100, 0, Math.PI * 2);
-                ctx.strokeStyle = '#9b59b6';
-                ctx.lineWidth = 6; ctx.stroke();
-            } else if (this.slashAnimType === 'E') {
-                ctx.strokeStyle = '#f1c40f';
-                ctx.lineWidth = 8;
-                ctx.arc(0, 0, 110, -Math.PI / 3, Math.PI / 3);
-                ctx.stroke();
-            } else if (this.slashAnimType === 'R') {
-                ctx.strokeStyle = '#e67e22';
-                ctx.lineWidth = 12;
-                ctx.arc(0, 0, 140, -Math.PI / 2, Math.PI / 2);
-                ctx.stroke();
-            } else {
-                ctx.arc(0, 0, 60, -Math.PI / 4, Math.PI / 4);
-                ctx.strokeStyle = '#e74c3c';
-                ctx.lineWidth = 4; ctx.stroke();
-            }
-            ctx.restore();
-        }
     }
 
     addExp(amount) {
@@ -756,125 +744,313 @@ class Player {
             this.nextExp = Math.floor(this.nextExp * 1.5);
             this.maxHp += 45;
             this.hp = this.maxHp;
-            this.damage += 10;
+            this.knifeDamage += 10;
             createPopup(this.x, this.y - 20, "LEVEL UP!", "#f1c40f");
         }
         updateUI();
     }
 }
 
+// 회화려한 시각 효과 클래스
+class SlashEffect {
+    constructor(x, y, angle, range, color, style) {
+        this.x = x; this.y = y; this.angle = angle; this.range = range;
+        this.color = color; this.style = style;
+        this.life = 1.0; this.decay = 0.1;
+    }
+    update() { this.life -= this.decay; }
+    draw() {
+        ctx.save();
+        ctx.translate(this.x - camera.x, this.y - camera.y);
+        ctx.rotate(this.angle);
+        ctx.globalAlpha = Math.max(0, this.life);
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = 4;
+
+        if (this.style === 'spin') {
+            ctx.beginPath(); ctx.arc(0, 0, this.range, 0, Math.PI * 2); ctx.stroke();
+        } else if (this.style === 'thrust') {
+            ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(this.range, 0); ctx.stroke();
+        } else {
+            ctx.beginPath(); ctx.arc(0, 0, this.range, -Math.PI/3, Math.PI/3); ctx.stroke();
+        }
+        ctx.restore();
+    }
+}
+
+class UltimateEffect {
+    constructor(x, y, angle) {
+        this.x = x; this.y = y; this.angle = angle;
+        this.life = 1.0; this.decay = 0.05;
+    }
+    update() { this.life -= this.decay; }
+    draw() {
+        ctx.save();
+        ctx.translate(this.x - camera.x, this.y - camera.y);
+        ctx.globalAlpha = Math.max(0, this.life);
+        ctx.strokeStyle = '#9b59b6';
+        ctx.lineWidth = 5;
+
+        for (let i = 0; i < 8; i++) {
+            ctx.rotate(Math.PI / 4);
+            ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(160, 0); ctx.stroke();
+        }
+        ctx.restore();
+    }
+}
+
+class WaveProjectile {
+    constructor(x, y, angle, damage, stunDuration) {
+        this.x = x; this.y = y; this.speed = 10;
+        this.vx = Math.cos(angle) * this.speed;
+        this.vy = Math.sin(angle) * this.speed;
+        this.radius = 12; this.damage = damage; this.stunDuration = stunDuration;
+        this.markedForDeletion = false;
+    }
+    update() {
+        this.x += this.vx; this.y += this.vy;
+        if (checkLineWallCollision(this.x - this.vx, this.y - this.vy, this.x, this.y)) this.markedForDeletion = true;
+        
+        enemies.forEach(e => {
+            if (Math.hypot(this.x - e.x, this.y - e.y) < this.radius + e.radius) {
+                e.takeDamage(this.damage, true, this.stunDuration);
+                this.markedForDeletion = true;
+            }
+        });
+    }
+    draw() {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(this.x - camera.x, this.y - camera.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = '#2ecc71'; ctx.fill();
+        ctx.restore();
+    }
+}
+
+function updateHousesVisibility() {
+    houses.forEach(house => {
+        const isInside = (
+            player.x >= house.x + house.wallThickness &&
+            player.x <= house.x + house.width - house.wallThickness &&
+            player.y >= house.y + house.wallThickness &&
+            player.y <= house.y + house.height - house.wallThickness
+        );
+        house.targetAlpha = isInside ? 0.25 : 1.0;
+        house.roofAlpha += (house.targetAlpha - house.roofAlpha) * house.fadeSpeed;
+    });
+}
+
+function drawHousesInterior() {
+    houses.forEach(house => {
+        const screenX = house.x - camera.x;
+        const screenY = house.y - camera.y;
+
+        if (screenX + house.width < -100 || screenX > canvas.width + 100 ||
+            screenY + house.height < -100 || screenY > canvas.height + 100) return;
+
+        ctx.save();
+        ctx.fillStyle = house.floorColor;
+        ctx.fillRect(screenX, screenY, house.width, house.height);
+
+        const t = house.wallThickness;
+        const doorLeft = house.width / 2 - house.doorWidth / 2;
+        const doorRight = house.width / 2 + house.doorWidth / 2;
+
+        ctx.fillStyle = '#686d76';
+        ctx.fillRect(screenX, screenY, house.width, t);
+        ctx.fillRect(screenX, screenY, t, house.height);
+        ctx.fillRect(screenX + house.width - t, screenY, t, house.height);
+        ctx.fillRect(screenX, screenY + house.height - t, doorLeft, t);
+        ctx.fillRect(screenX + doorRight, screenY + house.height - t, house.width - doorRight, t);
+
+        ctx.restore();
+    });
+
+    ammoBoxes.forEach(box => {
+        if (!box.taken) {
+            ctx.save();
+            ctx.fillStyle = '#f39c12';
+            ctx.fillRect(box.x - camera.x - 8, box.y - camera.y - 6, 16, 12);
+            ctx.restore();
+        }
+    });
+}
+
+function drawHousesRoof() {
+    houses.forEach(house => {
+        const screenX = house.x - camera.x;
+        const screenY = house.y - camera.y;
+
+        if (screenX + house.width < -100 || screenX > canvas.width + 100 ||
+            screenY + house.height < -100 || screenY > canvas.height + 100) return;
+
+        ctx.save();
+        ctx.globalAlpha = house.roofAlpha;
+        ctx.fillStyle = house.roofColor;
+        ctx.fillRect(screenX - 12, screenY - 12, house.width + 24, house.height + 24);
+        ctx.restore();
+    });
+}
+
+class Projectile {
+    constructor(x, y, angle, damage) {
+        this.x = x; this.y = y; this.speed = 13;
+        this.vx = Math.cos(angle) * this.speed;
+        this.vy = Math.sin(angle) * this.speed;
+        this.radius = 5; this.damage = damage;
+        this.markedForDeletion = false;
+    }
+    update() {
+        this.x += this.vx; this.y += this.vy;
+        if (checkLineWallCollision(this.x - this.vx, this.y - this.vy, this.x, this.y)) this.markedForDeletion = true;
+    }
+    draw() {
+        ctx.beginPath();
+        ctx.arc(this.x - camera.x, this.y - camera.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = '#f39c12'; ctx.fill();
+    }
+}
+
+class EnemyProjectile {
+    constructor(x, y, angle, damage) {
+        this.x = x; this.y = y; this.speed = 6;
+        this.vx = Math.cos(angle) * this.speed;
+        this.vy = Math.sin(angle) * this.speed;
+        this.radius = 6; this.damage = damage;
+        this.markedForDeletion = false;
+    }
+    update() {
+        this.x += this.vx; this.y += this.vy;
+        if (checkLineWallCollision(this.x - this.vx, this.y - this.vy, this.x, this.y)) {
+            this.markedForDeletion = true;
+            return;
+        }
+
+        const dist = Math.hypot(player.x - this.x, player.y - this.y);
+        if (dist < player.radius + this.radius) {
+            player.takeDamage(this.damage, false, 0.2);
+            this.markedForDeletion = true;
+        }
+    }
+    draw() {
+        ctx.beginPath();
+        ctx.arc(this.x - camera.x, this.y - camera.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = '#9b59b6'; ctx.fill();
+    }
+}
+
 class Enemy {
-    constructor(x, y, type, isSpecial = false, specialTraits = {}) {
-        this.x = x;
-        this.y = y;
-        this.type = type;
-        this.isSpecial = isSpecial;
-        this.traits = specialTraits; // { hpBoost, hasSkill, useRanged }
+    constructor(x, y, type) {
+        this.x = x; this.y = y; this.type = type;
+        
+        // 규칙 4: 특수몹 시스템 적용
+        this.isSpecial = Math.random() < 0.1;
+        this.hasHpBoost = this.isSpecial && Math.random() < 0.5;
+        this.hasSkill = this.isSpecial && Math.random() < 0.5;
+        this.hasRanged = this.isSpecial && Math.random() < 0.5;
 
-        this.stunTimer = 0;
-        this.lastSkillTime = Date.now();
-        this.nextSkillInterval = Math.random() * 3000 + 3000;
+        // 규칙 3: 몹 체력 기존의 10배
+        let hpMultiplier = 10 * (this.hasHpBoost ? 5 : 1);
 
-        // 4. 빨간몹(0), 주황색몹(1), 보라색몹(2) 외형/체력 스펙 설정
-        if (type === 0) { // 기존 빨간색 -> 사각형
-            this.radius = 14; this.speed = 2.4; this.hp = 400; // 기존 40 * 10
-            this.color = '#e74c3c'; this.expValue = 15; this.scoreValue = 100;
-        } else if (type === 1) { // 기존 주황색 -> 삼각형
-            this.radius = 10; this.speed = 3.6; this.hp = 200; // 기존 20 * 10
-            this.color = '#e67e22'; this.expValue = 20; this.scoreValue = 150;
-        } else { // 기존 보라색 -> 오각형
-            this.radius = 28; this.speed = 1.3; this.hp = 2200; // 기존 220 * 10
-            this.color = '#9b59b6'; this.expValue = 80; this.scoreValue = 500;
-            this.lastShootTime = 0; this.shootInterval = 1800;
+        if (type === 0) {
+            this.radius = 14; this.speed = 2.4;
+            this.hp = 40 * hpMultiplier;
+            this.color = '#e74c3c';
+            this.expValue = 15; this.scoreValue = 100;
+        } else if (type === 1) {
+            this.radius = 10; this.speed = 3.6;
+            this.hp = 20 * hpMultiplier;
+            this.color = '#e67e22';
+            this.expValue = 20; this.scoreValue = 150;
+        } else {
+            this.radius = 28; this.speed = 1.3;
+            this.hp = 220 * hpMultiplier;
+            this.color = '#9b59b6';
+            this.expValue = 80; this.scoreValue = 500;
         }
 
-        // 4. 특수 몹 스폰 시 체력 5배 증가 옵션
-        if (this.isSpecial && this.traits.hpBoost) {
-            this.hp *= 5;
-        }
+        // 규칙 4: 빨간몹, 보라몹 외형 변경 (스타일 수정)
+        this.shapeType = type; 
 
         this.maxHp = this.hp;
         this.markedForDeletion = false;
+        this.stunnedUntil = 0;
+        this.nextSkillTime = Date.now() + Math.random() * 3000 + 2000;
+        this.lastAttackTime = 0;
     }
 
-    takeDamage(amount, stunTime) {
-        applyStun(this, stunTime);
+    takeDamage(amount, isSkill = false, stunDuration = 0.2) {
+        applyStun(this, stunDuration);
         this.hp -= amount;
-        createPopup(this.x, this.y - 10, Math.floor(amount));
+        createPopup(this.x, this.y - 15, `${Math.floor(amount)}`, isSkill ? '#f1c40f' : '#fff');
+
         if (this.hp <= 0) {
             this.markedForDeletion = true;
             score += this.scoreValue;
             player.addExp(this.expValue);
-            for (let i = 0; i < 12; i++) particles.push(new Particle(this.x, this.y, this.color));
         }
-    }
-
-    update() {
-        if (Date.now() < this.stunTimer) return;
-
-        const distToPlayer = Math.hypot(player.x - this.x, player.y - this.y);
-        const now = Date.now();
-
-        // 4. 활과 칼을 같이 쓰는 특수몹 AI
-        if (this.isSpecial && this.traits.useRanged && this.traits.hasSkill) {
-            if (distToPlayer > 180) {
-                // 멀리있을 땐 다가가면서 활을 쏨
-                const angle = Math.atan2(player.y - this.y, player.x - this.x);
-                this.x += Math.cos(angle) * this.speed;
-                this.y += Math.sin(angle) * this.speed;
-                if (now - this.lastSkillTime > 1500) {
-                    enemyProjectiles.push(new EnemyProjectile(this.x, this.y, angle, 15));
-                    this.lastSkillTime = now;
-                }
-            } else {
-                // 일정 거리 이하 다가오면 칼 사용
-                const angle = Math.atan2(player.y - this.y, player.x - this.x);
-                this.x += Math.cos(angle) * (this.speed * 1.2);
-                this.y += Math.sin(angle) * (this.speed * 1.2);
-                if (distToPlayer <= player.radius + this.radius + 15) {
-                    player.takeDamage(15, 0.2);
-                }
-            }
-            this.keepOutOfSafeZone();
-            return;
-        }
-
-        // 일반 특수몹 스킬 발동 (랜덤 시간)
-        if (this.isSpecial && this.traits.hasSkill && now - this.lastSkillTime > this.nextSkillInterval) {
-            this.lastSkillTime = now;
-            this.nextSkillInterval = Math.random() * 4000 + 2000;
-            // 특수 스킬 베기
-            if (distToPlayer <= 150) {
-                player.takeDamage(35, 0.5);
-                createPopup(this.x, this.y - 20, "SPECIAL SKILL!", "#9b59b6");
-            }
-        }
-
-        const angle = Math.atan2(player.y - this.y, player.x - this.x);
-        let targetX = this.x, targetY = this.y;
-
-        if (distToPlayer <= DETECT_RANGE) {
-            targetX += Math.cos(angle) * this.speed;
-            targetY += Math.sin(angle) * this.speed;
-        }
-
-        if (distToPlayer < player.radius + this.radius) {
-            player.takeDamage(10, 0.2);
-        }
-
-        const pos = checkWallCollision(targetX, targetY, this.radius);
-        this.x = pos.x; this.y = pos.y;
-        this.keepOutOfSafeZone();
     }
 
     keepOutOfSafeZone() {
         const distFromCenter = Math.hypot(this.x - SAFE_ZONE_CENTER.x, this.y - SAFE_ZONE_CENTER.y);
         const minAllowedDist = SAFE_ZONE_RADIUS + this.radius;
+
         if (distFromCenter < minAllowedDist) {
             const angleFromCenter = Math.atan2(this.y - SAFE_ZONE_CENTER.y, this.x - SAFE_ZONE_CENTER.x);
             this.x = SAFE_ZONE_CENTER.x + Math.cos(angleFromCenter) * minAllowedDist;
             this.y = SAFE_ZONE_CENTER.y + Math.sin(angleFromCenter) * minAllowedDist;
         }
+    }
+
+    update() {
+        const now = Date.now();
+        if (now < this.stunnedUntil) return; // 기절시 정지
+
+        const distToPlayer = Math.hypot(player.x - this.x, player.y - this.y);
+        const angle = Math.atan2(player.y - this.y, player.x - this.x);
+
+        // 규칙 4: 하이브리드 인공지능 (활과 칼 동시 사용시 거리에 따른 공격)
+        if (this.hasRanged && this.hasSkill) {
+            if (distToPlayer > 120) {
+                // 멀리 있을 땐 활 사용하며 접근
+                this.x += Math.cos(angle) * this.speed;
+                this.y += Math.sin(angle) * this.speed;
+                if (now - this.lastAttackTime > 2000) {
+                    enemyProjectiles.push(new EnemyProjectile(this.x, this.y, angle, 15));
+                    this.lastAttackTime = now;
+                }
+            } else {
+                // 가까이 오면 칼 근접 공격
+                if (now - this.lastAttackTime > 1000) {
+                    player.takeDamage(20, false, 0.2);
+                    this.lastAttackTime = now;
+                }
+            }
+        } else {
+            // 일반 AI 동작
+            if (distToPlayer <= DETECT_RANGE) {
+                this.x += Math.cos(angle) * this.speed;
+                this.y += Math.sin(angle) * this.speed;
+            }
+
+            if (distToPlayer < player.radius + this.radius && now - this.lastAttackTime > 800) {
+                player.takeDamage(15, false, 0.2);
+                this.lastAttackTime = now;
+            }
+        }
+
+        // 특수몹 무작위 스킬 사용
+        if (this.hasSkill && now >= this.nextSkillTime) {
+            visualEffects.push(new SlashEffect(this.x, this.y, angle, 100, '#e74c3c', 'spin'));
+            if (distToPlayer <= 100) player.takeDamage(35, true, 0.5);
+            this.nextSkillTime = now + Math.random() * 4000 + 3000;
+        }
+
+        const posAfterWall = checkWallCollision(this.x, this.y, this.radius);
+        this.x = posAfterWall.x;
+        this.y = posAfterWall.y;
+
+        this.keepOutOfSafeZone();
     }
 
     draw() {
@@ -884,36 +1060,40 @@ class Enemy {
         ctx.save();
         ctx.translate(this.x - camera.x, this.y - camera.y);
 
-        if (this.isSpecial) {
-            ctx.strokeStyle = '#f1c40f';
-            ctx.lineWidth = 3;
-            ctx.beginPath(); ctx.arc(0, 0, this.radius + 6, 0, Math.PI * 2); ctx.stroke();
-        }
-
-        // 6. 기절 표시
-        if (Date.now() < this.stunTimer) {
+        // 기절 효과
+        if (Date.now() < this.stunnedUntil) {
             ctx.fillStyle = '#f1c40f';
-            ctx.font = 'bold 10px Segoe UI';
+            ctx.font = 'bold 12px Segoe UI';
             ctx.textAlign = 'center';
-            ctx.fillText("★STUN★", 0, -this.radius - 14);
+            ctx.fillText("★ STUN ★", 0, -this.radius - 12);
         }
 
         ctx.fillStyle = this.color;
         ctx.beginPath();
-        if (this.type === 0) ctx.rect(-this.radius, -this.radius, this.radius * 2, this.radius * 2);
-        else if (this.type === 1) {
-            ctx.moveTo(0, -this.radius * 1.3);
-            ctx.lineTo(this.radius, this.radius); ctx.lineTo(-this.radius, this.radius);
-            ctx.closePath();
-        } else {
-            for (let i = 0; i < 5; i++) {
-                const a = (Math.PI * 2 / 5) * i;
-                const px = Math.cos(a) * this.radius, py = Math.sin(a) * this.radius;
-                if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+
+        // 규칙 4: 빨간몹/보라몹 외형 변경 (별 모양, 다각형 변경)
+        if (this.type === 0) { // 빨간몹 -> 8각별 형태
+            for (let i = 0; i < 8; i++) {
+                const a = (Math.PI / 4) * i;
+                const r = i % 2 === 0 ? this.radius : this.radius * 0.5;
+                ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
             }
-            ctx.closePath();
+        } else if (this.type === 1) {
+            ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+        } else { // 보라색 몹 -> 육각형 형태
+            for (let i = 0; i < 6; i++) {
+                const a = (Math.PI / 3) * i;
+                ctx.lineTo(Math.cos(a) * this.radius, Math.sin(a) * this.radius);
+            }
         }
+        ctx.closePath();
         ctx.fill();
+
+        if (this.isSpecial) {
+            ctx.strokeStyle = '#f1c40f';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
 
         if (this.hp < this.maxHp) {
             ctx.fillStyle = 'rgba(0,0,0,0.5)';
@@ -921,68 +1101,8 @@ class Enemy {
             ctx.fillStyle = '#2ecc71';
             ctx.fillRect(-this.radius, -this.radius - 8, (this.radius * 2) * (this.hp / this.maxHp), 4);
         }
+
         ctx.restore();
-    }
-}
-
-class Projectile {
-    constructor(x, y, angle, damage, isPenetrating = false, stunDuration = 0.2) {
-        this.x = x; this.y = y;
-        this.speed = 13;
-        this.vx = Math.cos(angle) * this.speed;
-        this.vy = Math.sin(angle) * this.speed;
-        this.radius = 5;
-        this.damage = damage;
-        this.isPenetrating = isPenetrating;
-        this.stunDuration = stunDuration;
-        this.markedForDeletion = false;
-    }
-
-    update() {
-        this.x += this.vx; this.y += this.vy;
-        if (checkLineWallCollision(this.x - this.vx, this.y - this.vy, this.x, this.y)) {
-            this.markedForDeletion = true; return;
-        }
-        if (this.x < camera.x || this.x > camera.x + camera.width ||
-            this.y < camera.y || this.y > camera.y + camera.height) {
-            this.markedForDeletion = true;
-        }
-    }
-
-    draw() {
-        ctx.beginPath();
-        ctx.arc(this.x - camera.x, this.y - camera.y, this.radius, 0, Math.PI * 2);
-        ctx.fillStyle = this.isPenetrating ? '#e67e22' : '#f39c12';
-        ctx.fill();
-    }
-}
-
-class EnemyProjectile {
-    constructor(x, y, angle, damage) {
-        this.x = x; this.y = y;
-        this.speed = 6;
-        this.vx = Math.cos(angle) * this.speed;
-        this.vy = Math.sin(angle) * this.speed;
-        this.radius = 6; this.damage = damage;
-        this.markedForDeletion = false;
-    }
-
-    update() {
-        this.x += this.vx; this.y += this.vy;
-        if (checkLineWallCollision(this.x - this.vx, this.y - this.vy, this.x, this.y)) {
-            this.markedForDeletion = true; return;
-        }
-        if (Math.hypot(player.x - this.x, player.y - this.y) < player.radius + this.radius) {
-            player.takeDamage(this.damage, 0.2);
-            this.markedForDeletion = true;
-        }
-    }
-
-    draw() {
-        ctx.beginPath();
-        ctx.arc(this.x - camera.x, this.y - camera.y, this.radius, 0, Math.PI * 2);
-        ctx.fillStyle = '#9b59b6';
-        ctx.fill();
     }
 }
 
@@ -998,7 +1118,8 @@ class Particle {
     draw() {
         ctx.save();
         ctx.globalAlpha = Math.max(0, this.alpha);
-        ctx.beginPath(); ctx.arc(this.x - camera.x, this.y - camera.y, this.radius, 0, Math.PI * 2);
+        ctx.beginPath();
+        ctx.arc(this.x - camera.x, this.y - camera.y, this.radius, 0, Math.PI * 2);
         ctx.fillStyle = this.color; ctx.fill();
         ctx.restore();
     }
@@ -1013,48 +1134,59 @@ class Popup {
     draw() {
         ctx.save();
         ctx.globalAlpha = Math.max(0, this.alpha);
-        ctx.font = 'bold 14px Segoe UI'; ctx.fillStyle = this.color;
+        ctx.font = 'bold 14px Segoe UI';
+        ctx.fillStyle = this.color;
         ctx.fillText(this.text, this.x - camera.x, this.y - camera.y);
         ctx.restore();
     }
 }
 
-function createPopup(x, y, text, color = '#fff') { popups.push(new Popup(x, y, text, color)); }
+function createPopup(x, y, text, color = '#fff') {
+    popups.push(new Popup(x, y, text, color));
+}
 
-// 4. 특수몹 10% 확률 스폰 로직
 function spawnEnemies() {
     if (enemies.length >= 35) return;
-
     if (Math.random() < 0.04) {
-        const dist = Math.random() * 500 + 300;
+        const distance = Math.random() * 500 + 300;
         const angle = Math.random() * Math.PI * 2;
-        let cx = Math.max(200, Math.min(WORLD.width - 200, player.x + Math.cos(angle) * dist));
-        let cy = Math.max(200, Math.min(WORLD.height - 200, player.y + Math.sin(angle) * dist));
+        let cx = player.x + Math.cos(angle) * distance;
+        let cy = player.y + Math.sin(angle) * distance;
 
         if (Math.hypot(cx - SAFE_ZONE_CENTER.x, cy - SAFE_ZONE_CENTER.y) <= SAFE_ZONE_RADIUS + 50) return;
 
-        const isSpecial = Math.random() < 0.10; // 10% 확률 특수몹
-        const traits = {
-            hpBoost: Math.random() < 0.50,  // 50% 확률 체력 5배
-            hasSkill: Math.random() < 0.50, // 50% 확률 스킬
-            useRanged: Math.random() < 0.50 // 50% 확률 원거리 사용
-        };
+        let type = 0;
+        const rand = Math.random();
+        if (rand > 0.7 && rand < 0.92) type = 1;
+        else if (rand >= 0.92) type = 2;
 
-        const type = Math.floor(Math.random() * 3);
-        enemies.push(new Enemy(cx, cy, type, isSpecial, traits));
+        enemies.push(new Enemy(cx, cy, type));
     }
 }
 
 function updateUI() {
     document.getElementById('hp-fill').style.width = `${Math.max(0, (player.hp / player.maxHp) * 100)}%`;
+    
     const staminaFill = document.getElementById('stamina-fill');
     staminaFill.style.width = `${Math.max(0, (player.stamina / player.maxStamina) * 100)}%`;
     staminaFill.classList.toggle('exhausted', player.isExhausted);
 
+    const weaponStat = document.getElementById('weapon-stat');
+    if (player.weapon === 'knife') weaponStat.innerText = `무기: 칼 (Knife)`;
+    else if (player.weapon === 'bare') weaponStat.innerText = `무기: 맨손 (Bare Hands - 속도+0.3, 딜 1/10)`;
+    else weaponStat.innerText = `무기: 총 (Gun)`;
+
     const ammoStat = document.getElementById('ammo-stat');
-    if (player.weapon === 'bare') ammoStat.innerText = `무기: 맨손 (속도 +0.3 / 주먹 공격)`;
-    else if (player.weapon === 'sword') ammoStat.innerText = `무기: 칼 (C/V/E/R 스킬 사용 가능)`;
-    else ammoStat.innerText = `무기: 총 (총알: ${player.ammo}/${player.maxAmmo})`;
+    ammoStat.innerText = player.weapon === 'gun' ? `총알: ${player.ammo}/${player.maxAmmo}` : `총알: -`;
+
+    const now = Date.now();
+    const cRem = Math.max(0, Math.ceil((player.skillCooldowns.C - (now - player.lastSkillTimes.C)) / 1000));
+    const vRem = Math.max(0, Math.ceil((player.skillCooldowns.V - (now - player.lastSkillTimes.V)) / 1000));
+    const eRem = Math.max(0, Math.ceil((player.skillCooldowns.E - (now - player.lastSkillTimes.E)) / 1000));
+    const rRem = Math.max(0, Math.ceil((player.skillCooldowns.R - (now - player.lastSkillTimes.R)) / 1000));
+
+    document.getElementById('cooldown-stat').innerText = 
+        `스킬 쿨타임 - C: ${cRem ? cRem+'s' : '준비'} | V: ${vRem ? vRem+'s' : '준비'} | E: ${eRem ? eRem+'s' : '준비'} | R: ${rRem ? rRem+'s' : '준비'}`;
 
     document.getElementById('level-txt').innerText = `LV. ${player.level}`;
     document.getElementById('exp-fill').style.width = `${(player.exp / player.nextExp) * 100}%`;
@@ -1062,36 +1194,40 @@ function updateUI() {
 }
 
 function drawSafeZone() {
-    const sx = SAFE_ZONE_CENTER.x - camera.x;
-    const sy = SAFE_ZONE_CENTER.y - camera.y;
+    const screenX = SAFE_ZONE_CENTER.x - camera.x;
+    const screenY = SAFE_ZONE_CENTER.y - camera.y;
+
     ctx.save();
-    ctx.beginPath(); ctx.arc(sx, sy, SAFE_ZONE_RADIUS, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(46, 204, 113, 0.15)'; ctx.fill();
-    ctx.strokeStyle = '#2ecc71'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(screenX, screenY, SAFE_ZONE_RADIUS, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(46, 204, 113, 0.15)';
+    ctx.fill();
+    ctx.strokeStyle = '#2ecc71';
+    ctx.lineWidth = 3;
+    ctx.stroke();
     ctx.restore();
 }
 
 function drawMinimap() {
     minimapCtx.clearRect(0, 0, minimapCanvas.width, minimapCanvas.height);
-    const rangeX = canvas.width * 3, rangeY = canvas.height * 3;
-    const startX = player.x - rangeX / 2, startY = player.y - rangeY / 2;
-    const scaleX = minimapCanvas.width / rangeX, scaleY = minimapCanvas.height / rangeY;
+    const range = canvas.width * 3;
+    const startX = player.x - range / 2, startY = player.y - range / 2;
+    const scale = minimapCanvas.width / range;
 
     enemies.forEach(e => {
         minimapCtx.fillStyle = e.color;
-        minimapCtx.fillRect((e.x - startX) * scaleX - 1, (e.y - startY) * scaleY - 1, 3, 3);
+        minimapCtx.fillRect((e.x - startX) * scale, (e.y - startY) * scale, 2, 2);
     });
 
     minimapCtx.fillStyle = '#00ffcc';
-    minimapCtx.beginPath();
-    minimapCtx.arc((player.x - startX) * scaleX, (player.y - startY) * scaleY, 2.5, 0, Math.PI * 2);
-    minimapCtx.fill();
+    minimapCtx.fillRect((player.x - startX) * scale, (player.y - startY) * scale, 3, 3);
 }
 
 function drawFullMap() {
     if (!isFullMapOpen) return;
     fullmapCtx.clearRect(0, 0, fullmapCanvas.width, fullmapCanvas.height);
-    const scaleX = fullmapCanvas.width / WORLD.width, scaleY = fullmapCanvas.height / WORLD.height;
+    const scaleX = fullmapCanvas.width / WORLD.width;
+    const scaleY = fullmapCanvas.height / WORLD.height;
 
     enemies.forEach(e => {
         fullmapCtx.fillStyle = e.color;
@@ -1099,20 +1235,26 @@ function drawFullMap() {
     });
 
     fullmapCtx.fillStyle = '#00ffcc';
-    fullmapCtx.beginPath();
-    fullmapCtx.arc(player.x * scaleX, player.y * scaleY, 4, 0, Math.PI * 2);
-    fullmapCtx.fill();
+    fullmapCtx.fillRect(player.x * scaleX, player.y * scaleY, 4, 4);
 }
 
 function init() {
     player = new Player();
-    projectiles = []; enemyProjectiles = []; enemies = [];
-    particles = []; popups = []; lockedTarget = null;
-    score = 0; gameOver = false; isFullMapOpen = false;
+    projectiles = [];
+    enemyProjectiles = [];
+    enemies = [];
+    particles = [];
+    popups = [];
+    visualEffects = [];
+    score = 0;
+    gameOver = false;
+    isFullMapOpen = false;
     
     initAmmoInHouses();
+
     document.getElementById('fullmap-modal').classList.add('hidden');
     document.getElementById('game-over-screen').classList.add('hidden');
+
     for (let i = 0; i < 6; i++) spawnEnemies();
     updateUI();
 }
@@ -1129,6 +1271,7 @@ function loop() {
     if (!gameOver && !isFullMapOpen) {
         spawnEnemies();
         player.update();
+        updateHousesVisibility();
         camera.update(player.x, player.y);
 
         projectiles.forEach(p => p.update());
@@ -1136,33 +1279,32 @@ function loop() {
         enemies.forEach(e => e.update());
         particles.forEach(p => p.update());
         popups.forEach(p => p.update());
-
-        projectiles.forEach(p => {
-            enemies.forEach(e => {
-                if (Math.hypot(p.x - e.x, p.y - e.y) < p.radius + e.radius) {
-                    if (!p.isPenetrating) p.markedForDeletion = true;
-                    e.takeDamage(p.damage, p.stunDuration);
-                }
-            });
-        });
+        visualEffects.forEach(v => v.update());
 
         projectiles = projectiles.filter(p => !p.markedForDeletion);
         enemyProjectiles = enemyProjectiles.filter(ep => !ep.markedForDeletion);
         enemies = enemies.filter(e => !e.markedForDeletion);
         particles = particles.filter(p => p.alpha > 0);
         popups = popups.filter(p => p.alpha > 0);
+        visualEffects = visualEffects.filter(v => v.life > 0);
     }
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
     drawSafeZone();
+    drawHousesInterior();
 
     particles.forEach(p => p.draw());
     projectiles.forEach(p => p.draw());
     enemyProjectiles.forEach(ep => ep.draw());
     enemies.forEach(e => e.draw());
+    visualEffects.forEach(v => v.draw());
+    
     if (!gameOver) player.draw();
 
+    drawHousesRoof();
     popups.forEach(p => p.draw());
+
     drawMinimap();
     drawFullMap();
 
@@ -1172,5 +1314,6 @@ function loop() {
 init();
 loop();
 </script>
+
 </body>
 </html>
