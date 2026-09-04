@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>100x Ultra Large Map RPG - Knife & Skill System</title>
+    <title>100x Ultra Large Map RPG - Advanced VFX & Skill System</title>
     <style>
         * {
             box-sizing: border-box;
@@ -199,7 +199,7 @@
         <div class="controls-hint">
             이동: WASD (Shift: 달리기)<br>
             무기교체: 1 (칼 <-> 맨손) / 2 (총)<br>
-            스킬 (칼 전용): Z (찌르기) | X (회전) | C (파동) | V (궁극기)<br>
+            스킬 (칼 전용): Z (확대 찌르기) | X (채워진 챔버) | C (돌진 베기) | V (파멸의 전장)<br>
             공격: 방향키 (위/아래/왼쪽/오른쪽) | 대시: Q | 전체지도: M
         </div>
     </div>
@@ -231,7 +231,6 @@ const DETECT_RANGE = 350;
 const SAFE_ZONE_CENTER = { x: WORLD.width / 2, y: WORLD.height / 2 };
 const SAFE_ZONE_RADIUS = DETECT_RANGE * 2;
 
-// 지정된 스폰 전용 구역 (원하는 위치와 크기로 수정 가능)
 const SPAWN_ZONE = {
     x: SAFE_ZONE_CENTER.x + 2000,
     y: SAFE_ZONE_CENTER.y - 3000,
@@ -248,7 +247,7 @@ let houses = [
 ];
 
 let ammoBoxes = [];
-let hasSpawnedAfterSafeZone = false; // SafeZone 재방문 전까지 스폰 금지 플래그
+let hasSpawnedAfterSafeZone = false;
 
 function generateRandomHouses(count) {
     const roofColors = ['#2980b9', '#8e44ad', '#16a085', '#d35400', '#2c3e50'];
@@ -406,6 +405,13 @@ function applyStun(entity, duration = 0.5) {
     entity.stunnedUntil = Math.max(entity.stunnedUntil || 0, Date.now() + duration * 1000);
 }
 
+// 화려한 커스텀 파티클 생성기
+function createSparks(x, y, color, count = 12, speedMult = 1.0) {
+    for (let i = 0; i < count; i++) {
+        particles.push(new Particle(x, y, color, speedMult));
+    }
+}
+
 class Player {
     constructor() {
         this.x = SAFE_ZONE_CENTER.x;
@@ -448,11 +454,12 @@ class Player {
 
         this.pendingAttack = null;
         
+        // V스킬 쿨타임 30초로 변경
         this.skillCooldowns = {
             Z: 3000,
             X: 5000,
             C: 6000,
-            V: 12000
+            V: 30000
         };
         this.lastSkillTimes = { Z: 0, X: 0, C: 0, V: 0 };
     }
@@ -461,7 +468,6 @@ class Player {
         if (isFullMapOpen) return;
         const now = Date.now();
 
-        // SafeZone 진입 시 스폰 리셋 (SafeZone에 들어가야만 다시 스폰 가능)
         const distToSafeZone = Math.hypot(this.x - SAFE_ZONE_CENTER.x, this.y - SAFE_ZONE_CENTER.y);
         if (distToSafeZone <= SAFE_ZONE_RADIUS) {
             if (hasSpawnedAfterSafeZone) {
@@ -544,7 +550,7 @@ class Player {
                 targetY = currentDashY;
                 this.lastDashTime = now;
 
-                for (let i = 0; i < 10; i++) particles.push(new Particle(this.x, this.y, '#3498db'));
+                createSparks(this.x, this.y, '#3498db', 15);
                 if (this.stamina === 0) this.isExhausted = true;
             }
         } else {
@@ -645,7 +651,7 @@ class Player {
         if (now - (this.lastSkillTimes[key] || 0) < this.skillCooldowns[key]) return;
         if (this.pendingAttack) return;
 
-        this.pendingAttack = { executeTime: now + 200, type: `skill_${key}`, isSuperArmor: true };
+        this.pendingAttack = { executeTime: now + 150, type: `skill_${key}`, isSuperArmor: true };
         this.lastSkillTimes[key] = now;
         updateUI();
     }
@@ -653,37 +659,82 @@ class Player {
     executePendingAttack(atk) {
         const type = atk.type;
         if (type === 'knife_basic') {
-            this.performMeleeAttack(80, this.knifeDamage, 0.5, '#ecf0f1', 'basic_slash');
+            this.performMeleeAttack(90, this.knifeDamage, 0.5, '#ffffff', 'basic_slash');
         } else if (type === 'bare_basic') {
-            this.performMeleeAttack(60, this.knifeDamage * 0.1, 0.5, '#f39c12', 'punch');
-        } else if (type === 'skill_Z') {
-            const range = 140;
-            visualEffects.push(new SlashEffect(this.x, this.y, this.angle, range, '#e74c3c', 'thrust'));
+            this.performMeleeAttack(65, this.knifeDamage * 0.1, 0.5, '#f39c12', 'punch');
+        } 
+        // Z 스킬: 유지하되 크기 대폭 확대 (220px)
+        else if (type === 'skill_Z') {
+            const range = 220;
+            visualEffects.push(new SlashEffect(this.x, this.y, this.angle, range, '#ff4757', 'thrust_wide'));
+            createSparks(this.x + Math.cos(this.angle) * (range / 2), this.y + Math.sin(this.angle) * (range / 2), '#ff6b81', 25, 1.5);
             enemies.forEach(e => {
                 const dist = Math.hypot(e.x - this.x, e.y - this.y);
                 const angleTo = Math.atan2(e.y - this.y, e.x - this.x);
                 let diff = Math.abs(this.angle - angleTo);
                 if (diff > Math.PI) diff = Math.PI * 2 - diff;
-                if (dist <= range && diff < Math.PI / 4) {
-                    e.takeDamage(this.knifeDamage * 1.8, true, 1.2);
+                if (dist <= range && diff < Math.PI / 3) {
+                    e.takeDamage(this.knifeDamage * 2.2, true, 1.5);
                 }
             });
-        } else if (type === 'skill_X') {
-            visualEffects.push(new SlashEffect(this.x, this.y, 0, 110, '#3498db', 'spin'));
+        } 
+        // X 스킬: 속까지 채워진 화려한 챔버 공격
+        else if (type === 'skill_X') {
+            const range = 160;
+            visualEffects.push(new SlashEffect(this.x, this.y, 0, range, '#00d2d3', 'spin_filled'));
+            createSparks(this.x, this.y, '#54a0ff', 40, 2.0);
             enemies.forEach(e => {
                 const dist = Math.hypot(e.x - this.x, e.y - this.y);
-                if (dist <= 110) e.takeDamage(this.knifeDamage * 1.5, true, 1.3);
+                if (dist <= range) e.takeDamage(this.knifeDamage * 2.0, true, 1.5);
             });
-        } else if (type === 'skill_C') {
-            for (let i = -1; i <= 1; i++) {
-                projectiles.push(new WaveProjectile(this.x, this.y, this.angle + (i * 0.15), this.knifeDamage * 1.3, 1.5));
+        } 
+        // C 스킬: 돌진 연계기 (공을 날리지 않고 전방으로 연속 돌진 공격)
+        else if (type === 'skill_C') {
+            const dashDist = 280;
+            const targetX = this.x + Math.cos(this.angle) * dashDist;
+            const targetY = this.y + Math.sin(this.angle) * dashDist;
+
+            // 이동 경로 애니메이션 효과 추가
+            visualEffects.push(new DashSlashEffect(this.x, this.y, targetX, targetY, this.angle));
+            createSparks(this.x, this.y, '#2ed573', 20);
+
+            // 위치 이동 (벽 충돌 체크)
+            let steps = 20;
+            let finalX = this.x;
+            let finalY = this.y;
+
+            for (let i = 1; i <= steps; i++) {
+                let tempX = this.x + Math.cos(this.angle) * (dashDist * (i / steps));
+                let tempY = this.y + Math.sin(this.angle) * (dashDist * (i / steps));
+                let pos = checkWallCollision(tempX, tempY, this.radius);
+                if (Math.abs(pos.x - tempX) > 0.1 || Math.abs(pos.y - tempY) > 0.1) break;
+                finalX = tempX;
+                finalY = tempY;
+
+                // 경로 주변 적 감지 및 데미지 부여
+                enemies.forEach(e => {
+                    if (Math.hypot(e.x - tempX, e.y - tempY) < 60) {
+                        e.takeDamage(this.knifeDamage * 1.8, true, 1.2);
+                    }
+                });
             }
-        } else if (type === 'skill_V') {
-            visualEffects.push(new UltimateEffect(this.x, this.y, this.angle));
+
+            this.x = finalX;
+            this.y = finalY;
+            createSparks(this.x, this.y, '#7bed9f', 25, 1.8);
+        } 
+        // V 스킬: 쿨타임 30초, 범위 폭발적 증대, 대미지 대폭 강화, 기절 5초
+        else if (type === 'skill_V') {
+            const range = 320; // 확 트인 넓은 범위
+            visualEffects.push(new UltimateEffect(this.x, this.y, range));
+            createSparks(this.x, this.y, '#a55eea', 70, 3.0);
+            createSparks(this.x, this.y, '#ff4757', 50, 2.5);
+
             enemies.forEach(e => {
                 const dist = Math.hypot(e.x - this.x, e.y - this.y);
-                if (dist <= 180) {
-                    e.takeDamage(this.knifeDamage * 3.5, true, 2.0);
+                if (dist <= range) {
+                    // 기절 5초 적용, 데미지 6.5배 증대
+                    e.takeDamage(this.knifeDamage * 6.5, true, 5.0);
                 }
             });
         }
@@ -731,7 +782,7 @@ class Player {
         if (this.weapon === 'gun') {
             ctx.fillStyle = '#bdc3c7'; ctx.fillRect(10, -3, 16, 6);
         } else if (this.weapon === 'knife') {
-            ctx.fillStyle = '#e74c3c'; ctx.fillRect(12, -2, 14, 4);
+            ctx.fillStyle = '#ff4757'; ctx.fillRect(12, -3, 18, 6);
         }
 
         ctx.beginPath();
@@ -758,11 +809,12 @@ class Player {
     }
 }
 
+// 화려한 커스텀 VFX 클래스들
 class SlashEffect {
     constructor(x, y, angle, range, color, style) {
         this.x = x; this.y = y; this.angle = angle; this.range = range;
         this.color = color; this.style = style;
-        this.life = 1.0; this.decay = 0.1;
+        this.life = 1.0; this.decay = 0.08;
     }
     update() { this.life -= this.decay; }
     draw() {
@@ -770,132 +822,122 @@ class SlashEffect {
         ctx.translate(this.x - camera.x, this.y - camera.y);
         ctx.rotate(this.angle);
         ctx.globalAlpha = Math.max(0, this.life);
-        ctx.strokeStyle = this.color;
-        ctx.lineWidth = 4;
 
-        if (this.style === 'spin') {
-            ctx.beginPath(); ctx.arc(0, 0, this.range, 0, Math.PI * 2); ctx.stroke();
-        } else if (this.style === 'thrust') {
-            ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(this.range, 0); ctx.stroke();
+        if (this.style === 'spin_filled') {
+            // X 스킬: 원 안쪽 면을 꽉 채운 궤적 이펙트
+            const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, this.range);
+            grad.addColorStop(0, 'rgba(0, 210, 211, 0.8)');
+            grad.addColorStop(0.6, 'rgba(84, 160, 255, 0.5)');
+            grad.addColorStop(1, 'rgba(95, 39, 205, 0)');
+            
+            ctx.beginPath();
+            ctx.arc(0, 0, this.range, 0, Math.PI * 2);
+            ctx.fillStyle = grad;
+            ctx.fill();
+
+            ctx.strokeStyle = '#00d2d3';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+        } else if (this.style === 'thrust_wide') {
+            // Z 스킬: 넓고 강렬한 베기/찌르기 파장
+            ctx.beginPath();
+            ctx.moveTo(0, -this.range * 0.3);
+            ctx.lineTo(this.range, 0);
+            ctx.lineTo(0, this.range * 0.3);
+            ctx.closePath();
+            
+            const grad = ctx.createLinearGradient(0, 0, this.range, 0);
+            grad.addColorStop(0, 'rgba(255, 71, 87, 0.9)');
+            grad.addColorStop(1, 'rgba(255, 165, 2, 0)');
+            ctx.fillStyle = grad;
+            ctx.fill();
+
+            ctx.strokeStyle = '#ff4757';
+            ctx.lineWidth = 5;
+            ctx.stroke();
         } else {
-            ctx.beginPath(); ctx.arc(0, 0, this.range, -Math.PI/3, Math.PI/3); ctx.stroke();
+            ctx.strokeStyle = this.color;
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.arc(0, 0, this.range, -Math.PI/3, Math.PI/3);
+            ctx.stroke();
         }
         ctx.restore();
     }
 }
 
-class UltimateEffect {
-    constructor(x, y, angle) {
-        this.x = x; this.y = y; this.angle = angle;
-        this.life = 1.0; this.decay = 0.05;
+// C 스킬 (연계 돌진 잔상 이펙트)
+class DashSlashEffect {
+    constructor(startX, startY, endX, endY, angle) {
+        this.startX = startX; this.startY = startY;
+        this.endX = endX; this.endY = endY;
+        this.angle = angle;
+        this.life = 1.0; this.decay = 0.07;
     }
     update() { this.life -= this.decay; }
     draw() {
         ctx.save();
-        ctx.translate(this.x - camera.x, this.y - camera.y);
         ctx.globalAlpha = Math.max(0, this.life);
-        ctx.strokeStyle = '#9b59b6';
-        ctx.lineWidth = 5;
+        
+        ctx.beginPath();
+        ctx.moveTo(this.startX - camera.x, this.startY - camera.y);
+        ctx.lineTo(this.endX - camera.x, this.endY - camera.y);
+        ctx.strokeStyle = '#2ed573';
+        ctx.lineWidth = 30;
+        ctx.lineCap = 'round';
+        ctx.stroke();
 
-        for (let i = 0; i < 8; i++) {
-            ctx.rotate(Math.PI / 4);
-            ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(160, 0); ctx.stroke();
-        }
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 10;
+        ctx.stroke();
         ctx.restore();
     }
 }
 
-class WaveProjectile {
-    constructor(x, y, angle, damage, stunDuration) {
-        this.x = x; this.y = y; this.speed = 10;
-        this.vx = Math.cos(angle) * this.speed;
-        this.vy = Math.sin(angle) * this.speed;
-        this.radius = 12; this.damage = damage; this.stunDuration = stunDuration;
-        this.markedForDeletion = false;
+// V 스킬 (대형 궁극기 연출)
+class UltimateEffect {
+    constructor(x, y, range) {
+        this.x = x; this.y = y; this.range = range;
+        this.life = 1.0; this.decay = 0.03;
+        this.rotation = 0;
     }
     update() {
-        this.x += this.vx; this.y += this.vy;
-        if (checkLineWallCollision(this.x - this.vx, this.y - this.vy, this.x, this.y)) this.markedForDeletion = true;
-        
-        enemies.forEach(e => {
-            if (Math.hypot(this.x - e.x, this.y - e.y) < this.radius + e.radius) {
-                e.takeDamage(this.damage, true, this.stunDuration);
-                this.markedForDeletion = true;
-            }
-        });
+        this.life -= this.decay;
+        this.rotation += 0.05;
     }
     draw() {
         ctx.save();
+        ctx.translate(this.x - camera.x, this.y - camera.y);
+        ctx.rotate(this.rotation);
+        ctx.globalAlpha = Math.max(0, this.life);
+
+        // 채워진 바닥 영역
+        const grad = ctx.createRadialGradient(0, 0, 10, 0, 0, this.range);
+        grad.addColorStop(0, 'rgba(165, 94, 234, 0.8)');
+        grad.addColorStop(0.5, 'rgba(255, 71, 87, 0.4)');
+        grad.addColorStop(1, 'rgba(47, 53, 66, 0)');
+
         ctx.beginPath();
-        ctx.arc(this.x - camera.x, this.y - camera.y, this.radius, 0, Math.PI * 2);
-        ctx.fillStyle = '#2ecc71'; ctx.fill();
+        ctx.arc(0, 0, this.range, 0, Math.PI * 2);
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        // 외곽선 및 화려한 문양 레이어
+        ctx.strokeStyle = '#a55eea';
+        ctx.lineWidth = 6;
+        ctx.stroke();
+
+        for (let i = 0; i < 12; i++) {
+            ctx.rotate(Math.PI / 6);
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(this.range, 0);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
         ctx.restore();
     }
-}
-
-function updateHousesVisibility() {
-    houses.forEach(house => {
-        const isInside = (
-            player.x >= house.x + house.wallThickness &&
-            player.x <= house.x + house.width - house.wallThickness &&
-            player.y >= house.y + house.wallThickness &&
-            player.y <= house.y + house.height - house.wallThickness
-        );
-        house.targetAlpha = isInside ? 0.25 : 1.0;
-        house.roofAlpha += (house.targetAlpha - house.roofAlpha) * house.fadeSpeed;
-    });
-}
-
-function drawHousesInterior() {
-    houses.forEach(house => {
-        const screenX = house.x - camera.x;
-        const screenY = house.y - camera.y;
-
-        if (screenX + house.width < -100 || screenX > canvas.width + 100 ||
-            screenY + house.height < -100 || screenY > canvas.height + 100) return;
-
-        ctx.save();
-        ctx.fillStyle = house.floorColor;
-        ctx.fillRect(screenX, screenY, house.width, house.height);
-
-        const t = house.wallThickness;
-        const doorLeft = house.width / 2 - house.doorWidth / 2;
-        const doorRight = house.width / 2 + house.doorWidth / 2;
-
-        ctx.fillStyle = '#686d76';
-        ctx.fillRect(screenX, screenY, house.width, t);
-        ctx.fillRect(screenX, screenY, t, house.height);
-        ctx.fillRect(screenX + house.width - t, screenY, t, house.height);
-        ctx.fillRect(screenX, screenY + house.height - t, doorLeft, t);
-        ctx.fillRect(screenX + doorRight, screenY + house.height - t, house.width - doorRight, t);
-
-        ctx.restore();
-    });
-
-    ammoBoxes.forEach(box => {
-        if (!box.taken) {
-            ctx.save();
-            ctx.fillStyle = '#f39c12';
-            ctx.fillRect(box.x - camera.x - 8, box.y - camera.y - 6, 16, 12);
-            ctx.restore();
-        }
-    });
-}
-
-function drawHousesRoof() {
-    houses.forEach(house => {
-        const screenX = house.x - camera.x;
-        const screenY = house.y - camera.y;
-
-        if (screenX + house.width < -100 || screenX > canvas.width + 100 ||
-            screenY + house.height < -100 || screenY > canvas.height + 100) return;
-
-        ctx.save();
-        ctx.globalAlpha = house.roofAlpha;
-        ctx.fillStyle = house.roofColor;
-        ctx.fillRect(screenX - 12, screenY - 12, house.width + 24, house.height + 24);
-        ctx.restore();
-    });
 }
 
 class Projectile {
@@ -1037,7 +1079,7 @@ class Enemy {
         }
 
         if (this.hasSkill && now >= this.nextSkillTime) {
-            visualEffects.push(new SlashEffect(this.x, this.y, angle, 100, '#e74c3c', 'spin'));
+            visualEffects.push(new SlashEffect(this.x, this.y, angle, 100, '#e74c3c', 'spin_filled'));
             if (distToPlayer <= 100) player.takeDamage(35, true, 0.5);
             this.nextSkillTime = now + Math.random() * 4000 + 3000;
         }
@@ -1101,14 +1143,14 @@ class Enemy {
 }
 
 class Particle {
-    constructor(x, y, color) {
+    constructor(x, y, color, speedMult = 1.0) {
         this.x = x; this.y = y; this.color = color;
-        this.radius = Math.random() * 3 + 1;
-        this.vx = (Math.random() - 0.5) * 6;
-        this.vy = (Math.random() - 0.5) * 6;
+        this.radius = Math.random() * 4 + 1.5;
+        this.vx = (Math.random() - 0.5) * 8 * speedMult;
+        this.vy = (Math.random() - 0.5) * 8 * speedMult;
         this.alpha = 1;
     }
-    update() { this.x += this.vx; this.y += this.vy; this.alpha -= 0.03; }
+    update() { this.x += this.vx; this.y += this.vy; this.alpha -= 0.025; }
     draw() {
         ctx.save();
         ctx.globalAlpha = Math.max(0, this.alpha);
@@ -1140,12 +1182,10 @@ function createPopup(x, y, text, color = '#fff') {
 }
 
 function spawnEnemies() {
-    // 1. SafeZone 재방문 전까지 스폰 차단
     if (hasSpawnedAfterSafeZone) return;
 
     if (enemies.length >= 35) return;
     
-    // 2. 지정된 SPAWN_ZONE 내부에서만 좌표 생성
     const cx = SPAWN_ZONE.x + Math.random() * SPAWN_ZONE.width;
     const cy = SPAWN_ZONE.y + Math.random() * SPAWN_ZONE.height;
 
@@ -1155,7 +1195,7 @@ function spawnEnemies() {
     else if (rand >= 0.92) type = 2;
 
     enemies.push(new Enemy(cx, cy, type));
-    hasSpawnedAfterSafeZone = true; // 스폰 1회 완료 -> SafeZone에 들어가기 전까지 스폰 멈춤
+    hasSpawnedAfterSafeZone = true;
 }
 
 function updateUI() {
@@ -1189,8 +1229,72 @@ function updateUI() {
     document.getElementById('score-txt').innerText = `Score: ${score}`;
 }
 
+function drawHousesInterior() {
+    houses.forEach(house => {
+        const screenX = house.x - camera.x;
+        const screenY = house.y - camera.y;
+
+        if (screenX + house.width < -100 || screenX > canvas.width + 100 ||
+            screenY + house.height < -100 || screenY > canvas.height + 100) return;
+
+        ctx.save();
+        ctx.fillStyle = house.floorColor;
+        ctx.fillRect(screenX, screenY, house.width, house.height);
+
+        const t = house.wallThickness;
+        const doorLeft = house.width / 2 - house.doorWidth / 2;
+        const doorRight = house.width / 2 + house.doorWidth / 2;
+
+        ctx.fillStyle = '#686d76';
+        ctx.fillRect(screenX, screenY, house.width, t);
+        ctx.fillRect(screenX, screenY, t, house.height);
+        ctx.fillRect(screenX + house.width - t, screenY, t, house.height);
+        ctx.fillRect(screenX, screenY + house.height - t, doorLeft, t);
+        ctx.fillRect(screenX + doorRight, screenY + house.height - t, house.width - doorRight, t);
+
+        ctx.restore();
+    });
+
+    ammoBoxes.forEach(box => {
+        if (!box.taken) {
+            ctx.save();
+            ctx.fillStyle = '#f39c12';
+            ctx.fillRect(box.x - camera.x - 8, box.y - camera.y - 6, 16, 12);
+            ctx.restore();
+        }
+    });
+}
+
+function updateHousesVisibility() {
+    houses.forEach(house => {
+        const isInside = (
+            player.x >= house.x + house.wallThickness &&
+            player.x <= house.x + house.width - house.wallThickness &&
+            player.y >= house.y + house.wallThickness &&
+            player.y <= house.y + house.height - house.wallThickness
+        );
+        house.targetAlpha = isInside ? 0.25 : 1.0;
+        house.roofAlpha += (house.targetAlpha - house.roofAlpha) * house.fadeSpeed;
+    });
+}
+
+function drawHousesRoof() {
+    houses.forEach(house => {
+        const screenX = house.x - camera.x;
+        const screenY = house.y - camera.y;
+
+        if (screenX + house.width < -100 || screenX > canvas.width + 100 ||
+            screenY + house.height < -100 || screenY > canvas.height + 100) return;
+
+        ctx.save();
+        ctx.globalAlpha = house.roofAlpha;
+        ctx.fillStyle = house.roofColor;
+        ctx.fillRect(screenX - 12, screenY - 12, house.width + 24, house.height + 24);
+        ctx.restore();
+    });
+}
+
 function drawZones() {
-    // SafeZone 그리기 (초록색)
     const safeScreenX = SAFE_ZONE_CENTER.x - camera.x;
     const safeScreenY = SAFE_ZONE_CENTER.y - camera.y;
 
@@ -1203,7 +1307,6 @@ function drawZones() {
     ctx.lineWidth = 3;
     ctx.stroke();
 
-    // SpawnZone 그리기 (지정된 스폰 구역 영역 표시)
     const spawnScreenX = SPAWN_ZONE.x - camera.x;
     const spawnScreenY = SPAWN_ZONE.y - camera.y;
     ctx.strokeStyle = 'rgba(231, 76, 60, 0.6)';
@@ -1221,7 +1324,6 @@ function drawMinimap() {
     const startX = player.x - range / 2, startY = player.y - range / 2;
     const scale = minimapCanvas.width / range;
 
-    // SpawnZone 표시 (미니맵)
     minimapCtx.strokeStyle = '#e74c3c';
     minimapCtx.strokeRect((SPAWN_ZONE.x - startX) * scale, (SPAWN_ZONE.y - startY) * scale, SPAWN_ZONE.width * scale, SPAWN_ZONE.height * scale);
 
@@ -1240,7 +1342,6 @@ function drawFullMap() {
     const scaleX = fullmapCanvas.width / WORLD.width;
     const scaleY = fullmapCanvas.height / WORLD.height;
 
-    // SpawnZone 표시 (전체지도)
     fullmapCtx.strokeStyle = '#e74c3c';
     fullmapCtx.strokeRect(SPAWN_ZONE.x * scaleX, SPAWN_ZONE.y * scaleY, SPAWN_ZONE.width * scaleX, SPAWN_ZONE.height * scaleY);
 
