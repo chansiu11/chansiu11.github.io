@@ -2,11 +2,11 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>GitHub 멀티플레이어 슈팅 게임</title>
+    <title>MMO 오픈월드 슈팅 게임</title>
     <style>
         body {
             margin: 0;
-            background-color: #1a1a1a;
+            background-color: #111;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -14,136 +14,180 @@
             color: white;
             font-family: sans-serif;
             flex-direction: column;
+            overflow: hidden;
         }
         #ui {
-            background: #222;
-            padding: 20px;
-            border-radius: 8px;
+            position: absolute;
+            background: rgba(20, 20, 20, 0.9);
+            padding: 25px;
+            border-radius: 12px;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 12px;
             align-items: center;
-            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+            width: 300px;
+            z-index: 10;
         }
         input {
             padding: 10px;
-            font-size: 14px;
-            border-radius: 4px;
+            font-size: 16px;
+            border-radius: 6px;
             border: 1px solid #444;
             text-align: center;
+            width: 90%;
+            background: #222;
+            color: white;
         }
         button {
-            padding: 10px 20px;
-            font-size: 14px;
+            padding: 12px;
+            font-size: 15px;
             background-color: #00ffcc;
             border: none;
-            border-radius: 4px;
+            border-radius: 6px;
             cursor: pointer;
             font-weight: bold;
             color: #000;
+            width: 100%;
         }
-        canvas {
-            border: 2px solid #ffffff;
-            background-color: #111111;
+        button:hover { background-color: #00cc88; }
+        #statusHUD {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px #000;
+            z-index: 5;
             display: none;
         }
-        #myIdText {
-            font-size: 12px;
-            color: #aaa;
-            word-break: break-all;
+        canvas {
+            border: 1px solid #333;
+            background-color: #1a1a1a;
+            display: none;
         }
     </style>
-    <!-- PeerJS 실시간 P2P 통신 라이브러리 -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 </head>
 <body>
 
 <div id="ui">
-    <h2>닉네임 및 방 접속</h2>
+    <h2>오픈월드 PVP 슈팅</h2>
     <input type="text" id="nicknameInput" placeholder="닉네임 입력" maxlength="10">
-    <p id="myIdText">내 접속 코드 생성 중...</p>
     
-    <button onclick="createRoom()">방 만들기 (혼자하기/호스트)</button>
-    <hr style="width:100%; border-color:#444;">
-    <input type="text" id="joinIdInput" placeholder="상대방 접속 코드 입력">
-    <button onclick="joinRoom()">상대방 방에 참가하기</button>
+    <button onclick="createRoom()">서버 방 생성</button>
+    <div id="roomCodeDisplay" style="color:#00ffcc; font-weight:bold;"></div>
+
+    <hr style="width:100%; border-color:#444; margin: 5px 0;">
+    
+    <input type="text" id="joinIdInput" placeholder="5자리 방 코드 입력" maxlength="5">
+    <button onclick="joinRoom()" style="background-color: #ffcc00;">공동 서버 접속</button>
 </div>
 
-<canvas id="gameCanvas" width="800" height="600"></canvas>
+<div id="statusHUD">
+    <span id="zoneStatus" style="color: #00ffcc;">[안전 지대]</span> | 
+    PVP 상태: <span id="pvpTimer">OFF</span>
+</div>
+
+<canvas id="gameCanvas" width="900" height="700"></canvas>
 
 <script>
-let peer = null;
-let conn = null;
-let myNickname = "플레이어";
-let isHost = false;
+const WORLD_SIZE = 2400; // 전체 대형 맵 크기
+const SAFEZONE = { x: WORLD_SIZE / 2, y: WORLD_SIZE / 2, radius: 400 }; // 세이프존 중앙 위치 및 반지름
 
+let peer = null, conn = null;
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-const myPlayer = { x: 100, y: 300, angle: 0, color: '#00ffcc', name: '' };
-const otherPlayer = { x: 700, y: 300, angle: 0, color: '#ff4444', name: '상대방' };
+// 내 플레이어 데이터
+const myPlayer = {
+    x: SAFEZONE.x, y: SAFEZONE.y,
+    angle: 0,
+    hp: 100, maxHp: 100,
+    name: '플레이어',
+    color: '#00ffcc',
+    pvpTimer: 0 // PVP 유효 시간 (초)
+};
+
+// 상대 플레이어 데이터
+const otherPlayer = {
+    x: SAFEZONE.x + 100, y: SAFEZONE.y + 100,
+    angle: 0,
+    hp: 100, maxHp: 100,
+    name: '상대방',
+    color: '#ff4444',
+    pvpTimer: 0
+};
 
 const keys = {};
 const mouse = { x: 0, y: 0 };
 const bullets = [];
 
-// PeerJS 초기화
-peer = new Peer();
-
-peer.on('open', (id) => {
-    document.getElementById('myIdText').innerText = `내 접속 코드: ${id}`;
-});
-
-// 상대방이 접속했을 때 (내가 방장일 때)
-peer.on('connection', (connection) => {
-    conn = connection;
-    isHost = true;
-    setupConnection();
-});
+// 무작위 5자리 코드 생성
+function generateShortId() {
+    return Math.random().toString(36).substring(2, 7).toLowerCase();
+}
 
 function createRoom() {
-    myNickname = document.getElementById('nicknameInput').value.trim() || "호스트";
-    myPlayer.name = myNickname;
-    myPlayer.x = 100;
+    const nick = document.getElementById('nicknameInput').value.trim();
+    if(nick) myPlayer.name = nick;
     
-    document.getElementById('ui').style.display = 'none';
-    canvas.style.display = 'block';
+    const code = generateShortId();
+    peer = new Peer('openworld-' + code);
     
-    initGameEvents();
+    peer.on('open', () => {
+        document.getElementById('roomCodeDisplay').innerText = "생성된 코드: " + code;
+    });
+    
+    peer.on('connection', c => {
+        conn = c;
+        setupConnection();
+        startGame();
+    });
 }
 
 function joinRoom() {
-    const targetId = document.getElementById('joinIdInput').value.trim();
-    if (!targetId) return alert('상대방 접속 코드를 입력하세요.');
-
-    myNickname = document.getElementById('nicknameInput').value.trim() || "게스트";
-    myPlayer.name = myNickname;
-    myPlayer.x = 700;
-
-    conn = peer.connect(targetId);
-    isHost = false;
-    setupConnection();
-
-    document.getElementById('ui').style.display = 'none';
-    canvas.style.display = 'block';
+    const code = document.getElementById('joinIdInput').value.trim().toLowerCase();
+    if(code.length !== 5) return alert('5자리 코드를 입력해주세요.');
     
-    initGameEvents();
+    const nick = document.getElementById('nicknameInput').value.trim();
+    if(nick) myPlayer.name = nick;
+    
+    peer = new Peer();
+    peer.on('open', () => {
+        conn = peer.connect('openworld-' + code);
+        conn.on('open', () => {
+            setupConnection();
+            startGame();
+        });
+    });
+}
+
+function startGame() {
+    document.getElementById('ui').style.display = 'none';
+    document.getElementById('statusHUD').style.display = 'block';
+    canvas.style.display = 'block';
+    initEvents();
 }
 
 function setupConnection() {
-    conn.on('data', (data) => {
-        if (data.type === 'state') {
-            otherPlayer.x = data.x;
-            otherPlayer.y = data.y;
-            otherPlayer.angle = data.angle;
-            otherPlayer.name = data.name;
-        } else if (data.type === 'shoot') {
+    conn.on('data', data => {
+        if(data.type === 'state') {
+            Object.assign(otherPlayer, data.player);
+        } else if(data.type === 'shoot') {
             bullets.push(data.bullet);
+        } else if(data.type === 'hit') {
+            myPlayer.hp = Math.max(0, myPlayer.hp - data.damage);
+            triggerPVP();
         }
     });
 }
 
-function initGameEvents() {
+function triggerPVP() {
+    myPlayer.pvpTimer = 5; // 5초간 PVP 전투 상태 유지
+}
+
+function initEvents() {
     window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
     window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
     canvas.addEventListener('mousemove', e => {
@@ -153,16 +197,15 @@ function initGameEvents() {
     });
     canvas.addEventListener('click', shoot);
 
-    // 내 상태 상대방에게 전송 (초당 30회)
+    // 1초 타이머 (PVP 시간 차감)
     setInterval(() => {
-        if (conn && conn.open) {
-            conn.send({
-                type: 'state',
-                x: myPlayer.x,
-                y: myPlayer.y,
-                angle: myPlayer.angle,
-                name: myPlayer.name
-            });
+        if(myPlayer.pvpTimer > 0) myPlayer.pvpTimer--;
+    }, 1000);
+
+    // 네트워크 동기화 (초당 30회)
+    setInterval(() => {
+        if(conn && conn.open) {
+            conn.send({ type: 'state', player: myPlayer });
         }
     }, 1000 / 30);
 
@@ -170,74 +213,185 @@ function initGameEvents() {
 }
 
 function shoot() {
+    // 안전지대 밖에서만 총알 발사 가능
+    const distFromCenter = Math.hypot(myPlayer.x - SAFEZONE.x, myPlayer.y - SAFEZONE.y);
+    if(distFromCenter < SAFEZONE.radius) {
+        return; // 세이프존 안에서는 공격 불가
+    }
+
+    triggerPVP();
+
     const bullet = {
-        x: myPlayer.x,
-        y: myPlayer.y,
-        dx: Math.cos(myPlayer.angle) * 8,
-        dy: Math.sin(myPlayer.angle) * 8
+        x: myPlayer.x, y: myPlayer.y,
+        dx: Math.cos(myPlayer.angle) * 10,
+        dy: Math.sin(myPlayer.angle) * 10,
+        owner: myPlayer.name
     };
     bullets.push(bullet);
 
-    if (conn && conn.open) {
-        conn.send({ type: 'shoot', bullet: bullet });
+    if(conn && conn.open) {
+        conn.send({ type: 'shoot', bullet });
     }
 }
 
 function update() {
-    // 이동
-    if (keys['w'] || keys['W']) myPlayer.y -= 4;
-    if (keys['s'] || keys['S']) myPlayer.y += 4;
-    if (keys['a'] || keys['A']) myPlayer.x -= 4;
-    if (keys['d'] || keys['D']) myPlayer.x += 4;
+    let dx = 0, dy = 0;
+    if (keys['w'] || keys['W']) dy -= 4;
+    if (keys['s'] || keys['S']) dy += 4;
+    if (keys['a'] || keys['A']) dx -= 4;
+    if (keys['d'] || keys['D']) dx += 4;
 
-    // 조준 각도
-    myPlayer.angle = Math.atan2(mouse.y - myPlayer.y, mouse.x - myPlayer.x);
+    let nextX = myPlayer.x + dx;
+    let nextY = myPlayer.y + dy;
 
-    // 총알 이동
+    // 맵 테두리 제한
+    nextX = Math.max(20, Math.min(WORLD_SIZE - 20, nextX));
+    nextY = Math.max(20, Math.min(WORLD_SIZE - 20, nextY));
+
+    // 세이프존 충돌 검사 (PVP 상태 시 진입 불가)
+    const distToCenter = Math.hypot(nextX - SAFEZONE.x, nextY - SAFEZONE.y);
+    if (myPlayer.pvpTimer > 0 && distToCenter < SAFEZONE.radius + 15) {
+        // 전투 상태일 때 세이프존 안으로 들어가려고 하면 튕겨냄
+        const angle = Math.atan2(nextY - SAFEZONE.y, nextX - SAFEZONE.x);
+        nextX = SAFEZONE.x + Math.cos(angle) * (SAFEZONE.radius + 15);
+        nextY = SAFEZONE.y + Math.sin(angle) * (SAFEZONE.radius + 15);
+    }
+
+    myPlayer.x = nextX;
+    myPlayer.y = nextY;
+
+    // 화면 중앙 기준 마우스 방향으로 각도 계산
+    const screenCenterX = canvas.width / 2;
+    const screenCenterY = canvas.height / 2;
+    myPlayer.angle = Math.atan2(mouse.y - screenCenterY, mouse.x - screenCenterX);
+
+    // HUD 업데이트
+    const inSafe = distToCenter < SAFEZONE.radius;
+    document.getElementById('zoneStatus').innerText = inSafe ? "[안전 지대]" : "[PVP 가능 지역]";
+    document.getElementById('zoneStatus').style.color = inSafe ? "#00ffcc" : "#ff4444";
+    
+    const pvpUI = document.getElementById('pvpTimer');
+    if(myPlayer.pvpTimer > 0) {
+        pvpUI.innerText = myPlayer.pvpTimer + "초 (전투중!)";
+        pvpUI.style.color = "#ff4444";
+    } else {
+        pvpUI.innerText = "OFF";
+        pvpUI.style.color = "#aaa";
+    }
+
+    // 총알 이동 및 충돌 판정
     for (let i = bullets.length - 1; i >= 0; i--) {
         const b = bullets[i];
         b.x += b.dx;
         b.y += b.dy;
-        if (b.x < 0 || b.x > 800 || b.y < 0 || b.y > 600) {
+
+        // 상대방 총알에 내가 맞았을 때 (세이프존 밖인 경우만)
+        if(b.owner !== myPlayer.name && !inSafe) {
+            const hitDist = Math.hypot(b.x - myPlayer.x, b.y - myPlayer.y);
+            if(hitDist < 15) {
+                myPlayer.hp = Math.max(0, myPlayer.hp - 10);
+                triggerPVP();
+                bullets.splice(i, 1);
+                if(conn && conn.open) conn.send({ type: 'hit', damage: 10 });
+                continue;
+            }
+        }
+
+        // 맵 밖으로 나가면 총알 제거
+        if (b.x < 0 || b.x > WORLD_SIZE || b.y < 0 || b.y > WORLD_SIZE) {
             bullets.splice(i, 1);
         }
     }
 }
 
-function drawPlayer(p) {
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 카메라 오프셋 계산 (내 플레이어를 화면 중앙에 고정)
+    const camX = canvas.width / 2 - myPlayer.x;
+    const camY = canvas.height / 2 - myPlayer.y;
+
+    ctx.save();
+    ctx.translate(camX, camY); // 맵 전체를 카메라 시점으로 이동
+
+    // 1. 격자 배경 그리기
+    ctx.strokeStyle = '#2d2d2d';
+    ctx.lineWidth = 1;
+    for (let x = 0; x <= WORLD_SIZE; x += 80) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, WORLD_SIZE); ctx.stroke();
+    }
+    for (let y = 0; y <= WORLD_SIZE; y += 80) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(WORLD_SIZE, y); ctx.stroke();
+    }
+
+    // 2. 맵 외곽 경계선
+    ctx.strokeStyle = '#ff0000';
+    ctx.lineWidth = 5;
+    ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
+
+    // 3. 세이프존 영역 그리기
+    ctx.beginPath();
+    ctx.arc(SAFEZONE.x, SAFEZONE.y, SAFEZONE.radius, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0, 255, 200, 0.15)';
+    ctx.fill();
+    ctx.strokeStyle = '#00ffcc';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // 4. 총알 그리기
+    bullets.forEach(b => {
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, 5, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffff00';
+        ctx.fill();
+    });
+
+    // 5. 플레이어들 그리기
+    drawEntity(myPlayer);
+    if (conn && conn.open) drawEntity(otherPlayer);
+
+    ctx.restore();
+}
+
+function drawEntity(p) {
     ctx.save();
     ctx.translate(p.x, p.y);
+
+    // 체력바 & 닉네임 
+    const barWidth = 40;
+    const barHeight = 6;
     
+    // HP 배경
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(-barWidth/2, -35, barWidth, barHeight);
+    // HP 게이지
+    ctx.fillStyle = p.hp > 30 ? '#00ff55' : '#ff3333';
+    ctx.fillRect(-barWidth/2, -35, barWidth * (p.hp / p.maxHp), barHeight);
+
     // 닉네임
     ctx.fillStyle = '#ffffff';
     ctx.font = '12px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(p.name, 0, -25);
+    ctx.fillText(p.name, 0, -42);
 
-    // 캐릭터
+    // PVP 상태 표시링 (전투 중일 때 캐릭터 주위에 붉은 원)
+    if(p.pvpTimer > 0) {
+        ctx.beginPath();
+        ctx.arc(0, 0, 20, 0, Math.PI * 2);
+        ctx.strokeStyle = '#ff0000';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+
+    // 캐릭터 및 총구
     ctx.rotate(p.angle);
     ctx.fillStyle = p.color;
     ctx.beginPath();
     ctx.arc(0, 0, 15, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillRect(0, -3, 22, 6);
+    ctx.fillRect(0, -3, 22, 6); // 총
+    
     ctx.restore();
-}
-
-function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // 플레이어그리기
-    drawPlayer(myPlayer);
-    if (conn && conn.open) drawPlayer(otherPlayer);
-
-    // 총알 그리기
-    bullets.forEach(b => {
-        ctx.beginPath();
-        ctx.arc(b.x, b.y, 4, 0, Math.PI * 2);
-        ctx.fillStyle = '#ffff00';
-        ctx.fill();
-    });
 }
 
 function gameLoop() {
