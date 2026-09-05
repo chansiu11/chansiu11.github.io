@@ -4,20 +4,24 @@
     <meta charset="UTF-8">
     <title>MMO 오픈월드 슈팅 게임</title>
     <style>
-        body {
+        * {
+            box-sizing: border-box;
+        }
+        html, body {
             margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
             background-color: #111;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
             color: white;
             font-family: sans-serif;
-            flex-direction: column;
             overflow: hidden;
         }
         #ui {
             position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             background: rgba(20, 20, 20, 0.95);
             padding: 25px;
             border-radius: 12px;
@@ -62,7 +66,9 @@
             display: none;
         }
         canvas {
-            border: 1px solid #333;
+            width: 100vw;
+            height: 100vh;
+            display: block;
             background-color: #1a1a1a;
             display: none;
         }
@@ -90,7 +96,7 @@
     상태: <span id="actionStatus" style="color: #aaa;">기본 이동</span>
 </div>
 
-<canvas id="gameCanvas" width="900" height="700"></canvas>
+<canvas id="gameCanvas"></canvas>
 
 <script>
 const WORLD_SIZE = 2400; 
@@ -110,8 +116,15 @@ let peer = null, conn = null;
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
 const BASE_SPEED = 1.92; 
-const MAX_SPRINT_SPEED = 1.8; // 전력질주 속도 설정 (1.8)
+const MAX_SPRINT_SPEED = 2.0; // 전력질주 속도 2.0으로 상향
 
 const myPlayer = {
     x: SAFEZONE.x, y: SAFEZONE.y,
@@ -214,6 +227,7 @@ function startGame() {
     document.getElementById('ui').style.display = 'none';
     document.getElementById('statusHUD').style.display = 'block';
     canvas.style.display = 'block';
+    resizeCanvas();
     initEvents();
 }
 
@@ -301,16 +315,15 @@ function shoot() {
     let shootAngle = myPlayer.angle;
     let bulletSpeed = 50; 
 
-    // 이동 속도에 비례하는 탄퍼짐 연산
-    let spreadFactor = 0.05; // 기본 탄퍼짐 (정지 상태)
+    let spreadFactor = 0.05; 
     
     if (myPlayer.isAiming) {
-        spreadFactor = 0.08; // 조준 시 낮은 탄퍼짐
+        spreadFactor = 0.06; // 조준 시
         bulletSpeed = 50;
     } else {
         bulletSpeed = 50 * 1.7;
-        // 속도가 빠를수록 탄퍼짐 기하급수적 증가
-        spreadFactor = 0.2 + (myPlayer.currentSpeed / BASE_SPEED) * 0.45; 
+        // 기본 이동시 탄퍼짐 폭 감소 (기존 0.2 + @ -> 0.08 + @)
+        spreadFactor = 0.08 + (myPlayer.currentSpeed / BASE_SPEED) * 0.18; 
     }
 
     const spread = (Math.random() - 0.5) * spreadFactor;
@@ -360,7 +373,7 @@ function checkObstacleCollision(x, y, radius) {
 }
 
 function update() {
-    // 1. 전력질주 및 속도 조율 (최대 속도 1.8 적용)
+    // 1. 전력질주 및 속도 조율 (속도 2.0 적용)
     if (myPlayer.isSprinting) {
         myPlayer.sprintProgress = Math.min(1, myPlayer.sprintProgress + 0.05);
         myPlayer.currentSpeed = BASE_SPEED + (MAX_SPRINT_SPEED - BASE_SPEED) * myPlayer.sprintProgress;
@@ -378,7 +391,7 @@ function update() {
         myPlayer.currentSpeed = BASE_SPEED;
     }
 
-    // 2. 사격 (달리기 중에도 발사 가능)
+    // 2. 사격
     if (myPlayer.isShooting) {
         const now = Date.now();
         if (now - myPlayer.lastShootTime >= myPlayer.shootCooldown) {
@@ -387,14 +400,13 @@ function update() {
         }
     }
 
-    // 3. 이동 및 대각선 속도 정규화 (대각선 버그 수정)
+    // 3. 이동 및 대각선 속도 정규화
     let dirX = 0, dirY = 0;
     if (keys['w'] || keys['w']) dirY -= 1;
     if (keys['s'] || keys['s']) dirY += 1;
     if (keys['a'] || keys['a']) dirX -= 1;
     if (keys['d'] || keys['d']) dirX += 1;
 
-    // 대각선 이동 시 길이를 1로 정규화
     if (dirX !== 0 && dirY !== 0) {
         const len = Math.hypot(dirX, dirY);
         dirX /= len;
@@ -472,13 +484,13 @@ function update() {
 
     const actionUI = document.getElementById('actionStatus');
     if (myPlayer.isSprinting) {
-        actionUI.innerText = "질주 중 (속도 1.8 | 탄퍼짐 매우 극심)";
+        actionUI.innerText = "전력 질주 (속도 2.0 | 넓은 탄퍼짐)";
         actionUI.style.color = "#ffcc00";
     } else if (myPlayer.isAiming) {
         actionUI.innerText = "정밀 조준 (속도 0.3 | 집탄도 최상)";
         actionUI.style.color = "#00ffcc";
     } else {
-        actionUI.innerText = "기본 이동 (속도 1.92 | 이동 탄퍼짐)";
+        actionUI.innerText = "기본 이동 (속도 1.92 | 완화된 탄퍼짐)";
         actionUI.style.color = "#aaa";
     }
 
