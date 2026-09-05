@@ -111,7 +111,7 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
 const BASE_SPEED = 1.92; 
-const MAX_SPRINT_SPEED = BASE_SPEED * 2.1;
+const MAX_SPRINT_SPEED = 1.8; // 전력질주 속도 설정 (1.8)
 
 const myPlayer = {
     x: SAFEZONE.x, y: SAFEZONE.y,
@@ -128,8 +128,7 @@ const myPlayer = {
     
     isSprinting: false,
     sprintProgress: 0,
-    isDecelerating: false,
-    canShoot: true
+    isDecelerating: false
 };
 
 const otherPlayer = {
@@ -249,7 +248,6 @@ function initEvents() {
         if (e.key === 'Shift') {
             myPlayer.isSprinting = true;
             myPlayer.isDecelerating = false;
-            myPlayer.canShoot = false;
         }
     });
 
@@ -295,31 +293,34 @@ function initEvents() {
 }
 
 function shoot() {
-    if (!myPlayer.canShoot) return;
-
     const distFromCenter = Math.hypot(myPlayer.x - SAFEZONE.x, myPlayer.y - SAFEZONE.y);
     if(distFromCenter < SAFEZONE.radius) return;
 
     myPlayer.inPVP = true;
 
     let shootAngle = myPlayer.angle;
-    let speed = 50; 
+    let bulletSpeed = 50; 
 
+    // 이동 속도에 비례하는 탄퍼짐 연산
+    let spreadFactor = 0.05; // 기본 탄퍼짐 (정지 상태)
+    
     if (myPlayer.isAiming) {
-        speed = 50;
-        const spread = (Math.random() - 0.5) * 0.08;
-        shootAngle += spread;
+        spreadFactor = 0.08; // 조준 시 낮은 탄퍼짐
+        bulletSpeed = 50;
     } else {
-        speed = 50 * 1.7; 
-        const spread = (Math.random() - 0.5) * 0.6;
-        shootAngle += spread;
+        bulletSpeed = 50 * 1.7;
+        // 속도가 빠를수록 탄퍼짐 기하급수적 증가
+        spreadFactor = 0.2 + (myPlayer.currentSpeed / BASE_SPEED) * 0.45; 
     }
+
+    const spread = (Math.random() - 0.5) * spreadFactor;
+    shootAngle += spread;
 
     const bullet = {
         x: myPlayer.x, y: myPlayer.y,
         prevX: myPlayer.x, prevY: myPlayer.y,
-        dx: Math.cos(shootAngle) * speed,
-        dy: Math.sin(shootAngle) * speed,
+        dx: Math.cos(shootAngle) * bulletSpeed,
+        dy: Math.sin(shootAngle) * bulletSpeed,
         owner: myPlayer.name
     };
     bullets.push(bullet);
@@ -359,29 +360,26 @@ function checkObstacleCollision(x, y, radius) {
 }
 
 function update() {
-    // 1. 달리기 속도
+    // 1. 전력질주 및 속도 조율 (최대 속도 1.8 적용)
     if (myPlayer.isSprinting) {
-        myPlayer.sprintProgress = Math.min(1, myPlayer.sprintProgress + 0.025);
+        myPlayer.sprintProgress = Math.min(1, myPlayer.sprintProgress + 0.05);
         myPlayer.currentSpeed = BASE_SPEED + (MAX_SPRINT_SPEED - BASE_SPEED) * myPlayer.sprintProgress;
     } else if (myPlayer.isDecelerating) {
-        myPlayer.sprintProgress = Math.max(0, myPlayer.sprintProgress - 0.033);
+        myPlayer.sprintProgress = Math.max(0, myPlayer.sprintProgress - 0.05);
         myPlayer.currentSpeed = BASE_SPEED + (MAX_SPRINT_SPEED - BASE_SPEED) * myPlayer.sprintProgress;
 
         if (myPlayer.sprintProgress <= 0) {
             myPlayer.isDecelerating = false;
-            myPlayer.canShoot = true;
             myPlayer.currentSpeed = BASE_SPEED;
         }
     } else if (myPlayer.isAiming) {
         myPlayer.currentSpeed = 0.3;
-        myPlayer.canShoot = true;
     } else {
         myPlayer.currentSpeed = BASE_SPEED;
-        myPlayer.canShoot = true;
     }
 
-    // 2. 사격
-    if (myPlayer.isShooting && myPlayer.canShoot) {
+    // 2. 사격 (달리기 중에도 발사 가능)
+    if (myPlayer.isShooting) {
         const now = Date.now();
         if (now - myPlayer.lastShootTime >= myPlayer.shootCooldown) {
             shoot();
@@ -389,12 +387,22 @@ function update() {
         }
     }
 
-    // 3. 이동
-    let dx = 0, dy = 0;
-    if (keys['w'] || keys['w']) dy -= myPlayer.currentSpeed;
-    if (keys['s'] || keys['s']) dy += myPlayer.currentSpeed;
-    if (keys['a'] || keys['a']) dx -= myPlayer.currentSpeed;
-    if (keys['d'] || keys['d']) dx += myPlayer.currentSpeed;
+    // 3. 이동 및 대각선 속도 정규화 (대각선 버그 수정)
+    let dirX = 0, dirY = 0;
+    if (keys['w'] || keys['w']) dirY -= 1;
+    if (keys['s'] || keys['s']) dirY += 1;
+    if (keys['a'] || keys['a']) dirX -= 1;
+    if (keys['d'] || keys['d']) dirX += 1;
+
+    // 대각선 이동 시 길이를 1로 정규화
+    if (dirX !== 0 && dirY !== 0) {
+        const len = Math.hypot(dirX, dirY);
+        dirX /= len;
+        dirY /= len;
+    }
+
+    let dx = dirX * myPlayer.currentSpeed;
+    let dy = dirY * myPlayer.currentSpeed;
 
     let nextX = myPlayer.x + dx;
     let nextY = myPlayer.y + dy;
@@ -412,13 +420,13 @@ function update() {
         myPlayer.y = SAFEZONE.y + Math.sin(angle) * (SAFEZONE.radius + 15);
     }
 
-    // 마우스 조준 및 카메라 줌 계산
+    // 4. 카메라 및 조준
     const screenCenterX = canvas.width / 2;
     const screenCenterY = canvas.height / 2;
     
     let targetCamX = myPlayer.x;
     let targetCamY = myPlayer.y;
-    let targetZoom = 1.0; // 기본 배율
+    let targetZoom = 1.0;
 
     if (myPlayer.isAiming) {
         const mouseOffsetX = (mouse.x - screenCenterX) * 0.45; 
@@ -438,19 +446,17 @@ function update() {
         targetCamX += actualOffsetX;
         targetCamY += actualOffsetY;
 
-        // 마우스와 멀어지는 오프셋 거리에 비례하여 줌인(확대) 수행 (시야 범위 유지)
         const offsetDist = Math.hypot(actualOffsetX, actualOffsetY);
-        targetZoom = 1.0 + (offsetDist / maxOffset) * 0.28; // 최대 1.28배 확대
+        targetZoom = 1.0 + (offsetDist / maxOffset) * 0.28;
     }
 
-    // 카메라 위치 및 배율 스무딩
     camera.x += (targetCamX - camera.x) * 0.1;
     camera.y += (targetCamY - camera.y) * 0.1;
     camera.zoom += (targetZoom - camera.zoom) * 0.1;
 
     myPlayer.angle = Math.atan2((camera.y + (mouse.y - screenCenterY) / camera.zoom) - myPlayer.y, (camera.x + (mouse.x - screenCenterX) / camera.zoom) - myPlayer.x);
 
-    // 4. HUD
+    // 5. HUD
     const inSafe = distToCenter < SAFEZONE.radius;
     document.getElementById('zoneStatus').innerText = inSafe ? "[안전 지대]" : "[PVP 가능 지역]";
     document.getElementById('zoneStatus').style.color = inSafe ? "#00ffcc" : "#ff4444";
@@ -466,20 +472,17 @@ function update() {
 
     const actionUI = document.getElementById('actionStatus');
     if (myPlayer.isSprinting) {
-        actionUI.innerText = "질주 중 (사격 불가)";
+        actionUI.innerText = "질주 중 (속도 1.8 | 탄퍼짐 매우 극심)";
         actionUI.style.color = "#ffcc00";
-    } else if (myPlayer.isDecelerating) {
-        actionUI.innerText = "감속 중 (사격 불가)";
-        actionUI.style.color = "#ff6600";
     } else if (myPlayer.isAiming) {
-        actionUI.innerText = "정밀 조준 (속도 0.3 | 시야범위 유지 줌인)";
+        actionUI.innerText = "정밀 조준 (속도 0.3 | 집탄도 최상)";
         actionUI.style.color = "#00ffcc";
     } else {
-        actionUI.innerText = "기본 이동 (속도 1.92 | 탄퍼짐 적용)";
+        actionUI.innerText = "기본 이동 (속도 1.92 | 이동 탄퍼짐)";
         actionUI.style.color = "#aaa";
     }
 
-    // 5. 총알 이동 및 충돌
+    // 6. 총알 이동 및 충돌
     for (let i = bullets.length - 1; i >= 0; i--) {
         const b = bullets[i];
         b.prevX = b.x;
@@ -519,7 +522,6 @@ function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     ctx.save();
-    // 화면 중심점 기준으로 배율(Zoom) 적용 및 카메라 변환
     ctx.translate(canvas.width / 2, canvas.height / 2);
     ctx.scale(camera.zoom, camera.zoom);
     ctx.translate(-camera.x, -camera.y);
