@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>5자리 숫자 코드 멀티플레이 슈팅 게임</title>
+    <title>GitHub 멀티플레이어 슈팅 게임</title>
     <style>
         body {
             margin: 0;
@@ -17,83 +17,65 @@
         }
         #ui {
             background: #222;
-            padding: 25px;
+            padding: 20px;
             border-radius: 8px;
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 10px;
             align-items: center;
-            box-shadow: 0 0 15px rgba(0,0,0,0.6);
-            width: 320px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
         }
         input {
             padding: 10px;
-            font-size: 16px;
+            font-size: 14px;
             border-radius: 4px;
             border: 1px solid #444;
             text-align: center;
-            width: 90%;
-            background: #333;
-            color: white;
         }
         button {
-            padding: 12px;
-            font-size: 15px;
+            padding: 10px 20px;
+            font-size: 14px;
             background-color: #00ffcc;
             border: none;
             border-radius: 4px;
             cursor: pointer;
             font-weight: bold;
             color: #000;
-            width: 100%;
-        }
-        button:hover {
-            background-color: #00cc88;
         }
         canvas {
             border: 2px solid #ffffff;
             background-color: #111111;
             display: none;
         }
-        .code-display {
-            font-size: 20px;
-            font-weight: bold;
-            color: #00ffcc;
-            margin: 5px 0;
+        #myIdText {
+            font-size: 12px;
+            color: #aaa;
+            word-break: break-all;
         }
     </style>
-    <!-- PeerJS 라이브러리 -->
+    <!-- PeerJS 실시간 P2P 통신 라이브러리 -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 </head>
 <body>
 
 <div id="ui">
-    <h2>2D 멀티 슈팅</h2>
+    <h2>닉네임 및 방 접속</h2>
     <input type="text" id="nicknameInput" placeholder="닉네임 입력" maxlength="10">
+    <p id="myIdText">내 접속 코드 생성 중...</p>
     
-    <button onclick="createRoom()">5자리 방 만들기</button>
-    
-    <div id="roomCodeArea" style="display:none; text-align:center;">
-        <span>방 코드: </span>
-        <div id="roomCodeDisplay" class="code-display">00000</div>
-        <p style="font-size:12px; color:#aaa; margin:2px 0;">상대방이 접속할 때까지 기다려주세요...</p>
-    </div>
-
-    <hr style="width:100%; border-color:#444; margin: 10px 0;">
-    
-    <input type="text" id="joinIdInput" placeholder="5자리 숫자 코드 입력" maxlength="5">
-    <button onclick="joinRoom()" style="background-color: #ffcc00;">참가하기</button>
+    <button onclick="createRoom()">방 만들기 (혼자하기/호스트)</button>
+    <hr style="width:100%; border-color:#444;">
+    <input type="text" id="joinIdInput" placeholder="상대방 접속 코드 입력">
+    <button onclick="joinRoom()">상대방 방에 참가하기</button>
 </div>
 
 <canvas id="gameCanvas" width="800" height="600"></canvas>
 
 <script>
-// 5자리 접두사 (PeerJS 공용 서버 식별용)
-const PREFIX = "gun-game- room-5num-";
-
 let peer = null;
 let conn = null;
 let myNickname = "플레이어";
+let isHost = false;
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -105,74 +87,46 @@ const keys = {};
 const mouse = { x: 0, y: 0 };
 const bullets = [];
 
-// 5자리 무작위 숫자 생성 함수
-function generate5DigitCode() {
-    return Math.floor(10000 + Math.random() * 90000).toString();
-}
+// PeerJS 초기화
+peer = new Peer();
 
-// 방 만들기 (호스트)
+peer.on('open', (id) => {
+    document.getElementById('myIdText').innerText = `내 접속 코드: ${id}`;
+});
+
+// 상대방이 접속했을 때 (내가 방장일 때)
+peer.on('connection', (connection) => {
+    conn = connection;
+    isHost = true;
+    setupConnection();
+});
+
 function createRoom() {
     myNickname = document.getElementById('nicknameInput').value.trim() || "호스트";
     myPlayer.name = myNickname;
     myPlayer.x = 100;
-
-    const roomCode = generate5DigitCode();
-    const fullPeerId = PREFIX + roomCode;
-
-    peer = new Peer(fullPeerId);
-
-    peer.on('open', (id) => {
-        document.getElementById('roomCodeDisplay').innerText = roomCode;
-        document.getElementById('roomCodeArea').style.display = 'block';
-    });
-
-    peer.on('connection', (connection) => {
-        conn = connection;
-        setupConnection();
-        startGameUI();
-    });
-
-    peer.on('error', (err) => {
-        if (err.type === 'unavailable-id') {
-            alert('중복된 코드입니다. 다시 시도해주세요.');
-            location.reload();
-        } else {
-            alert('오류 발생: ' + err.type);
-        }
-    });
+    
+    document.getElementById('ui').style.display = 'none';
+    canvas.style.display = 'block';
+    
+    initGameEvents();
 }
 
-// 방 참가하기 (게스트)
 function joinRoom() {
-    const inputCode = document.getElementById('joinIdInput').value.trim();
-    if (inputCode.length !== 5 || isNaN(inputCode)) {
-        return alert('5자리 숫자를 정확히 입력해주세요.');
-    }
+    const targetId = document.getElementById('joinIdInput').value.trim();
+    if (!targetId) return alert('상대방 접속 코드를 입력하세요.');
 
     myNickname = document.getElementById('nicknameInput').value.trim() || "게스트";
     myPlayer.name = myNickname;
     myPlayer.x = 700;
 
-    peer = new Peer(); // 랜덤 ID로 게스트 접속
+    conn = peer.connect(targetId);
+    isHost = false;
+    setupConnection();
 
-    peer.on('open', () => {
-        const targetFullId = PREFIX + inputCode;
-        conn = peer.connect(targetFullId);
-
-        conn.on('open', () => {
-            setupConnection();
-            startGameUI();
-        });
-
-        conn.on('error', () => {
-            alert('방을 찾을 수 없거나 접속할 수 없습니다.');
-        });
-    });
-}
-
-function startGameUI() {
     document.getElementById('ui').style.display = 'none';
     canvas.style.display = 'block';
+    
     initGameEvents();
 }
 
@@ -199,7 +153,7 @@ function initGameEvents() {
     });
     canvas.addEventListener('click', shoot);
 
-    // 내 위치/상태를 상대방에게 동기화 (초당 30회)
+    // 내 상태 상대방에게 전송 (초당 30회)
     setInterval(() => {
         if (conn && conn.open) {
             conn.send({
@@ -230,7 +184,7 @@ function shoot() {
 }
 
 function update() {
-    // WASD 이동
+    // 이동
     if (keys['w'] || keys['W']) myPlayer.y -= 4;
     if (keys['s'] || keys['S']) myPlayer.y += 4;
     if (keys['a'] || keys['A']) myPlayer.x -= 4;
@@ -239,7 +193,7 @@ function update() {
     // 조준 각도
     myPlayer.angle = Math.atan2(mouse.y - myPlayer.y, mouse.x - myPlayer.x);
 
-    // 총알 위치 이동 및 제거
+    // 총알 이동
     for (let i = bullets.length - 1; i >= 0; i--) {
         const b = bullets[i];
         b.x += b.dx;
@@ -254,13 +208,13 @@ function drawPlayer(p) {
     ctx.save();
     ctx.translate(p.x, p.y);
     
-    // 닉네임 표시
+    // 닉네임
     ctx.fillStyle = '#ffffff';
     ctx.font = '12px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(p.name, 0, -25);
 
-    // 캐릭터 및 총구 그리기
+    // 캐릭터
     ctx.rotate(p.angle);
     ctx.fillStyle = p.color;
     ctx.beginPath();
@@ -273,7 +227,7 @@ function drawPlayer(p) {
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 캐릭터 그리기
+    // 플레이어그리기
     drawPlayer(myPlayer);
     if (conn && conn.open) drawPlayer(otherPlayer);
 
