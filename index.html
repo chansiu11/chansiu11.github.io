@@ -86,17 +86,16 @@
 
 <div id="statusHUD">
     <span id="zoneStatus" style="color: #00ffcc;">[안전 지대]</span> | 
-    PVP 상태: <span id="pvpTimer">OFF</span>
+    PVP 상태: <span id="pvpTimer">OFF</span> | 
+    조준 상태: <span id="aimStatus" style="color: #aaa;">지향 사격</span>
 </div>
 
 <canvas id="gameCanvas" width="900" height="700"></canvas>
 
 <script>
 const WORLD_SIZE = 2400; 
-// 세이프존 크기 반으로 축소 (400 -> 200)
 const SAFEZONE = { x: WORLD_SIZE / 2, y: WORLD_SIZE / 2, radius: 200 };
 
-// 장애물 목록
 const obstacles = [
     { x: 800, y: 800, w: 250, h: 50 },
     { x: 1400, y: 800, w: 50, h: 250 },
@@ -118,7 +117,8 @@ const myPlayer = {
     hp: 100, maxHp: 100,
     name: '플레이어',
     color: '#00ffcc',
-    inPVP: false // 죽기 전까지 영구 전투 상태 유지 변수
+    inPVP: false,
+    isAiming: false // 정밀 조준(우클릭) 상태 여부
 };
 
 const otherPlayer = {
@@ -163,10 +163,8 @@ function joinRoom() {
 
     peer = new Peer();
     peer.on('open', () => {
-        // 코드 비워두면 공용서버 ID로 접속
         const targetPeerId = input === "" ? PUBLIC_ROOM_ID : 'gungame-room-' + input;
         
-        // 공용 서버 호스트 시도
         if(input === "") {
             const hostPeer = new Peer(PUBLIC_ROOM_ID);
             hostPeer.on('open', () => {
@@ -179,7 +177,6 @@ function joinRoom() {
                 startGame();
             });
             hostPeer.on('error', (err) => {
-                // 이미 공용 호스트가 존재하면 해당 호스트에 접속
                 if(err.type === 'unavailable-id') {
                     conn = peer.connect(PUBLIC_ROOM_ID);
                     conn.on('open', () => {
@@ -216,9 +213,8 @@ function setupConnection() {
             bullets.push(data.bullet);
         } else if(data.type === 'hit') {
             myPlayer.hp -= data.damage;
-            myPlayer.inPVP = true; // 대미지 받으면 전투 상태 돌입
+            myPlayer.inPVP = true;
             
-            // 사망 시 리스폰 및 전투 상태 해제
             if(myPlayer.hp <= 0) {
                 alert("사망하셨습니다! 세이프존에서 리스폰합니다.");
                 respawnPlayer();
@@ -231,18 +227,35 @@ function respawnPlayer() {
     myPlayer.hp = myPlayer.maxHp;
     myPlayer.x = SAFEZONE.x;
     myPlayer.y = SAFEZONE.y;
-    myPlayer.inPVP = false; // 사망해야만 전투 상태 해제
+    myPlayer.inPVP = false;
 }
 
 function initEvents() {
     window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
     window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+    
     canvas.addEventListener('mousemove', e => {
         const rect = canvas.getBoundingClientRect();
         mouse.x = e.clientX - rect.left;
         mouse.y = e.clientY - rect.top;
     });
-    canvas.addEventListener('click', shoot);
+
+    // 마우스 우클릭 기본 메뉴 차단 및 우클릭 조준 설정
+    canvas.addEventListener('contextmenu', e => e.preventDefault());
+    
+    canvas.addEventListener('mousedown', e => {
+        if (e.button === 2) { // 우클릭
+            myPlayer.isAiming = true;
+        } else if (e.button === 0) { // 좌클릭 사격
+            shoot();
+        }
+    });
+
+    canvas.addEventListener('mouseup', e => {
+        if (e.button === 2) { // 우클릭 뗌
+            myPlayer.isAiming = false;
+        }
+    });
 
     setInterval(() => {
         if(conn && conn.open) {
@@ -257,15 +270,26 @@ function shoot() {
     const distFromCenter = Math.hypot(myPlayer.x - SAFEZONE.x, myPlayer.y - SAFEZONE.y);
     if(distFromCenter < SAFEZONE.radius) return;
 
-    myPlayer.inPVP = true; // 공격 시 사망 전까지 전투 상태 유지
+    myPlayer.inPVP = true;
 
-    // 총알 속도 50으로 설정
-    const speed = 50;
+    let shootAngle = myPlayer.angle;
+    let speed = 50; // 기본 속도 (조준 시 적용)
+
+    if (myPlayer.isAiming) {
+        // 정밀 조준 시: 기존 속도(50) + 탄퍼짐 없음
+        speed = 50;
+    } else {
+        // 일반 지향 사격 시: 1.7배 속도(85) + 탄퍼짐 발생
+        speed = 50 * 1.7; 
+        const spread = (Math.random() - 0.5) * 0.25; // 탄퍼짐 오차 범위
+        shootAngle += spread;
+    }
+
     const bullet = {
         x: myPlayer.x, y: myPlayer.y,
         prevX: myPlayer.x, prevY: myPlayer.y,
-        dx: Math.cos(myPlayer.angle) * speed,
-        dy: Math.sin(myPlayer.angle) * speed,
+        dx: Math.cos(shootAngle) * speed,
+        dy: Math.sin(shootAngle) * speed,
         owner: myPlayer.name
     };
     bullets.push(bullet);
@@ -275,7 +299,6 @@ function shoot() {
     }
 }
 
-// 점이 사각형 장애물 내부에 있는지 확인
 function pointInObstacle(px, py) {
     for (let obs of obstacles) {
         if (px >= obs.x && px <= obs.x + obs.w && py >= obs.y && py <= obs.y + obs.h) {
@@ -285,7 +308,6 @@ function pointInObstacle(px, py) {
     return false;
 }
 
-// 총알 이동 궤적 선분과 사각형 장애물의 충돌 검사 (벽 뚫기 완전 방지)
 function bulletCollidesWithObstacle(x1, y1, x2, y2) {
     const steps = 10;
     for (let i = 0; i <= steps; i++) {
@@ -322,7 +344,6 @@ function update() {
     if (!checkObstacleCollision(nextX, myPlayer.y, 15)) myPlayer.x = nextX;
     if (!checkObstacleCollision(myPlayer.x, nextY, 15)) myPlayer.y = nextY;
 
-    // 전투 중인 경우 세이프존 들어가지 못하도록 통제
     const distToCenter = Math.hypot(myPlayer.x - SAFEZONE.x, myPlayer.y - SAFEZONE.y);
     if (myPlayer.inPVP && distToCenter < SAFEZONE.radius + 15) {
         const angle = Math.atan2(myPlayer.y - SAFEZONE.y, myPlayer.x - SAFEZONE.x);
@@ -348,7 +369,17 @@ function update() {
         pvpUI.style.color = "#aaa";
     }
 
-    // 총알 이동 및 벽 충돌 검사
+    // 조준 상태 HUD 표시
+    const aimUI = document.getElementById('aimStatus');
+    if(myPlayer.isAiming) {
+        aimUI.innerText = "정밀 조준 (탄퍼짐 없음)";
+        aimUI.style.color = "#00ffcc";
+    } else {
+        aimUI.innerText = "지향 사격 (탄퍼짐 있음)";
+        aimUI.style.color = "#aaa";
+    }
+
+    // 총알 이동 및 충돌
     for (let i = bullets.length - 1; i >= 0; i--) {
         const b = bullets[i];
         b.prevX = b.x;
@@ -356,18 +387,16 @@ function update() {
         b.x += b.dx;
         b.y += b.dy;
 
-        // 속도가 빠른 총알이 벽을 통과하지 못하도록 선분 정밀 충돌 처리
         if (bulletCollidesWithObstacle(b.prevX, b.prevY, b.x, b.y)) {
             bullets.splice(i, 1);
             continue;
         }
 
-        // 상대방에게 명중
         if(b.owner !== myPlayer.name && !inSafe) {
             const hitDist = Math.hypot(b.x - myPlayer.x, b.y - myPlayer.y);
             if(hitDist < 18) {
                 myPlayer.hp -= 20;
-                myPlayer.inPVP = true; // 피격 시 전투 상태 유지
+                myPlayer.inPVP = true;
                 bullets.splice(i, 1);
                 
                 if(conn && conn.open) conn.send({ type: 'hit', damage: 20 });
@@ -405,7 +434,7 @@ function draw() {
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(WORLD_SIZE, y); ctx.stroke();
     }
 
-    // 장애물 그리기
+    // 장애물
     ctx.fillStyle = '#444444';
     ctx.strokeStyle = '#777777';
     ctx.lineWidth = 3;
@@ -419,7 +448,7 @@ function draw() {
     ctx.lineWidth = 5;
     ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
 
-    // 세이프존 (축소된 크기)
+    // 세이프존
     ctx.beginPath();
     ctx.arc(SAFEZONE.x, SAFEZONE.y, SAFEZONE.radius, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(0, 255, 200, 0.12)';
@@ -428,22 +457,17 @@ function draw() {
     ctx.lineWidth = 3;
     ctx.stroke();
 
-    // 날아가는 총알 및 선명한 궤적 잔상 그리기
+    // 총알 점(텍스쳐)을 없애고 선명한 선(궤적)만 표시
     bullets.forEach(b => {
         ctx.beginPath();
         ctx.moveTo(b.prevX, b.prevY);
         ctx.lineTo(b.x, b.y);
         ctx.strokeStyle = '#ffcc00';
-        ctx.lineWidth = 4;
+        ctx.lineWidth = 3;
         ctx.stroke();
-
-        ctx.beginPath();
-        ctx.arc(b.x, b.y, 6, 0, Math.PI * 2);
-        ctx.fillStyle = '#ffff00';
-        ctx.fill();
     });
 
-    // 플레이어
+    // 플레이어 그리기
     drawEntity(myPlayer);
     if (conn && conn.open) drawEntity(otherPlayer);
 
@@ -469,7 +493,6 @@ function drawEntity(p) {
     ctx.textAlign = 'center';
     ctx.fillText(p.name, 0, -42);
 
-    // 전투 중 표시 테두리
     if(p.inPVP) {
         ctx.beginPath();
         ctx.arc(0, 0, 20, 0, Math.PI * 2);
