@@ -87,7 +87,7 @@
 <div id="statusHUD">
     <span id="zoneStatus" style="color: #00ffcc;">[안전 지대]</span> | 
     PVP 상태: <span id="pvpTimer">OFF</span> | 
-    조준 상태: <span id="aimStatus" style="color: #aaa;">지향 사격</span>
+    상태: <span id="actionStatus" style="color: #aaa;">기본 이동</span>
 </div>
 
 <canvas id="gameCanvas" width="900" height="700"></canvas>
@@ -110,20 +110,27 @@ let peer = null, conn = null;
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-const BASE_SPEED = 0.96; // 기존 0.8의 1.2배
+const BASE_SPEED = 1.92; // 기본 속도 2배 (0.96 * 2)
+const MAX_SPRINT_SPEED = BASE_SPEED * 3; // 달리기 최대 속도 (3배)
 
 const myPlayer = {
     x: SAFEZONE.x, y: SAFEZONE.y,
     angle: 0,
-    speed: BASE_SPEED,
+    currentSpeed: BASE_SPEED,
     hp: 100, maxHp: 100,
     name: '플레이어',
     color: '#00ffcc',
     inPVP: false,
     isAiming: false,
-    isShooting: false,  // 마우스 좌클릭 누름 상태
-    lastShootTime: 0,   // 연사 쿨타임 측정
-    shootCooldown: 120  // 연사 간격 (ms 단위, 120ms마다 1발)
+    isShooting: false,
+    lastShootTime: 0,
+    shootCooldown: 120,
+    
+    // 달리기 관련 상태
+    isSprinting: false,    // Shift 누름 여부
+    sprintProgress: 0,     // 가속 비율 (0 ~ 1)
+    isDecelerating: false, // 감속 진행 중 여부
+    canShoot: true         // 사격 가능 상태 여부
 };
 
 const otherPlayer = {
@@ -236,8 +243,22 @@ function respawnPlayer() {
 }
 
 function initEvents() {
-    window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
-    window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+    window.addEventListener('keydown', e => {
+        keys[e.key.toLowerCase()] = true;
+        if (e.key === 'Shift') {
+            myPlayer.isSprinting = true;
+            myPlayer.isDecelerating = false;
+            myPlayer.canShoot = false; // 달리는 즉시 사격 불가
+        }
+    });
+
+    window.addEventListener('keyup', e => {
+        keys[e.key.toLowerCase()] = false;
+        if (e.key === 'Shift') {
+            myPlayer.isSprinting = false;
+            myPlayer.isDecelerating = true; // Shift를 떼면 감속 모드 전환
+        }
+    });
     
     canvas.addEventListener('mousemove', e => {
         const rect = canvas.getBoundingClientRect();
@@ -248,19 +269,17 @@ function initEvents() {
     canvas.addEventListener('contextmenu', e => e.preventDefault());
     
     canvas.addEventListener('mousedown', e => {
-        if (e.button === 2) { // 우클릭: 조준 + 속도 0.5로 감소
+        if (e.button === 2) { 
             myPlayer.isAiming = true;
-            myPlayer.speed = 0.5;
-        } else if (e.button === 0) { // 좌클릭: 누르고 있으면 연사 시작
+        } else if (e.button === 0) { 
             myPlayer.isShooting = true;
         }
     });
 
     canvas.addEventListener('mouseup', e => {
-        if (e.button === 2) { // 우클릭 뗌: 조준 해제 + 기본 속도 복귀
+        if (e.button === 2) { 
             myPlayer.isAiming = false;
-            myPlayer.speed = BASE_SPEED;
-        } else if (e.button === 0) { // 좌클릭 뗌: 연사 중지
+        } else if (e.button === 0) { 
             myPlayer.isShooting = false;
         }
     });
@@ -275,6 +294,9 @@ function initEvents() {
 }
 
 function shoot() {
+    // 달리기 중이거나 감속 중일 때는 사격 불가
+    if (!myPlayer.canShoot) return;
+
     const distFromCenter = Math.hypot(myPlayer.x - SAFEZONE.x, myPlayer.y - SAFEZONE.y);
     if(distFromCenter < SAFEZONE.radius) return;
 
@@ -284,14 +306,14 @@ function shoot() {
     let speed = 50; 
 
     if (myPlayer.isAiming) {
-        speed = 50;
+        speed = 50; // 조준 시 속도 그대로, 탄퍼짐 없음
     } else {
         speed = 50 * 1.7; 
-        const spread = (Math.random() - 0.5) * 0.25;
+        // 탄퍼짐 범위 대폭 확대 (기존 0.25 -> 0.6)
+        const spread = (Math.random() - 0.5) * 0.6;
         shootAngle += spread;
     }
 
-    // 단발 사격 1발 생성
     const bullet = {
         x: myPlayer.x, y: myPlayer.y,
         prevX: myPlayer.x, prevY: myPlayer.y,
@@ -336,8 +358,34 @@ function checkObstacleCollision(x, y, radius) {
 }
 
 function update() {
-    // 자동 연사 로직 (누르고 있을 때 주기적으로 1발씩 발사)
-    if (myPlayer.isShooting) {
+    // 1. 달리기 가속 및 감속 처리 (60fps 기준)
+    if (myPlayer.isSprinting) {
+        // Shift 누르고 있을 때: 0.8초만에 3배 속도로 가속
+        myPlayer.sprintProgress = Math.min(1, myPlayer.sprintProgress + 0.02);
+        myPlayer.currentSpeed = BASE_SPEED + (MAX_SPRINT_SPEED - BASE_SPEED) * myPlayer.sprintProgress;
+    } else if (myPlayer.isDecelerating) {
+        // Shift 뗐을 때: 0.5초 동안 점점 줄어듦 (약 30프레임 동안 감속)
+        myPlayer.sprintProgress = Math.max(0, myPlayer.sprintProgress - 0.033);
+        myPlayer.currentSpeed = BASE_SPEED + (MAX_SPRINT_SPEED - BASE_SPEED) * myPlayer.sprintProgress;
+
+        // 속도가 완전히 줄어들면 다시 쏠 수 있음
+        if (myPlayer.sprintProgress <= 0) {
+            myPlayer.isDecelerating = false;
+            myPlayer.canShoot = true;
+            myPlayer.currentSpeed = BASE_SPEED;
+        }
+    } else if (myPlayer.isAiming) {
+        // 우클릭 조준 시 속도 0.3
+        myPlayer.currentSpeed = 0.3;
+        myPlayer.canShoot = true;
+    } else {
+        // 기본 속도 1.92
+        myPlayer.currentSpeed = BASE_SPEED;
+        myPlayer.canShoot = true;
+    }
+
+    // 2. 사격 처리
+    if (myPlayer.isShooting && myPlayer.canShoot) {
         const now = Date.now();
         if (now - myPlayer.lastShootTime >= myPlayer.shootCooldown) {
             shoot();
@@ -345,11 +393,12 @@ function update() {
         }
     }
 
+    // 3. 이동 처리
     let dx = 0, dy = 0;
-    if (keys['w'] || keys['W']) dy -= myPlayer.speed;
-    if (keys['s'] || keys['S']) dy += myPlayer.speed;
-    if (keys['a'] || keys['A']) dx -= myPlayer.speed;
-    if (keys['d'] || keys['D']) dx += myPlayer.speed;
+    if (keys['w'] || keys['w']) dy -= myPlayer.currentSpeed;
+    if (keys['s'] || keys['s']) dy += myPlayer.currentSpeed;
+    if (keys['a'] || keys['a']) dx -= myPlayer.currentSpeed;
+    if (keys['d'] || keys['d']) dx += myPlayer.currentSpeed;
 
     let nextX = myPlayer.x + dx;
     let nextY = myPlayer.y + dy;
@@ -371,7 +420,7 @@ function update() {
     const screenCenterY = canvas.height / 2;
     myPlayer.angle = Math.atan2(mouse.y - screenCenterY, mouse.x - screenCenterX);
 
-    // HUD 정보 업데이트
+    // 4. HUD 업데이트
     const inSafe = distToCenter < SAFEZONE.radius;
     document.getElementById('zoneStatus').innerText = inSafe ? "[안전 지대]" : "[PVP 가능 지역]";
     document.getElementById('zoneStatus').style.color = inSafe ? "#00ffcc" : "#ff4444";
@@ -385,16 +434,22 @@ function update() {
         pvpUI.style.color = "#aaa";
     }
 
-    const aimUI = document.getElementById('aimStatus');
-    if(myPlayer.isAiming) {
-        aimUI.innerText = "정밀 조준 (속도 0.5 | 탄퍼짐 없음)";
-        aimUI.style.color = "#00ffcc";
+    const actionUI = document.getElementById('actionStatus');
+    if (myPlayer.isSprinting) {
+        actionUI.innerText = "질주 중 (사격 불가 / 가속 중)";
+        actionUI.style.color = "#ffcc00";
+    } else if (myPlayer.isDecelerating) {
+        actionUI.innerText = "감속 중 (사격 불가)";
+        actionUI.style.color = "#ff6600";
+    } else if (myPlayer.isAiming) {
+        actionUI.innerText = "정밀 조준 (속도 0.3 | 집탄도 최고)";
+        actionUI.style.color = "#00ffcc";
     } else {
-        aimUI.innerText = "지향 사격 (속도 0.96 | 탄퍼짐 있음)";
-        aimUI.style.color = "#aaa";
+        actionUI.innerText = "기본 이동 (속도 1.92 | 큰 탄퍼짐)";
+        actionUI.style.color = "#aaa";
     }
 
-    // 총알 이동 및 충돌
+    // 5. 총알 이동 및 충돌
     for (let i = bullets.length - 1; i >= 0; i--) {
         const b = bullets[i];
         b.prevX = b.x;
