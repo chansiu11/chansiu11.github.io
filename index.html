@@ -18,7 +18,7 @@
         }
         #ui {
             position: absolute;
-            background: rgba(20, 20, 20, 0.9);
+            background: rgba(20, 20, 20, 0.95);
             padding: 25px;
             border-radius: 12px;
             display: flex;
@@ -26,12 +26,12 @@
             gap: 12px;
             align-items: center;
             box-shadow: 0 0 20px rgba(0,0,0,0.8);
-            width: 300px;
+            width: 320px;
             z-index: 10;
         }
         input {
             padding: 10px;
-            font-size: 16px;
+            font-size: 15px;
             border-radius: 6px;
             border: 1px solid #444;
             text-align: center;
@@ -80,7 +80,7 @@
 
     <hr style="width:100%; border-color:#444; margin: 5px 0;">
     
-    <input type="text" id="joinIdInput" placeholder="5자리 방 코드 입력" maxlength="5">
+    <input type="text" id="joinIdInput" placeholder="비워두면 기본 공용서버 접속" maxlength="5">
     <button onclick="joinRoom()" style="background-color: #ffcc00;">공동 서버 접속</button>
 </div>
 
@@ -92,21 +92,33 @@
 <canvas id="gameCanvas" width="900" height="700"></canvas>
 
 <script>
-const WORLD_SIZE = 2400; // 전체 대형 맵 크기
-const SAFEZONE = { x: WORLD_SIZE / 2, y: WORLD_SIZE / 2, radius: 400 }; // 세이프존 중앙 위치 및 반지름
+const WORLD_SIZE = 2400; // 대형 맵 크기
+const SAFEZONE = { x: WORLD_SIZE / 2, y: WORLD_SIZE / 2, radius: 400 };
+
+// 장애물(벽) 목록
+const obstacles = [
+    { x: 800, y: 800, w: 200, h: 40 },
+    { x: 1400, y: 800, w: 40, h: 200 },
+    { x: 800, y: 1500, w: 200, h: 40 },
+    { x: 1500, y: 1500, w: 150, h: 150 },
+    { x: 500, y: 1200, w: 40, h: 300 }
+];
+
+const DEFAULT_ROOM = "openworld-public-room";
 
 let peer = null, conn = null;
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-// 내 플레이어 데이터
+// 내 플레이어 데이터 (속도 5배 감소: 0.8)
 const myPlayer = {
     x: SAFEZONE.x, y: SAFEZONE.y,
     angle: 0,
+    speed: 0.8,
     hp: 100, maxHp: 100,
     name: '플레이어',
     color: '#00ffcc',
-    pvpTimer: 0 // PVP 유효 시간 (초)
+    pvpTimer: 0
 };
 
 // 상대 플레이어 데이터
@@ -123,7 +135,6 @@ const keys = {};
 const mouse = { x: 0, y: 0 };
 const bullets = [];
 
-// 무작위 5자리 코드 생성
 function generateShortId() {
     return Math.random().toString(36).substring(2, 7).toLowerCase();
 }
@@ -147,18 +158,22 @@ function createRoom() {
 }
 
 function joinRoom() {
-    const code = document.getElementById('joinIdInput').value.trim().toLowerCase();
-    if(code.length !== 5) return alert('5자리 코드를 입력해주세요.');
-    
+    const input = document.getElementById('joinIdInput').value.trim().toLowerCase();
     const nick = document.getElementById('nicknameInput').value.trim();
     if(nick) myPlayer.name = nick;
-    
+
+    // 빈칸이면 기본 공용서버 ID 사용
+    const targetPeerId = input === "" ? DEFAULT_ROOM : 'openworld-' + input;
+
     peer = new Peer();
     peer.on('open', () => {
-        conn = peer.connect('openworld-' + code);
+        conn = peer.connect(targetPeerId);
         conn.on('open', () => {
             setupConnection();
             startGame();
+        });
+        conn.on('error', () => {
+            alert('서버 접속에 실패했습니다. 코드 입력란을 확인하세요.');
         });
     });
 }
@@ -184,7 +199,7 @@ function setupConnection() {
 }
 
 function triggerPVP() {
-    myPlayer.pvpTimer = 5; // 5초간 PVP 전투 상태 유지
+    myPlayer.pvpTimer = 5;
 }
 
 function initEvents() {
@@ -197,12 +212,10 @@ function initEvents() {
     });
     canvas.addEventListener('click', shoot);
 
-    // 1초 타이머 (PVP 시간 차감)
     setInterval(() => {
         if(myPlayer.pvpTimer > 0) myPlayer.pvpTimer--;
     }, 1000);
 
-    // 네트워크 동기화 (초당 30회)
     setInterval(() => {
         if(conn && conn.open) {
             conn.send({ type: 'state', player: myPlayer });
@@ -213,18 +226,16 @@ function initEvents() {
 }
 
 function shoot() {
-    // 안전지대 밖에서만 총알 발사 가능
     const distFromCenter = Math.hypot(myPlayer.x - SAFEZONE.x, myPlayer.y - SAFEZONE.y);
-    if(distFromCenter < SAFEZONE.radius) {
-        return; // 세이프존 안에서는 공격 불가
-    }
+    if(distFromCenter < SAFEZONE.radius) return;
 
     triggerPVP();
 
+    // 총알 속도 10배 증가 (10 -> 100)
     const bullet = {
         x: myPlayer.x, y: myPlayer.y,
-        dx: Math.cos(myPlayer.angle) * 10,
-        dy: Math.sin(myPlayer.angle) * 10,
+        dx: Math.cos(myPlayer.angle) * 100,
+        dy: Math.sin(myPlayer.angle) * 100,
         owner: myPlayer.name
     };
     bullets.push(bullet);
@@ -234,12 +245,23 @@ function shoot() {
     }
 }
 
+// 사각형 장애물 충돌 검사
+function checkObstacleCollision(x, y, radius) {
+    for (let obs of obstacles) {
+        if (x + radius > obs.x && x - radius < obs.x + obs.w &&
+            y + radius > obs.y && y - radius < obs.y + obs.h) {
+            return true;
+        }
+    }
+    return false;
+}
+
 function update() {
     let dx = 0, dy = 0;
-    if (keys['w'] || keys['W']) dy -= 4;
-    if (keys['s'] || keys['S']) dy += 4;
-    if (keys['a'] || keys['A']) dx -= 4;
-    if (keys['d'] || keys['D']) dx += 4;
+    if (keys['w'] || keys['W']) dy -= myPlayer.speed;
+    if (keys['s'] || keys['S']) dy += myPlayer.speed;
+    if (keys['a'] || keys['A']) dx -= myPlayer.speed;
+    if (keys['d'] || keys['D']) dx += myPlayer.speed;
 
     let nextX = myPlayer.x + dx;
     let nextY = myPlayer.y + dy;
@@ -248,19 +270,19 @@ function update() {
     nextX = Math.max(20, Math.min(WORLD_SIZE - 20, nextX));
     nextY = Math.max(20, Math.min(WORLD_SIZE - 20, nextY));
 
+    // 장애물 충돌 체크 (이동 막기)
+    if (!checkObstacleCollision(nextX, myPlayer.y, 15)) myPlayer.x = nextX;
+    if (!checkObstacleCollision(myPlayer.x, nextY, 15)) myPlayer.y = nextY;
+
     // 세이프존 충돌 검사 (PVP 상태 시 진입 불가)
-    const distToCenter = Math.hypot(nextX - SAFEZONE.x, nextY - SAFEZONE.y);
+    const distToCenter = Math.hypot(myPlayer.x - SAFEZONE.x, myPlayer.y - SAFEZONE.y);
     if (myPlayer.pvpTimer > 0 && distToCenter < SAFEZONE.radius + 15) {
-        // 전투 상태일 때 세이프존 안으로 들어가려고 하면 튕겨냄
-        const angle = Math.atan2(nextY - SAFEZONE.y, nextX - SAFEZONE.x);
-        nextX = SAFEZONE.x + Math.cos(angle) * (SAFEZONE.radius + 15);
-        nextY = SAFEZONE.y + Math.sin(angle) * (SAFEZONE.radius + 15);
+        const angle = Math.atan2(myPlayer.y - SAFEZONE.y, myPlayer.x - SAFEZONE.x);
+        myPlayer.x = SAFEZONE.x + Math.cos(angle) * (SAFEZONE.radius + 15);
+        myPlayer.y = SAFEZONE.y + Math.sin(angle) * (SAFEZONE.radius + 15);
     }
 
-    myPlayer.x = nextX;
-    myPlayer.y = nextY;
-
-    // 화면 중앙 기준 마우스 방향으로 각도 계산
+    // 마우스 바라보기 각도
     const screenCenterX = canvas.width / 2;
     const screenCenterY = canvas.height / 2;
     myPlayer.angle = Math.atan2(mouse.y - screenCenterY, mouse.x - screenCenterX);
@@ -285,7 +307,13 @@ function update() {
         b.x += b.dx;
         b.y += b.dy;
 
-        // 상대방 총알에 내가 맞았을 때 (세이프존 밖인 경우만)
+        // 장애물에 총알이 닿으면 제거
+        if (checkObstacleCollision(b.x, b.y, 5)) {
+            bullets.splice(i, 1);
+            continue;
+        }
+
+        // 상대방 피격
         if(b.owner !== myPlayer.name && !inSafe) {
             const hitDist = Math.hypot(b.x - myPlayer.x, b.y - myPlayer.y);
             if(hitDist < 15) {
@@ -297,7 +325,6 @@ function update() {
             }
         }
 
-        // 맵 밖으로 나가면 총알 제거
         if (b.x < 0 || b.x > WORLD_SIZE || b.y < 0 || b.y > WORLD_SIZE) {
             bullets.splice(i, 1);
         }
@@ -307,14 +334,13 @@ function update() {
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 카메라 오프셋 계산 (내 플레이어를 화면 중앙에 고정)
     const camX = canvas.width / 2 - myPlayer.x;
     const camY = canvas.height / 2 - myPlayer.y;
 
     ctx.save();
-    ctx.translate(camX, camY); // 맵 전체를 카메라 시점으로 이동
+    ctx.translate(camX, camY);
 
-    // 1. 격자 배경 그리기
+    // 격자 배경
     ctx.strokeStyle = '#2d2d2d';
     ctx.lineWidth = 1;
     for (let x = 0; x <= WORLD_SIZE; x += 80) {
@@ -324,12 +350,21 @@ function draw() {
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(WORLD_SIZE, y); ctx.stroke();
     }
 
-    // 2. 맵 외곽 경계선
+    // 장애물 그리기
+    ctx.fillStyle = '#555555';
+    ctx.strokeStyle = '#888888';
+    ctx.lineWidth = 2;
+    obstacles.forEach(obs => {
+        ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+        ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
+    });
+
+    // 외곽 경계선
     ctx.strokeStyle = '#ff0000';
     ctx.lineWidth = 5;
     ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
 
-    // 3. 세이프존 영역 그리기
+    // 세이프존
     ctx.beginPath();
     ctx.arc(SAFEZONE.x, SAFEZONE.y, SAFEZONE.radius, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(0, 255, 200, 0.15)';
@@ -338,7 +373,7 @@ function draw() {
     ctx.lineWidth = 3;
     ctx.stroke();
 
-    // 4. 총알 그리기
+    // 총알
     bullets.forEach(b => {
         ctx.beginPath();
         ctx.arc(b.x, b.y, 5, 0, Math.PI * 2);
@@ -346,7 +381,7 @@ function draw() {
         ctx.fill();
     });
 
-    // 5. 플레이어들 그리기
+    // 플레이어들
     drawEntity(myPlayer);
     if (conn && conn.open) drawEntity(otherPlayer);
 
@@ -357,24 +392,20 @@ function drawEntity(p) {
     ctx.save();
     ctx.translate(p.x, p.y);
 
-    // 체력바 & 닉네임 
     const barWidth = 40;
     const barHeight = 6;
     
-    // HP 배경
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
     ctx.fillRect(-barWidth/2, -35, barWidth, barHeight);
-    // HP 게이지
+    
     ctx.fillStyle = p.hp > 30 ? '#00ff55' : '#ff3333';
     ctx.fillRect(-barWidth/2, -35, barWidth * (p.hp / p.maxHp), barHeight);
 
-    // 닉네임
     ctx.fillStyle = '#ffffff';
     ctx.font = '12px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(p.name, 0, -42);
 
-    // PVP 상태 표시링 (전투 중일 때 캐릭터 주위에 붉은 원)
     if(p.pvpTimer > 0) {
         ctx.beginPath();
         ctx.arc(0, 0, 20, 0, Math.PI * 2);
@@ -383,13 +414,12 @@ function drawEntity(p) {
         ctx.stroke();
     }
 
-    // 캐릭터 및 총구
     ctx.rotate(p.angle);
     ctx.fillStyle = p.color;
     ctx.beginPath();
     ctx.arc(0, 0, 15, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillRect(0, -3, 22, 6); // 총
+    ctx.fillRect(0, -3, 22, 6);
     
     ctx.restore();
 }
