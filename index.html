@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>온라인 멀티플레이어 슈팅 게임</title>
+    <title>GitHub 멀티플레이어 슈팅 게임</title>
     <style>
         body {
             margin: 0;
@@ -15,77 +15,135 @@
             font-family: sans-serif;
             flex-direction: column;
         }
-        #loginScreen {
+        #ui {
+            background: #222;
+            padding: 20px;
+            border-radius: 8px;
             display: flex;
             flex-direction: column;
             gap: 10px;
             align-items: center;
-            background: #222;
-            padding: 30px;
-            border-radius: 8px;
             box-shadow: 0 0 10px rgba(0,0,0,0.5);
         }
         input {
             padding: 10px;
-            font-size: 16px;
+            font-size: 14px;
             border-radius: 4px;
-            border: none;
+            border: 1px solid #444;
             text-align: center;
         }
         button {
             padding: 10px 20px;
-            font-size: 16px;
+            font-size: 14px;
             background-color: #00ffcc;
             border: none;
             border-radius: 4px;
             cursor: pointer;
             font-weight: bold;
+            color: #000;
         }
         canvas {
             border: 2px solid #ffffff;
             background-color: #111111;
             display: none;
         }
+        #myIdText {
+            font-size: 12px;
+            color: #aaa;
+            word-break: break-all;
+        }
     </style>
-    <script src="/socket.io/socket.io.js"></script>
+    <!-- PeerJS 실시간 P2P 통신 라이브러리 -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 </head>
 <body>
 
-<div id="loginScreen">
-    <h2>닉네임을 입력하세요</h2>
-    <input type="text" id="nicknameInput" placeholder="플레이어 이름" maxlength="10">
-    <button onclick="startGame()">게임 시작</button>
+<div id="ui">
+    <h2>닉네임 및 방 접속</h2>
+    <input type="text" id="nicknameInput" placeholder="닉네임 입력" maxlength="10">
+    <p id="myIdText">내 접속 코드 생성 중...</p>
+    
+    <button onclick="createRoom()">방 만들기 (혼자하기/호스트)</button>
+    <hr style="width:100%; border-color:#444;">
+    <input type="text" id="joinIdInput" placeholder="상대방 접속 코드 입력">
+    <button onclick="joinRoom()">상대방 방에 참가하기</button>
 </div>
 
 <canvas id="gameCanvas" width="800" height="600"></canvas>
 
 <script>
-const socket = io();
+let peer = null;
+let conn = null;
+let myNickname = "플레이어";
+let isHost = false;
+
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-let myId = null;
-let nickname = "";
+const myPlayer = { x: 100, y: 300, angle: 0, color: '#00ffcc', name: '' };
+const otherPlayer = { x: 700, y: 300, angle: 0, color: '#ff4444', name: '상대방' };
+
 const keys = {};
 const mouse = { x: 0, y: 0 };
+const bullets = [];
 
-let serverPlayers = {};
-let serverBullets = [];
+// PeerJS 초기화
+peer = new Peer();
 
-// 플레이어 자체 좌표 (키보드 이동 처리용)
-const myPlayer = { x: 400, y: 300, speed: 4, angle: 0 };
+peer.on('open', (id) => {
+    document.getElementById('myIdText').innerText = `내 접속 코드: ${id}`;
+});
 
-function startGame() {
-    const input = document.getElementById('nicknameInput');
-    nickname = input.value.trim() || "플레이어";
+// 상대방이 접속했을 때 (내가 방장일 때)
+peer.on('connection', (connection) => {
+    conn = connection;
+    isHost = true;
+    setupConnection();
+});
+
+function createRoom() {
+    myNickname = document.getElementById('nicknameInput').value.trim() || "호스트";
+    myPlayer.name = myNickname;
+    myPlayer.x = 100;
     
-    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('ui').style.display = 'none';
     canvas.style.display = 'block';
-
-    // 서버에 접속 및 닉네임 전달
-    socket.emit('joinGame', nickname);
     
-    // 이벤트 등록
+    initGameEvents();
+}
+
+function joinRoom() {
+    const targetId = document.getElementById('joinIdInput').value.trim();
+    if (!targetId) return alert('상대방 접속 코드를 입력하세요.');
+
+    myNickname = document.getElementById('nicknameInput').value.trim() || "게스트";
+    myPlayer.name = myNickname;
+    myPlayer.x = 700;
+
+    conn = peer.connect(targetId);
+    isHost = false;
+    setupConnection();
+
+    document.getElementById('ui').style.display = 'none';
+    canvas.style.display = 'block';
+    
+    initGameEvents();
+}
+
+function setupConnection() {
+    conn.on('data', (data) => {
+        if (data.type === 'state') {
+            otherPlayer.x = data.x;
+            otherPlayer.y = data.y;
+            otherPlayer.angle = data.angle;
+            otherPlayer.name = data.name;
+        } else if (data.type === 'shoot') {
+            bullets.push(data.bullet);
+        }
+    });
+}
+
+function initGameEvents() {
     window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
     window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
     canvas.addEventListener('mousemove', e => {
@@ -95,74 +153,90 @@ function startGame() {
     });
     canvas.addEventListener('click', shoot);
 
+    // 내 상태 상대방에게 전송 (초당 30회)
+    setInterval(() => {
+        if (conn && conn.open) {
+            conn.send({
+                type: 'state',
+                x: myPlayer.x,
+                y: myPlayer.y,
+                angle: myPlayer.angle,
+                name: myPlayer.name
+            });
+        }
+    }, 1000 / 30);
+
     gameLoop();
 }
 
-socket.on('connect', () => { myId = socket.id; });
-
-// 서버로부터 실시간 데이터 수신
-socket.on('gameState', (data) => {
-    serverPlayers = data.players;
-    serverBullets = data.bullets;
-});
-
 function shoot() {
-    socket.emit('shoot', {
+    const bullet = {
         x: myPlayer.x,
         y: myPlayer.y,
         dx: Math.cos(myPlayer.angle) * 8,
         dy: Math.sin(myPlayer.angle) * 8
-    });
+    };
+    bullets.push(bullet);
+
+    if (conn && conn.open) {
+        conn.send({ type: 'shoot', bullet: bullet });
+    }
 }
 
 function update() {
-    // 이동 처리
-    if (keys['w'] || keys['W']) myPlayer.y -= myPlayer.speed;
-    if (keys['s'] || keys['S']) myPlayer.y += myPlayer.speed;
-    if (keys['a'] || keys['A']) myPlayer.x -= myPlayer.speed;
-    if (keys['d'] || keys['D']) myPlayer.x += myPlayer.speed;
+    // 이동
+    if (keys['w'] || keys['W']) myPlayer.y -= 4;
+    if (keys['s'] || keys['S']) myPlayer.y += 4;
+    if (keys['a'] || keys['A']) myPlayer.x -= 4;
+    if (keys['d'] || keys['D']) myPlayer.x += 4;
 
     // 조준 각도
     myPlayer.angle = Math.atan2(mouse.y - myPlayer.y, mouse.x - myPlayer.x);
 
-    // 위치 정보를 서버로 전송
-    socket.emit('playerMove', {
-        x: myPlayer.x,
-        y: myPlayer.y,
-        angle: myPlayer.angle
-    });
+    // 총알 이동
+    for (let i = bullets.length - 1; i >= 0; i--) {
+        const b = bullets[i];
+        b.x += b.dx;
+        b.y += b.dy;
+        if (b.x < 0 || b.x > 800 || b.y < 0 || b.y > 600) {
+            bullets.splice(i, 1);
+        }
+    }
+}
+
+function drawPlayer(p) {
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    
+    // 닉네임
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(p.name, 0, -25);
+
+    // 캐릭터
+    ctx.rotate(p.angle);
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(0, 0, 15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillRect(0, -3, 22, 6);
+    ctx.restore();
 }
 
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 1. 총알 그리시
-    serverBullets.forEach(bullet => {
+    // 플레이어그리기
+    drawPlayer(myPlayer);
+    if (conn && conn.open) drawPlayer(otherPlayer);
+
+    // 총알 그리기
+    bullets.forEach(b => {
         ctx.beginPath();
-        ctx.arc(bullet.x, bullet.y, 4, 0, Math.PI * 2);
+        ctx.arc(b.x, b.y, 4, 0, Math.PI * 2);
         ctx.fillStyle = '#ffff00';
         ctx.fill();
-    });
-
-    // 2. 다른/자신 플레이어들 그리기
-    Object.values(serverPlayers).forEach(p => {
-        ctx.save();
-        ctx.translate(p.x, p.y);
-        
-        // 닉네임 표시
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '12px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(p.name, 0, -25);
-
-        // 캐릭터 회전 및 그리기
-        ctx.rotate(p.angle);
-        ctx.fillStyle = p.color;
-        ctx.beginPath();
-        ctx.arc(0, 0, 15, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillRect(0, -3, 22, 6); // 총구
-        ctx.restore();
     });
 }
 
