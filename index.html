@@ -111,7 +111,7 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
 const BASE_SPEED = 1.92; 
-const MAX_SPRINT_SPEED = BASE_SPEED * 2.1; // 전력질주 속도 하향 (3배 -> 2.1배)
+const MAX_SPRINT_SPEED = BASE_SPEED * 2.1;
 
 const myPlayer = {
     x: SAFEZONE.x, y: SAFEZONE.y,
@@ -141,8 +141,7 @@ const otherPlayer = {
     inPVP: false
 };
 
-// 카메라 변수 추가
-const camera = { x: SAFEZONE.x, y: SAFEZONE.y };
+const camera = { x: SAFEZONE.x, y: SAFEZONE.y, zoom: 1 };
 
 const keys = {};
 const mouse = { x: 0, y: 0 };
@@ -308,12 +307,11 @@ function shoot() {
 
     if (myPlayer.isAiming) {
         speed = 50;
-        // 조준 시에도 미세한 탄퍼짐 적용 (0.08 범위)
         const spread = (Math.random() - 0.5) * 0.08;
         shootAngle += spread;
     } else {
         speed = 50 * 1.7; 
-        const spread = (Math.random() - 0.5) * 0.6; // 지향 사격 시 큰 탄퍼짐
+        const spread = (Math.random() - 0.5) * 0.6;
         shootAngle += spread;
     }
 
@@ -361,7 +359,7 @@ function checkObstacleCollision(x, y, radius) {
 }
 
 function update() {
-    // 1. 달리기 속도 조율
+    // 1. 달리기 속도
     if (myPlayer.isSprinting) {
         myPlayer.sprintProgress = Math.min(1, myPlayer.sprintProgress + 0.025);
         myPlayer.currentSpeed = BASE_SPEED + (MAX_SPRINT_SPEED - BASE_SPEED) * myPlayer.sprintProgress;
@@ -414,36 +412,43 @@ function update() {
         myPlayer.y = SAFEZONE.y + Math.sin(angle) * (SAFEZONE.radius + 15);
     }
 
-    // 마우스 조준 방향 계산
+    // 마우스 조준 및 카메라 줌 계산
     const screenCenterX = canvas.width / 2;
     const screenCenterY = canvas.height / 2;
     
-    // 조준 시 플레이어와 마우스 커서 사이로 카메라 오프셋 이동 (기존 시야범위 유지 통제)
     let targetCamX = myPlayer.x;
     let targetCamY = myPlayer.y;
+    let targetZoom = 1.0; // 기본 배율
 
     if (myPlayer.isAiming) {
         const mouseOffsetX = (mouse.x - screenCenterX) * 0.45; 
         const mouseOffsetY = (mouse.y - screenCenterY) * 0.45;
         
-        // 최대 오프셋 제한으로 불필요한 영역 확대 방지
         const maxOffset = 180;
         const dist = Math.hypot(mouseOffsetX, mouseOffsetY);
         
+        let actualOffsetX = mouseOffsetX;
+        let actualOffsetY = mouseOffsetY;
+
         if (dist > maxOffset) {
-            targetCamX += (mouseOffsetX / dist) * maxOffset;
-            targetCamY += (mouseOffsetY / dist) * maxOffset;
-        } else {
-            targetCamX += mouseOffsetX;
-            targetCamY += mouseOffsetY;
+            actualOffsetX = (mouseOffsetX / dist) * maxOffset;
+            actualOffsetY = (mouseOffsetY / dist) * maxOffset;
         }
+
+        targetCamX += actualOffsetX;
+        targetCamY += actualOffsetY;
+
+        // 마우스와 멀어지는 오프셋 거리에 비례하여 줌인(확대) 수행 (시야 범위 유지)
+        const offsetDist = Math.hypot(actualOffsetX, actualOffsetY);
+        targetZoom = 1.0 + (offsetDist / maxOffset) * 0.28; // 최대 1.28배 확대
     }
 
-    // 카메라 부드러운 스무딩 이동
+    // 카메라 위치 및 배율 스무딩
     camera.x += (targetCamX - camera.x) * 0.1;
     camera.y += (targetCamY - camera.y) * 0.1;
+    camera.zoom += (targetZoom - camera.zoom) * 0.1;
 
-    myPlayer.angle = Math.atan2((camera.y + mouse.y - screenCenterY) - myPlayer.y, (camera.x + mouse.x - screenCenterX) - myPlayer.x);
+    myPlayer.angle = Math.atan2((camera.y + (mouse.y - screenCenterY) / camera.zoom) - myPlayer.y, (camera.x + (mouse.x - screenCenterX) / camera.zoom) - myPlayer.x);
 
     // 4. HUD
     const inSafe = distToCenter < SAFEZONE.radius;
@@ -467,7 +472,7 @@ function update() {
         actionUI.innerText = "감속 중 (사격 불가)";
         actionUI.style.color = "#ff6600";
     } else if (myPlayer.isAiming) {
-        actionUI.innerText = "정밀 조준 (속도 0.3 | 미세 탄퍼짐 | 카메라 연동)";
+        actionUI.innerText = "정밀 조준 (속도 0.3 | 시야범위 유지 줌인)";
         actionUI.style.color = "#00ffcc";
     } else {
         actionUI.innerText = "기본 이동 (속도 1.92 | 탄퍼짐 적용)";
@@ -513,12 +518,11 @@ function update() {
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 연동된 카메라 좌표 기준 화면 렌더링
-    const camX = canvas.width / 2 - camera.x;
-    const camY = canvas.height / 2 - camera.y;
-
     ctx.save();
-    ctx.translate(camX, camY);
+    // 화면 중심점 기준으로 배율(Zoom) 적용 및 카메라 변환
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.scale(camera.zoom, camera.zoom);
+    ctx.translate(-camera.x, -camera.y);
 
     // 격자 배경
     ctx.strokeStyle = '#2d2d2d';
