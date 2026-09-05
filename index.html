@@ -138,9 +138,11 @@ const WEAPONS = {
         name: "돌격소총",
         cooldown: 110,
         bulletSpeed: 55,
-        damage: 12.5, // 8발 적중 시 사망
-        zoomPower: 0.28,
-        maxOffset: 180,
+        damage: 12.5,
+        baseSpeed: 1.55,
+        maxSprintSpeed: 2.3,
+        zoomPower: 0.15,  // 시야 감소
+        maxOffset: 120,   // 카메라 이동 범위 감소
         baseSpread: 0.05,
         movingSpreadMult: 0.18
     },
@@ -148,11 +150,13 @@ const WEAPONS = {
         name: "스나이퍼",
         cooldown: 900,
         bulletSpeed: 100,
-        damage: 50, // 2발 적중 시 정확히 사망
-        zoomPower: 1.0, // 시야 1.5배 이상 확대
-        maxOffset: 320, // 시야 오프셋 확장
+        damage: 50,
+        baseSpeed: 1.25,      // 속도 하향
+        maxSprintSpeed: 1.80, // 속도 하향
+        zoomPower: 1.5,       // 시야 1.5배 대폭 확장
+        maxOffset: 420,       // 시야 카메라 이동 대폭 확장
         baseSpread: 0.005,
-        movingSpreadMult: 0.6
+        movingSpreadMult: 1.5 // 무빙샷 시 극심한 탄퍼짐
     }
 };
 
@@ -169,13 +173,10 @@ function resizeCanvas() {
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
-const BASE_SPEED = 1.55; 
-const MAX_SPRINT_SPEED = 2.3; 
-
 const myPlayer = {
     x: SAFEZONE.x, y: SAFEZONE.y,
     angle: 0,
-    currentSpeed: BASE_SPEED,
+    currentSpeed: 1.55,
     hp: 100, maxHp: 100,
     name: '플레이어',
     color: '#00ffcc',
@@ -374,10 +375,16 @@ function shoot() {
     let shootAngle = myPlayer.angle;
     let bulletSpeed = wSpec.bulletSpeed;
 
+    // 움직임 판단 (WASD 입력 여부)
+    const isMoving = keys['w'] || keys['s'] || keys['a'] || keys['d'];
+
     let spreadFactor = wSpec.baseSpread;
+    if (isMoving) {
+        spreadFactor += wSpec.movingSpreadMult;
+    }
     if (!myPlayer.isAiming) {
-        bulletSpeed *= 0.9;
-        spreadFactor += (myPlayer.currentSpeed / BASE_SPEED) * wSpec.movingSpreadMult;
+        bulletSpeed *= 0.85;
+        spreadFactor += 0.1;
     }
 
     const spread = (Math.random() - 0.5) * spreadFactor;
@@ -429,26 +436,27 @@ function checkObstacleCollision(x, y, radius) {
 }
 
 function update() {
-    // 1. 전력질주 및 기본 속도 (1.55 / 2.3)
+    const wSpec = WEAPONS[myPlayer.weaponType];
+
+    // 1. 총기별 기본 속도 및 전력질주 스펙 적용
     if (myPlayer.isSprinting) {
         myPlayer.sprintProgress = Math.min(1, myPlayer.sprintProgress + 0.05);
-        myPlayer.currentSpeed = BASE_SPEED + (MAX_SPRINT_SPEED - BASE_SPEED) * myPlayer.sprintProgress;
+        myPlayer.currentSpeed = wSpec.baseSpeed + (wSpec.maxSprintSpeed - wSpec.baseSpeed) * myPlayer.sprintProgress;
     } else if (myPlayer.isDecelerating) {
         myPlayer.sprintProgress = Math.max(0, myPlayer.sprintProgress - 0.05);
-        myPlayer.currentSpeed = BASE_SPEED + (MAX_SPRINT_SPEED - BASE_SPEED) * myPlayer.sprintProgress;
+        myPlayer.currentSpeed = wSpec.baseSpeed + (wSpec.maxSprintSpeed - wSpec.baseSpeed) * myPlayer.sprintProgress;
 
         if (myPlayer.sprintProgress <= 0) {
             myPlayer.isDecelerating = false;
-            myPlayer.currentSpeed = BASE_SPEED;
+            myPlayer.currentSpeed = wSpec.baseSpeed;
         }
     } else if (myPlayer.isAiming) {
-        myPlayer.currentSpeed = 0.3;
+        myPlayer.currentSpeed = wSpec.baseSpeed * 0.3;
     } else {
-        myPlayer.currentSpeed = BASE_SPEED;
+        myPlayer.currentSpeed = wSpec.baseSpeed;
     }
 
     // 2. 사격
-    const wSpec = WEAPONS[myPlayer.weaponType];
     if (myPlayer.isShooting) {
         const now = Date.now();
         if (now - myPlayer.lastShootTime >= wSpec.cooldown) {
@@ -489,7 +497,7 @@ function update() {
         myPlayer.y = SAFEZONE.y + Math.sin(angle) * (SAFEZONE.radius + 15);
     }
 
-    // 4. 카메라 및 저격총 시야 확대 연산
+    // 4. 총기별 카메라 및 시야 확장 연산
     const screenCenterX = canvas.width / 2;
     const screenCenterY = canvas.height / 2;
     
@@ -498,8 +506,8 @@ function update() {
     let targetZoom = 1.0;
 
     if (myPlayer.isAiming) {
-        const mouseOffsetX = (mouse.x - screenCenterX) * 0.55; 
-        const mouseOffsetY = (mouse.y - screenCenterY) * 0.55;
+        const mouseOffsetX = (mouse.x - screenCenterX) * 0.65; 
+        const mouseOffsetY = (mouse.y - screenCenterY) * 0.65;
         
         const maxOffset = wSpec.maxOffset;
         const dist = Math.hypot(mouseOffsetX, mouseOffsetY);
@@ -541,13 +549,13 @@ function update() {
 
     const actionUI = document.getElementById('actionStatus');
     if (myPlayer.isSprinting) {
-        actionUI.innerText = "전력 질주 (속도 2.3)";
+        actionUI.innerText = `전력 질주 (속도 ${myPlayer.currentSpeed.toFixed(2)})`;
         actionUI.style.color = "#ffcc00";
     } else if (myPlayer.isAiming) {
-        actionUI.innerText = myPlayer.weaponType === 'sniper' ? "스나이퍼 줌인 (시야 1.5배 확장)" : "정밀 조준 (속도 0.3)";
+        actionUI.innerText = myPlayer.weaponType === 'sniper' ? "스나이퍼 줌인 (고배율 원거리 시야)" : "정밀 조준 (근거리 표준 시야)";
         actionUI.style.color = "#00ffcc";
     } else {
-        actionUI.innerText = "기본 이동 (속도 1.55)";
+        actionUI.innerText = `기본 이동 (속도 ${myPlayer.currentSpeed.toFixed(2)})`;
         actionUI.style.color = "#aaa";
     }
 
@@ -678,7 +686,7 @@ function drawEntity(p) {
     ctx.arc(0, 0, 15, 0, Math.PI * 2);
     ctx.fill();
 
-    const barrelLength = p.weaponType === 'sniper' ? 34 : 22;
+    const barrelLength = p.weaponType === 'sniper' ? 36 : 22;
     const barrelWidth = p.weaponType === 'sniper' ? 4 : 6;
     ctx.fillStyle = '#aaa';
     ctx.fillRect(0, -barrelWidth/2, barrelLength, barrelWidth);
