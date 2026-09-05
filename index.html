@@ -141,8 +141,8 @@ const WEAPONS = {
         damage: 12.5,
         baseSpeed: 1.55,
         maxSprintSpeed: 2.3,
-        zoomPower: 0.15,  // 시야 감소
-        maxOffset: 120,   // 카메라 이동 범위 감소
+        zoomPower: 0.15,
+        maxOffset: 120,
         baseSpread: 0.05,
         movingSpreadMult: 0.18
     },
@@ -151,12 +151,12 @@ const WEAPONS = {
         cooldown: 900,
         bulletSpeed: 100,
         damage: 50,
-        baseSpeed: 1.25,      // 속도 하향
-        maxSprintSpeed: 1.80, // 속도 하향
-        zoomPower: 1.5,       // 시야 1.5배 대폭 확장
-        maxOffset: 420,       // 시야 카메라 이동 대폭 확장
+        baseSpeed: 1.25,
+        maxSprintSpeed: 1.80,
+        zoomPower: 1.5,
+        maxOffset: 420,
         baseSpread: 0.005,
-        movingSpreadMult: 1.5 // 무빙샷 시 극심한 탄퍼짐
+        movingSpreadMult: 1.5
     }
 };
 
@@ -174,6 +174,7 @@ window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
 const myPlayer = {
+    id: Math.random().toString(36).substring(2, 9),
     x: SAFEZONE.x, y: SAFEZONE.y,
     angle: 0,
     currentSpeed: 1.55,
@@ -192,6 +193,7 @@ const myPlayer = {
 };
 
 const otherPlayer = {
+    id: null,
     x: SAFEZONE.x + 50, y: SAFEZONE.y + 50,
     angle: 0,
     hp: 100, maxHp: 100,
@@ -297,6 +299,7 @@ function setupConnection() {
         } else if(data.type === 'shoot') {
             bullets.push(data.bullet);
         } else if(data.type === 'hit') {
+            // 나에게 도착한 피격 판정 데미지 적용
             myPlayer.hp -= data.damage;
             myPlayer.inPVP = true;
             
@@ -375,13 +378,10 @@ function shoot() {
     let shootAngle = myPlayer.angle;
     let bulletSpeed = wSpec.bulletSpeed;
 
-    // 움직임 판단 (WASD 입력 여부)
     const isMoving = keys['w'] || keys['s'] || keys['a'] || keys['d'];
 
     let spreadFactor = wSpec.baseSpread;
-    if (isMoving) {
-        spreadFactor += wSpec.movingSpreadMult;
-    }
+    if (isMoving) spreadFactor += wSpec.movingSpreadMult;
     if (!myPlayer.isAiming) {
         bulletSpeed *= 0.85;
         spreadFactor += 0.1;
@@ -391,11 +391,12 @@ function shoot() {
     shootAngle += spread;
 
     const bullet = {
+        id: Math.random().toString(36).substring(2, 9),
         x: myPlayer.x, y: myPlayer.y,
         prevX: myPlayer.x, prevY: myPlayer.y,
         dx: Math.cos(shootAngle) * bulletSpeed,
         dy: Math.sin(shootAngle) * bulletSpeed,
-        owner: myPlayer.name,
+        ownerId: myPlayer.id,
         damage: wSpec.damage,
         isSniper: myPlayer.weaponType === 'sniper'
     };
@@ -438,7 +439,7 @@ function checkObstacleCollision(x, y, radius) {
 function update() {
     const wSpec = WEAPONS[myPlayer.weaponType];
 
-    // 1. 총기별 기본 속도 및 전력질주 스펙 적용
+    // 1. 속도 제어
     if (myPlayer.isSprinting) {
         myPlayer.sprintProgress = Math.min(1, myPlayer.sprintProgress + 0.05);
         myPlayer.currentSpeed = wSpec.baseSpeed + (wSpec.maxSprintSpeed - wSpec.baseSpeed) * myPlayer.sprintProgress;
@@ -465,7 +466,7 @@ function update() {
         }
     }
 
-    // 3. 이동 및 대각선 속도 정규화
+    // 3. 이동
     let dirX = 0, dirY = 0;
     if (keys['w']) dirY -= 1;
     if (keys['s']) dirY += 1;
@@ -497,7 +498,7 @@ function update() {
         myPlayer.y = SAFEZONE.y + Math.sin(angle) * (SAFEZONE.radius + 15);
     }
 
-    // 4. 총기별 카메라 및 시야 확장 연산
+    // 4. 시야 연산
     const screenCenterX = canvas.width / 2;
     const screenCenterY = canvas.height / 2;
     
@@ -559,7 +560,9 @@ function update() {
         actionUI.style.color = "#aaa";
     }
 
-    // 6. 총알 이동 및 충돌
+    // 6. 총알 이동 및 충돌 (내가 쏜 총알의 피격 연산)
+    const otherInSafe = Math.hypot(otherPlayer.x - SAFEZONE.x, otherPlayer.y - SAFEZONE.y) < SAFEZONE.radius;
+
     for (let i = bullets.length - 1; i >= 0; i--) {
         const b = bullets[i];
         b.prevX = b.x;
@@ -567,29 +570,26 @@ function update() {
         b.x += b.dx;
         b.y += b.dy;
 
+        // 장애물 충돌
         if (bulletCollidesWithObstacle(b.prevX, b.prevY, b.x, b.y)) {
             bullets.splice(i, 1);
             continue;
         }
 
-        if(b.owner !== myPlayer.name && !inSafe) {
-            const hitDist = Math.hypot(b.x - myPlayer.x, b.y - myPlayer.y);
-            if(hitDist < 18) {
-                const dmg = b.damage || 12.5;
-                myPlayer.hp -= dmg;
-                myPlayer.inPVP = true;
+        // 내가 쏜 총알이 상대방(otherPlayer)에게 적중했을 때
+        if (b.ownerId === myPlayer.id && conn && conn.open && !otherInSafe) {
+            const hitDist = Math.hypot(b.x - otherPlayer.x, b.y - otherPlayer.y);
+            if (hitDist < 18) {
+                // 상대방 피격 신호 전송
+                conn.send({ type: 'hit', damage: b.damage });
+                otherPlayer.hp = Math.max(0, otherPlayer.hp - b.damage);
+                otherPlayer.inPVP = true;
                 bullets.splice(i, 1);
-                
-                if(conn && conn.open) conn.send({ type: 'hit', damage: dmg });
-                
-                if(myPlayer.hp <= 0) {
-                    alert("사망하셨습니다! 세이프존에서 리스폰합니다.");
-                    respawnPlayer();
-                }
                 continue;
             }
         }
 
+        // 맵 밖 소멸
         if (b.x < 0 || b.x > WORLD_SIZE || b.y < 0 || b.y > WORLD_SIZE) {
             bullets.splice(i, 1);
         }
@@ -604,7 +604,7 @@ function draw() {
     ctx.scale(camera.zoom, camera.zoom);
     ctx.translate(-camera.x, -camera.y);
 
-    // 격자 배경
+    // 격자
     ctx.strokeStyle = '#2d2d2d';
     ctx.lineWidth = 1;
     for (let x = 0; x <= WORLD_SIZE; x += 80) {
@@ -623,7 +623,7 @@ function draw() {
         ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
     });
 
-    // 외곽 경계선
+    // 외곽선
     ctx.strokeStyle = '#ff0000';
     ctx.lineWidth = 5;
     ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
@@ -637,7 +637,7 @@ function draw() {
     ctx.lineWidth = 3;
     ctx.stroke();
 
-    // 총알 궤적
+    // 총알
     bullets.forEach(b => {
         ctx.beginPath();
         ctx.moveTo(b.prevX, b.prevY);
@@ -647,7 +647,7 @@ function draw() {
         ctx.stroke();
     });
 
-    // 플레이어
+    // 캐릭터
     drawEntity(myPlayer);
     if (conn && conn.open) drawEntity(otherPlayer);
 
@@ -664,8 +664,9 @@ function drawEntity(p) {
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
     ctx.fillRect(-barWidth/2, -35, barWidth, barHeight);
     
-    ctx.fillStyle = p.hp > 30 ? '#00ff55' : '#ff3333';
-    ctx.fillRect(-barWidth/2, -35, barWidth * (p.hp / p.maxHp), barHeight);
+    const hpRatio = Math.max(0, p.hp / p.maxHp);
+    ctx.fillStyle = hpRatio > 0.3 ? '#00ff55' : '#ff3333';
+    ctx.fillRect(-barWidth/2, -35, barWidth * hpRatio, barHeight);
 
     ctx.fillStyle = '#ffffff';
     ctx.font = '12px sans-serif';
