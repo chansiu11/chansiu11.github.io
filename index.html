@@ -30,10 +30,10 @@
             gap: 12px;
             align-items: center;
             box-shadow: 0 0 20px rgba(0,0,0,0.8);
-            width: 320px;
+            width: 340px;
             z-index: 10;
         }
-        input {
+        input[type="text"] {
             padding: 10px;
             font-size: 15px;
             border-radius: 6px;
@@ -42,6 +42,23 @@
             width: 90%;
             background: #222;
             color: white;
+        }
+        .weapon-select {
+            display: flex;
+            gap: 15px;
+            width: 90%;
+            justify-content: center;
+            background: #222;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #444;
+        }
+        .weapon-select label {
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
         button {
             padding: 12px;
@@ -81,6 +98,11 @@
     <h2>오픈월드 PVP 슈팅</h2>
     <input type="text" id="nicknameInput" placeholder="닉네임 입력" maxlength="10">
     
+    <div class="weapon-select">
+        <label><input type="radio" name="weapon" value="ar" checked> 돌격소총 (AR)</label>
+        <label><input type="radio" name="weapon" value="sniper"> 스나이퍼 (SR)</label>
+    </div>
+
     <button onclick="createRoom()">비밀 방 생성 (호스트)</button>
     <div id="roomCodeDisplay" style="color:#00ffcc; font-weight:bold;"></div>
 
@@ -93,6 +115,7 @@
 <div id="statusHUD">
     <span id="zoneStatus" style="color: #00ffcc;">[안전 지대]</span> | 
     PVP 상태: <span id="pvpTimer">OFF</span> | 
+    무기: <span id="weaponStatus" style="color: #00ffcc;">돌격소총</span> |
     상태: <span id="actionStatus" style="color: #aaa;">기본 이동</span>
 </div>
 
@@ -110,6 +133,29 @@ const obstacles = [
     { x: 500, y: 1200, w: 50, h: 300 }
 ];
 
+const WEAPONS = {
+    ar: {
+        name: "돌격소총",
+        cooldown: 110,
+        bulletSpeed: 55,
+        damage: 12.5, // 8발 적중 시 사망
+        zoomPower: 0.28,
+        maxOffset: 180,
+        baseSpread: 0.05,
+        movingSpreadMult: 0.18
+    },
+    sniper: {
+        name: "스나이퍼",
+        cooldown: 900,
+        bulletSpeed: 100,
+        damage: 50, // 2발 적중 시 정확히 사망
+        zoomPower: 1.0, // 시야 1.5배 이상 확대
+        maxOffset: 320, // 시야 오프셋 확장
+        baseSpread: 0.005,
+        movingSpreadMult: 0.6
+    }
+};
+
 const PUBLIC_ROOM_ID = "gungame-public-server-room-v1";
 
 let peer = null, conn = null;
@@ -124,7 +170,7 @@ window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
 const BASE_SPEED = 1.55; 
-const MAX_SPRINT_SPEED = 2.3; // 전력질주 속도 2.0으로 상향
+const MAX_SPRINT_SPEED = 2.3; 
 
 const myPlayer = {
     x: SAFEZONE.x, y: SAFEZONE.y,
@@ -134,10 +180,10 @@ const myPlayer = {
     name: '플레이어',
     color: '#00ffcc',
     inPVP: false,
+    weaponType: 'ar',
     isAiming: false,
     isShooting: false,
     lastShootTime: 0,
-    shootCooldown: 120,
     
     isSprinting: false,
     sprintProgress: 0,
@@ -150,7 +196,8 @@ const otherPlayer = {
     hp: 100, maxHp: 100,
     name: '상대방',
     color: '#ff4444',
-    inPVP: false
+    inPVP: false,
+    weaponType: 'ar'
 };
 
 const camera = { x: SAFEZONE.x, y: SAFEZONE.y, zoom: 1 };
@@ -163,9 +210,18 @@ function generateShortId() {
     return Math.random().toString(36).substring(2, 7).toLowerCase();
 }
 
+function getSelectedWeapon() {
+    const radios = document.getElementsByName('weapon');
+    for (let radio of radios) {
+        if (radio.checked) return radio.value;
+    }
+    return 'ar';
+}
+
 function createRoom() {
     const nick = document.getElementById('nicknameInput').value.trim();
     if(nick) myPlayer.name = nick;
+    myPlayer.weaponType = getSelectedWeapon();
     
     const code = generateShortId();
     peer = new Peer('gungame-room-' + code);
@@ -185,6 +241,7 @@ function joinRoom() {
     const input = document.getElementById('joinIdInput').value.trim().toLowerCase();
     const nick = document.getElementById('nicknameInput').value.trim();
     if(nick) myPlayer.name = nick;
+    myPlayer.weaponType = getSelectedWeapon();
 
     peer = new Peer();
     peer.on('open', () => {
@@ -226,6 +283,7 @@ function joinRoom() {
 function startGame() {
     document.getElementById('ui').style.display = 'none';
     document.getElementById('statusHUD').style.display = 'block';
+    document.getElementById('weaponStatus').innerText = WEAPONS[myPlayer.weaponType].name;
     canvas.style.display = 'block';
     resizeCanvas();
     initEvents();
@@ -311,19 +369,15 @@ function shoot() {
     if(distFromCenter < SAFEZONE.radius) return;
 
     myPlayer.inPVP = true;
+    const wSpec = WEAPONS[myPlayer.weaponType];
 
     let shootAngle = myPlayer.angle;
-    let bulletSpeed = 50; 
+    let bulletSpeed = wSpec.bulletSpeed;
 
-    let spreadFactor = 0.05; 
-    
-    if (myPlayer.isAiming) {
-        spreadFactor = 0.06; // 조준 시
-        bulletSpeed = 50;
-    } else {
-        bulletSpeed = 50 * 1.7;
-        // 기본 이동시 탄퍼짐 폭 감소 (기존 0.2 + @ -> 0.08 + @)
-        spreadFactor = 0.08 + (myPlayer.currentSpeed / BASE_SPEED) * 0.18; 
+    let spreadFactor = wSpec.baseSpread;
+    if (!myPlayer.isAiming) {
+        bulletSpeed *= 0.9;
+        spreadFactor += (myPlayer.currentSpeed / BASE_SPEED) * wSpec.movingSpreadMult;
     }
 
     const spread = (Math.random() - 0.5) * spreadFactor;
@@ -334,7 +388,9 @@ function shoot() {
         prevX: myPlayer.x, prevY: myPlayer.y,
         dx: Math.cos(shootAngle) * bulletSpeed,
         dy: Math.sin(shootAngle) * bulletSpeed,
-        owner: myPlayer.name
+        owner: myPlayer.name,
+        damage: wSpec.damage,
+        isSniper: myPlayer.weaponType === 'sniper'
     };
     bullets.push(bullet);
 
@@ -373,7 +429,7 @@ function checkObstacleCollision(x, y, radius) {
 }
 
 function update() {
-    // 1. 전력질주 및 속도 조율 (속도 2.0 적용)
+    // 1. 전력질주 및 기본 속도 (1.55 / 2.3)
     if (myPlayer.isSprinting) {
         myPlayer.sprintProgress = Math.min(1, myPlayer.sprintProgress + 0.05);
         myPlayer.currentSpeed = BASE_SPEED + (MAX_SPRINT_SPEED - BASE_SPEED) * myPlayer.sprintProgress;
@@ -392,9 +448,10 @@ function update() {
     }
 
     // 2. 사격
+    const wSpec = WEAPONS[myPlayer.weaponType];
     if (myPlayer.isShooting) {
         const now = Date.now();
-        if (now - myPlayer.lastShootTime >= myPlayer.shootCooldown) {
+        if (now - myPlayer.lastShootTime >= wSpec.cooldown) {
             shoot();
             myPlayer.lastShootTime = now;
         }
@@ -402,10 +459,10 @@ function update() {
 
     // 3. 이동 및 대각선 속도 정규화
     let dirX = 0, dirY = 0;
-    if (keys['w'] || keys['w']) dirY -= 1;
-    if (keys['s'] || keys['s']) dirY += 1;
-    if (keys['a'] || keys['a']) dirX -= 1;
-    if (keys['d'] || keys['d']) dirX += 1;
+    if (keys['w']) dirY -= 1;
+    if (keys['s']) dirY += 1;
+    if (keys['a']) dirX -= 1;
+    if (keys['d']) dirX += 1;
 
     if (dirX !== 0 && dirY !== 0) {
         const len = Math.hypot(dirX, dirY);
@@ -432,7 +489,7 @@ function update() {
         myPlayer.y = SAFEZONE.y + Math.sin(angle) * (SAFEZONE.radius + 15);
     }
 
-    // 4. 카메라 및 조준
+    // 4. 카메라 및 저격총 시야 확대 연산
     const screenCenterX = canvas.width / 2;
     const screenCenterY = canvas.height / 2;
     
@@ -441,10 +498,10 @@ function update() {
     let targetZoom = 1.0;
 
     if (myPlayer.isAiming) {
-        const mouseOffsetX = (mouse.x - screenCenterX) * 0.45; 
-        const mouseOffsetY = (mouse.y - screenCenterY) * 0.45;
+        const mouseOffsetX = (mouse.x - screenCenterX) * 0.55; 
+        const mouseOffsetY = (mouse.y - screenCenterY) * 0.55;
         
-        const maxOffset = 180;
+        const maxOffset = wSpec.maxOffset;
         const dist = Math.hypot(mouseOffsetX, mouseOffsetY);
         
         let actualOffsetX = mouseOffsetX;
@@ -459,7 +516,7 @@ function update() {
         targetCamY += actualOffsetY;
 
         const offsetDist = Math.hypot(actualOffsetX, actualOffsetY);
-        targetZoom = 1.0 + (offsetDist / maxOffset) * 0.28;
+        targetZoom = 1.0 + (offsetDist / maxOffset) * wSpec.zoomPower;
     }
 
     camera.x += (targetCamX - camera.x) * 0.1;
@@ -484,13 +541,13 @@ function update() {
 
     const actionUI = document.getElementById('actionStatus');
     if (myPlayer.isSprinting) {
-        actionUI.innerText = "전력 질주 (속도 2.0 | 넓은 탄퍼짐)";
+        actionUI.innerText = "전력 질주 (속도 2.3)";
         actionUI.style.color = "#ffcc00";
     } else if (myPlayer.isAiming) {
-        actionUI.innerText = "정밀 조준 (속도 0.3 | 집탄도 최상)";
+        actionUI.innerText = myPlayer.weaponType === 'sniper' ? "스나이퍼 줌인 (시야 1.5배 확장)" : "정밀 조준 (속도 0.3)";
         actionUI.style.color = "#00ffcc";
     } else {
-        actionUI.innerText = "기본 이동 (속도 1.92 | 완화된 탄퍼짐)";
+        actionUI.innerText = "기본 이동 (속도 1.55)";
         actionUI.style.color = "#aaa";
     }
 
@@ -510,11 +567,12 @@ function update() {
         if(b.owner !== myPlayer.name && !inSafe) {
             const hitDist = Math.hypot(b.x - myPlayer.x, b.y - myPlayer.y);
             if(hitDist < 18) {
-                myPlayer.hp -= 20;
+                const dmg = b.damage || 12.5;
+                myPlayer.hp -= dmg;
                 myPlayer.inPVP = true;
                 bullets.splice(i, 1);
                 
-                if(conn && conn.open) conn.send({ type: 'hit', damage: 20 });
+                if(conn && conn.open) conn.send({ type: 'hit', damage: dmg });
                 
                 if(myPlayer.hp <= 0) {
                     alert("사망하셨습니다! 세이프존에서 리스폰합니다.");
@@ -576,8 +634,8 @@ function draw() {
         ctx.beginPath();
         ctx.moveTo(b.prevX, b.prevY);
         ctx.lineTo(b.x, b.y);
-        ctx.strokeStyle = '#ffcc00';
-        ctx.lineWidth = 3;
+        ctx.strokeStyle = b.isSniper ? '#ff3300' : '#ffcc00';
+        ctx.lineWidth = b.isSniper ? 4 : 2;
         ctx.stroke();
     });
 
@@ -619,7 +677,11 @@ function drawEntity(p) {
     ctx.beginPath();
     ctx.arc(0, 0, 15, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillRect(0, -3, 22, 6);
+
+    const barrelLength = p.weaponType === 'sniper' ? 34 : 22;
+    const barrelWidth = p.weaponType === 'sniper' ? 4 : 6;
+    ctx.fillStyle = '#aaa';
+    ctx.fillRect(0, -barrelWidth/2, barrelLength, barrelWidth);
     
     ctx.restore();
 }
