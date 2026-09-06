@@ -142,7 +142,7 @@ const WEAPONS = {
         baseSpeed: 1.55,
         maxSprintSpeed: 2.3,
         zoomPower: 0.15,
-        maxOffset: 120,    // 기본 및 조준 시 오프셋
+        maxOffset: 120,
         baseSpread: 0.03,
         movingSpreadMult: 0.08
     },
@@ -153,8 +153,9 @@ const WEAPONS = {
         damage: 50,
         baseSpeed: 1.25,
         maxSprintSpeed: 1.80,
-        zoomPower: 2.5,    // 줌 시 시야 확장율 대폭 강화
-        maxOffset: 120,    // 기본 전체 시야범위 120
+        zoomPower: 0.35,      // AR(0.15)보다 살짝 큰 줌 배율
+        maxOffset: 120,       // 비조준 시 기본 시야
+        aimMaxOffset: 500,    // 조준 시 기본시야 한계를 넘어서는 원거리 오프셋
         baseSpread: 0.005,
         movingSpreadMult: 1.5
     }
@@ -502,11 +503,14 @@ function update() {
     let targetZoom = 1.0;
 
     if (myPlayer.isAiming) {
-        const mouseOffsetX = (mouse.x - screenCenterX) * 0.8; 
-        const mouseOffsetY = (mouse.y - screenCenterY) * 0.8;
+        const mouseOffsetX = (mouse.x - screenCenterX); 
+        const mouseOffsetY = (mouse.y - screenCenterY);
         
-        // 스나이퍼는 조준 시 zoomPower에 맞춰 카메라 이동 오프셋 한계를 훨씬 더 멀리 확장
-        const maxOffset = wSpec.maxOffset * (myPlayer.weaponType === 'sniper' ? (1 + wSpec.zoomPower) : 1);
+        // 조준 상태에 따른 최대 오프셋 적용
+        const maxOffset = (myPlayer.weaponType === 'sniper' && wSpec.aimMaxOffset) 
+            ? wSpec.aimMaxOffset 
+            : wSpec.maxOffset;
+
         const dist = Math.hypot(mouseOffsetX, mouseOffsetY);
         
         let actualOffsetX = mouseOffsetX;
@@ -548,7 +552,7 @@ function update() {
         actionUI.innerText = `전력 질주 (속도 ${myPlayer.currentSpeed.toFixed(2)})`;
         actionUI.style.color = "#ffcc00";
     } else if (myPlayer.isAiming) {
-        actionUI.innerText = myPlayer.weaponType === 'sniper' ? "스나이퍼 줌인 (원거리 원거리 오프셋 시야)" : "정밀 조준 (근거리 표준 시야)";
+        actionUI.innerText = myPlayer.weaponType === 'sniper' ? "스나이퍼 줌인 (원거리 확장 시야)" : "정밀 조준 (근거리 표준 시야)";
         actionUI.style.color = "#00ffcc";
     } else {
         actionUI.innerText = `기본 이동 (속도 ${myPlayer.currentSpeed.toFixed(2)})`;
