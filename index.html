@@ -286,10 +286,13 @@ function resizeCanvas() {
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
+let obstacles = [];
+let droppedItems = [];
+
 const myPlayer = {
     id: Math.random().toString(36).substring(2, 9),
-    x: Math.random() * (WORLD_SIZE - 2000) + 1000,
-    y: Math.random() * (WORLD_SIZE - 2000) + 1000,
+    x: 1000,
+    y: 1000,
     angle: 0, speed: 3.0, hp: 100, maxHp: 100,
     name: '플레이어', weapon: null,
     clipAmmo: 0, reserveAmmo: 0, isReloading: false,
@@ -308,28 +311,56 @@ let mobileMoveVec = { x: 0, y: 0 };
 let mobileAimVec = { x: 0, y: 0 };
 
 let bullets = [];
-const droppedItems = [];
 const aiBots = [];
-const obstacles = [];
 const soundEvents = [];
 const bloodParticles = [];
 
-for(let i = 0; i < 500; i++) {
-    obstacles.push({
-        x: Math.random() * (WORLD_SIZE - 1000) + 500,
-        y: Math.random() * (WORLD_SIZE - 1000) + 500,
-        w: Math.random() * 250 + 100,
-        h: Math.random() * 250 + 100
-    });
+function checkObstacleCollision(x, y, radius = 15) {
+    for (let obs of obstacles) {
+        if (x + radius > obs.x && x - radius < obs.x + obs.w && 
+            y + radius > obs.y && y - radius < obs.y + obs.h) {
+            return true;
+        }
+    }
+    return false;
 }
 
-for(let i = 0; i < 800; i++) {
+function getSafeSpawnPos(padding = 500, bound = WORLD_SIZE) {
+    let safeX, safeY;
+    let attempts = 0;
+    do {
+        safeX = Math.random() * (bound - padding * 2) + padding;
+        safeY = Math.random() * (bound - padding * 2) + padding;
+        attempts++;
+    } while (checkObstacleCollision(safeX, safeY, 25) && attempts < 200);
+    return { x: safeX, y: safeY };
+}
+
+function generateMapData(mode) {
+    const size = mode === 'normal' ? 2400 : 24000;
+    const obsCount = mode === 'normal' ? 50 : 500;
+    const itemCount = mode === 'normal' ? 80 : 800;
+
+    const newObstacles = [];
+    for (let i = 0; i < obsCount; i++) {
+        const w = Math.random() * (mode === 'normal' ? 150 : 250) + 50;
+        const h = Math.random() * (mode === 'normal' ? 150 : 250) + 50;
+        const x = Math.random() * (size - w - 200) + 100;
+        const y = Math.random() * (size - h - 200) + 100;
+        newObstacles.push({ x, y, w, h });
+    }
+
     const types = ['ar', 'sniper', 'shotgun', '1x', '2x', '3x', '4x', '8x', 'ammo_ar', 'ammo_sniper', 'ammo_shotgun'];
-    droppedItems.push({
-        x: Math.random() * (WORLD_SIZE - 400) + 200,
-        y: Math.random() * (WORLD_SIZE - 400) + 200,
-        type: types[Math.floor(Math.random() * types.length)]
-    });
+    const newItems = [];
+    for (let i = 0; i < itemCount; i++) {
+        newItems.push({
+            x: Math.random() * (size - 400) + 200,
+            y: Math.random() * (size - 400) + 200,
+            type: types[Math.floor(Math.random() * types.length)]
+        });
+    }
+
+    return { obstacles: newObstacles, items: newItems };
 }
 
 function generateShortId() { return Math.random().toString(36).substring(2, 7).toLowerCase(); }
@@ -387,6 +418,8 @@ function handleNetworkData(data) {
     if(data.type === 'START') {
         selectedMode = data.mode;
         aiDifficulty = data.aiDiff;
+        obstacles = data.mapData.obstacles;
+        droppedItems = data.mapData.items;
         startGame();
     } else if(data.type === 'SYNC') {
         if(!isHost) {
@@ -421,22 +454,32 @@ function hostStartGame() {
     const aiCount = parseInt(document.getElementById('aiCountInput').value) || 0;
     aiDifficulty = document.getElementById('aiDifficultySelect').value;
 
+    const mapData = generateMapData(selectedMode);
+    obstacles = mapData.obstacles;
+    droppedItems = mapData.items;
+
     if (includeAi) {
         spawnAIBots(aiCount);
     }
 
     if (conn) {
-        conn.send({ type: 'START', mode: selectedMode, aiDiff: aiDifficulty });
+        conn.send({ 
+            type: 'START', 
+            mode: selectedMode, 
+            aiDiff: aiDifficulty,
+            mapData: mapData
+        });
     }
     startGame();
 }
 
 function spawnAIBots(count) {
     for (let i = 0; i < count; i++) {
+        const spawnPos = getSafeSpawnPos(1000, WORLD_SIZE);
         aiBots.push({
             id: 'bot_' + i,
-            x: Math.random() * (WORLD_SIZE - 2000) + 1000,
-            y: Math.random() * (WORLD_SIZE - 2000) + 1000,
+            x: spawnPos.x,
+            y: spawnPos.y,
             angle: 0, hp: 100, maxHp: 100,
             name: `AI 봇_${i+1}`,
             weapon: null, clipAmmo: 0, reserveAmmo: 100,
@@ -457,35 +500,15 @@ function startGame() {
 
     if (selectedMode === 'normal') {
         WORLD_SIZE = 2400; 
-
-        myPlayer.x = Math.random() * (WORLD_SIZE - 400) + 200;
-        myPlayer.y = Math.random() * (WORLD_SIZE - 400) + 200;
-
-        obstacles.length = 0;
-        for (let i = 0; i < 50; i++) {
-            obstacles.push({
-                x: Math.random() * (WORLD_SIZE - 300) + 150,
-                y: Math.random() * (WORLD_SIZE - 300) + 150,
-                w: Math.random() * 150 + 50,
-                h: Math.random() * 150 + 50
-            });
-        }
-
-        droppedItems.length = 0;
-        const types = ['ar', 'sniper', 'shotgun', '1x', '2x', '3x', '4x', '8x', 'ammo_ar', 'ammo_sniper', 'ammo_shotgun'];
-        for (let i = 0; i < 80; i++) {
-            droppedItems.push({
-                x: Math.random() * (WORLD_SIZE - 200) + 100,
-                y: Math.random() * (WORLD_SIZE - 200) + 100,
-                type: types[Math.floor(Math.random() * types.length)]
-            });
-        }
-
-        aiBots.forEach(bot => {
-            bot.x = Math.random() * (WORLD_SIZE - 400) + 200;
-            bot.y = Math.random() * (WORLD_SIZE - 400) + 200;
-        });
+        zone.x = WORLD_SIZE / 2;
+        zone.y = WORLD_SIZE / 2;
     }
+
+    const safePos = getSafeSpawnPos(200, WORLD_SIZE);
+    myPlayer.x = safePos.x;
+    myPlayer.y = safePos.y;
+    camera.x = myPlayer.x;
+    camera.y = myPlayer.y;
 
     if (isMobile) {
         document.getElementById('mobileControls').style.display = 'block';
@@ -749,7 +772,6 @@ function updateHUD() {
         : "- / -";
     document.getElementById('hudScope').innerText = myPlayer.equippedScope ? SCOPES[myPlayer.equippedScope].name : "없음";
 
-    // 버그 수정: 배틀로얄 모드('br')일 때만 생존자 1명 승리 체크
     if (selectedMode === 'br' && initialPlayerCount > 1 && alive === 1 && gameStarted && !gameEnded) {
         triggerVictory();
     }
@@ -988,15 +1010,6 @@ function updateAI() {
     }
 }
 
-function checkObstacleCollision(x, y) {
-    for (let obs of obstacles) {
-        if (x + 15 > obs.x && x - 15 < obs.x + obs.w && y + 15 > obs.y && y - 15 < obs.y + obs.h) {
-            return true;
-        }
-    }
-    return false;
-}
-
 function updateNetwork() {
     if(!conn) return;
 
@@ -1071,8 +1084,8 @@ function update() {
     let nextX = Math.max(50, Math.min(WORLD_SIZE - 50, myPlayer.x + dx * currentSpeed));
     let nextY = Math.max(50, Math.min(WORLD_SIZE - 50, myPlayer.y + dy * currentSpeed));
 
-    if(!checkObstacleCollision(nextX, myPlayer.y)) myPlayer.x = nextX;
-    if(!checkObstacleCollision(myPlayer.x, nextY)) myPlayer.y = nextY;
+    if(!checkObstacleCollision(nextX, myPlayer.y, 15)) myPlayer.x = nextX;
+    if(!checkObstacleCollision(myPlayer.x, nextY, 15)) myPlayer.y = nextY;
 
     if (myPlayer.isMoving && footstepRadius > 0) {
         emitSoundEvent(myPlayer.x, myPlayer.y, footstepRadius, 'footstep');
@@ -1146,7 +1159,7 @@ function update() {
         b.x += b.dx; 
         b.y += b.dy;
 
-        if(checkObstacleCollision(b.x, b.y)) {
+        if(checkObstacleCollision(b.x, b.y, 2)) {
             bullets.splice(i, 1);
             continue;
         }
