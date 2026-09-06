@@ -725,7 +725,6 @@ function update() {
     let currentSpeed = 3.0;
     let footstepRadius = 0;
 
-    // 달리기 속도 조절 (8.5 -> 5.0)
     if (keys['shift']) {
         currentSpeed = 5.0;
         myPlayer.movementMode = 'sprint';
@@ -884,15 +883,16 @@ function getIntersection(ray, segment) {
     return { x: r_px + r_dx * T1, y: r_py + r_dy * T1, param: T1 };
 }
 
-// 장애물 뒤 시야 차단 (수정 완료)
+// 스코프 모드 시야 검은 화면 수정
 function drawFogOfWar() {
     const px = myPlayer.x;
     const py = myPlayer.y;
 
-    const screenLeft = camera.x - canvas.width / 2 - 100;
-    const screenRight = camera.x + canvas.width / 2 + 100;
-    const screenTop = camera.y - canvas.height / 2 - 100;
-    const screenBottom = camera.y + canvas.height / 2 + 100;
+    const viewMargin = 1500; 
+    const screenLeft = camera.x - canvas.width / 2 - viewMargin;
+    const screenRight = camera.x + canvas.width / 2 + viewMargin;
+    const screenTop = camera.y - canvas.height / 2 - viewMargin;
+    const screenBottom = camera.y + canvas.height / 2 + viewMargin;
 
     const segments = [
         { a: { x: screenLeft, y: screenTop }, b: { x: screenRight, y: screenTop } },
@@ -934,9 +934,15 @@ function drawFogOfWar() {
 
     angles.sort((a, b) => a - b);
 
+    // 스코프 확대 거리에 맞는 레이캐스팅 원거리 도달 설정
+    const maxRayDistance = Math.hypot(camera.x - px, camera.y - py) + Math.max(canvas.width, canvas.height) + 2000;
+
     const intersects = [];
     angles.forEach(angle => {
-        const ray = { a: { x: px, y: py }, b: { x: px + Math.cos(angle) * 3000, y: py + Math.sin(angle) * 3000 } };
+        const ray = { 
+            a: { x: px, y: py }, 
+            b: { x: px + Math.cos(angle) * maxRayDistance, y: py + Math.sin(angle) * maxRayDistance } 
+        };
         let closest = null;
 
         segments.forEach(seg => {
@@ -950,21 +956,17 @@ function drawFogOfWar() {
         if (closest) intersects.push(closest);
     });
 
-    // 화면 전체를 덮는 검은색 오버레이 생성
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-    // 가상 캔버스로 시야 마스크 적용
     const maskCanvas = document.createElement('canvas');
     maskCanvas.width = canvas.width;
     maskCanvas.height = canvas.height;
     const mCtx = maskCanvas.getContext('2d');
 
-    // 검은 배경
     mCtx.fillStyle = 'rgba(0,0,0,0.95)';
     mCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
 
-    // 시야 다각형 구멍 뚫기
     mCtx.globalCompositeOperation = 'destination-out';
     mCtx.save();
     mCtx.translate(canvas.width / 2 - camera.x, canvas.height / 2 - camera.y);
@@ -980,7 +982,6 @@ function drawFogOfWar() {
     mCtx.fill();
     mCtx.restore();
 
-    // 메인 화면에 덧붙이기
     ctx.drawImage(maskCanvas, 0, 0);
     ctx.restore();
 }
