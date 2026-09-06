@@ -231,7 +231,7 @@
 <canvas id="minimapCanvas" width="200" height="200"></canvas>
 
 <script>
-const WORLD_SIZE = 24000; 
+let WORLD_SIZE = 24000; 
 
 const SCOPES = {
     '1x': { name: "1배율 (레드닷)", viewOffset: 300 },
@@ -299,7 +299,7 @@ const myPlayer = {
     isMoving: false, movementMode: 'walk'
 };
 
-let remotePlayers = {}; // 다른 원격 접속 플레이어들 동기화용 객체
+let remotePlayers = {}; 
 
 const camera = { x: myPlayer.x, y: myPlayer.y };
 const keys = {};
@@ -390,29 +390,25 @@ function handleNetworkData(data) {
         startGame();
     } else if(data.type === 'SYNC') {
         if(!isHost) {
-            // 게스트가 호스트로부터 AI/총알/상대플레이어 정보를 넘겨받음
             bullets = data.bullets;
             zone.radius = data.zoneRadius;
             
-            // remotePlayers 업데이트
             let activeIds = {};
             data.players.forEach(p => {
                 if(p.id !== myPlayer.id) {
                     remotePlayers[p.id] = p;
                     activeIds[p.id] = true;
                 } else {
-                    myPlayer.hp = p.hp; // 호스트 피격 데이터 동기화
+                    myPlayer.hp = p.hp;
                 }
             });
             for(let id in remotePlayers) {
                 if(!activeIds[id]) delete remotePlayers[id];
             }
 
-            // AI 동기화
             aiBots.length = 0;
             data.aiBots.forEach(b => aiBots.push(b));
         } else {
-            // 호스트가 게스트로부터 이동/사격 상태 수신
             remotePlayers[data.player.id] = data.player;
         }
     } else if(data.type === 'SHOOT' && isHost) {
@@ -458,6 +454,39 @@ function startGame() {
     document.getElementById('ui').style.display = 'none';
     document.getElementById('waitingRoom').style.display = 'none';
     document.getElementById('statusHUD').style.display = 'block';
+
+    // 데스매치(기본 모드) 선택 시 맵 크기 1/10 축소
+    if (selectedMode === 'normal') {
+        WORLD_SIZE = 2400; 
+
+        myPlayer.x = Math.random() * (WORLD_SIZE - 400) + 200;
+        myPlayer.y = Math.random() * (WORLD_SIZE - 400) + 200;
+
+        obstacles.length = 0;
+        for (let i = 0; i < 50; i++) {
+            obstacles.push({
+                x: Math.random() * (WORLD_SIZE - 300) + 150,
+                y: Math.random() * (WORLD_SIZE - 300) + 150,
+                w: Math.random() * 150 + 50,
+                h: Math.random() * 150 + 50
+            });
+        }
+
+        droppedItems.length = 0;
+        const types = ['ar', 'sniper', 'shotgun', '1x', '2x', '3x', '4x', '8x', 'ammo_ar', 'ammo_sniper', 'ammo_shotgun'];
+        for (let i = 0; i < 80; i++) {
+            droppedItems.push({
+                x: Math.random() * (WORLD_SIZE - 200) + 100,
+                y: Math.random() * (WORLD_SIZE - 200) + 100,
+                type: types[Math.floor(Math.random() * types.length)]
+            });
+        }
+
+        aiBots.forEach(bot => {
+            bot.x = Math.random() * (WORLD_SIZE - 400) + 200;
+            bot.y = Math.random() * (WORLD_SIZE - 400) + 200;
+        });
+    }
 
     if (isMobile) {
         document.getElementById('mobileControls').style.display = 'block';
@@ -813,7 +842,7 @@ function distToSegmentSquared(p, v, w) {
 }
 
 function updateAI() {
-    if(!isHost) return; // AI 연산은 방장(호스트)만 주도함
+    if(!isHost) return; 
 
     const now = Date.now();
     const diff = AI_DIFFICULTY[aiDifficulty];
@@ -972,7 +1001,6 @@ function updateNetwork() {
     if(!conn) return;
 
     if(isHost) {
-        // 호스트: 게스트에게 AI, 총알, 원격 플레이어 정보 전달
         const allPlayers = [myPlayer, ...Object.values(remotePlayers)];
         conn.send({
             type: 'SYNC',
@@ -982,7 +1010,6 @@ function updateNetwork() {
             zoneRadius: zone.radius
         });
     } else {
-        // 게스트: 호스트에게 자신의 플레이어 위치/상태 전송
         conn.send({
             type: 'SYNC',
             player: myPlayer
@@ -1110,7 +1137,7 @@ function update() {
         if(now - soundEvents[i].time > duration) soundEvents.splice(i, 1);
     }
 
-    if(!isHost) return; // 호스트만 피격 및 충돌 계산 전담
+    if(!isHost) return; 
 
     for(let i = bullets.length - 1; i >= 0; i--) {
         const b = bullets[i];
@@ -1143,7 +1170,6 @@ function update() {
             }
         }
 
-        // 모든 실제 유저(원격 + 본인) 충돌 확인
         const allHumanPlayers = [myPlayer, ...Object.values(remotePlayers)];
         for(let targetP of allHumanPlayers) {
             if(!hit && b.ownerId !== targetP.id) {
@@ -1369,7 +1395,6 @@ function draw() {
         drawCharacter(bot, '#ff4444');
     });
 
-    // 멀티플레이 다른 유저 렌더링
     for(let id in remotePlayers) {
         drawCharacter(remotePlayers[id], '#ffaa00');
     }
