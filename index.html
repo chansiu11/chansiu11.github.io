@@ -111,6 +111,7 @@
         #btnReload { bottom: 35px; right: 110px; }
         #btnPickup { bottom: 185px; right: 40px; }
         #btnBag { bottom: 185px; right: 110px; }
+        #btnMap { top: 20px; right: 20px; width: 55px; height: 55px; border-color: #ffcc00; color: #ffcc00; }
     </style>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 </head>
@@ -201,6 +202,7 @@
     <div id="btnReload" class="mobile-btn touch-zone">장전</div>
     <div id="btnPickup" class="mobile-btn touch-zone">줍기</div>
     <div id="btnBag" class="mobile-btn touch-zone">가방</div>
+    <div id="btnMap" class="mobile-btn touch-zone">지도</div>
 </div>
 
 <div id="inventory">
@@ -220,8 +222,8 @@
     <button onclick="toggleInventory()" style="margin-top:auto;">닫기 (Tab)</button>
 </div>
 
-<div id="fullMapOverlay">
-    <h3 style="margin: 10px 0 5px 0; color:#00ffcc;">전체 맵 (M 키로 닫기)</h3>
+<div id="fullMapOverlay" onclick="toggleFullMap()">
+    <h3 style="margin: 10px 0 5px 0; color:#00ffcc;">전체 맵 (터치하여 닫기)</h3>
     <canvas id="fullMapCanvas" width="500" height="500"></canvas>
 </div>
 
@@ -577,6 +579,7 @@ function initMobileControls() {
     document.getElementById('btnReload').addEventListener('touchstart', (e) => { e.preventDefault(); reloadWeapon(myPlayer); });
     document.getElementById('btnPickup').addEventListener('touchstart', (e) => { e.preventDefault(); pickupItem(); });
     document.getElementById('btnBag').addEventListener('touchstart', (e) => { e.preventDefault(); toggleInventory(); });
+    document.getElementById('btnMap').addEventListener('touchstart', (e) => { e.preventDefault(); toggleFullMap(); });
 }
 
 function toggleFullMap() {
