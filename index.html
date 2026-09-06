@@ -242,9 +242,9 @@ const SCOPES = {
 };
 
 const WEAPONS = {
-    ar: { name: "돌격소총", cooldown: 110, bulletSpeed: 90, damage: 12.5, pellets: 1, spread: 0.03, maxClip: 30 },
-    sniper: { name: "스나이퍼", cooldown: 900, bulletSpeed: 160, damage: 65, pellets: 1, spread: 0.005, maxClip: 5 },
-    shotgun: { name: "샷건", cooldown: 800, bulletSpeed: 75, damage: 10, pellets: 8, spread: 0.18, maxClip: 8 }
+    ar: { name: "돌격소총", cooldown: 110, bulletSpeed: 90, damage: 25, pellets: 1, spread: 0.03, maxClip: 30 },
+    sniper: { name: "스나이퍼", cooldown: 900, bulletSpeed: 160, damage: 100, pellets: 1, spread: 0.005, maxClip: 5 },
+    shotgun: { name: "샷건", cooldown: 800, bulletSpeed: 75, damage: 18, pellets: 8, spread: 0.18, maxClip: 8 }
 };
 
 const AI_DIFFICULTY = {
@@ -423,29 +423,41 @@ function handleNetworkData(data) {
         startGame();
     } else if(data.type === 'SYNC') {
         if(!isHost) {
-            bullets = data.bullets;
+            bullets = data.bullets || [];
             zone.radius = data.zoneRadius;
             
             let activeIds = {};
-            data.players.forEach(p => {
-                if(p.id !== myPlayer.id) {
-                    remotePlayers[p.id] = p;
-                    activeIds[p.id] = true;
-                } else {
-                    myPlayer.hp = p.hp;
-                }
-            });
+            if (data.players) {
+                data.players.forEach(p => {
+                    if(p.id !== myPlayer.id) {
+                        remotePlayers[p.id] = p;
+                        activeIds[p.id] = true;
+                    } else {
+                        myPlayer.hp = p.hp;
+                    }
+                });
+            }
             for(let id in remotePlayers) {
                 if(!activeIds[id]) delete remotePlayers[id];
             }
 
             aiBots.length = 0;
-            data.aiBots.forEach(b => aiBots.push(b));
+            if (data.aiBots) {
+                data.aiBots.forEach(b => aiBots.push(b));
+            }
+            updateHUD();
         } else {
-            remotePlayers[data.player.id] = data.player;
+            if(data.player) remotePlayers[data.player.id] = data.player;
         }
-    } else if(data.type === 'SHOOT' && isHost) {
+    } else if(data.type === 'SHOOT') {
         shoot(data.player, data.extraSpread);
+    } else if(data.type === 'DAMAGE' && data.targetId === myPlayer.id) {
+        myPlayer.hp -= data.damage;
+        triggerDamageEffect();
+        if(myPlayer.hp <= 0) {
+            alert("사망하셨습니다!");
+            location.reload();
+        }
     }
 }
 
@@ -764,7 +776,7 @@ function pickupItem() {
 }
 
 function updateHUD() {
-    const alive = aiBots.length + 1 + Object.keys(remotePlayers).length;
+    const alive = aiBots.length + (myPlayer.hp > 0 ? 1 : 0) + Object.values(remotePlayers).filter(p => p.hp > 0).length;
     document.getElementById('hudAliveCount').innerText = alive;
     document.getElementById('hudWeapon').innerText = myPlayer.weapon ? WEAPONS[myPlayer.weapon].name : "맨손";
     document.getElementById('hudAmmo').innerText = myPlayer.weapon 
@@ -772,7 +784,7 @@ function updateHUD() {
         : "- / -";
     document.getElementById('hudScope').innerText = myPlayer.equippedScope ? SCOPES[myPlayer.equippedScope].name : "없음";
 
-    if (selectedMode === 'br' && initialPlayerCount > 1 && alive === 1 && gameStarted && !gameEnded) {
+    if (selectedMode === 'br' && initialPlayerCount > 1 && alive === 1 && myPlayer.hp > 0 && gameStarted && !gameEnded) {
         triggerVictory();
     }
 }
@@ -822,14 +834,13 @@ function emitSoundEvent(x, y, radius, type = 'gunshot') {
 }
 
 function shoot(shooter, extraSpread = 0) {
-    if(!isHost) {
+    if(!isHost && shooter.id === myPlayer.id) {
         if(conn) conn.send({ type: 'SHOOT', player: shooter, extraSpread: extraSpread });
-        return;
     }
 
     if(!shooter.weapon || shooter.clipAmmo <= 0 || shooter.isReloading) return;
     shooter.clipAmmo--;
-    if(shooter === myPlayer) updateHUD();
+    if(shooter.id === myPlayer.id) updateHUD();
 
     const w = WEAPONS[shooter.weapon];
     emitSoundEvent(shooter.x, shooter.y, 2500, 'gunshot');
@@ -904,7 +915,11 @@ function updateAI() {
             }
         });
 
-        let targets = [myPlayer, ...Object.values(remotePlayers), ...aiBots.filter(b => b.id !== bot.id)];
+        let targets = [];
+        if(myPlayer.hp > 0) targets.push(myPlayer);
+        Object.values(remotePlayers).forEach(p => { if(p.hp > 0) targets.push(p); });
+        aiBots.filter(b => b.id !== bot.id).forEach(b => targets.push(b));
+
         let closestTarget = null;
         let minDst = 1200;
 
@@ -1039,7 +1054,7 @@ function update() {
         }
     }
 
-    if(selectedMode === 'br') {
+    if(selectedMode === 'br' && myPlayer.hp > 0) {
         if(Math.hypot(myPlayer.x - zone.x, myPlayer.y - zone.y) > zone.radius) {
             myPlayer.hp -= 0.15;
             triggerDamageEffect();
@@ -1081,21 +1096,23 @@ function update() {
 
     myPlayer.isMoving = (dx !== 0 || dy !== 0);
 
-    let nextX = Math.max(50, Math.min(WORLD_SIZE - 50, myPlayer.x + dx * currentSpeed));
-    let nextY = Math.max(50, Math.min(WORLD_SIZE - 50, myPlayer.y + dy * currentSpeed));
+    if (myPlayer.hp > 0) {
+        let nextX = Math.max(50, Math.min(WORLD_SIZE - 50, myPlayer.x + dx * currentSpeed));
+        let nextY = Math.max(50, Math.min(WORLD_SIZE - 50, myPlayer.y + dy * currentSpeed));
 
-    if(!checkObstacleCollision(nextX, myPlayer.y, 15)) myPlayer.x = nextX;
-    if(!checkObstacleCollision(myPlayer.x, nextY, 15)) myPlayer.y = nextY;
+        if(!checkObstacleCollision(nextX, myPlayer.y, 15)) myPlayer.x = nextX;
+        if(!checkObstacleCollision(myPlayer.x, nextY, 15)) myPlayer.y = nextY;
 
-    if (myPlayer.isMoving && footstepRadius > 0) {
-        emitSoundEvent(myPlayer.x, myPlayer.y, footstepRadius, 'footstep');
-    }
+        if (myPlayer.isMoving && footstepRadius > 0) {
+            emitSoundEvent(myPlayer.x, myPlayer.y, footstepRadius, 'footstep');
+        }
 
-    if (myPlayer.isShooting) {
-        const now = Date.now();
-        if (myPlayer.weapon && now - myPlayer.lastShootTime >= WEAPONS[myPlayer.weapon].cooldown) {
-            shoot(myPlayer);
-            myPlayer.lastShootTime = now;
+        if (myPlayer.isShooting) {
+            const now = Date.now();
+            if (myPlayer.weapon && now - myPlayer.lastShootTime >= WEAPONS[myPlayer.weapon].cooldown) {
+                shoot(myPlayer);
+                myPlayer.lastShootTime = now;
+            }
         }
     }
 
@@ -1150,64 +1167,74 @@ function update() {
         if(now - soundEvents[i].time > duration) soundEvents.splice(i, 1);
     }
 
-    if(!isHost) return; 
+    /* 호스트에서 전체 총알 충돌 처리 */
+    if(isHost) {
+        for(let i = bullets.length - 1; i >= 0; i--) {
+            const b = bullets[i];
+            b.prevX = b.x;
+            b.prevY = b.y;
+            b.x += b.dx; 
+            b.y += b.dy;
 
-    for(let i = bullets.length - 1; i >= 0; i--) {
-        const b = bullets[i];
-        b.prevX = b.x;
-        b.prevY = b.y;
-        b.x += b.dx; 
-        b.y += b.dy;
+            if(checkObstacleCollision(b.x, b.y, 2)) {
+                bullets.splice(i, 1);
+                continue;
+            }
 
-        if(checkObstacleCollision(b.x, b.y, 2)) {
-            bullets.splice(i, 1);
-            continue;
-        }
-
-        let hit = false;
-        
-        for (let bIdx = aiBots.length - 1; bIdx >= 0; bIdx--) {
-            const bot = aiBots[bIdx];
-            if (b.ownerId !== bot.id) {
-                const distSq = distToSegmentSquared({x: bot.x, y: bot.y}, {x: b.prevX, y: b.prevY}, {x: b.x, y: b.y});
-                if (distSq <= 20 * 20) {
-                    bot.hp -= b.damage;
-                    spawnBloodParticles(bot.x, bot.y);
-                    hit = true;
-                    if (bot.hp <= 0) {
-                        aiBots.splice(bIdx, 1);
-                        updateHUD();
+            let hit = false;
+            
+            // AI 봇 충돌 검사
+            for (let bIdx = aiBots.length - 1; bIdx >= 0; bIdx--) {
+                const bot = aiBots[bIdx];
+                if (b.ownerId !== bot.id) {
+                    const distSq = distToSegmentSquared({x: bot.x, y: bot.y}, {x: b.prevX, y: b.prevY}, {x: b.x, y: b.y});
+                    if (distSq <= 25 * 25) { // 판정 범위 상향
+                        bot.hp -= b.damage;
+                        spawnBloodParticles(bot.x, bot.y);
+                        hit = true;
+                        if (bot.hp <= 0) {
+                            if (bot.weapon) droppedItems.push({ x: bot.x, y: bot.y, type: bot.weapon });
+                            aiBots.splice(bIdx, 1);
+                            updateHUD();
+                        }
+                        break;
                     }
-                    break;
                 }
             }
-        }
 
-        const allHumanPlayers = [myPlayer, ...Object.values(remotePlayers)];
-        for(let targetP of allHumanPlayers) {
-            if(!hit && b.ownerId !== targetP.id) {
-                const distSq = distToSegmentSquared({x: targetP.x, y: targetP.y}, {x: b.prevX, y: b.prevY}, {x: b.x, y: b.y});
-                if (distSq <= 20 * 20) {
-                    targetP.hp -= b.damage;
-                    spawnBloodParticles(targetP.x, targetP.y);
-                    hit = true;
-                    if(targetP === myPlayer) triggerDamageEffect();
-                    if (targetP.hp <= 0) {
-                        if(targetP === myPlayer) {
-                            alert("사망하셨습니다!");
-                            location.reload();
+            // 인간 플레이어 충돌 검사
+            if (!hit) {
+                const allHumanPlayers = [myPlayer, ...Object.values(remotePlayers)];
+                for(let targetP of allHumanPlayers) {
+                    if(b.ownerId !== targetP.id && targetP.hp > 0) {
+                        const distSq = distToSegmentSquared({x: targetP.x, y: targetP.y}, {x: b.prevX, y: b.prevY}, {x: b.x, y: b.y});
+                        if (distSq <= 25 * 25) {
+                            targetP.hp -= b.damage;
+                            spawnBloodParticles(targetP.x, targetP.y);
+                            hit = true;
+
+                            if(targetP.id === myPlayer.id) {
+                                triggerDamageEffect();
+                                if(myPlayer.hp <= 0) {
+                                    alert("사망하셨습니다!");
+                                    location.reload();
+                                }
+                            } else if (conn) {
+                                conn.send({ type: 'DAMAGE', targetId: targetP.id, damage: b.damage });
+                            }
+                            break;
                         }
                     }
                 }
             }
-        }
 
-        if (hit) {
-            bullets.splice(i, 1);
-            continue;
-        }
+            if (hit) {
+                bullets.splice(i, 1);
+                continue;
+            }
 
-        if(b.x < 0 || b.x > WORLD_SIZE || b.y < 0 || b.y > WORLD_SIZE) bullets.splice(i, 1);
+            if(b.x < 0 || b.x > WORLD_SIZE || b.y < 0 || b.y > WORLD_SIZE) bullets.splice(i, 1);
+        }
     }
 }
 
@@ -1405,14 +1432,14 @@ function draw() {
     });
 
     aiBots.forEach(bot => {
-        drawCharacter(bot, '#ff4444');
+        if(bot.hp > 0) drawCharacter(bot, '#ff4444');
     });
 
     for(let id in remotePlayers) {
-        drawCharacter(remotePlayers[id], '#ffaa00');
+        if(remotePlayers[id].hp > 0) drawCharacter(remotePlayers[id], '#ffaa00');
     }
 
-    drawCharacter(myPlayer, '#00ffcc');
+    if(myPlayer.hp > 0) drawCharacter(myPlayer, '#00ffcc');
 
     ctx.restore();
 
@@ -1510,7 +1537,7 @@ function drawCharacter(p, color) {
     ctx.translate(p.x, p.y);
     
     ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(-20, -30, 40, 5);
-    ctx.fillStyle = '#00ff55'; ctx.fillRect(-20, -30, 40 * (p.hp / p.maxHp), 5);
+    ctx.fillStyle = '#00ff55'; ctx.fillRect(-20, -30, 40 * Math.max(0, (p.hp / p.maxHp)), 5);
 
     ctx.rotate(p.angle);
     ctx.fillStyle = color;
