@@ -78,7 +78,6 @@
         }
         canvas#gameCanvas { position: absolute; top:0; left:0; width: 100vw; height: 100vh; display: none; background-color: #000; z-index: 1; }
 
-        /* 모바일 터치 패드 UI */
         #mobileControls {
             position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
             z-index: 30; pointer-events: none; display: none;
@@ -253,7 +252,9 @@ const AI_DIFFICULTY = {
     hard: { delay: 100, spread: 0.02, speedMult: 1.2 }
 };
 
-let peer = null, conn = null;
+let peer = null;
+let connections = {}; // 방장: 여러 클라이언트 연결 관리 객체
+let hostConn = null;  // 게스트: 방장과의 단일 연결 객체
 let isHost = false;
 let selectedMode = 'br';
 let isMobile = false;
@@ -354,6 +355,7 @@ function generateMapData(mode) {
     const newItems = [];
     for (let i = 0; i < itemCount; i++) {
         newItems.push({
+            id: 'item_' + Math.random().toString(36).substring(2, 9),
             x: Math.random() * (size - 400) + 200,
             y: Math.random() * (size - 400) + 200,
             type: types[Math.floor(Math.random() * types.length)]
@@ -385,9 +387,35 @@ function createRoom() {
     document.getElementById('waitingRoom').style.display = 'flex';
 
     peer = new Peer('gungame-room-' + code);
+    
+    // 방장: 누군가 접속할 때마다 동적 바인딩 및 퇴장 처리
     peer.on('connection', c => { 
-        conn = c; 
-        conn.on('data', data => handleNetworkData(data));
+        let connectedPeerId = null;
+
+        c.on('open', () => {
+            connectedPeerId = c.peer;
+            connections[c.peer] = c;
+        });
+
+        c.on('data', data => {
+            if(data.player && data.player.id) {
+                // 플레이어 ID와 네트워크 접속 PeerID 매핑 관리
+                c.playerId = data.player.id;
+            }
+            handleNetworkData(data);
+        });
+
+        // 클라이언트 연결 해제시(페이지 나감) 제거 처리
+        const handleDisconnect = () => {
+            if (c.playerId) {
+                delete remotePlayers[c.playerId];
+            }
+            delete connections[c.peer];
+            updateHUD();
+        };
+
+        c.on('close', handleDisconnect);
+        c.on('error', handleDisconnect);
     });
 }
 
@@ -402,16 +430,30 @@ function joinRoom() {
     isHost = false;
     peer = new Peer();
     peer.on('open', () => {
-        conn = peer.connect('gungame-room-' + input);
-        conn.on('open', () => {
+        hostConn = peer.connect('gungame-room-' + input);
+        hostConn.on('open', () => {
             document.getElementById('ui').style.display = 'none';
             document.getElementById('waitingRoom').style.display = 'flex';
             document.getElementById('startButton').style.display = 'none'; 
             document.getElementById('waitingRoom').innerHTML += "<p style='color:#00ffcc;'>방장이 게임을 시작하기를 기다리는 중...</p>";
         });
-        conn.on('data', data => handleNetworkData(data));
-        conn.on('error', () => alert('방 접속 실패!'));
+        hostConn.on('data', data => handleNetworkData(data));
+        hostConn.on('error', () => alert('방 접속 실패!'));
+        hostConn.on('close', () => {
+            alert('방장과의 연결이 끊어졌습니다.');
+            location.reload();
+        });
     });
+}
+
+function broadcastData(data) {
+    if(isHost) {
+        Object.values(connections).forEach(c => {
+            if(c.open) c.send(data);
+        });
+    } else if(hostConn && hostConn.open) {
+        hostConn.send(data);
+    }
 }
 
 function handleNetworkData(data) {
@@ -425,6 +467,7 @@ function handleNetworkData(data) {
         if(!isHost) {
             bullets = data.bullets || [];
             zone.radius = data.zoneRadius;
+            droppedItems = data.items || droppedItems;
             
             let activeIds = {};
             if (data.players) {
@@ -433,6 +476,7 @@ function handleNetworkData(data) {
                         remotePlayers[p.id] = p;
                         activeIds[p.id] = true;
                     } else {
+                        // 내 HP 실시간 동기화
                         myPlayer.hp = p.hp;
                     }
                 });
@@ -447,6 +491,7 @@ function handleNetworkData(data) {
             }
             updateHUD();
         } else {
+            // 방장이 클라이언트 플레이어 위치/HP 상태를 갱신
             if(data.player) remotePlayers[data.player.id] = data.player;
         }
     } else if(data.type === 'SHOOT') {
@@ -458,6 +503,16 @@ function handleNetworkData(data) {
             alert("사망하셨습니다!");
             location.reload();
         }
+    } else if(data.type === 'PICKUP_ITEM') {
+        // 특정 플레이어가 아이템을 주웠을 때 바닥에서 제거
+        droppedItems = droppedItems.filter(item => item.id !== data.itemId);
+        if(isHost) broadcastData({ type: 'SYNC_ITEMS', items: droppedItems });
+    } else if(data.type === 'DROP_ITEM') {
+        // 아이템이 바닥에 떨어졌을 때 동기화
+        droppedItems.push(data.item);
+        if(isHost) broadcastData({ type: 'SYNC_ITEMS', items: droppedItems });
+    } else if(data.type === 'SYNC_ITEMS') {
+        droppedItems = data.items;
     }
 }
 
@@ -474,14 +529,13 @@ function hostStartGame() {
         spawnAIBots(aiCount);
     }
 
-    if (conn) {
-        conn.send({ 
-            type: 'START', 
-            mode: selectedMode, 
-            aiDiff: aiDifficulty,
-            mapData: mapData
-        });
-    }
+    broadcastData({ 
+        type: 'START', 
+        mode: selectedMode, 
+        aiDiff: aiDifficulty,
+        mapData: mapData
+    });
+
     startGame();
 }
 
@@ -533,7 +587,7 @@ function startGame() {
         document.getElementById('hudZoneContainer').style.display = 'none';
     }
 
-    initialPlayerCount = aiBots.length + 1 + (conn ? 1 : 0);
+    initialPlayerCount = aiBots.length + 1 + Object.keys(connections).length;
 
     canvas.style.display = 'block';
     minimapCanvas.style.display = 'block';
@@ -717,7 +771,15 @@ function renderInventory() {
 
 function unequipWeapon() {
     if(myPlayer.weapon) {
-        droppedItems.push({ x: myPlayer.x, y: myPlayer.y, type: myPlayer.weapon });
+        const newItem = {
+            id: 'item_' + Math.random().toString(36).substring(2, 9),
+            x: myPlayer.x,
+            y: myPlayer.y,
+            type: myPlayer.weapon
+        };
+        droppedItems.push(newItem);
+        broadcastData({ type: 'DROP_ITEM', item: newItem });
+
         myPlayer.weapon = null;
         myPlayer.equippedScope = null;
         myPlayer.clipAmmo = 0;
@@ -759,7 +821,14 @@ function pickupItem() {
         const item = droppedItems[i];
         if(Math.hypot(myPlayer.x - item.x, myPlayer.y - item.y) < 50) {
             if(['ar', 'sniper', 'shotgun'].includes(item.type)) {
-                if(myPlayer.weapon) droppedItems.push({ x: myPlayer.x, y: myPlayer.y, type: myPlayer.weapon });
+                if(myPlayer.weapon) {
+                    const dropWeaponItem = {
+                        id: 'item_' + Math.random().toString(36).substring(2, 9),
+                        x: myPlayer.x, y: myPlayer.y, type: myPlayer.weapon
+                    };
+                    droppedItems.push(dropWeaponItem);
+                    broadcastData({ type: 'DROP_ITEM', item: dropWeaponItem });
+                }
                 myPlayer.weapon = item.type;
                 myPlayer.clipAmmo = WEAPONS[item.type].maxClip;
                 myPlayer.reserveAmmo += WEAPONS[item.type].maxClip * 2;
@@ -768,6 +837,8 @@ function pickupItem() {
             } else {
                 myPlayer.inventory.scopes.push(item.type);
             }
+            
+            broadcastData({ type: 'PICKUP_ITEM', itemId: item.id });
             droppedItems.splice(i, 1);
             updateHUD();
             break;
@@ -835,7 +906,7 @@ function emitSoundEvent(x, y, radius, type = 'gunshot') {
 
 function shoot(shooter, extraSpread = 0) {
     if(!isHost && shooter.id === myPlayer.id) {
-        if(conn) conn.send({ type: 'SHOOT', player: shooter, extraSpread: extraSpread });
+        broadcastData({ type: 'SHOOT', player: shooter, extraSpread: extraSpread });
     }
 
     if(!shooter.weapon || shooter.clipAmmo <= 0 || shooter.isReloading) return;
@@ -997,7 +1068,11 @@ function updateAI() {
                         } else if(!bot.equippedScope) {
                             bot.equippedScope = item.type;
                         }
-                        droppedItems.splice(droppedItems.indexOf(item), 1);
+                        const itemIdx = droppedItems.findIndex(i => i.id === item.id);
+                        if(itemIdx !== -1) {
+                            droppedItems.splice(itemIdx, 1);
+                            broadcastData({ type: 'PICKUP_ITEM', itemId: item.id });
+                        }
                         bot.targetItem = null;
                     }
                 } else {
@@ -1026,19 +1101,18 @@ function updateAI() {
 }
 
 function updateNetwork() {
-    if(!conn) return;
-
     if(isHost) {
         const allPlayers = [myPlayer, ...Object.values(remotePlayers)];
-        conn.send({
+        broadcastData({
             type: 'SYNC',
             players: allPlayers,
             aiBots: aiBots,
             bullets: bullets,
+            items: droppedItems,
             zoneRadius: zone.radius
         });
-    } else {
-        conn.send({
+    } else if(hostConn && hostConn.open) {
+        hostConn.send({
             type: 'SYNC',
             player: myPlayer
         });
@@ -1167,7 +1241,6 @@ function update() {
         if(now - soundEvents[i].time > duration) soundEvents.splice(i, 1);
     }
 
-    /* 호스트에서 전체 총알 충돌 처리 */
     if(isHost) {
         for(let i = bullets.length - 1; i >= 0; i--) {
             const b = bullets[i];
@@ -1183,17 +1256,23 @@ function update() {
 
             let hit = false;
             
-            // AI 봇 충돌 검사
             for (let bIdx = aiBots.length - 1; bIdx >= 0; bIdx--) {
                 const bot = aiBots[bIdx];
                 if (b.ownerId !== bot.id) {
                     const distSq = distToSegmentSquared({x: bot.x, y: bot.y}, {x: b.prevX, y: b.prevY}, {x: b.x, y: b.y});
-                    if (distSq <= 25 * 25) { // 판정 범위 상향
+                    if (distSq <= 25 * 25) {
                         bot.hp -= b.damage;
                         spawnBloodParticles(bot.x, bot.y);
                         hit = true;
                         if (bot.hp <= 0) {
-                            if (bot.weapon) droppedItems.push({ x: bot.x, y: bot.y, type: bot.weapon });
+                            if (bot.weapon) {
+                                const dropWeaponItem = {
+                                    id: 'item_' + Math.random().toString(36).substring(2, 9),
+                                    x: bot.x, y: bot.y, type: bot.weapon
+                                };
+                                droppedItems.push(dropWeaponItem);
+                                broadcastData({ type: 'DROP_ITEM', item: dropWeaponItem });
+                            }
                             aiBots.splice(bIdx, 1);
                             updateHUD();
                         }
@@ -1202,7 +1281,6 @@ function update() {
                 }
             }
 
-            // 인간 플레이어 충돌 검사
             if (!hit) {
                 const allHumanPlayers = [myPlayer, ...Object.values(remotePlayers)];
                 for(let targetP of allHumanPlayers) {
@@ -1219,8 +1297,8 @@ function update() {
                                     alert("사망하셨습니다!");
                                     location.reload();
                                 }
-                            } else if (conn) {
-                                conn.send({ type: 'DAMAGE', targetId: targetP.id, damage: b.damage });
+                            } else {
+                                broadcastData({ type: 'DAMAGE', targetId: targetP.id, damage: b.damage });
                             }
                             break;
                         }
