@@ -47,13 +47,13 @@
             cursor: pointer; font-size: 13px;
         }
         .inv-item:hover { background: #00ffcc; color: #000; }
-        /* 미니맵 레이아웃 설정 */
+        /* 플레이어 중심 미니맵 */
         #minimapCanvas {
             position: absolute; bottom: 20px; right: 20px;
             width: 200px; height: 200px;
-            background: rgba(10, 10, 10, 0.85);
-            border: 2px solid #00ffcc; border-radius: 10px;
-            z-index: 5; display: none;
+            background: rgba(15, 15, 15, 0.9);
+            border: 2px solid #00ffcc; border-radius: 50%;
+            z-index: 5; display: none; box-shadow: 0 0 15px rgba(0,255,200,0.2);
         }
         canvas#gameCanvas { width: 100vw; height: 100vh; display: none; background-color: #1a1a1a; }
     </style>
@@ -84,9 +84,11 @@
 </div>
 
 <div id="statusHUD">
+    [생존 인원]: <span id="hudAliveCount" style="color:#ff4444; font-size: 18px;">10</span> 명 <br>
+    [자기장 축소까지]: <span id="hudZoneTimer" style="color:#ffcc00;">120</span> 초 <br>
     [무기]: <span id="hudWeapon" style="color:#00ffcc;">맨손</span> | 
     [장착 스코프]: <span id="hudScope" style="color:#ffcc00;">없음</span> <br>
-    [조작법]: E(아이템 줍기) / Tab(가방) / 우클릭(시야 조준)
+    [조작법]: E(줍기) / Tab(가방) / 우클릭(조준)
 </div>
 
 <div id="inventory">
@@ -110,7 +112,6 @@
 <canvas id="minimapCanvas" width="200" height="200"></canvas>
 
 <script>
-// 맵 크기 2배 확장 (24,000 x 24,000)
 const WORLD_SIZE = 24000; 
 
 const SCOPES = {
@@ -135,6 +136,16 @@ let waitingTimer = null;
 let timeLeft = 10;
 let realPlayerCount = 1;
 
+// 자기장 관련 데이터 (2분 후 축소 시작)
+let zoneTimer = 120;
+let isZoneShrinking = false;
+const zone = {
+    x: WORLD_SIZE / 2,
+    y: WORLD_SIZE / 2,
+    radius: WORLD_SIZE * 0.7,
+    shrinkRate: 4.0
+};
+
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const minimapCanvas = document.getElementById('minimapCanvas');
@@ -147,7 +158,6 @@ function resizeCanvas() {
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
-// 플레이어 랜덤 스폰 위치 (맵 전역 분산)
 const myPlayer = {
     id: Math.random().toString(36).substring(2, 9),
     x: Math.random() * (WORLD_SIZE - 2000) + 1000,
@@ -166,10 +176,10 @@ const bullets = [];
 const droppedItems = [];
 const aiBots = [];
 const obstacles = [];
-const soundEvents = []; // 총성 등 소리 파동 이벤트 감지용
+const soundEvents = [];
 
-// 넓어진 맵 크기에 비례하여 장애물 및 아이템 스폰 수 확대
-for(let i = 0; i < 300; i++) {
+// 장애물 500개로 확대 생성
+for(let i = 0; i < 500; i++) {
     obstacles.push({
         x: Math.random() * (WORLD_SIZE - 1000) + 500,
         y: Math.random() * (WORLD_SIZE - 1000) + 500,
@@ -231,7 +241,6 @@ function enterBattleRoyaleLobby() {
     }, 1000);
 }
 
-// AI 봇을 플레이어와 격리하여 넓은 맵에 떨어뜨려 스폰
 function spawnAIBots(count) {
     for (let i = 0; i < count; i++) {
         aiBots.push({
@@ -255,6 +264,19 @@ function startGame() {
     canvas.style.display = 'block';
     minimapCanvas.style.display = 'block';
     gameStarted = true;
+    
+    // 자기장 타이머 시작 (1초 마다 차감)
+    setInterval(() => {
+        if(!gameStarted) return;
+        if(zoneTimer > 0) {
+            zoneTimer--;
+            document.getElementById('hudZoneTimer').innerText = zoneTimer;
+        } else {
+            isZoneShrinking = true;
+            document.getElementById('hudZoneTimer').innerText = "축소 중!";
+        }
+    }, 1000);
+
     updateHUD();
     resizeCanvas();
     initEvents();
@@ -349,6 +371,7 @@ function pickupItem() {
 }
 
 function updateHUD() {
+    document.getElementById('hudAliveCount').innerText = aiBots.length + 1;
     document.getElementById('hudWeapon').innerText = myPlayer.weapon ? WEAPONS[myPlayer.weapon].name : "맨손";
     document.getElementById('hudScope').innerText = myPlayer.equippedScope ? SCOPES[myPlayer.equippedScope].name : "없음";
 }
@@ -371,11 +394,7 @@ function shoot(shooter) {
     if(!shooter.weapon) return;
     const w = WEAPONS[shooter.weapon];
     
-    // 미니맵용 총성 이벤트 등록 (소리가 난 좌표 생성)
-    soundEvents.push({
-        x: shooter.x, y: shooter.y,
-        time: Date.now()
-    });
+    soundEvents.push({ x: shooter.x, y: shooter.y, time: Date.now() });
 
     for(let i=0; i < w.pellets; i++) {
         const spread = (Math.random() - 0.5) * w.spread;
@@ -390,9 +409,13 @@ function shoot(shooter) {
     }
 }
 
-// AI 로직: 적 미발견 시 자유 탐색 파밍
 function updateAI() {
     aiBots.forEach(bot => {
+        // 자기장에 대미지 입는 AI
+        if(Math.hypot(bot.x - zone.x, bot.y - zone.y) > zone.radius) {
+            bot.hp -= 0.15;
+        }
+
         let targets = [myPlayer, ...aiBots.filter(b => b.id !== bot.id)];
         let closestTarget = null;
         let minDst = 1000;
@@ -405,7 +428,6 @@ function updateAI() {
             }
         });
 
-        // 1. 적을 발견했을 때 (교전)
         if(closestTarget && bot.weapon) {
             bot.targetItem = null;
             bot.angle = Math.atan2(closestTarget.y - bot.y, closestTarget.x - bot.x);
@@ -418,9 +440,7 @@ function updateAI() {
                 shoot(bot);
                 bot.lastShootTime = now;
             }
-        } 
-        // 2. 적을 못 만났을 때 -> 맵을 돌아다니며 아이템 파밍
-        else {
+        } else {
             if(!bot.targetItem || !droppedItems.includes(bot.targetItem)) {
                 let nearest = null;
                 let nearDst = 2500;
@@ -447,7 +467,6 @@ function updateAI() {
                     bot.targetItem = null;
                 }
             } else {
-                // 탐색할 목표 아이템이 없으면 자유 배회
                 bot.x += Math.cos(bot.angle) * 1.2;
                 bot.y += Math.sin(bot.angle) * 1.2;
                 if(Math.random() < 0.02) bot.angle += (Math.random() - 0.5) * 2;
@@ -467,6 +486,20 @@ function checkObstacleCollision(x, y) {
 
 function update() {
     if(!gameStarted) return;
+
+    // 자기장 줄어듦 계산
+    if(isZoneShrinking && zone.radius > 200) {
+        zone.radius -= zone.shrinkRate;
+    }
+
+    // 플레이어가 자기장 밖에 있을 경우 데미지
+    if(Math.hypot(myPlayer.x - zone.x, myPlayer.y - zone.y) > zone.radius) {
+        myPlayer.hp -= 0.15;
+        if(myPlayer.hp <= 0) {
+            alert("자기장에 의해 사망하셨습니다!");
+            location.reload();
+        }
+    }
 
     let dx = 0, dy = 0;
     if (keys['w']) dy -= 1;
@@ -515,7 +548,6 @@ function update() {
 
     myPlayer.angle = Math.atan2((camera.y + (mouse.y - screenCenterY)) - myPlayer.y, (camera.x + (mouse.x - screenCenterX)) - myPlayer.x);
 
-    // 오래된 총성 정보 삭제 (1.5초 유지)
     const now = Date.now();
     for(let i = soundEvents.length - 1; i >= 0; i--) {
         if(now - soundEvents[i].time > 1500) soundEvents.splice(i, 1);
@@ -535,7 +567,10 @@ function update() {
             if (b.ownerId !== bot.id && Math.hypot(b.x - bot.x, b.y - bot.y) < 20) {
                 bot.hp -= b.damage;
                 bullets.splice(i, 1);
-                if (bot.hp <= 0) aiBots.splice(bIdx, 1);
+                if (bot.hp <= 0) {
+                    aiBots.splice(bIdx, 1);
+                    updateHUD();
+                }
             }
         });
 
@@ -568,6 +603,10 @@ function draw() {
     for (let y = 0; y <= WORLD_SIZE; y += 300) {
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(WORLD_SIZE, y); ctx.stroke();
     }
+
+    // 자기장 서클 그리기
+    ctx.strokeStyle = '#00aaff'; ctx.lineWidth = 10;
+    ctx.beginPath(); ctx.arc(zone.x, zone.y, zone.radius, 0, Math.PI * 2); ctx.stroke();
 
     // 장애물(건물)
     ctx.fillStyle = '#444'; ctx.strokeStyle = '#666'; ctx.lineWidth = 3;
@@ -604,40 +643,62 @@ function draw() {
 
     if(myPlayer.isAiming && myPlayer.weapon) drawScopeCrosshair(myPlayer.equippedScope);
 
-    // 미니맵 렌더링
-    drawMinimap();
+    // 나를 중심으로 움직이는 레이다 미니맵 렌더링
+    drawRotatingRadarMinimap();
 }
 
-// 미니맵 그리기 (적 명확한 위치 / 총 위치 숨김, 장애물 및 총성 발생 레이더 감지)
-function drawMinimap() {
+// 나(플레이어) 중심으로 움직이는 미니맵
+function drawRotatingRadarMinimap() {
     mCtx.clearRect(0, 0, 200, 200);
 
-    const mapScale = 200 / WORLD_SIZE;
+    const radarRange = 2500; // 미니맵 시야 탐지 반경 (2500px 단위)
+    const center = 100;
+    const scale = center / radarRange;
 
-    // 1. 장애물(건물) 노출
-    mCtx.fillStyle = '#555';
+    mCtx.save();
+    // 미니맵의 원형 클리핑 영역 지정
+    mCtx.beginPath();
+    mCtx.arc(center, center, center, 0, Math.PI * 2);
+    mCtx.clip();
+
+    // 1. 장애물 상대 위치 렌더링 (내가 이동하면 움직임)
+    mCtx.fillStyle = '#666';
     obstacles.forEach(obs => {
-        mCtx.fillRect(obs.x * mapScale, obs.y * mapScale, obs.w * mapScale, obs.h * mapScale);
+        const relX = (obs.x - myPlayer.x) * scale;
+        const relY = (obs.y - myPlayer.y) * scale;
+        const relW = obs.w * scale;
+        const relH = obs.h * scale;
+
+        if (Math.hypot(relX, relY) < center + 50) {
+            mCtx.fillRect(center + relX, center + relY, relW, relH);
+        }
     });
 
-    // 2. 소리 감지 링 (총성 발생 방향/지점)
+    // 2. 총성 사운드 이벤트
     soundEvents.forEach(snd => {
-        const dst = Math.hypot(snd.x - myPlayer.x, snd.y - myPlayer.y);
-        // 일정 소리 감지 거리 내의 발사음 표시
-        if(dst < 4000) {
-            mCtx.strokeStyle = 'rgba(255, 68, 68, 0.8)';
-            mCtx.lineWidth = 2;
+        const relX = (snd.x - myPlayer.x) * scale;
+        const relY = (snd.y - myPlayer.y) * scale;
+        if(Math.hypot(relX, relY) < center) {
+            mCtx.strokeStyle = '#ff4444'; mCtx.lineWidth = 2;
             mCtx.beginPath();
-            mCtx.arc(snd.x * mapScale, snd.y * mapScale, 6, 0, Math.PI * 2);
+            mCtx.arc(center + relX, center + relY, 5, 0, Math.PI * 2);
             mCtx.stroke();
         }
     });
 
-    // 3. 내 위치 표시 (녹색 점)
+    // 3. 중앙 고정 플레이어 (녹색 점 및 바라보는 방향선)
     mCtx.fillStyle = '#00ffcc';
     mCtx.beginPath();
-    mCtx.arc(myPlayer.x * mapScale, myPlayer.y * mapScale, 4, 0, Math.PI * 2);
+    mCtx.arc(center, center, 4, 0, Math.PI * 2);
     mCtx.fill();
+
+    mCtx.strokeStyle = '#00ffcc'; mCtx.lineWidth = 2;
+    mCtx.beginPath();
+    mCtx.moveTo(center, center);
+    mCtx.lineTo(center + Math.cos(myPlayer.angle) * 12, center + Math.sin(myPlayer.angle) * 12);
+    mCtx.stroke();
+
+    mCtx.restore();
 }
 
 function drawCharacter(p, color) {
