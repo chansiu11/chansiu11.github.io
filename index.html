@@ -143,8 +143,8 @@ const WEAPONS = {
         maxSprintSpeed: 2.3,
         zoomPower: 0.15,
         maxOffset: 120,
-        baseSpread: 0.05,
-        movingSpreadMult: 0.18
+        baseSpread: 0.03, // 기본 탄퍼짐 살짝 감소
+        movingSpreadMult: 0.08 // 기본 이동 시 탄퍼짐 대폭 줄임 (기존 0.18 -> 0.08)
     },
     sniper: {
         name: "스나이퍼",
@@ -153,8 +153,8 @@ const WEAPONS = {
         damage: 50,
         baseSpeed: 1.25,
         maxSprintSpeed: 1.80,
-        zoomPower: 1.5,
-        maxOffset: 420,
+        zoomPower: 2.25, // 시야범위 확대에 맞춰 줌 배율 상향 (기존 1.5 -> 2.25)
+        maxOffset: 630,  // 시야 범위 1.5배 증가 (기존 420 -> 630)
         baseSpread: 0.005,
         movingSpreadMult: 1.5
     }
@@ -299,7 +299,6 @@ function setupConnection() {
         } else if(data.type === 'shoot') {
             bullets.push(data.bullet);
         } else if(data.type === 'hit') {
-            // 나에게 도착한 피격 판정 데미지 적용
             myPlayer.hp -= data.damage;
             myPlayer.inPVP = true;
             
@@ -384,7 +383,7 @@ function shoot() {
     if (isMoving) spreadFactor += wSpec.movingSpreadMult;
     if (!myPlayer.isAiming) {
         bulletSpeed *= 0.85;
-        spreadFactor += 0.1;
+        spreadFactor += 0.05;
     }
 
     const spread = (Math.random() - 0.5) * spreadFactor;
@@ -439,7 +438,6 @@ function checkObstacleCollision(x, y, radius) {
 function update() {
     const wSpec = WEAPONS[myPlayer.weaponType];
 
-    // 1. 속도 제어
     if (myPlayer.isSprinting) {
         myPlayer.sprintProgress = Math.min(1, myPlayer.sprintProgress + 0.05);
         myPlayer.currentSpeed = wSpec.baseSpeed + (wSpec.maxSprintSpeed - wSpec.baseSpeed) * myPlayer.sprintProgress;
@@ -457,7 +455,6 @@ function update() {
         myPlayer.currentSpeed = wSpec.baseSpeed;
     }
 
-    // 2. 사격
     if (myPlayer.isShooting) {
         const now = Date.now();
         if (now - myPlayer.lastShootTime >= wSpec.cooldown) {
@@ -466,7 +463,6 @@ function update() {
         }
     }
 
-    // 3. 이동
     let dirX = 0, dirY = 0;
     if (keys['w']) dirY -= 1;
     if (keys['s']) dirY += 1;
@@ -498,7 +494,6 @@ function update() {
         myPlayer.y = SAFEZONE.y + Math.sin(angle) * (SAFEZONE.radius + 15);
     }
 
-    // 4. 시야 연산
     const screenCenterX = canvas.width / 2;
     const screenCenterY = canvas.height / 2;
     
@@ -534,7 +529,6 @@ function update() {
 
     myPlayer.angle = Math.atan2((camera.y + (mouse.y - screenCenterY) / camera.zoom) - myPlayer.y, (camera.x + (mouse.x - screenCenterX) / camera.zoom) - myPlayer.x);
 
-    // 5. HUD
     const inSafe = distToCenter < SAFEZONE.radius;
     document.getElementById('zoneStatus').innerText = inSafe ? "[안전 지대]" : "[PVP 가능 지역]";
     document.getElementById('zoneStatus').style.color = inSafe ? "#00ffcc" : "#ff4444";
@@ -553,14 +547,13 @@ function update() {
         actionUI.innerText = `전력 질주 (속도 ${myPlayer.currentSpeed.toFixed(2)})`;
         actionUI.style.color = "#ffcc00";
     } else if (myPlayer.isAiming) {
-        actionUI.innerText = myPlayer.weaponType === 'sniper' ? "스나이퍼 줌인 (고배율 원거리 시야)" : "정밀 조준 (근거리 표준 시야)";
+        actionUI.innerText = myPlayer.weaponType === 'sniper' ? "스나이퍼 줌인 (울트라 고배율 원거리 시야)" : "정밀 조준 (근거리 표준 시야)";
         actionUI.style.color = "#00ffcc";
     } else {
         actionUI.innerText = `기본 이동 (속도 ${myPlayer.currentSpeed.toFixed(2)})`;
         actionUI.style.color = "#aaa";
     }
 
-    // 6. 총알 이동 및 충돌 (내가 쏜 총알의 피격 연산)
     const otherInSafe = Math.hypot(otherPlayer.x - SAFEZONE.x, otherPlayer.y - SAFEZONE.y) < SAFEZONE.radius;
 
     for (let i = bullets.length - 1; i >= 0; i--) {
@@ -570,17 +563,14 @@ function update() {
         b.x += b.dx;
         b.y += b.dy;
 
-        // 장애물 충돌
         if (bulletCollidesWithObstacle(b.prevX, b.prevY, b.x, b.y)) {
             bullets.splice(i, 1);
             continue;
         }
 
-        // 내가 쏜 총알이 상대방(otherPlayer)에게 적중했을 때
         if (b.ownerId === myPlayer.id && conn && conn.open && !otherInSafe) {
             const hitDist = Math.hypot(b.x - otherPlayer.x, b.y - otherPlayer.y);
             if (hitDist < 18) {
-                // 상대방 피격 신호 전송
                 conn.send({ type: 'hit', damage: b.damage });
                 otherPlayer.hp = Math.max(0, otherPlayer.hp - b.damage);
                 otherPlayer.inPVP = true;
@@ -589,7 +579,6 @@ function update() {
             }
         }
 
-        // 맵 밖 소멸
         if (b.x < 0 || b.x > WORLD_SIZE || b.y < 0 || b.y > WORLD_SIZE) {
             bullets.splice(i, 1);
         }
@@ -604,7 +593,6 @@ function draw() {
     ctx.scale(camera.zoom, camera.zoom);
     ctx.translate(-camera.x, -camera.y);
 
-    // 격자
     ctx.strokeStyle = '#2d2d2d';
     ctx.lineWidth = 1;
     for (let x = 0; x <= WORLD_SIZE; x += 80) {
@@ -614,7 +602,6 @@ function draw() {
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(WORLD_SIZE, y); ctx.stroke();
     }
 
-    // 장애물
     ctx.fillStyle = '#444444';
     ctx.strokeStyle = '#777777';
     ctx.lineWidth = 3;
@@ -623,12 +610,10 @@ function draw() {
         ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
     });
 
-    // 외곽선
     ctx.strokeStyle = '#ff0000';
     ctx.lineWidth = 5;
     ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
 
-    // 세이프존
     ctx.beginPath();
     ctx.arc(SAFEZONE.x, SAFEZONE.y, SAFEZONE.radius, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(0, 255, 200, 0.12)';
@@ -637,7 +622,6 @@ function draw() {
     ctx.lineWidth = 3;
     ctx.stroke();
 
-    // 총알
     bullets.forEach(b => {
         ctx.beginPath();
         ctx.moveTo(b.prevX, b.prevY);
@@ -647,7 +631,6 @@ function draw() {
         ctx.stroke();
     });
 
-    // 캐릭터
     drawEntity(myPlayer);
     if (conn && conn.open) drawEntity(otherPlayer);
 
