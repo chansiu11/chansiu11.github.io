@@ -47,13 +47,19 @@
             cursor: pointer; font-size: 13px;
         }
         .inv-item:hover { background: #00ffcc; color: #000; }
-        /* 플레이어 중심 미니맵 */
         #minimapCanvas {
             position: absolute; bottom: 20px; right: 20px;
             width: 200px; height: 200px;
             background: rgba(15, 15, 15, 0.9);
             border: 2px solid #00ffcc; border-radius: 50%;
             z-index: 5; display: none; box-shadow: 0 0 15px rgba(0,255,200,0.2);
+        }
+        /* M 키용 전체 오버레이 맵 */
+        #fullMapOverlay {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 80vh; height: 80vh; background: rgba(10, 10, 10, 0.92);
+            border: 3px solid #00ffcc; border-radius: 12px; z-index: 30; display: none;
+            box-shadow: 0 0 30px rgba(0,0,0,0.9); flex-direction: column; align-items: center; justify-content: center;
         }
         canvas#gameCanvas { width: 100vw; height: 100vh; display: none; background-color: #1a1a1a; }
     </style>
@@ -73,22 +79,22 @@
     <input type="text" id="joinIdInput" placeholder="비워두면 공용서버 접속" maxlength="5">
     <button onclick="joinRoom()" style="background-color: #ffcc00;">공동 서버 접속</button>
     
-    <button onclick="enterBattleRoyaleLobby()" style="background-color: #ff4444; color: white;">배틀로얄 접속 (AI 대치)</button>
+    <button onclick="enterBattleRoyaleLobby()" style="background-color: #ff4444; color: white;">배틀로얄 접속 (20인)</button>
 </div>
 
 <div id="waitingRoom">
     <h2>배틀로얄 대기실</h2>
-    <p>참가 인원: <span id="playerCount" style="color:#00ffcc; font-size:22px; font-weight:bold;">1</span> / 10</p>
+    <p>참가 인원: <span id="playerCount" style="color:#00ffcc; font-size:22px; font-weight:bold;">1</span> / 20</p>
     <p>남은 시간: <span id="timerDisplay" style="color:#ff4444; font-size:24px; font-weight:bold;">10</span>초</p>
     <div style="font-size: 13px; color: #aaa;">인원이 부족할 경우 AI 봇으로 자동 대체됩니다.</div>
 </div>
 
 <div id="statusHUD">
-    [생존 인원]: <span id="hudAliveCount" style="color:#ff4444; font-size: 18px;">10</span> 명 <br>
+    [생존 인원]: <span id="hudAliveCount" style="color:#ff4444; font-size: 18px;">20</span> 명 <br>
     [자기장 축소까지]: <span id="hudZoneTimer" style="color:#ffcc00;">120</span> 초 <br>
     [무기]: <span id="hudWeapon" style="color:#00ffcc;">맨손</span> | 
     [장착 스코프]: <span id="hudScope" style="color:#ffcc00;">없음</span> <br>
-    [조작법]: E(줍기) / Tab(가방) / 우클릭(조준)
+    [조작법]: Shift(달리기) / E(줍기) / Tab(가방) / M(전체맵)
 </div>
 
 <div id="inventory">
@@ -108,11 +114,17 @@
     <button onclick="toggleInventory()" style="margin-top:auto;">닫기 (Tab)</button>
 </div>
 
+<div id="fullMapOverlay">
+    <h3 style="margin: 10px 0 5px 0; color:#00ffcc;">전체 맵 (M 키로 닫기)</h3>
+    <canvas id="fullMapCanvas" width="500" height="500"></canvas>
+</div>
+
 <canvas id="gameCanvas"></canvas>
 <canvas id="minimapCanvas" width="200" height="200"></canvas>
 
 <script>
 const WORLD_SIZE = 24000; 
+const TOTAL_PLAYERS = 20; // 20명 설정
 
 const SCOPES = {
     '1x': { name: "1배율 (레드닷)", viewOffset: 300 },
@@ -136,7 +148,6 @@ let waitingTimer = null;
 let timeLeft = 10;
 let realPlayerCount = 1;
 
-// 자기장 관련 데이터 (2분 후 축소 시작)
 let zoneTimer = 120;
 let isZoneShrinking = false;
 const zone = {
@@ -150,6 +161,8 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const minimapCanvas = document.getElementById('minimapCanvas');
 const mCtx = minimapCanvas.getContext('2d');
+const fullMapCanvas = document.getElementById('fullMapCanvas');
+const fCtx = fullMapCanvas.getContext('2d');
 
 function resizeCanvas() {
     canvas.width = window.innerWidth;
@@ -178,7 +191,6 @@ const aiBots = [];
 const obstacles = [];
 const soundEvents = [];
 
-// 장애물 500개로 확대 생성
 for(let i = 0; i < 500; i++) {
     obstacles.push({
         x: Math.random() * (WORLD_SIZE - 1000) + 500,
@@ -235,7 +247,7 @@ function enterBattleRoyaleLobby() {
 
         if (timeLeft <= 0) {
             clearInterval(waitingTimer);
-            spawnAIBots(10 - realPlayerCount);
+            spawnAIBots(TOTAL_PLAYERS - realPlayerCount);
             startGame();
         }
     }, 1000);
@@ -265,7 +277,6 @@ function startGame() {
     minimapCanvas.style.display = 'block';
     gameStarted = true;
     
-    // 자기장 타이머 시작 (1초 마다 차감)
     setInterval(() => {
         if(!gameStarted) return;
         if(zoneTimer > 0) {
@@ -286,10 +297,15 @@ function startGame() {
 function initEvents() {
     window.addEventListener('keydown', e => {
         keys[e.key.toLowerCase()] = true;
+        if(e.key === 'Shift') keys['shift'] = true;
         if(e.key === 'Tab') { e.preventDefault(); toggleInventory(); }
+        if(e.key.toLowerCase() === 'm') toggleFullMap();
         if(e.key.toLowerCase() === 'e') pickupItem();
     });
-    window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+    window.addEventListener('keyup', e => {
+        keys[e.key.toLowerCase()] = false;
+        if(e.key === 'Shift') keys['shift'] = false;
+    });
     canvas.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
     canvas.addEventListener('contextmenu', e => e.preventDefault());
     canvas.addEventListener('mousedown', e => {
@@ -300,6 +316,11 @@ function initEvents() {
         if (e.button === 2) myPlayer.isAiming = false;
         if (e.button === 0) myPlayer.isShooting = false;
     });
+}
+
+function toggleFullMap() {
+    const fMap = document.getElementById('fullMapOverlay');
+    fMap.style.display = (fMap.style.display === 'flex') ? 'none' : 'flex';
 }
 
 function toggleInventory() {
@@ -393,7 +414,6 @@ function hasLineOfSight(p1, p2) {
 function shoot(shooter) {
     if(!shooter.weapon) return;
     const w = WEAPONS[shooter.weapon];
-    
     soundEvents.push({ x: shooter.x, y: shooter.y, time: Date.now() });
 
     for(let i=0; i < w.pellets; i++) {
@@ -409,13 +429,22 @@ function shoot(shooter) {
     }
 }
 
+// AI 로직: 자기장 회피 기능 추가
 function updateAI() {
     aiBots.forEach(bot => {
-        // 자기장에 대미지 입는 AI
-        if(Math.hypot(bot.x - zone.x, bot.y - zone.y) > zone.radius) {
-            bot.hp -= 0.15;
+        const distToZoneCenter = Math.hypot(bot.x - zone.x, bot.y - zone.y);
+
+        // 1. 자기장 바깥에 있거나 경계 근처에 있을 경우 -> 자기장 안전지대로 회피 이동
+        if (distToZoneCenter > zone.radius - 300) {
+            bot.angle = Math.atan2(zone.y - bot.y, zone.x - bot.x);
+            bot.x += Math.cos(bot.angle) * 2.5;
+            bot.y += Math.sin(bot.angle) * 2.5;
+            
+            if(distToZoneCenter > zone.radius) bot.hp -= 0.15; // 자기장 밖 대미지
+            return;
         }
 
+        // 2. 기존 교전 및 아이템 탐색 AI
         let targets = [myPlayer, ...aiBots.filter(b => b.id !== bot.id)];
         let closestTarget = null;
         let minDst = 1000;
@@ -487,12 +516,10 @@ function checkObstacleCollision(x, y) {
 function update() {
     if(!gameStarted) return;
 
-    // 자기장 줄어듦 계산
     if(isZoneShrinking && zone.radius > 200) {
         zone.radius -= zone.shrinkRate;
     }
 
-    // 플레이어가 자기장 밖에 있을 경우 데미지
     if(Math.hypot(myPlayer.x - zone.x, myPlayer.y - zone.y) > zone.radius) {
         myPlayer.hp -= 0.15;
         if(myPlayer.hp <= 0) {
@@ -500,6 +527,9 @@ function update() {
             location.reload();
         }
     }
+
+    // Shift 키 누르면 이동 속도 증가 (달리기)
+    const currentSpeed = keys['shift'] ? 5.5 : 3.0;
 
     let dx = 0, dy = 0;
     if (keys['w']) dy -= 1;
@@ -509,8 +539,8 @@ function update() {
 
     if (dx !== 0 && dy !== 0) { dx *= 0.7071; dy *= 0.7071; }
     
-    let nextX = Math.max(50, Math.min(WORLD_SIZE - 50, myPlayer.x + dx * myPlayer.speed));
-    let nextY = Math.max(50, Math.min(WORLD_SIZE - 50, myPlayer.y + dy * myPlayer.speed));
+    let nextX = Math.max(50, Math.min(WORLD_SIZE - 50, myPlayer.x + dx * currentSpeed));
+    let nextY = Math.max(50, Math.min(WORLD_SIZE - 50, myPlayer.y + dy * currentSpeed));
 
     if(!checkObstacleCollision(nextX, myPlayer.y)) myPlayer.x = nextX;
     if(!checkObstacleCollision(myPlayer.x, nextY)) myPlayer.y = nextY;
@@ -553,7 +583,6 @@ function update() {
         if(now - soundEvents[i].time > 1500) soundEvents.splice(i, 1);
     }
 
-    // 총알 이동
     for(let i = bullets.length - 1; i >= 0; i--) {
         const b = bullets[i];
         b.x += b.dx; b.y += b.dy;
@@ -595,7 +624,6 @@ function draw() {
     ctx.translate(canvas.width / 2, canvas.height / 2);
     ctx.translate(-camera.x, -camera.y);
 
-    // 격자 맵
     ctx.strokeStyle = '#252525'; ctx.lineWidth = 2;
     for (let x = 0; x <= WORLD_SIZE; x += 300) {
         ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, WORLD_SIZE); ctx.stroke();
@@ -604,18 +632,15 @@ function draw() {
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(WORLD_SIZE, y); ctx.stroke();
     }
 
-    // 자기장 서클 그리기
     ctx.strokeStyle = '#00aaff'; ctx.lineWidth = 10;
     ctx.beginPath(); ctx.arc(zone.x, zone.y, zone.radius, 0, Math.PI * 2); ctx.stroke();
 
-    // 장애물(건물)
     ctx.fillStyle = '#444'; ctx.strokeStyle = '#666'; ctx.lineWidth = 3;
     obstacles.forEach(obs => {
         ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
         ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
     });
 
-    // 아이템 드랍
     droppedItems.forEach(item => {
         if(hasLineOfSight(myPlayer, item)) {
             ctx.fillStyle = ['ar', 'sniper', 'shotgun'].includes(item.type) ? '#ffcc00' : '#00ffcc';
@@ -625,16 +650,13 @@ function draw() {
         }
     });
 
-    // 총알
     ctx.strokeStyle = '#ffcc00'; ctx.lineWidth = 3;
     bullets.forEach(b => {
         ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.dx*0.2, b.y - b.dy*0.2); ctx.stroke();
     });
 
-    // 내 플레이어
     drawCharacter(myPlayer, '#00ffcc');
 
-    // AI 봇
     aiBots.forEach(bot => {
         if(hasLineOfSight(myPlayer, bot)) drawCharacter(bot, '#ff4444');
     });
@@ -643,25 +665,26 @@ function draw() {
 
     if(myPlayer.isAiming && myPlayer.weapon) drawScopeCrosshair(myPlayer.equippedScope);
 
-    // 나를 중심으로 움직이는 레이다 미니맵 렌더링
     drawRotatingRadarMinimap();
+
+    // M키 눌렀을 경우 전체 맵 렌더링
+    if (document.getElementById('fullMapOverlay').style.display === 'flex') {
+        drawFullMap();
+    }
 }
 
-// 나(플레이어) 중심으로 움직이는 미니맵
 function drawRotatingRadarMinimap() {
     mCtx.clearRect(0, 0, 200, 200);
 
-    const radarRange = 2500; // 미니맵 시야 탐지 반경 (2500px 단위)
+    const radarRange = 2500;
     const center = 100;
     const scale = center / radarRange;
 
     mCtx.save();
-    // 미니맵의 원형 클리핑 영역 지정
     mCtx.beginPath();
     mCtx.arc(center, center, center, 0, Math.PI * 2);
     mCtx.clip();
 
-    // 1. 장애물 상대 위치 렌더링 (내가 이동하면 움직임)
     mCtx.fillStyle = '#666';
     obstacles.forEach(obs => {
         const relX = (obs.x - myPlayer.x) * scale;
@@ -674,7 +697,6 @@ function drawRotatingRadarMinimap() {
         }
     });
 
-    // 2. 총성 사운드 이벤트
     soundEvents.forEach(snd => {
         const relX = (snd.x - myPlayer.x) * scale;
         const relY = (snd.y - myPlayer.y) * scale;
@@ -686,7 +708,6 @@ function drawRotatingRadarMinimap() {
         }
     });
 
-    // 3. 중앙 고정 플레이어 (녹색 점 및 바라보는 방향선)
     mCtx.fillStyle = '#00ffcc';
     mCtx.beginPath();
     mCtx.arc(center, center, 4, 0, Math.PI * 2);
@@ -699,6 +720,36 @@ function drawRotatingRadarMinimap() {
     mCtx.stroke();
 
     mCtx.restore();
+}
+
+// M 키 클릭 시 전채 맵을 그리는 함수
+function drawFullMap() {
+    fCtx.clearRect(0, 0, 500, 500);
+    const scale = 500 / WORLD_SIZE;
+
+    // 자기장 표시
+    fCtx.strokeStyle = '#00aaff';
+    fCtx.lineWidth = 2;
+    fCtx.beginPath();
+    fCtx.arc(zone.x * scale, zone.y * scale, zone.radius * scale, 0, Math.PI * 2);
+    fCtx.stroke();
+
+    // 장애물 전체 표시
+    fCtx.fillStyle = '#444';
+    obstacles.forEach(obs => {
+        fCtx.fillRect(obs.x * scale, obs.y * scale, obs.w * scale, obs.h * scale);
+    });
+
+    // 내 위치 표시 (깜빡이는 큰 녹색 점)
+    fCtx.fillStyle = '#00ffcc';
+    fCtx.beginPath();
+    fCtx.arc(myPlayer.x * scale, myPlayer.y * scale, 6, 0, Math.PI * 2);
+    fCtx.fill();
+    
+    // 내 위치 텍스트 표시
+    fCtx.fillStyle = '#ffffff';
+    fCtx.font = '12px sans-serif';
+    fCtx.fillText("내 위치", myPlayer.x * scale - 18, myPlayer.y * scale - 10);
 }
 
 function drawCharacter(p, color) {
