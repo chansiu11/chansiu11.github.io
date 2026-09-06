@@ -859,9 +859,116 @@ function update() {
     }
 }
 
-// 주위 어둠/시야제한 원(Fog of War) 완전 제거
+// 직선 및 선분 교차점 계산 함수
+function getIntersection(ray, segment) {
+    const r_px = ray.a.x, r_py = ray.a.y;
+    const r_dx = ray.b.x - ray.a.x, r_dy = ray.b.y - ray.a.y;
+
+    const s_px = segment.a.x, s_py = segment.a.y;
+    const s_dx = segment.b.x - segment.a.x, s_dy = segment.b.y - segment.a.y;
+
+    const r_mag = Math.hypot(r_dx, r_dy);
+    const s_mag = Math.hypot(s_dx, s_dy);
+
+    if (r_dx / r_mag === s_dx / s_mag && r_dy / r_mag === s_dy / s_mag) return null;
+
+    const T2 = (r_dx * (s_py - r_py) + r_dy * (r_px - s_px)) / (s_dx * r_dy - s_dy * r_dx);
+    const T1 = (r_dx !== 0) ? (s_px + s_dx * T2 - r_px) / r_dx : (s_py + s_dy * T2 - r_py) / r_dy;
+
+    if (T1 < 0 || T2 < 0 || T2 > 1) return null;
+
+    return { x: r_px + r_dx * T1, y: r_py + r_dy * T1, param: T1 };
+}
+
+// 벽 뒤 시야 가림(시야 다각형 계산 및 반전 마스킹)
 function drawFogOfWar() {
-    // 안개 오버레이를 그리지 않음
+    const px = myPlayer.x;
+    const py = myPlayer.y;
+
+    const screenLeft = camera.x - canvas.width / 2 - 100;
+    const screenRight = camera.x + canvas.width / 2 + 100;
+    const screenTop = camera.y - canvas.height / 2 - 100;
+    const screenBottom = camera.y + canvas.height / 2 + 100;
+
+    const segments = [
+        { a: { x: screenLeft, y: screenTop }, b: { x: screenRight, y: screenTop } },
+        { a: { x: screenRight, y: screenTop }, b: { x: screenRight, y: screenBottom } },
+        { a: { x: screenRight, y: screenBottom }, b: { x: screenLeft, y: screenBottom } },
+        { a: { x: screenLeft, y: screenBottom }, b: { x: screenLeft, y: screenTop } }
+    ];
+
+    const angles = [];
+
+    obstacles.forEach(obs => {
+        if (obs.x + obs.w >= screenLeft && obs.x <= screenRight &&
+            obs.y + obs.h >= screenTop && obs.y <= screenBottom) {
+
+            const corners = [
+                { x: obs.x, y: obs.y },
+                { x: obs.x + obs.w, y: obs.y },
+                { x: obs.x + obs.w, y: obs.y + obs.h },
+                { x: obs.x, y: obs.y + obs.h }
+            ];
+
+            for (let i = 0; i < 4; i++) {
+                segments.push({ a: corners[i], b: corners[(i + 1) % 4] });
+            }
+
+            corners.forEach(c => {
+                const angle = Math.atan2(c.y - py, c.x - px);
+                angles.push(angle - 0.0001, angle, angle + 0.0001);
+            });
+        }
+    });
+
+    angles.push(
+        Math.atan2(screenTop - py, screenLeft - px),
+        Math.atan2(screenTop - py, screenRight - px),
+        Math.atan2(screenBottom - py, screenRight - px),
+        Math.atan2(screenBottom - py, screenLeft - px)
+    );
+
+    angles.sort((a, b) => a - b);
+
+    const intersects = [];
+    angles.forEach(angle => {
+        const ray = { a: { x: px, y: py }, b: { x: px + Math.cos(angle), y: py + Math.sin(angle) } };
+        let closest = null;
+
+        segments.forEach(seg => {
+            const intersect = getIntersection(ray, seg);
+            if (!intersect) return;
+            if (!closest || intersect.param < closest.param) {
+                closest = intersect;
+            }
+        });
+
+        if (closest) intersects.push(closest);
+    });
+
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(canvas.width / 2 - camera.x, canvas.height / 2 - camera.y);
+    ctx.globalCompositeOperation = 'destination-out';
+
+    ctx.beginPath();
+    if (intersects.length > 0) {
+        ctx.moveTo(intersects[0].x, intersects[0].y);
+        for (let i = 1; i < intersects.length; i++) {
+            ctx.lineTo(intersects[i].x, intersects[i].y);
+        }
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
 }
 
 function draw() {
