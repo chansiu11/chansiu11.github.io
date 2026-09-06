@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>2D 배틀필드 로얄</title>
+    <title>2D 배틀필드 로얄 - 사운드 & AI 행동 업데이트</title>
     <style>
         * { box-sizing: border-box; }
         html, body {
@@ -66,11 +66,19 @@
             border-radius: 20px; text-align: center; display: none; z-index: 100;
             box-shadow: 0 0 50px rgba(255, 204, 0, 0.5);
         }
+        #damageOverlay {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            pointer-events: none; z-index: 15; opacity: 0;
+            box-shadow: inset 0 0 100px 50px rgba(255, 0, 0, 0.8);
+            transition: opacity 0.1s ease-out;
+        }
         canvas#gameCanvas { width: 100vw; height: 100vh; display: none; background-color: #1e3b1e; }
     </style>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 </head>
 <body>
+
+<div id="damageOverlay"></div>
 
 <div id="ui">
     <h2>2D 배틀필드 로얄</h2>
@@ -104,7 +112,7 @@
     [자기장 축소까지]: <span id="hudZoneTimer" style="color:#ffcc00;">120</span> 초 <br>
     [무기]: <span id="hudWeapon" style="color:#00ffcc;">맨손</span> | 
     [장착 스코프]: <span id="hudScope" style="color:#ffcc00;">없음</span> <br>
-    [조작법]: Shift(달리기) / E(줍기) / Tab(가방) / M(전체맵)
+    [조작법]: Shift(달리기) / Ctrl(은신 걷기) / E(줍기) / Tab(가방) / M(전체맵)
 </div>
 
 <div id="inventory">
@@ -145,9 +153,9 @@ const SCOPES = {
 };
 
 const WEAPONS = {
-    ar: { name: "돌격소총", cooldown: 110, bulletSpeed: 55, damage: 12.5, pellets: 1, spread: 0.03 },
-    sniper: { name: "스나이퍼", cooldown: 900, bulletSpeed: 110, damage: 65, pellets: 1, spread: 0.005 },
-    shotgun: { name: "샷건", cooldown: 800, bulletSpeed: 45, damage: 10, pellets: 8, spread: 0.18 }
+    ar: { name: "돌격소총", cooldown: 110, bulletSpeed: 90, damage: 12.5, pellets: 1, spread: 0.03 },
+    sniper: { name: "스나이퍼", cooldown: 900, bulletSpeed: 160, damage: 65, pellets: 1, spread: 0.005 },
+    shotgun: { name: "샷건", cooldown: 800, bulletSpeed: 75, damage: 10, pellets: 8, spread: 0.18 }
 };
 
 const PUBLIC_ROOM_ID = "gungame-public-server-room-v1";
@@ -190,7 +198,8 @@ const myPlayer = {
     name: '플레이어', weapon: null,
     equippedScope: null,
     inventory: { scopes: [] },
-    isAiming: false, isShooting: false, lastShootTime: 0
+    isAiming: false, isShooting: false, lastShootTime: 0,
+    isMoving: false, movementMode: 'walk' // 'sprint', 'walk', 'stealth'
 };
 
 const camera = { x: myPlayer.x, y: myPlayer.y };
@@ -201,6 +210,7 @@ const droppedItems = [];
 const aiBots = [];
 const obstacles = [];
 const soundEvents = [];
+const bloodParticles = [];
 
 for(let i = 0; i < 500; i++) {
     obstacles.push({
@@ -276,7 +286,9 @@ function spawnAIBots(count) {
             equippedScope: null,
             lastShootTime: 0,
             targetItem: null,
-            firstSeenTime: null // AI 인식 지연용 타이머
+            firstSeenTime: null,
+            investigateTarget: null, // 소리 발생 수색용 좌표 {x, y, time}
+            movementMode: 'walk'
         });
     }
 }
@@ -310,6 +322,7 @@ function initEvents() {
     window.addEventListener('keydown', e => {
         keys[e.key.toLowerCase()] = true;
         if(e.key === 'Shift') keys['shift'] = true;
+        if(e.key === 'Control') keys['control'] = true;
         if(e.key === 'Tab') { e.preventDefault(); toggleInventory(); }
         if(e.key.toLowerCase() === 'm') toggleFullMap();
         if(e.key.toLowerCase() === 'e') pickupItem();
@@ -317,6 +330,7 @@ function initEvents() {
     window.addEventListener('keyup', e => {
         keys[e.key.toLowerCase()] = false;
         if(e.key === 'Shift') keys['shift'] = false;
+        if(e.key === 'Control') keys['control'] = false;
     });
     canvas.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
     canvas.addEventListener('contextmenu', e => e.preventDefault());
@@ -409,7 +423,6 @@ function updateHUD() {
     document.getElementById('hudWeapon').innerText = myPlayer.weapon ? WEAPONS[myPlayer.weapon].name : "맨손";
     document.getElementById('hudScope').innerText = myPlayer.equippedScope ? SCOPES[myPlayer.equippedScope].name : "없음";
 
-    // 1등 승리 판정
     if (alive === 1 && gameStarted && !gameEnded) {
         triggerVictory();
     }
@@ -421,6 +434,28 @@ function triggerVictory() {
     setTimeout(() => {
         location.reload();
     }, 5000);
+}
+
+function triggerDamageEffect() {
+    const overlay = document.getElementById('damageOverlay');
+    overlay.style.opacity = '1';
+    setTimeout(() => {
+        overlay.style.opacity = '0';
+    }, 150);
+}
+
+function spawnBloodParticles(x, y) {
+    for (let i = 0; i < 12; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 4 + 1;
+        bloodParticles.push({
+            x: x, y: y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            radius: Math.random() * 3 + 2,
+            alpha: 1.0
+        });
+    }
 }
 
 function hasLineOfSight(p1, p2) {
@@ -437,14 +472,17 @@ function hasLineOfSight(p1, p2) {
     return true;
 }
 
-// 사격 처리 (달리기 여부에 따라 탄 퍼짐 증가)
+// 사운드 방출 함수 (총소리 & 발소리)
+function emitSoundEvent(x, y, radius, type = 'gunshot') {
+    soundEvents.push({ x: x, y: y, radius: radius, type: type, time: Date.now() });
+}
+
 function shoot(shooter, extraSpread = 0) {
     if(!shooter.weapon) return;
     const w = WEAPONS[shooter.weapon];
-    soundEvents.push({ x: shooter.x, y: shooter.y, time: Date.now() });
+    emitSoundEvent(shooter.x, shooter.y, 2500, 'gunshot');
 
-    // 달리기 시 탄 퍼짐 3배 심화
-    const isRunning = shooter === myPlayer && keys['shift'];
+    const isRunning = shooter.movementMode === 'sprint';
     const baseSpread = isRunning ? w.spread * 3.0 : w.spread;
 
     for(let i=0; i < w.pellets; i++) {
@@ -467,28 +505,43 @@ function updateAI() {
         const bot = aiBots[i];
         const distToZoneCenter = Math.hypot(bot.x - zone.x, bot.y - zone.y);
 
-        // AI 자기장 대미지 및 사망 처리
+        // 자기장 데미지
         if (distToZoneCenter > zone.radius) {
-            bot.hp -= 0.3; // 자기장 대미지
+            bot.hp -= 0.3;
             if (bot.hp <= 0) {
+                spawnBloodParticles(bot.x, bot.y);
                 aiBots.splice(i, 1);
                 updateHUD();
                 continue;
             }
         }
 
-        // 자기장 경계 시 중앙으로 회피
+        // 자기장 복귀 우선
         if (distToZoneCenter > zone.radius - 300) {
             bot.angle = Math.atan2(zone.y - bot.y, zone.x - bot.x);
             bot.x += Math.cos(bot.angle) * 2.5;
             bot.y += Math.sin(bot.angle) * 2.5;
             bot.firstSeenTime = null;
+            bot.movementMode = 'sprint';
+            emitSoundEvent(bot.x, bot.y, 600, 'footstep');
             continue;
         }
 
+        // 1. 주변 소리(발소리, 총소리) 감지 체크
+        soundEvents.forEach(snd => {
+            const dst = Math.hypot(bot.x - snd.x, bot.y - snd.y);
+            if (dst <= snd.radius && dst > 50) { // 감지 범위 내부
+                // 최근 소리에 반응
+                if (!bot.investigateTarget || now - bot.investigateTarget.time > 3000) {
+                    bot.investigateTarget = { x: snd.x, y: snd.y, time: now };
+                }
+            }
+        });
+
+        // 2. 적 시야 감지 (우선순위 1)
         let targets = [myPlayer, ...aiBots.filter(b => b.id !== bot.id)];
         let closestTarget = null;
-        let minDst = 1000;
+        let minDst = 1200; // 시야 범위
 
         targets.forEach(target => {
             const dst = Math.hypot(target.x - bot.x, target.y - bot.y);
@@ -498,58 +551,99 @@ function updateAI() {
             }
         });
 
+        // --- AI의 행동 결정 로직 ---
         if(closestTarget && bot.weapon) {
+            // [상태 A] 적 조우 시 교전
             bot.targetItem = null;
+            bot.investigateTarget = null;
             bot.angle = Math.atan2(closestTarget.y - bot.y, closestTarget.x - bot.x);
 
-            if (!bot.firstSeenTime) {
-                bot.firstSeenTime = now; // 최초 인식 시간 기록
-            }
+            if (!bot.firstSeenTime) bot.firstSeenTime = now;
 
-            // 0.5초(500ms) 지연 후 사격 시작
-            if (now - bot.firstSeenTime >= 500) {
-                if(minDst > 180) {
-                    bot.x += Math.cos(bot.angle) * 1.8;
-                    bot.y += Math.sin(bot.angle) * 1.8;
+            if (now - bot.firstSeenTime >= 400) {
+                if(minDst > 200) {
+                    bot.movementMode = 'sprint';
+                    bot.x += Math.cos(bot.angle) * 2.5;
+                    bot.y += Math.sin(bot.angle) * 2.5;
+                    emitSoundEvent(bot.x, bot.y, 600, 'footstep');
                 }
                 if (now - bot.lastShootTime >= WEAPONS[bot.weapon].cooldown) {
-                    // 명중률 감소를 위한 탄 퍼짐 (0.08 추가)
                     shoot(bot, 0.08); 
                     bot.lastShootTime = now;
                 }
             }
-        } else {
-            bot.firstSeenTime = null;
+        } 
+        else if (bot.investigateTarget && now - bot.investigateTarget.time < 5000) {
+            // [상태 B] 소리(발소리/총소리) 감지 시 소리 난 곳으로 수색
+            bot.angle = Math.atan2(bot.investigateTarget.y - bot.y, bot.investigateTarget.x - bot.x);
+            bot.movementMode = 'sprint';
+            bot.x += Math.cos(bot.angle) * 2.3;
+            bot.y += Math.sin(bot.angle) * 2.3;
+            emitSoundEvent(bot.x, bot.y, 600, 'footstep');
 
-            if(!bot.targetItem || !droppedItems.includes(bot.targetItem)) {
-                let nearest = null;
-                let nearDst = 2500;
-                droppedItems.forEach(item => {
-                    const d = Math.hypot(item.x - bot.x, item.y - bot.y);
-                    if(d < nearDst) { nearDst = d; nearest = item; }
-                });
-                bot.targetItem = nearest;
+            if (Math.hypot(bot.investigateTarget.x - bot.x, bot.investigateTarget.y - bot.y) < 50) {
+                bot.investigateTarget = null; // 도착 시 수색 완료
             }
+        }
+        else {
+            bot.firstSeenTime = null;
+            const hasFullGear = bot.weapon && bot.equippedScope;
 
-            if(bot.targetItem) {
-                bot.angle = Math.atan2(bot.targetItem.y - bot.y, bot.targetItem.x - bot.x);
-                bot.x += Math.cos(bot.angle) * 2.0;
-                bot.y += Math.sin(bot.angle) * 2.0;
+            if (!hasFullGear) {
+                // [상태 C] 총/스코프 중 부족한 게 있으면 파밍 우선
+                if(!bot.targetItem || !droppedItems.includes(bot.targetItem)) {
+                    let nearest = null;
+                    let nearDst = 3000;
+                    droppedItems.forEach(item => {
+                        const isWeapon = ['ar', 'sniper', 'shotgun'].includes(item.type);
+                        const isScope = ['1x', '2x', '3x', '4x', '8x'].includes(item.type);
 
-                if(Math.hypot(bot.targetItem.x - bot.x, bot.targetItem.y - bot.y) < 30) {
-                    const item = bot.targetItem;
-                    if(['ar', 'sniper', 'shotgun'].includes(item.type)) {
-                        bot.weapon = item.type;
-                    } else if(!bot.equippedScope) {
-                        bot.equippedScope = item.type;
-                    }
-                    droppedItems.splice(droppedItems.indexOf(item), 1);
-                    bot.targetItem = null;
+                        // 필요로 하는 아이템만 탐색
+                        if ((!bot.weapon && isWeapon) || (!bot.equippedScope && isScope)) {
+                            const d = Math.hypot(item.x - bot.x, item.y - bot.y);
+                            if(d < nearDst) { nearDst = d; nearest = item; }
+                        }
+                    });
+                    bot.targetItem = nearest;
                 }
-            } else {
-                bot.x += Math.cos(bot.angle) * 1.2;
-                bot.y += Math.sin(bot.angle) * 1.2;
-                if(Math.random() < 0.02) bot.angle += (Math.random() - 0.5) * 2;
+
+                if(bot.targetItem) {
+                    bot.angle = Math.atan2(bot.targetItem.y - bot.y, bot.targetItem.x - bot.x);
+                    bot.movementMode = 'walk';
+                    bot.x += Math.cos(bot.angle) * 2.0;
+                    bot.y += Math.sin(bot.angle) * 2.0;
+                    emitSoundEvent(bot.x, bot.y, 250, 'footstep');
+
+                    if(Math.hypot(bot.targetItem.x - bot.x, bot.targetItem.y - bot.y) < 30) {
+                        const item = bot.targetItem;
+                        if(['ar', 'sniper', 'shotgun'].includes(item.type)) {
+                            bot.weapon = item.type;
+                        } else if(!bot.equippedScope) {
+                            bot.equippedScope = item.type;
+                        }
+                        droppedItems.splice(droppedItems.indexOf(item), 1);
+                        bot.targetItem = null;
+                    }
+                } else {
+                    // 주변 파밍할 아이템이 없으면 랜덤 배회
+                    bot.x += Math.cos(bot.angle) * 1.5;
+                    bot.y += Math.sin(bot.angle) * 1.5;
+                    if(Math.random() < 0.02) bot.angle += (Math.random() - 0.5) * 2;
+                }
+            } 
+            else {
+                // [상태 D] 총과 스코프를 모두 얻었다면 맵 중앙(Safe Zone Center)으로 이동!
+                const centerDst = Math.hypot(zone.x - bot.x, zone.y - bot.y);
+                if (centerDst > 200) {
+                    bot.angle = Math.atan2(zone.y - bot.y, zone.x - bot.x);
+                    bot.movementMode = 'walk';
+                    bot.x += Math.cos(bot.angle) * 1.8;
+                    bot.y += Math.sin(bot.angle) * 1.8;
+                    emitSoundEvent(bot.x, bot.y, 250, 'footstep');
+                } else {
+                    // 중앙 근처에 도달했으면 경계 태세
+                    if(Math.random() < 0.03) bot.angle += (Math.random() - 0.5) * 1.5;
+                }
             }
         }
     }
@@ -573,19 +667,38 @@ function update() {
 
     if(Math.hypot(myPlayer.x - zone.x, myPlayer.y - zone.y) > zone.radius) {
         myPlayer.hp -= 0.15;
+        triggerDamageEffect();
         if(myPlayer.hp <= 0) {
             alert("자기장에 의해 사망하셨습니다!");
             location.reload();
         }
     }
 
-    const currentSpeed = keys['shift'] ? 5.5 : 3.0;
+    // 플레이어 이동 속도 및 발소리 범위 설정
+    let currentSpeed = 3.0;
+    let footstepRadius = 0;
+
+    if (keys['shift']) {
+        currentSpeed = 5.5;
+        myPlayer.movementMode = 'sprint';
+        footstepRadius = 600; // 달리기는 큰 소음
+    } else if (keys['control']) {
+        currentSpeed = 1.5;
+        myPlayer.movementMode = 'stealth';
+        footstepRadius = 0;   // 살금살금 걷기는 소음 없음
+    } else {
+        currentSpeed = 3.0;
+        myPlayer.movementMode = 'walk';
+        footstepRadius = 250; // 일반 걷기 소음
+    }
 
     let dx = 0, dy = 0;
     if (keys['w']) dy -= 1;
     if (keys['s']) dy += 1;
     if (keys['a']) dx -= 1;
     if (keys['d']) dx += 1;
+
+    myPlayer.isMoving = (dx !== 0 || dy !== 0);
 
     if (dx !== 0 && dy !== 0) { dx *= 0.7071; dy *= 0.7071; }
     
@@ -594,6 +707,11 @@ function update() {
 
     if(!checkObstacleCollision(nextX, myPlayer.y)) myPlayer.x = nextX;
     if(!checkObstacleCollision(myPlayer.x, nextY)) myPlayer.y = nextY;
+
+    // 플레이어 이동 시 발소리 소음 생성
+    if (myPlayer.isMoving && footstepRadius > 0) {
+        emitSoundEvent(myPlayer.x, myPlayer.y, footstepRadius, 'footstep');
+    }
 
     if (myPlayer.isShooting) {
         const now = Date.now();
@@ -604,6 +722,14 @@ function update() {
     }
 
     updateAI();
+
+    // 피 파티클 업데이트
+    for (let i = bloodParticles.length - 1; i >= 0; i--) {
+        const p = bloodParticles[i];
+        p.x += p.vx; p.y += p.vy;
+        p.alpha -= 0.03;
+        if (p.alpha <= 0) bloodParticles.splice(i, 1);
+    }
 
     const screenCenterX = canvas.width / 2;
     const screenCenterY = canvas.height / 2;
@@ -628,11 +754,14 @@ function update() {
 
     myPlayer.angle = Math.atan2((camera.y + (mouse.y - screenCenterY)) - myPlayer.y, (camera.x + (mouse.x - screenCenterX)) - myPlayer.x);
 
+    // 사운드 이펙트 만료 처리
     const now = Date.now();
     for(let i = soundEvents.length - 1; i >= 0; i--) {
-        if(now - soundEvents[i].time > 1500) soundEvents.splice(i, 1);
+        const duration = soundEvents[i].type === 'gunshot' ? 1200 : 300;
+        if(now - soundEvents[i].time > duration) soundEvents.splice(i, 1);
     }
 
+    // 총알 충돌 로직
     for(let i = bullets.length - 1; i >= 0; i--) {
         const b = bullets[i];
         b.x += b.dx; b.y += b.dy;
@@ -645,6 +774,7 @@ function update() {
         aiBots.forEach((bot, bIdx) => {
             if (b.ownerId !== bot.id && Math.hypot(b.x - bot.x, b.y - bot.y) < 20) {
                 bot.hp -= b.damage;
+                spawnBloodParticles(bot.x, bot.y);
                 bullets.splice(i, 1);
                 if (bot.hp <= 0) {
                     aiBots.splice(bIdx, 1);
@@ -655,6 +785,8 @@ function update() {
 
         if (b.ownerId !== myPlayer.id && Math.hypot(b.x - myPlayer.x, b.y - myPlayer.y) < 20) {
             myPlayer.hp -= b.damage;
+            spawnBloodParticles(myPlayer.x, myPlayer.y);
+            triggerDamageEffect();
             bullets.splice(i, 1);
             if (myPlayer.hp <= 0) {
                 alert("사망하셨습니다!");
@@ -674,7 +806,6 @@ function draw() {
     ctx.translate(canvas.width / 2, canvas.height / 2);
     ctx.translate(-camera.x, -camera.y);
 
-    // 풀밭 바닥 재질 그래픽 (#1e3b1e 및 어두운 연초록 격자)
     ctx.fillStyle = '#1e3b1e';
     ctx.fillRect(0, 0, WORLD_SIZE, WORLD_SIZE);
 
@@ -686,18 +817,15 @@ function draw() {
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(WORLD_SIZE, y); ctx.stroke();
     }
 
-    // 자기장 서클
     ctx.strokeStyle = '#00aaff'; ctx.lineWidth = 10;
     ctx.beginPath(); ctx.arc(zone.x, zone.y, zone.radius, 0, Math.PI * 2); ctx.stroke();
 
-    // 장애물(건물)
     ctx.fillStyle = '#444'; ctx.strokeStyle = '#666'; ctx.lineWidth = 3;
     obstacles.forEach(obs => {
         ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
         ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
     });
 
-    // 드랍 아이템
     droppedItems.forEach(item => {
         if(hasLineOfSight(myPlayer, item)) {
             ctx.fillStyle = ['ar', 'sniper', 'shotgun'].includes(item.type) ? '#ffcc00' : '#00ffcc';
@@ -707,13 +835,31 @@ function draw() {
         }
     });
 
-    // 총알
+    // 소음 범위 시각화 (발소리/총소리 파동)
+    const now = Date.now();
+    soundEvents.forEach(snd => {
+        const age = now - snd.time;
+        const maxAge = snd.type === 'gunshot' ? 1200 : 300;
+        const progress = age / maxAge;
+        const alpha = (1 - progress) * (snd.type === 'gunshot' ? 0.3 : 0.15);
+
+        ctx.strokeStyle = snd.type === 'gunshot' ? `rgba(255, 68, 68, ${alpha})` : `rgba(255, 255, 255, ${alpha})`;
+        ctx.lineWidth = snd.type === 'gunshot' ? 3 : 1.5;
+        ctx.beginPath();
+        ctx.arc(snd.x, snd.y, snd.radius * (0.2 + progress * 0.8), 0, Math.PI * 2);
+        ctx.stroke();
+    });
+
+    bloodParticles.forEach(p => {
+        ctx.fillStyle = `rgba(200, 0, 0, ${p.alpha})`;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fill();
+    });
+
     ctx.strokeStyle = '#ffcc00'; ctx.lineWidth = 3;
     bullets.forEach(b => {
         ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.dx*0.2, b.y - b.dy*0.2); ctx.stroke();
     });
 
-    // 플레이어 및 AI
     drawCharacter(myPlayer, '#00ffcc');
 
     aiBots.forEach(bot => {
@@ -759,9 +905,10 @@ function drawRotatingRadarMinimap() {
         const relX = (snd.x - myPlayer.x) * scale;
         const relY = (snd.y - myPlayer.y) * scale;
         if(Math.hypot(relX, relY) < center) {
-            mCtx.strokeStyle = '#ff4444'; mCtx.lineWidth = 2;
+            mCtx.strokeStyle = snd.type === 'gunshot' ? '#ff4444' : '#ffffff';
+            mCtx.lineWidth = 2;
             mCtx.beginPath();
-            mCtx.arc(center + relX, center + relY, 5, 0, Math.PI * 2);
+            mCtx.arc(center + relX, center + relY, snd.type === 'gunshot' ? 6 : 3, 0, Math.PI * 2);
             mCtx.stroke();
         }
     });
@@ -784,31 +931,25 @@ function drawFullMap() {
     fCtx.clearRect(0, 0, 500, 500);
     const scale = 500 / WORLD_SIZE;
 
-    // 풀밭 배경색
     fCtx.fillStyle = '#1e3b1e';
     fCtx.fillRect(0, 0, 500, 500);
 
-    // 자기장 표시
-    fCtx.strokeStyle = '#00aaff';
-    fCtx.lineWidth = 2;
+    fCtx.strokeStyle = '#00aaff'; fCtx.lineWidth = 2;
     fCtx.beginPath();
     fCtx.arc(zone.x * scale, zone.y * scale, zone.radius * scale, 0, Math.PI * 2);
     fCtx.stroke();
 
-    // 장애물 전체 표시
     fCtx.fillStyle = '#444';
     obstacles.forEach(obs => {
         fCtx.fillRect(obs.x * scale, obs.y * scale, obs.w * scale, obs.h * scale);
     });
 
-    // 내 위치 표시
     fCtx.fillStyle = '#00ffcc';
     fCtx.beginPath();
     fCtx.arc(myPlayer.x * scale, myPlayer.y * scale, 6, 0, Math.PI * 2);
     fCtx.fill();
     
-    fCtx.fillStyle = '#ffffff';
-    fCtx.font = '12px sans-serif';
+    fCtx.fillStyle = '#ffffff'; fCtx.font = '12px sans-serif';
     fCtx.fillText("내 위치", myPlayer.x * scale - 18, myPlayer.y * scale - 10);
 }
 
