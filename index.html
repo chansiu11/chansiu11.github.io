@@ -2,26 +2,44 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>2D 배틀필드 로얄 - 멀티플레이어</title>
     <style>
         * { box-sizing: border-box; touch-action: none; user-select: none; }
         html, body {
             margin: 0; padding: 0; width: 100%; height: 100%;
-            background-color: #111; color: white; font-family: sans-serif; overflow: hidden;
+            background-color: #050505; color: white; font-family: sans-serif; overflow: hidden;
+            display: flex; align-items: center; justify-content: center;
         }
-        #ui {
+
+        /* 기기별 동일 시야 보장을 위한 고정 비율(16:9) 최댓값 프레임 */
+        #gameFrame {
+            position: relative;
+            width: 100vw;
+            height: 56.25vw; /* 16:9 비율 */
+            max-height: 100vh;
+            max-width: 177.78vh; /* 16:9 비율 */
+            background-color: #111;
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.9);
+            border: 1px solid #333;
+        }
+
+        #ui, #waitingRoom, #settingsModal {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             background: rgba(20, 20, 20, 0.95); padding: 25px; border-radius: 12px;
             display: flex; flex-direction: column; gap: 12px; align-items: center;
             box-shadow: 0 0 20px rgba(0,0,0,0.8); width: 380px; z-index: 50;
         }
         #waitingRoom {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: rgba(15, 15, 15, 0.95); padding: 30px; border-radius: 12px;
-            display: none; flex-direction: column; gap: 15px; align-items: center;
-            box-shadow: 0 0 25px rgba(0,255,200,0.3); width: 420px; z-index: 50; text-align: center;
+            background: rgba(15, 15, 15, 0.95); padding: 30px;
+            display: none; box-shadow: 0 0 25px rgba(0,255,200,0.3); width: 420px; text-align: center;
         }
-        input[type="text"], select, input[type="number"] {
+        #settingsModal {
+            display: none; z-index: 100; border: 2px solid #00ffcc; width: 380px;
+        }
+
+        input[type="text"], select, input[type="number"], input[type="range"] {
             padding: 10px; font-size: 15px; border-radius: 6px; border: 1px solid #444;
             text-align: center; width: 100%; background: #222; color: white;
         }
@@ -32,6 +50,9 @@
             border-radius: 6px; cursor: pointer; font-weight: bold; color: #000; width: 100%;
         }
         button:hover { background-color: #00cc88; }
+        .btn-secondary { background-color: #555; color: white; }
+        .btn-secondary:hover { background-color: #777; }
+
         #statusHUD {
             position: absolute; top: 20px; left: 20px; font-size: 14px; font-weight: bold;
             text-shadow: 2px 2px 4px #000; z-index: 20; display: none; background: rgba(0,0,0,0.6); padding: 12px; border-radius: 8px;
@@ -71,15 +92,15 @@
             box-shadow: 0 0 50px rgba(255, 204, 0, 0.5);
         }
         #damageOverlay {
-            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; z-index: 15; opacity: 0;
             box-shadow: inset 0 0 100px 50px rgba(255, 0, 0, 0.8);
             transition: opacity 0.1s ease-out;
         }
-        canvas#gameCanvas { position: absolute; top:0; left:0; width: 100vw; height: 100vh; display: none; background-color: #000; z-index: 1; }
+        canvas#gameCanvas { position: absolute; top:0; left:0; width: 100%; height: 100%; display: none; background-color: #000; z-index: 1; }
 
         #mobileControls {
-            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             z-index: 30; pointer-events: none; display: none;
         }
         .touch-zone { position: absolute; pointer-events: auto; }
@@ -111,123 +132,145 @@
         #btnPickup { bottom: 185px; right: 40px; }
         #btnBag { bottom: 185px; right: 110px; }
         #btnMap { top: 20px; right: 20px; width: 55px; height: 55px; border-color: #ffcc00; color: #ffcc00; }
+        #btnSettings { top: 20px; right: 85px; width: 55px; height: 55px; border-color: #aaaaaa; color: #ffffff; }
+
+        /* 모바일 편집 모드 관련 스타일 */
+        .edit-active .touch-zone {
+            outline: 2px dashed #00ffcc !important;
+            cursor: move;
+        }
     </style>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 </head>
 <body>
 
-<div id="damageOverlay"></div>
+<div id="gameFrame">
+    <div id="damageOverlay"></div>
 
-<div id="ui">
-    <h2>2D 배틀필드 로얄</h2>
-    <input type="text" id="nicknameInput" placeholder="닉네임 입력" maxlength="10">
+    <div id="ui">
+        <h2>2D 배틀필드 로얄</h2>
+        <input type="text" id="nicknameInput" placeholder="닉네임 입력" maxlength="10">
 
-    <div class="form-group">
-        <label for="platformSelect">플레이 조작 기기:</label>
-        <select id="platformSelect">
-            <option value="pc">PC (키보드 & 마우스)</option>
-            <option value="mobile">Mobile (터치 패드)</option>
-        </select>
+        <div class="form-group">
+            <label for="platformSelect">플레이 조작 기기:</label>
+            <select id="platformSelect">
+                <option value="pc">PC (키보드 & 마우스)</option>
+                <option value="mobile">Mobile (터치 패드)</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="gameModeSelect">게임 모드 선택:</label>
+            <select id="gameModeSelect">
+                <option value="br">배틀로얄 모드 (자기장 ON)</option>
+                <option value="normal">기본 모드 (데스매치 / 자기장 OFF)</option>
+            </select>
+        </div>
+
+        <button onclick="createRoom()">방 생성 (방장)</button>
+        <div id="roomCodeDisplay" style="color:#00ffcc; font-weight:bold;"></div>
+
+        <hr style="width:100%; border-color:#444; margin: 2px 0;">
+        
+        <input type="text" id="joinIdInput" placeholder="방 코드 입력" maxlength="5">
+        <button onclick="joinRoom()" style="background-color: #ffcc00;">방 참가하기</button>
+        <button onclick="openSettings()" class="btn-secondary" style="margin-top: 4px;">⚙️ 설정</button>
     </div>
 
-    <div class="form-group">
-        <label for="gameModeSelect">게임 모드 선택:</label>
-        <select id="gameModeSelect">
-            <option value="br">배틀로얄 모드 (자기장 ON)</option>
-            <option value="normal">기본 모드 (데스매치 / 자기장 OFF)</option>
-        </select>
+    <!-- 설정 모달 창 -->
+    <div id="settingsModal">
+        <h2 style="margin-top:0;">🎮 설정</h2>
+        <div class="form-group">
+            <label for="controlScaleInput">모바일 UI 크기 스케일:</label>
+            <input type="range" id="controlScaleInput" min="0.6" max="1.4" step="0.1" value="1" oninput="updateControlScale(this.value)">
+        </div>
+        <button onclick="toggleEditMobileKeys()" id="editKeysBtn" style="background-color: #ffcc00; margin-bottom: 8px;">🖐️ 모바일 키 위치 drag 배치 수정</button>
+        <button onclick="closeSettings()" class="btn-secondary">닫기</button>
     </div>
 
-    <button onclick="createRoom()">방 생성 (방장)</button>
-    <div id="roomCodeDisplay" style="color:#00ffcc; font-weight:bold;"></div>
+    <div id="waitingRoom">
+        <h2>대기실 (방장 설정)</h2>
+        <p>방 코드: <span id="displayRoomCode" style="color:#00ffcc; font-size:20px; font-weight:bold;">-</span></p>
+        
+        <div class="form-group">
+            <label for="aiToggle">AI 봇 포함 여부:</label>
+            <select id="aiToggle" onchange="toggleAiInput()">
+                <option value="true">AI 봇 포함</option>
+                <option value="false">AI 봇 없음 (유저 전용)</option>
+            </select>
+        </div>
 
-    <hr style="width:100%; border-color:#444; margin: 2px 0;">
-    
-    <input type="text" id="joinIdInput" placeholder="방 코드 입력" maxlength="5">
-    <button onclick="joinRoom()" style="background-color: #ffcc00;">방 참가하기</button>
+        <div class="form-group" id="aiDifficultyGroup">
+            <label for="aiDifficultySelect">AI 난이도 설정:</label>
+            <select id="aiDifficultySelect">
+                <option value="easy">쉬움 (반응 느림 / 낮은 명중률)</option>
+                <option value="medium" selected>보통 (일반 수준)</option>
+                <option value="hard">어려움 (빠른 반응 / 높은 명중률)</option>
+            </select>
+        </div>
+
+        <div class="form-group" id="aiCountGroup">
+            <label for="aiCountInput">AI 봇 수 (최대 30):</label>
+            <input type="number" id="aiCountInput" value="19" min="0" max="30">
+        </div>
+
+        <button id="startButton" onclick="hostStartGame()" style="background-color: #00ffcc; margin-top: 10px;">게임 시작</button>
+    </div>
+
+    <div id="victoryOverlay">
+        <h1 style="font-size: 48px; color: #ffcc00; margin: 0;">🏆 1등! 우승하셨습니다! 🏆</h1>
+        <p style="font-size: 20px; color: #fff; margin-top: 15px;">5초 후 메인 메뉴로 이동합니다...</p>
+    </div>
+
+    <div id="statusHUD">
+        [모드]: <span id="hudGameMode" style="color:#00ffcc;">배틀로얄</span> | 
+        [생존 인원]: <span id="hudAliveCount" style="color:#ff4444; font-size: 16px;">20</span> 명 <br>
+        <span id="hudZoneContainer">[자기장 축소까지]: <span id="hudZoneTimer" style="color:#ffcc00;">120</span> 초<br></span>
+        [무기]: <span id="hudWeapon" style="color:#00ffcc;">맨손</span> | [탄약]: <span id="hudAmmo" style="color:#ffcc00;">- / -</span> <br>
+        [장착 스코프]: <span id="hudScope" style="color:#ffcc00;">없음</span> <br>
+        <span id="hudControlsHint">[조작법]: Shift(달리기) / Ctrl(은신) / E(줍기) / R(장전) / Tab(가방)</span>
+    </div>
+
+    <div id="mobileControls">
+        <div id="joystickContainer" class="touch-zone">
+            <div id="joystickKnob"></div>
+        </div>
+        <div id="aimPadContainer" class="touch-zone">
+            <div id="aimPadKnob"></div>
+        </div>
+        <div id="btnFire" class="mobile-btn touch-zone">사격</div>
+        <div id="btnReload" class="mobile-btn touch-zone">장전</div>
+        <div id="btnPickup" class="mobile-btn touch-zone">줍기</div>
+        <div id="btnBag" class="mobile-btn touch-zone">가방</div>
+        <div id="btnMap" class="mobile-btn touch-zone">지도</div>
+        <div id="btnSettings" class="mobile-btn touch-zone" onclick="openSettings()">⚙️</div>
+    </div>
+
+    <div id="inventory">
+        <h3 style="margin:0; text-align:center; color:#00ffcc;">가방 (인벤토리)</h3>
+        <div class="inv-section">
+            <strong>현재 무기:</strong>
+            <div id="equippedWeaponArea" style="margin-top:5px; color:#aaa;">맨손</div>
+        </div>
+        <div class="inv-section">
+            <strong>현재 장착 스코프:</strong>
+            <div id="equippedScopeArea" style="margin-top:5px; color:#aaa;">없음</div>
+        </div>
+        <div class="inv-section">
+            <strong>보유 중인 스코프:</strong>
+            <div id="scopeList" class="inv-grid"></div>
+        </div>
+        <button onclick="toggleInventory()" style="margin-top:auto;">닫기 (Tab)</button>
+    </div>
+
+    <div id="fullMapOverlay" onclick="toggleFullMap()">
+        <h3 style="margin: 10px 0 5px 0; color:#00ffcc;">전체 맵 (터치하여 닫기)</h3>
+        <canvas id="fullMapCanvas" width="500" height="500"></canvas>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+    <canvas id="minimapCanvas" width="200" height="200"></canvas>
 </div>
-
-<div id="waitingRoom">
-    <h2>대기실 (방장 설정)</h2>
-    <p>방 코드: <span id="displayRoomCode" style="color:#00ffcc; font-size:20px; font-weight:bold;">-</span></p>
-    
-    <div class="form-group">
-        <label for="aiToggle">AI 봇 포함 여부:</label>
-        <select id="aiToggle" onchange="toggleAiInput()">
-            <option value="true">AI 봇 포함</option>
-            <option value="false">AI 봇 없음 (유저 전용)</option>
-        </select>
-    </div>
-
-    <div class="form-group" id="aiDifficultyGroup">
-        <label for="aiDifficultySelect">AI 난이도 설정:</label>
-        <select id="aiDifficultySelect">
-            <option value="easy">쉬움 (반응 느림 / 낮은 명중률)</option>
-            <option value="medium" selected>보통 (일반 수준)</option>
-            <option value="hard">어려움 (빠른 반응 / 높은 명중률)</option>
-        </select>
-    </div>
-
-    <div class="form-group" id="aiCountGroup">
-        <label for="aiCountInput">AI 봇 수 (최대 30):</label>
-        <input type="number" id="aiCountInput" value="19" min="0" max="30">
-    </div>
-
-    <button id="startButton" onclick="hostStartGame()" style="background-color: #00ffcc; margin-top: 10px;">게임 시작</button>
-</div>
-
-<div id="victoryOverlay">
-    <h1 style="font-size: 48px; color: #ffcc00; margin: 0;">🏆 1등! 우승하셨습니다! 🏆</h1>
-    <p style="font-size: 20px; color: #fff; margin-top: 15px;">5초 후 메인 메뉴로 이동합니다...</p>
-</div>
-
-<div id="statusHUD">
-    [모드]: <span id="hudGameMode" style="color:#00ffcc;">배틀로얄</span> | 
-    [생존 인원]: <span id="hudAliveCount" style="color:#ff4444; font-size: 16px;">20</span> 명 <br>
-    <span id="hudZoneContainer">[자기장 축소까지]: <span id="hudZoneTimer" style="color:#ffcc00;">120</span> 초<br></span>
-    [무기]: <span id="hudWeapon" style="color:#00ffcc;">맨손</span> | [탄약]: <span id="hudAmmo" style="color:#ffcc00;">- / -</span> <br>
-    [장착 스코프]: <span id="hudScope" style="color:#ffcc00;">없음</span> <br>
-    <span id="hudControlsHint">[조작법]: Shift(달리기) / Ctrl(은신) / E(줍기) / R(장전) / Tab(가방)</span>
-</div>
-
-<div id="mobileControls">
-    <div id="joystickContainer" class="touch-zone">
-        <div id="joystickKnob"></div>
-    </div>
-    <div id="aimPadContainer" class="touch-zone">
-        <div id="aimPadKnob"></div>
-    </div>
-    <div id="btnFire" class="mobile-btn touch-zone">사격</div>
-    <div id="btnReload" class="mobile-btn touch-zone">장전</div>
-    <div id="btnPickup" class="mobile-btn touch-zone">줍기</div>
-    <div id="btnBag" class="mobile-btn touch-zone">가방</div>
-    <div id="btnMap" class="mobile-btn touch-zone">지도</div>
-</div>
-
-<div id="inventory">
-    <h3 style="margin:0; text-align:center; color:#00ffcc;">가방 (인벤토리)</h3>
-    <div class="inv-section">
-        <strong>현재 무기:</strong>
-        <div id="equippedWeaponArea" style="margin-top:5px; color:#aaa;">맨손</div>
-    </div>
-    <div class="inv-section">
-        <strong>현재 장착 스코프:</strong>
-        <div id="equippedScopeArea" style="margin-top:5px; color:#aaa;">없음</div>
-    </div>
-    <div class="inv-section">
-        <strong>보유 중인 스코프:</strong>
-        <div id="scopeList" class="inv-grid"></div>
-    </div>
-    <button onclick="toggleInventory()" style="margin-top:auto;">닫기 (Tab)</button>
-</div>
-
-<div id="fullMapOverlay" onclick="toggleFullMap()">
-    <h3 style="margin: 10px 0 5px 0; color:#00ffcc;">전체 맵 (터치하여 닫기)</h3>
-    <canvas id="fullMapCanvas" width="500" height="500"></canvas>
-</div>
-
-<canvas id="gameCanvas"></canvas>
-<canvas id="minimapCanvas" width="200" height="200"></canvas>
 
 <script>
 let WORLD_SIZE = 24000; 
@@ -253,8 +296,8 @@ const AI_DIFFICULTY = {
 };
 
 let peer = null;
-let connections = {}; // 방장: 여러 클라이언트 연결 관리 객체
-let hostConn = null;  // 게스트: 방장과의 단일 연결 객체
+let connections = {}; 
+let hostConn = null;  
 let isHost = false;
 let selectedMode = 'br';
 let isMobile = false;
@@ -273,6 +316,7 @@ const zone = {
     shrinkRate: 4.0
 };
 
+const gameFrame = document.getElementById('gameFrame');
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const minimapCanvas = document.getElementById('minimapCanvas');
@@ -281,8 +325,8 @@ const fullMapCanvas = document.getElementById('fullMapCanvas');
 const fCtx = fullMapCanvas.getContext('2d');
 
 function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    canvas.width = gameFrame.clientWidth;
+    canvas.height = gameFrame.clientHeight;
 }
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
@@ -315,6 +359,74 @@ let bullets = [];
 const aiBots = [];
 const soundEvents = [];
 const bloodParticles = [];
+
+/* --- 설정 및 모바일 커스텀 키배치 설정 기능 --- */
+let isEditingKeys = false;
+
+function openSettings() {
+    document.getElementById('settingsModal').style.display = 'flex';
+}
+
+function closeSettings() {
+    document.getElementById('settingsModal').style.display = 'none';
+    if(isEditingKeys) toggleEditMobileKeys();
+}
+
+function updateControlScale(val) {
+    const controls = document.getElementById('mobileControls');
+    controls.style.transform = `scale(${val})`;
+    controls.style.transformOrigin = 'bottom right';
+}
+
+function toggleEditMobileKeys() {
+    isEditingKeys = !isEditingKeys;
+    const btn = document.getElementById('editKeysBtn');
+    const mobileControls = document.getElementById('mobileControls');
+    
+    if (isEditingKeys) {
+        btn.innerText = "💾 배치 저장 완료";
+        mobileControls.style.display = 'block';
+        mobileControls.classList.add('edit-active');
+        enableKeyDrag();
+    } else {
+        btn.innerText = "🖐️ 모바일 키 위치 drag 배치 수정";
+        mobileControls.classList.remove('edit-active');
+        if(!isMobile && !gameStarted) mobileControls.style.display = 'none';
+        disableKeyDrag();
+    }
+}
+
+function enableKeyDrag() {
+    const zones = document.querySelectorAll('.touch-zone');
+    zones.forEach(zone => {
+        zone.onpointerdown = function(e) {
+            if(!isEditingKeys) return;
+            let shiftX = e.clientX - zone.getBoundingClientRect().left;
+            let shiftY = e.clientY - zone.getBoundingClientRect().top;
+
+            function moveAt(pageX, pageY) {
+                const rect = gameFrame.getBoundingClientRect();
+                zone.style.left = (pageX - rect.left - shiftX) + 'px';
+                zone.style.top = (pageY - rect.top - shiftY) + 'px';
+                zone.style.bottom = 'auto';
+                zone.style.right = 'auto';
+            }
+
+            function onPointerMove(e) { moveAt(e.clientX, e.clientY); }
+            document.addEventListener('pointermove', onPointerMove);
+
+            zone.onpointerup = function() {
+                document.removeEventListener('pointermove', onPointerMove);
+                zone.onpointerup = null;
+            };
+        };
+    });
+}
+
+function disableKeyDrag() {
+    const zones = document.querySelectorAll('.touch-zone');
+    zones.forEach(zone => { zone.onpointerdown = null; });
+}
 
 function checkObstacleCollision(x, y, radius = 15) {
     for (let obs of obstacles) {
@@ -388,24 +500,18 @@ function createRoom() {
 
     peer = new Peer('gungame-room-' + code);
     
-    // 방장: 누군가 접속할 때마다 동적 바인딩 및 퇴장 처리
     peer.on('connection', c => { 
-        let connectedPeerId = null;
-
         c.on('open', () => {
-            connectedPeerId = c.peer;
             connections[c.peer] = c;
         });
 
         c.on('data', data => {
             if(data.player && data.player.id) {
-                // 플레이어 ID와 네트워크 접속 PeerID 매핑 관리
                 c.playerId = data.player.id;
             }
             handleNetworkData(data);
         });
 
-        // 클라이언트 연결 해제시(페이지 나감) 제거 처리
         const handleDisconnect = () => {
             if (c.playerId) {
                 delete remotePlayers[c.playerId];
@@ -476,7 +582,6 @@ function handleNetworkData(data) {
                         remotePlayers[p.id] = p;
                         activeIds[p.id] = true;
                     } else {
-                        // 내 HP 실시간 동기화
                         myPlayer.hp = p.hp;
                     }
                 });
@@ -491,7 +596,6 @@ function handleNetworkData(data) {
             }
             updateHUD();
         } else {
-            // 방장이 클라이언트 플레이어 위치/HP 상태를 갱신
             if(data.player) remotePlayers[data.player.id] = data.player;
         }
     } else if(data.type === 'SHOOT') {
@@ -504,11 +608,9 @@ function handleNetworkData(data) {
             location.reload();
         }
     } else if(data.type === 'PICKUP_ITEM') {
-        // 특정 플레이어가 아이템을 주웠을 때 바닥에서 제거
         droppedItems = droppedItems.filter(item => item.id !== data.itemId);
         if(isHost) broadcastData({ type: 'SYNC_ITEMS', items: droppedItems });
     } else if(data.type === 'DROP_ITEM') {
-        // 아이템이 바닥에 떨어졌을 때 동기화
         droppedItems.push(data.item);
         if(isHost) broadcastData({ type: 'SYNC_ITEMS', items: droppedItems });
     } else if(data.type === 'SYNC_ITEMS') {
@@ -628,8 +730,9 @@ function initEvents() {
         if(e.key === 'Control') keys['control'] = false;
     });
     canvas.addEventListener('mousemove', e => { 
-        mouse.x = e.clientX; 
-        mouse.y = e.clientY; 
+        const rect = canvas.getBoundingClientRect();
+        mouse.x = e.clientX - rect.left; 
+        mouse.y = e.clientY - rect.top; 
     });
     canvas.addEventListener('contextmenu', e => e.preventDefault());
     canvas.addEventListener('mousedown', e => {
@@ -648,6 +751,7 @@ function initMobileControls() {
     let joyTouchId = null, joyCenter = {x:0, y:0};
 
     joyContainer.addEventListener('touchstart', e => {
+        if(isEditingKeys) return;
         const touch = e.changedTouches[0];
         joyTouchId = touch.identifier;
         const rect = joyContainer.getBoundingClientRect();
@@ -656,6 +760,7 @@ function initMobileControls() {
     });
 
     window.addEventListener('touchmove', e => {
+        if(isEditingKeys) return;
         for (let t of e.changedTouches) {
             if (t.identifier === joyTouchId) updateJoystick(t);
         }
@@ -689,6 +794,7 @@ function initMobileControls() {
     let aimTouchId = null, aimCenter = {x:0, y:0};
 
     aimPad.addEventListener('touchstart', e => {
+        if(isEditingKeys) return;
         const touch = e.changedTouches[0];
         aimTouchId = touch.identifier;
         const rect = aimPad.getBoundingClientRect();
@@ -698,6 +804,7 @@ function initMobileControls() {
     });
 
     window.addEventListener('touchmove', e => {
+        if(isEditingKeys) return;
         for (let t of e.changedTouches) {
             if (t.identifier === aimTouchId) updateAim(t);
         }
@@ -727,12 +834,12 @@ function initMobileControls() {
         mobileAimVec = { x: dx / maxDist, y: dy / maxDist };
     }
 
-    document.getElementById('btnFire').addEventListener('touchstart', (e) => { e.preventDefault(); myPlayer.isShooting = true; });
-    document.getElementById('btnFire').addEventListener('touchend', (e) => { e.preventDefault(); myPlayer.isShooting = false; });
-    document.getElementById('btnReload').addEventListener('touchstart', (e) => { e.preventDefault(); reloadWeapon(myPlayer); });
-    document.getElementById('btnPickup').addEventListener('touchstart', (e) => { e.preventDefault(); pickupItem(); });
-    document.getElementById('btnBag').addEventListener('touchstart', (e) => { e.preventDefault(); toggleInventory(); });
-    document.getElementById('btnMap').addEventListener('touchstart', (e) => { e.preventDefault(); toggleFullMap(); });
+    document.getElementById('btnFire').addEventListener('touchstart', (e) => { if(!isEditingKeys){ e.preventDefault(); myPlayer.isShooting = true; } });
+    document.getElementById('btnFire').addEventListener('touchend', (e) => { if(!isEditingKeys){ e.preventDefault(); myPlayer.isShooting = false; } });
+    document.getElementById('btnReload').addEventListener('touchstart', (e) => { if(!isEditingKeys){ e.preventDefault(); reloadWeapon(myPlayer); } });
+    document.getElementById('btnPickup').addEventListener('touchstart', (e) => { if(!isEditingKeys){ e.preventDefault(); pickupItem(); } });
+    document.getElementById('btnBag').addEventListener('touchstart', (e) => { if(!isEditingKeys){ e.preventDefault(); toggleInventory(); } });
+    document.getElementById('btnMap').addEventListener('touchstart', (e) => { if(!isEditingKeys){ e.preventDefault(); toggleFullMap(); } });
 }
 
 function toggleFullMap() {
