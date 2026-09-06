@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>2D 샌드박스 멀티 슈팅</title>
+    <title>2D 배틀필드 로얄 - 멀티플레이어</title>
     <style>
         * { box-sizing: border-box; touch-action: none; user-select: none; }
         html, body {
@@ -34,8 +34,8 @@
         button:hover { background-color: #00cc88; }
         #statusHUD {
             position: absolute; top: 20px; left: 20px; font-size: 14px; font-weight: bold;
-            text-shadow: 2px 2px 4px #000; z-index: 20; display: none; background: rgba(0,0,0,0.6);
-            padding: 12px; border-radius: 8px; pointer-events: none;
+            text-shadow: 2px 2px 4px #000; z-index: 20; display: none; background: rgba(0,0,0,0.6); padding: 12px; border-radius: 8px;
+            pointer-events: none;
         }
         #inventory {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -51,9 +51,12 @@
         }
         .inv-item:hover { background: #00ffcc; color: #000; }
         #minimapCanvas {
-            position: absolute; bottom: 20px; right: 20px; width: 200px; height: 200px;
-            background: rgba(15, 15, 15, 0.9); border: 2px solid #00ffcc; border-radius: 50%;
-            z-index: 20; display: none; box-shadow: 0 0 15px rgba(0,255,200,0.2); pointer-events: none;
+            position: absolute; bottom: 20px; right: 20px;
+            width: 200px; height: 200px;
+            background: rgba(15, 15, 15, 0.9);
+            border: 2px solid #00ffcc; border-radius: 50%;
+            z-index: 20; display: none; box-shadow: 0 0 15px rgba(0,255,200,0.2);
+            pointer-events: none;
         }
         #fullMapOverlay {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -70,7 +73,8 @@
         #damageOverlay {
             position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
             pointer-events: none; z-index: 15; opacity: 0;
-            box-shadow: inset 0 0 100px 50px rgba(255, 0, 0, 0.8); transition: opacity 0.1s ease-out;
+            box-shadow: inset 0 0 100px 50px rgba(255, 0, 0, 0.8);
+            transition: opacity 0.1s ease-out;
         }
         canvas#gameCanvas { position: absolute; top:0; left:0; width: 100vw; height: 100vh; display: none; background-color: #000; z-index: 1; }
 
@@ -82,7 +86,8 @@
         .touch-zone { position: absolute; pointer-events: auto; }
         #joystickContainer {
             bottom: 40px; left: 40px; width: 140px; height: 140px;
-            background: rgba(255, 255, 255, 0.1); border: 2px solid rgba(255, 255, 255, 0.3); border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1); border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
         }
         #joystickKnob {
             position: absolute; top: 45px; left: 45px; width: 50px; height: 50px;
@@ -90,7 +95,8 @@
         }
         #aimPadContainer {
             bottom: 40px; right: 180px; width: 140px; height: 140px;
-            background: rgba(255, 255, 255, 0.1); border: 2px solid rgba(255, 255, 255, 0.3); border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1); border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
         }
         #aimPadKnob {
             position: absolute; top: 45px; left: 45px; width: 50px; height: 50px;
@@ -114,7 +120,7 @@
 <div id="damageOverlay"></div>
 
 <div id="ui">
-    <h2>2D 슈팅 게임 메인 메뉴</h2>
+    <h2>2D 배틀필드 로얄</h2>
     <input type="text" id="nicknameInput" placeholder="닉네임 입력" maxlength="10">
 
     <div class="form-group">
@@ -122,6 +128,14 @@
         <select id="platformSelect">
             <option value="pc">PC (키보드 & 마우스)</option>
             <option value="mobile">Mobile (터치 패드)</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="gameModeSelect">게임 모드 선택:</label>
+        <select id="gameModeSelect">
+            <option value="br">배틀로얄 모드 (자기장 ON)</option>
+            <option value="normal">기본 모드 (데스매치 / 자기장 OFF)</option>
         </select>
     </div>
 
@@ -135,55 +149,45 @@
 </div>
 
 <div id="waitingRoom">
-    <h2>대기실 설정</h2>
+    <h2>대기실 (방장 설정)</h2>
     <p>방 코드: <span id="displayRoomCode" style="color:#00ffcc; font-size:20px; font-weight:bold;">-</span></p>
     
-    <div class="form-group">
-        <label for="gameModeSelect">게임 모드 선택:</label>
-        <select id="gameModeSelect">
-            <option value="deathmatch">데스매치 (맵 크기: 2,400 / 자기장 없음)</option>
-            <option value="battleroyale">배틀로얄 (맵 크기: 24,000 / 자기장 포함)</option>
-        </select>
-    </div>
-
     <div class="form-group">
         <label for="aiToggle">AI 봇 포함 여부:</label>
         <select id="aiToggle" onchange="toggleAiInput()">
             <option value="true">AI 봇 포함</option>
-            <option value="false" selected>AI 봇 없음 (유저 전용)</option>
+            <option value="false">AI 봇 없음 (유저 전용)</option>
         </select>
     </div>
 
-    <div class="form-group" id="aiDifficultyGroup" style="display:none;">
+    <div class="form-group" id="aiDifficultyGroup">
         <label for="aiDifficultySelect">AI 난이도 설정:</label>
         <select id="aiDifficultySelect">
-            <option value="easy">쉬움</option>
-            <option value="medium" selected>보통</option>
-            <option value="hard">어려움</option>
+            <option value="easy">쉬움 (반응 느림 / 낮은 명중률)</option>
+            <option value="medium" selected>보통 (일반 수준)</option>
+            <option value="hard">어려움 (빠른 반응 / 높은 명중률)</option>
         </select>
     </div>
 
-    <div class="form-group" id="aiCountGroup" style="display:none;">
-        <label for="aiCountInput">AI 봇 수 (최대 10):</label>
-        <input type="number" id="aiCountInput" value="4" min="0" max="10">
+    <div class="form-group" id="aiCountGroup">
+        <label for="aiCountInput">AI 봇 수 (최대 30):</label>
+        <input type="number" id="aiCountInput" value="19" min="0" max="30">
     </div>
 
     <button id="startButton" onclick="hostStartGame()" style="background-color: #00ffcc; margin-top: 10px;">게임 시작</button>
 </div>
 
 <div id="victoryOverlay">
-    <h1 id="victoryText" style="font-size: 48px; color: #ffcc00; margin: 0;">🏆 승리하셨습니다! 🏆</h1>
+    <h1 style="font-size: 48px; color: #ffcc00; margin: 0;">🏆 1등! 우승하셨습니다! 🏆</h1>
     <p style="font-size: 20px; color: #fff; margin-top: 15px;">5초 후 메인 메뉴로 이동합니다...</p>
 </div>
 
 <div id="statusHUD">
-    [모드]: <span id="hudGameMode" style="color:#00ffcc;">데스매치</span> | 
-    [생존 인원]: <span id="hudAliveCount" style="color:#ff4444; font-size: 16px;">1</span> 명 <br>
+    [모드]: <span id="hudGameMode" style="color:#00ffcc;">배틀로얄</span> | 
+    [생존 인원]: <span id="hudAliveCount" style="color:#ff4444; font-size: 16px;">20</span> 명 <br>
+    <span id="hudZoneContainer">[자기장 축소까지]: <span id="hudZoneTimer" style="color:#ffcc00;">120</span> 초<br></span>
     [무기]: <span id="hudWeapon" style="color:#00ffcc;">맨손</span> | [탄약]: <span id="hudAmmo" style="color:#ffcc00;">- / -</span> <br>
     [장착 스코프]: <span id="hudScope" style="color:#ffcc00;">없음</span> <br>
-    <div id="zoneHUD" style="display:none; margin-top:3px; color:#3388ff;">
-        자기장 축소까지: <span id="zoneTimer">30</span>초 (단계: <span id="zonePhase">0</span>/5)
-    </div>
     <span id="hudControlsHint">[조작법]: Shift(달리기) / Ctrl(은신) / E(줍기) / R(장전) / Tab(가방)</span>
 </div>
 
@@ -227,9 +231,7 @@
 <canvas id="minimapCanvas" width="200" height="200"></canvas>
 
 <script>
-// 기본 맵 크기 (동적 조절)
-let WORLD_SIZE = 2400; 
-let currentGameMode = 'deathmatch';
+const WORLD_SIZE = 24000; 
 
 const SCOPES = {
     '1x': { name: "1배율 (레드닷)", viewOffset: 300 },
@@ -251,20 +253,24 @@ const AI_DIFFICULTY = {
     hard: { delay: 100, spread: 0.02, speedMult: 1.2 }
 };
 
-// 자기장 (배틀로얄 전용)
-const safeZone = {
-    x: 0, y: 0, radius: 0,
-    targetX: 0, targetY: 0, targetRadius: 0,
-    phase: 0, maxPhase: 5, timer: 30
-};
-
 let peer = null, conn = null;
 let isHost = false;
+let selectedMode = 'br';
 let isMobile = false;
 let aiDifficulty = 'medium';
 
 let gameStarted = false;
 let gameEnded = false;
+let initialPlayerCount = 1;
+
+let zoneTimer = 120;
+let isZoneShrinking = false;
+const zone = {
+    x: WORLD_SIZE / 2,
+    y: WORLD_SIZE / 2,
+    radius: WORLD_SIZE * 0.7,
+    shrinkRate: 4.0
+};
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -282,7 +288,8 @@ resizeCanvas();
 
 const myPlayer = {
     id: Math.random().toString(36).substring(2, 9),
-    x: 1000, y: 1000,
+    x: Math.random() * (WORLD_SIZE - 2000) + 1000,
+    y: Math.random() * (WORLD_SIZE - 2000) + 1000,
     angle: 0, speed: 3.0, hp: 100, maxHp: 100,
     name: '플레이어', weapon: null,
     clipAmmo: 0, reserveAmmo: 0, isReloading: false,
@@ -292,55 +299,37 @@ const myPlayer = {
     isMoving: false, movementMode: 'walk'
 };
 
-let remotePlayers = {};
+let remotePlayers = {}; // 다른 원격 접속 플레이어들 동기화용 객체
+
 const camera = { x: myPlayer.x, y: myPlayer.y };
 const keys = {};
 const mouse = { x: 0, y: 0 };
 let mobileMoveVec = { x: 0, y: 0 };
 let mobileAimVec = { x: 0, y: 0 };
 
-const bullets = [];
+let bullets = [];
 const droppedItems = [];
 const aiBots = [];
 const obstacles = [];
+const soundEvents = [];
 const bloodParticles = [];
 
-function generateMapObjects() {
-    obstacles.length = 0;
-    droppedItems.length = 0;
+for(let i = 0; i < 500; i++) {
+    obstacles.push({
+        x: Math.random() * (WORLD_SIZE - 1000) + 500,
+        y: Math.random() * (WORLD_SIZE - 1000) + 500,
+        w: Math.random() * 250 + 100,
+        h: Math.random() * 250 + 100
+    });
+}
 
-    const obstacleCount = (currentGameMode === 'battleroyale') ? 500 : 50;
-    const itemCount = (currentGameMode === 'battleroyale') ? 800 : 80;
-
-    for(let i = 0; i < obstacleCount; i++) {
-        obstacles.push({
-            x: Math.random() * (WORLD_SIZE - 400) + 200,
-            y: Math.random() * (WORLD_SIZE - 400) + 200,
-            w: Math.random() * 100 + 50,
-            h: Math.random() * 100 + 50
-        });
-    }
-
+for(let i = 0; i < 800; i++) {
     const types = ['ar', 'sniper', 'shotgun', '1x', '2x', '3x', '4x', '8x', 'ammo_ar', 'ammo_sniper', 'ammo_shotgun'];
-    for(let i = 0; i < itemCount; i++) {
-        droppedItems.push({
-            x: Math.random() * (WORLD_SIZE - 200) + 100,
-            y: Math.random() * (WORLD_SIZE - 200) + 100,
-            type: types[Math.floor(Math.random() * types.length)]
-        });
-    }
-
-    myPlayer.x = Math.random() * (WORLD_SIZE - 400) + 200;
-    myPlayer.y = Math.random() * (WORLD_SIZE - 400) + 200;
-
-    if (currentGameMode === 'battleroyale') {
-        safeZone.x = WORLD_SIZE / 2;
-        safeZone.y = WORLD_SIZE / 2;
-        safeZone.radius = WORLD_SIZE * 0.7;
-        safeZone.targetX = safeZone.x;
-        safeZone.targetY = safeZone.y;
-        safeZone.targetRadius = safeZone.radius;
-    }
+    droppedItems.push({
+        x: Math.random() * (WORLD_SIZE - 400) + 200,
+        y: Math.random() * (WORLD_SIZE - 400) + 200,
+        type: types[Math.floor(Math.random() * types.length)]
+    });
 }
 
 function generateShortId() { return Math.random().toString(36).substring(2, 7).toLowerCase(); }
@@ -354,6 +343,7 @@ function toggleAiInput() {
 function createRoom() {
     const nick = document.getElementById('nicknameInput').value.trim();
     if(nick) myPlayer.name = nick;
+    selectedMode = document.getElementById('gameModeSelect').value;
     isMobile = document.getElementById('platformSelect').value === 'mobile';
     isHost = true;
 
@@ -366,7 +356,7 @@ function createRoom() {
     peer = new Peer('gungame-room-' + code);
     peer.on('connection', c => { 
         conn = c; 
-        setupConnection();
+        conn.on('data', data => handleNetworkData(data));
     });
 }
 
@@ -382,49 +372,65 @@ function joinRoom() {
     peer = new Peer();
     peer.on('open', () => {
         conn = peer.connect('gungame-room-' + input);
-        setupConnection();
-    });
-}
-
-function setupConnection() {
-    conn.on('open', () => {
-        if(!isHost) {
+        conn.on('open', () => {
             document.getElementById('ui').style.display = 'none';
             document.getElementById('waitingRoom').style.display = 'flex';
             document.getElementById('startButton').style.display = 'none'; 
-            document.getElementById('gameModeSelect').disabled = true;
             document.getElementById('waitingRoom').innerHTML += "<p style='color:#00ffcc;'>방장이 게임을 시작하기를 기다리는 중...</p>";
-        }
+        });
+        conn.on('data', data => handleNetworkData(data));
+        conn.on('error', () => alert('방 접속 실패!'));
     });
+}
 
-    conn.on('data', data => {
-        if (data.type === 'START') {
-            currentGameMode = data.mode;
-            WORLD_SIZE = (currentGameMode === 'battleroyale') ? 24000 : 2400;
-            aiDifficulty = data.aiDiff;
-            startGame();
-        } else if (data.type === 'UPDATE') {
+function handleNetworkData(data) {
+    if(data.type === 'START') {
+        selectedMode = data.mode;
+        aiDifficulty = data.aiDiff;
+        startGame();
+    } else if(data.type === 'SYNC') {
+        if(!isHost) {
+            // 게스트가 호스트로부터 AI/총알/상대플레이어 정보를 넘겨받음
+            bullets = data.bullets;
+            zone.radius = data.zoneRadius;
+            
+            // remotePlayers 업데이트
+            let activeIds = {};
+            data.players.forEach(p => {
+                if(p.id !== myPlayer.id) {
+                    remotePlayers[p.id] = p;
+                    activeIds[p.id] = true;
+                } else {
+                    myPlayer.hp = p.hp; // 호스트 피격 데이터 동기화
+                }
+            });
+            for(let id in remotePlayers) {
+                if(!activeIds[id]) delete remotePlayers[id];
+            }
+
+            // AI 동기화
+            aiBots.length = 0;
+            data.aiBots.forEach(b => aiBots.push(b));
+        } else {
+            // 호스트가 게스트로부터 이동/사격 상태 수신
             remotePlayers[data.player.id] = data.player;
-        } else if (data.type === 'SHOOT') {
-            bullets.push(data.bullet);
         }
-    });
-
-    conn.on('error', () => alert('통신 및 방 접속 오류가 발생하였습니다!'));
+    } else if(data.type === 'SHOOT' && isHost) {
+        shoot(data.player, data.extraSpread);
+    }
 }
 
 function hostStartGame() {
-    currentGameMode = document.getElementById('gameModeSelect').value;
-    WORLD_SIZE = (currentGameMode === 'battleroyale') ? 24000 : 2400;
-
     const includeAi = document.getElementById('aiToggle').value === 'true';
     const aiCount = parseInt(document.getElementById('aiCountInput').value) || 0;
     aiDifficulty = document.getElementById('aiDifficultySelect').value;
 
-    if (includeAi) spawnAIBots(aiCount);
+    if (includeAi) {
+        spawnAIBots(aiCount);
+    }
 
     if (conn) {
-        conn.send({ type: 'START', mode: currentGameMode, aiDiff: aiDifficulty });
+        conn.send({ type: 'START', mode: selectedMode, aiDiff: aiDifficulty });
     }
     startGame();
 }
@@ -433,87 +439,60 @@ function spawnAIBots(count) {
     for (let i = 0; i < count; i++) {
         aiBots.push({
             id: 'bot_' + i,
-            x: Math.random() * (WORLD_SIZE - 400) + 200,
-            y: Math.random() * (WORLD_SIZE - 400) + 200,
+            x: Math.random() * (WORLD_SIZE - 2000) + 1000,
+            y: Math.random() * (WORLD_SIZE - 2000) + 1000,
             angle: 0, hp: 100, maxHp: 100,
             name: `AI 봇_${i+1}`,
             weapon: null, clipAmmo: 0, reserveAmmo: 100,
-            equippedScope: null, lastShootTime: 0
+            equippedScope: null,
+            lastShootTime: 0,
+            targetItem: null,
+            firstSeenTime: null,
+            investigateTarget: null,
+            movementMode: 'walk'
         });
     }
 }
 
 function startGame() {
-    generateMapObjects();
-
     document.getElementById('ui').style.display = 'none';
     document.getElementById('waitingRoom').style.display = 'none';
     document.getElementById('statusHUD').style.display = 'block';
-
-    if (currentGameMode === 'battleroyale') {
-        document.getElementById('hudGameMode').innerText = '배틀로얄 (24,000)';
-        document.getElementById('zoneHUD').style.display = 'block';
-        startZoneTimer();
-    } else {
-        document.getElementById('hudGameMode').innerText = '데스매치 (2,400)';
-        document.getElementById('zoneHUD').style.display = 'none';
-    }
 
     if (isMobile) {
         document.getElementById('mobileControls').style.display = 'block';
         document.getElementById('hudControlsHint').style.display = 'none';
         initMobileControls();
     }
+    
+    document.getElementById('hudGameMode').innerText = selectedMode === 'br' ? "배틀로얄" : "기본 모드";
+    if (selectedMode !== 'br') {
+        document.getElementById('hudZoneContainer').style.display = 'none';
+    }
+
+    initialPlayerCount = aiBots.length + 1 + (conn ? 1 : 0);
 
     canvas.style.display = 'block';
     minimapCanvas.style.display = 'block';
     gameStarted = true;
+    
+    if (selectedMode === 'br') {
+        setInterval(() => {
+            if(!gameStarted || gameEnded) return;
+            if(zoneTimer > 0) {
+                zoneTimer--;
+                document.getElementById('hudZoneTimer').innerText = zoneTimer;
+            } else {
+                isZoneShrinking = true;
+                document.getElementById('hudZoneTimer').innerText = "축소 중!";
+            }
+        }, 1000);
+    }
 
     updateHUD();
     resizeCanvas();
     initEvents();
     gameLoop();
-
-    setInterval(() => {
-        if (conn && gameStarted && !gameEnded) {
-            conn.send({
-                type: 'UPDATE',
-                player: {
-                    id: myPlayer.id,
-                    x: myPlayer.x,
-                    y: myPlayer.y,
-                    angle: myPlayer.angle,
-                    hp: myPlayer.hp,
-                    name: myPlayer.name,
-                    weapon: myPlayer.weapon
-                }
-            });
-        }
-    }, 20);
-}
-
-function startZoneTimer() {
-    setInterval(() => {
-        if (!gameStarted || gameEnded || currentGameMode !== 'battleroyale') return;
-
-        safeZone.timer--;
-        document.getElementById('zoneTimer').innerText = safeZone.timer;
-
-        if (safeZone.timer <= 0) {
-            safeZone.phase++;
-            safeZone.timer = 30;
-            safeZone.radius *= 0.6;
-            document.getElementById('zonePhase').innerText = safeZone.phase;
-        }
-
-        // 자기장 데미지
-        const distFromCenter = Math.hypot(myPlayer.x - safeZone.x, myPlayer.y - safeZone.y);
-        if (distFromCenter > safeZone.radius && myPlayer.hp > 0) {
-            myPlayer.hp -= 2;
-            triggerDamageEffect();
-            updateHUD();
-        }
-    }, 1000);
 }
 
 function initEvents() {
@@ -558,11 +537,13 @@ function initMobileControls() {
         joyCenter = { x: rect.left + rect.width/2, y: rect.top + rect.height/2 };
         updateJoystick(touch);
     });
+
     window.addEventListener('touchmove', e => {
         for (let t of e.changedTouches) {
             if (t.identifier === joyTouchId) updateJoystick(t);
         }
     });
+
     const resetJoy = e => {
         for (let t of e.changedTouches) {
             if (t.identifier === joyTouchId) {
@@ -598,11 +579,13 @@ function initMobileControls() {
         updateAim(touch);
         myPlayer.isAiming = true;
     });
+
     window.addEventListener('touchmove', e => {
         for (let t of e.changedTouches) {
             if (t.identifier === aimTouchId) updateAim(t);
         }
     });
+
     const resetAim = e => {
         for (let t of e.changedTouches) {
             if (t.identifier === aimTouchId) {
@@ -650,10 +633,11 @@ function renderInventory() {
     const weapArea = document.getElementById('equippedWeaponArea');
     const scopeArea = document.getElementById('equippedScopeArea');
     const scopeList = document.getElementById('scopeList');
-
+    
     weapArea.innerHTML = myPlayer.weapon 
         ? `${WEAPONS[myPlayer.weapon].name} <button style="width:auto; padding:2px 8px; margin-left:10px;" onclick="unequipWeapon()">해제(버리기)</button>` 
         : "맨손";
+
     scopeArea.innerHTML = myPlayer.equippedScope 
         ? `${SCOPES[myPlayer.equippedScope].name} <button style="width:auto; padding:2px 8px; margin-left:10px;" onclick="unequipScope()">해제</button>` 
         : "없음";
@@ -680,7 +664,10 @@ function unequipWeapon() {
 }
 
 function equipScope(scKey) {
-    if(!myPlayer.weapon) { alert("총기를 먼저 장착해야 합니다!"); return; }
+    if(!myPlayer.weapon) {
+        alert("총기를 먼저 장착해야 스코프를 사용할 수 있습니다!");
+        return;
+    }
     myPlayer.equippedScope = scKey; 
     updateHUD(); 
     renderInventory(); 
@@ -726,27 +713,22 @@ function pickupItem() {
 }
 
 function updateHUD() {
-    let activeRemotes = Object.values(remotePlayers).filter(p => p.hp > 0).length;
-    const alive = (myPlayer.hp > 0 ? 1 : 0) + aiBots.length + activeRemotes;
-    
+    const alive = aiBots.length + 1 + Object.keys(remotePlayers).length;
     document.getElementById('hudAliveCount').innerText = alive;
     document.getElementById('hudWeapon').innerText = myPlayer.weapon ? WEAPONS[myPlayer.weapon].name : "맨손";
-    document.getElementById('hudAmmo').innerText = myPlayer.weapon ? `${myPlayer.clipAmmo} / ${myPlayer.reserveAmmo} ${myPlayer.isReloading ? '(장전중...)' : ''}` : "- / -";
+    document.getElementById('hudAmmo').innerText = myPlayer.weapon 
+        ? `${myPlayer.clipAmmo} / ${myPlayer.reserveAmmo} ${myPlayer.isReloading ? '(장전중...)' : ''}` 
+        : "- / -";
     document.getElementById('hudScope').innerText = myPlayer.equippedScope ? SCOPES[myPlayer.equippedScope].name : "없음";
 
-    if (myPlayer.hp <= 0 && !gameEnded) {
-        triggerEndGame(false);
-    } else if (alive === 1 && myPlayer.hp > 0 && !gameEnded && (aiBots.length > 0 || activeRemotes > 0)) {
-        triggerEndGame(true);
+    if (initialPlayerCount > 1 && alive === 1 && gameStarted && !gameEnded) {
+        triggerVictory();
     }
 }
 
-function triggerEndGame(isWin) {
+function triggerVictory() {
     gameEnded = true;
-    const overlay = document.getElementById('victoryOverlay');
-    const text = document.getElementById('victoryText');
-    text.innerText = isWin ? "🏆 승리하셨습니다! 🏆" : "💀 사망하셨습니다! 💀";
-    overlay.style.display = 'block';
+    document.getElementById('victoryOverlay').style.display = 'block';
     setTimeout(() => { location.reload(); }, 5000);
 }
 
@@ -762,327 +744,778 @@ function spawnBloodParticles(x, y) {
         const speed = Math.random() * 4 + 1;
         bloodParticles.push({
             x: x, y: y,
-            vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
-            radius: Math.random() * 3 + 2, alpha: 1.0
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            radius: Math.random() * 3 + 2,
+            alpha: 1.0
         });
     }
 }
 
+function hasLineOfSight(p1, p2) {
+    const steps = 20;
+    for(let i = 0; i <= steps; i++) {
+        const checkX = p1.x + (p2.x - p1.x) * (i / steps);
+        const checkY = p1.y + (p2.y - p1.y) * (i / steps);
+        for(let obs of obstacles) {
+            if(checkX >= obs.x && checkX <= obs.x + obs.w && checkY >= obs.y && checkY <= obs.y + obs.h) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+function emitSoundEvent(x, y, radius, type = 'gunshot') {
+    soundEvents.push({ x: x, y: y, radius: radius, type: type, time: Date.now() });
+}
+
 function shoot(shooter, extraSpread = 0) {
+    if(!isHost) {
+        if(conn) conn.send({ type: 'SHOOT', player: shooter, extraSpread: extraSpread });
+        return;
+    }
+
     if(!shooter.weapon || shooter.clipAmmo <= 0 || shooter.isReloading) return;
     shooter.clipAmmo--;
     if(shooter === myPlayer) updateHUD();
 
     const w = WEAPONS[shooter.weapon];
+    emitSoundEvent(shooter.x, shooter.y, 2500, 'gunshot');
+
     const isRunning = shooter.movementMode === 'sprint';
     const baseSpread = isRunning ? w.spread * 3.0 : w.spread;
 
     for(let i=0; i < w.pellets; i++) {
         const spread = (Math.random() - 0.5) * (baseSpread + extraSpread);
         const angle = shooter.angle + spread;
-        const bullet = {
+        bullets.push({
             x: shooter.x, y: shooter.y,
             prevX: shooter.x, prevY: shooter.y,
             dx: Math.cos(angle) * w.bulletSpeed,
             dy: Math.sin(angle) * w.bulletSpeed,
-            damage: w.damage, ownerId: shooter.id
-        };
-        bullets.push(bullet);
-
-        if (shooter === myPlayer && conn) {
-            conn.send({ type: 'SHOOT', bullet: bullet });
-        }
+            damage: w.damage,
+            ownerId: shooter.id
+        });
     }
 
-    if(shooter.clipAmmo === 0) { reloadWeapon(shooter); }
+    if(shooter.clipAmmo === 0) {
+        reloadWeapon(shooter);
+    }
+}
+
+function distToSegmentSquared(p, v, w) {
+    const l2 = (v.x - w.x) ** 2 + (v.y - w.y) ** 2;
+    if (l2 === 0) return (p.x - v.x) ** 2 + (p.y - v.y) ** 2;
+    let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+    t = Math.max(0, Math.min(1, t));
+    return (p.x - (v.x + t * (w.x - v.x))) ** 2 + (p.y - (v.y + t * (w.y - v.y))) ** 2;
 }
 
 function updateAI() {
+    if(!isHost) return; // AI 연산은 방장(호스트)만 주도함
+
     const now = Date.now();
     const diff = AI_DIFFICULTY[aiDifficulty];
 
     for(let i = aiBots.length - 1; i >= 0; i--) {
         const bot = aiBots[i];
 
-        let targets = [myPlayer, ...Object.values(remotePlayers)].filter(p => p && p.hp > 0);
+        if (selectedMode === 'br') {
+            const distToZoneCenter = Math.hypot(bot.x - zone.x, bot.y - zone.y);
+            if (distToZoneCenter > zone.radius) {
+                bot.hp -= 0.3;
+                if (bot.hp <= 0) {
+                    spawnBloodParticles(bot.x, bot.y);
+                    aiBots.splice(i, 1);
+                    updateHUD();
+                    continue;
+                }
+            }
+
+            if (distToZoneCenter > zone.radius - 300) {
+                bot.angle = Math.atan2(zone.y - bot.y, zone.x - bot.x);
+                bot.x += Math.cos(bot.angle) * 2.5 * diff.speedMult;
+                bot.y += Math.sin(bot.angle) * 2.5 * diff.speedMult;
+                bot.firstSeenTime = null;
+                bot.movementMode = 'sprint';
+                emitSoundEvent(bot.x, bot.y, 600, 'footstep');
+                continue;
+            }
+        }
+
+        soundEvents.forEach(snd => {
+            const dst = Math.hypot(bot.x - snd.x, bot.y - snd.y);
+            if (dst <= snd.radius && dst > 50) {
+                if (!bot.investigateTarget || now - bot.investigateTarget.time > 3000) {
+                    bot.investigateTarget = { x: snd.x, y: snd.y, time: now };
+                }
+            }
+        });
+
+        let targets = [myPlayer, ...Object.values(remotePlayers), ...aiBots.filter(b => b.id !== bot.id)];
         let closestTarget = null;
         let minDst = 1200;
 
         targets.forEach(target => {
             const dst = Math.hypot(target.x - bot.x, target.y - bot.y);
-            if(dst < minDst) { minDst = dst; closestTarget = target; }
+            if(dst < minDst && hasLineOfSight(bot, target)) {
+                minDst = dst;
+                closestTarget = target;
+            }
         });
 
         if(closestTarget && bot.weapon) {
+            bot.targetItem = null;
+            bot.investigateTarget = null;
             bot.angle = Math.atan2(closestTarget.y - bot.y, closestTarget.x - bot.x);
-            if (minDst > 150) {
-                bot.x += Math.cos(bot.angle) * 2.0 * diff.speedMult;
-                bot.y += Math.sin(bot.angle) * 2.0 * diff.speedMult;
-            }
-            if (now - bot.lastShootTime >= WEAPONS[bot.weapon].cooldown) {
-                shoot(bot, diff.spread);
-                bot.lastShootTime = now;
-            }
-        } else if(!bot.weapon) {
-            let nearestItem = null;
-            let minDist = 800;
-            droppedItems.forEach(item => {
-                if (['ar', 'sniper', 'shotgun'].includes(item.type)) {
-                    let d = Math.hypot(item.x - bot.x, item.y - bot.y);
-                    if (d < minDist) { minDist = d; nearestItem = item; }
+
+            if (!bot.firstSeenTime) bot.firstSeenTime = now;
+
+            if (now - bot.firstSeenTime >= diff.delay) {
+                if(minDst > 200) {
+                    bot.movementMode = 'sprint';
+                    bot.x += Math.cos(bot.angle) * 2.5 * diff.speedMult;
+                    bot.y += Math.sin(bot.angle) * 2.5 * diff.speedMult;
+                    emitSoundEvent(bot.x, bot.y, 600, 'footstep');
                 }
-            });
+                if (now - bot.lastShootTime >= WEAPONS[bot.weapon].cooldown) {
+                    shoot(bot, diff.spread); 
+                    bot.lastShootTime = now;
+                }
+            }
+        } 
+        else if (bot.investigateTarget && now - bot.investigateTarget.time < 5000) {
+            bot.angle = Math.atan2(bot.investigateTarget.y - bot.y, bot.investigateTarget.x - bot.x);
+            bot.movementMode = 'sprint';
+            bot.x += Math.cos(bot.angle) * 2.3 * diff.speedMult;
+            bot.y += Math.sin(bot.angle) * 2.3 * diff.speedMult;
+            emitSoundEvent(bot.x, bot.y, 600, 'footstep');
 
-            if (nearestItem) {
-                bot.angle = Math.atan2(nearestItem.y - bot.y, nearestItem.x - bot.x);
-                bot.x += Math.cos(bot.angle) * 2.5;
-                bot.y += Math.sin(bot.angle) * 2.5;
+            if (Math.hypot(bot.investigateTarget.x - bot.x, bot.investigateTarget.y - bot.y) < 50) {
+                bot.investigateTarget = null;
+            }
+        }
+        else {
+            bot.firstSeenTime = null;
+            const hasFullGear = bot.weapon && bot.equippedScope;
 
-                if (minDist < 40) {
-                    bot.weapon = nearestItem.type;
-                    bot.clipAmmo = WEAPONS[bot.weapon].maxClip;
-                    droppedItems.splice(droppedItems.indexOf(nearestItem), 1);
+            if (!hasFullGear) {
+                if(!bot.targetItem || !droppedItems.includes(bot.targetItem)) {
+                    let nearest = null;
+                    let nearDst = 3000;
+                    droppedItems.forEach(item => {
+                        const isWeapon = ['ar', 'sniper', 'shotgun'].includes(item.type);
+                        const isScope = ['1x', '2x', '3x', '4x', '8x'].includes(item.type);
+
+                        if ((!bot.weapon && isWeapon) || (!bot.equippedScope && isScope)) {
+                            const d = Math.hypot(item.x - bot.x, item.y - bot.y);
+                            if(d < nearDst) { nearDst = d; nearest = item; }
+                        }
+                    });
+                    bot.targetItem = nearest;
+                }
+
+                if(bot.targetItem) {
+                    bot.angle = Math.atan2(bot.targetItem.y - bot.y, bot.targetItem.x - bot.x);
+                    bot.movementMode = 'walk';
+                    bot.x += Math.cos(bot.angle) * 2.0 * diff.speedMult;
+                    bot.y += Math.sin(bot.angle) * 2.0 * diff.speedMult;
+                    emitSoundEvent(bot.x, bot.y, 250, 'footstep');
+
+                    if(Math.hypot(bot.targetItem.x - bot.x, bot.targetItem.y - bot.y) < 30) {
+                        const item = bot.targetItem;
+                        if(['ar', 'sniper', 'shotgun'].includes(item.type)) {
+                            bot.weapon = item.type;
+                            bot.clipAmmo = WEAPONS[item.type].maxClip;
+                        } else if(!bot.equippedScope) {
+                            bot.equippedScope = item.type;
+                        }
+                        droppedItems.splice(droppedItems.indexOf(item), 1);
+                        bot.targetItem = null;
+                    }
+                } else {
+                    bot.x += Math.cos(bot.angle) * 1.5 * diff.speedMult;
+                    bot.y += Math.sin(bot.angle) * 1.5 * diff.speedMult;
+                    if(Math.random() < 0.02) bot.angle += (Math.random() - 0.5) * 2;
+                }
+            } 
+            else {
+                const targetX = selectedMode === 'br' ? zone.x : WORLD_SIZE / 2;
+                const targetY = selectedMode === 'br' ? zone.y : WORLD_SIZE / 2;
+                
+                const centerDst = Math.hypot(targetX - bot.x, targetY - bot.y);
+                if (centerDst > 200) {
+                    bot.angle = Math.atan2(targetY - bot.y, targetX - bot.x);
+                    bot.movementMode = 'walk';
+                    bot.x += Math.cos(bot.angle) * 1.8 * diff.speedMult;
+                    bot.y += Math.sin(bot.angle) * 1.8 * diff.speedMult;
+                    emitSoundEvent(bot.x, bot.y, 250, 'footstep');
+                } else {
+                    if(Math.random() < 0.03) bot.angle += (Math.random() - 0.5) * 1.5;
                 }
             }
         }
     }
 }
 
-function updatePlayerMovement() {
-    if(myPlayer.hp <= 0) return;
-
-    let moveX = 0, moveY = 0;
-    if (isMobile) {
-        moveX = mobileMoveVec.x; moveY = mobileMoveVec.y;
-    } else {
-        if (keys['w'] || keys['arrowup']) moveY -= 1;
-        if (keys['s'] || keys['arrowdown']) moveY += 1;
-        if (keys['a'] || keys['arrowleft']) moveX -= 1;
-        if (keys['d'] || keys['arrowright']) moveX += 1;
-    }
-
-    myPlayer.isMoving = (moveX !== 0 || moveY !== 0);
-
-    let moveSpeed = myPlayer.speed;
-    if (keys['shift']) { moveSpeed *= 1.6; myPlayer.movementMode = 'sprint'; }
-    else if (keys['control']) { moveSpeed *= 0.5; myPlayer.movementMode = 'sneak'; }
-    else { myPlayer.movementMode = 'walk'; }
-
-    if (myPlayer.isMoving) {
-        let len = Math.hypot(moveX, moveY);
-        let nx = (moveX / len) * moveSpeed;
-        let ny = (moveY / len) * moveSpeed;
-
-        let nextX = myPlayer.x + nx;
-        let nextY = myPlayer.y + ny;
-
-        let canMoveX = true, canMoveY = true;
-        for (let obs of obstacles) {
-            if (nextX > obs.x - 15 && nextX < obs.x + obs.w + 15 && myPlayer.y > obs.y - 15 && myPlayer.y < obs.y + obs.h + 15) canMoveX = false;
-            if (myPlayer.x > obs.x - 15 && myPlayer.x < obs.x + obs.w + 15 && nextY > obs.y - 15 && nextY < obs.y + obs.h + 15) canMoveY = false;
+function checkObstacleCollision(x, y) {
+    for (let obs of obstacles) {
+        if (x + 15 > obs.x && x - 15 < obs.x + obs.w && y + 15 > obs.y && y - 15 < obs.y + obs.h) {
+            return true;
         }
-
-        if (canMoveX) myPlayer.x = Math.max(15, Math.min(WORLD_SIZE - 15, nextX));
-        if (canMoveY) myPlayer.y = Math.max(15, Math.min(WORLD_SIZE - 15, nextY));
     }
+    return false;
+}
 
-    if (isMobile) {
-        if (Math.hypot(mobileAimVec.x, mobileAimVec.y) > 0.1) myPlayer.angle = Math.atan2(mobileAimVec.y, mobileAimVec.x);
+function updateNetwork() {
+    if(!conn) return;
+
+    if(isHost) {
+        // 호스트: 게스트에게 AI, 총알, 원격 플레이어 정보 전달
+        const allPlayers = [myPlayer, ...Object.values(remotePlayers)];
+        conn.send({
+            type: 'SYNC',
+            players: allPlayers,
+            aiBots: aiBots,
+            bullets: bullets,
+            zoneRadius: zone.radius
+        });
     } else {
-        let screenCenterX = canvas.width / 2;
-        let screenCenterY = canvas.height / 2;
-        myPlayer.angle = Math.atan2(mouse.y - screenCenterY, mouse.x - screenCenterX);
+        // 게스트: 호스트에게 자신의 플레이어 위치/상태 전송
+        conn.send({
+            type: 'SYNC',
+            player: myPlayer
+        });
+    }
+}
+
+function update() {
+    if(!gameStarted || gameEnded) return;
+
+    if(selectedMode === 'br' && isHost) {
+        if(isZoneShrinking && zone.radius > 200) {
+            zone.radius -= zone.shrinkRate;
+        }
     }
 
-    if (myPlayer.isShooting && myPlayer.weapon) {
+    if(selectedMode === 'br') {
+        if(Math.hypot(myPlayer.x - zone.x, myPlayer.y - zone.y) > zone.radius) {
+            myPlayer.hp -= 0.15;
+            triggerDamageEffect();
+            if(myPlayer.hp <= 0) {
+                alert("자기장에 의해 사망하셨습니다!");
+                location.reload();
+            }
+        }
+    }
+
+    let currentSpeed = 3.0;
+    let footstepRadius = 0;
+
+    if (keys['shift']) {
+        currentSpeed = 5.0;
+        myPlayer.movementMode = 'sprint';
+        footstepRadius = 600;
+    } else if (keys['control']) {
+        currentSpeed = 1.5;
+        myPlayer.movementMode = 'stealth';
+        footstepRadius = 0;
+    } else {
+        currentSpeed = 3.0;
+        myPlayer.movementMode = 'walk';
+        footstepRadius = 250;
+    }
+
+    let dx = 0, dy = 0;
+    if (!isMobile) {
+        if (keys['w']) dy -= 1;
+        if (keys['s']) dy += 1;
+        if (keys['a']) dx -= 1;
+        if (keys['d']) dx += 1;
+        if (dx !== 0 && dy !== 0) { dx *= 0.7071; dy *= 0.7071; }
+    } else {
+        dx = mobileMoveVec.x;
+        dy = mobileMoveVec.y;
+    }
+
+    myPlayer.isMoving = (dx !== 0 || dy !== 0);
+
+    let nextX = Math.max(50, Math.min(WORLD_SIZE - 50, myPlayer.x + dx * currentSpeed));
+    let nextY = Math.max(50, Math.min(WORLD_SIZE - 50, myPlayer.y + dy * currentSpeed));
+
+    if(!checkObstacleCollision(nextX, myPlayer.y)) myPlayer.x = nextX;
+    if(!checkObstacleCollision(myPlayer.x, nextY)) myPlayer.y = nextY;
+
+    if (myPlayer.isMoving && footstepRadius > 0) {
+        emitSoundEvent(myPlayer.x, myPlayer.y, footstepRadius, 'footstep');
+    }
+
+    if (myPlayer.isShooting) {
         const now = Date.now();
-        if (now - myPlayer.lastShootTime >= WEAPONS[myPlayer.weapon].cooldown) {
+        if (myPlayer.weapon && now - myPlayer.lastShootTime >= WEAPONS[myPlayer.weapon].cooldown) {
             shoot(myPlayer);
             myPlayer.lastShootTime = now;
         }
     }
 
-    camera.x = myPlayer.x; camera.y = myPlayer.y;
-}
+    updateAI();
+    updateNetwork();
 
-function updateBullets() {
-    for (let i = bullets.length - 1; i >= 0; i--) {
+    for (let i = bloodParticles.length - 1; i >= 0; i--) {
+        const p = bloodParticles[i];
+        p.x += p.vx; p.y += p.vy;
+        p.alpha -= 0.03;
+        if (p.alpha <= 0) bloodParticles.splice(i, 1);
+    }
+
+    const screenCenterX = canvas.width / 2;
+    const screenCenterY = canvas.height / 2;
+    let targetCamX = myPlayer.x;
+    let targetCamY = myPlayer.y;
+
+    if (myPlayer.isAiming) {
+        const sc = (myPlayer.weapon && myPlayer.equippedScope) ? SCOPES[myPlayer.equippedScope] : { viewOffset: 200 };
+        let mouseOffsetX = mouse.x - screenCenterX;
+        let mouseOffsetY = mouse.y - screenCenterY;
+        
+        if (isMobile) {
+            mouseOffsetX = mobileAimVec.x * sc.viewOffset;
+            mouseOffsetY = mobileAimVec.y * sc.viewOffset;
+        }
+
+        const dist = Math.hypot(mouseOffsetX, mouseOffsetY);
+
+        if (dist > 0) {
+            const actualOffset = Math.min(dist * 2.0, sc.viewOffset);
+            targetCamX += (mouseOffsetX / (dist || 1)) * actualOffset;
+            targetCamY += (mouseOffsetY / (dist || 1)) * actualOffset;
+        }
+    }
+
+    camera.x += (targetCamX - camera.x) * 0.1;
+    camera.y += (targetCamY - camera.y) * 0.1;
+
+    if (!isMobile) {
+        myPlayer.angle = Math.atan2((camera.y + (mouse.y - screenCenterY)) - myPlayer.y, (camera.x + (mouse.x - screenCenterX)) - myPlayer.x);
+    } else if (mobileAimVec.x !== 0 || mobileAimVec.y !== 0) {
+        myPlayer.angle = Math.atan2(mobileAimVec.y, mobileAimVec.x);
+    } else if (dx !== 0 || dy !== 0) {
+        myPlayer.angle = Math.atan2(dy, dx);
+    }
+
+    const now = Date.now();
+    for(let i = soundEvents.length - 1; i >= 0; i--) {
+        const duration = soundEvents[i].type === 'gunshot' ? 1200 : 300;
+        if(now - soundEvents[i].time > duration) soundEvents.splice(i, 1);
+    }
+
+    if(!isHost) return; // 호스트만 피격 및 충돌 계산 전담
+
+    for(let i = bullets.length - 1; i >= 0; i--) {
         const b = bullets[i];
-        b.prevX = b.x; b.prevY = b.y;
-        b.x += b.dx; b.y += b.dy;
+        b.prevX = b.x;
+        b.prevY = b.y;
+        b.x += b.dx; 
+        b.y += b.dy;
 
-        if (b.x < 0 || b.x > WORLD_SIZE || b.y < 0 || b.y > WORLD_SIZE) {
+        if(checkObstacleCollision(b.x, b.y)) {
             bullets.splice(i, 1);
             continue;
         }
 
-        if (b.ownerId !== myPlayer.id && myPlayer.hp > 0) {
-            if (Math.hypot(b.x - myPlayer.x, b.y - myPlayer.y) < 18) {
-                myPlayer.hp -= b.damage;
-                triggerDamageEffect();
-                spawnBloodParticles(myPlayer.x, myPlayer.y);
-                bullets.splice(i, 1);
-                updateHUD();
-                continue;
-            }
-        }
-
-        for (let j = aiBots.length - 1; j >= 0; j--) {
-            const bot = aiBots[j];
+        let hit = false;
+        
+        for (let bIdx = aiBots.length - 1; bIdx >= 0; bIdx--) {
+            const bot = aiBots[bIdx];
             if (b.ownerId !== bot.id) {
-                if (Math.hypot(b.x - bot.x, b.y - bot.y) < 18) {
+                const distSq = distToSegmentSquared({x: bot.x, y: bot.y}, {x: b.prevX, y: b.prevY}, {x: b.x, y: b.y});
+                if (distSq <= 20 * 20) {
                     bot.hp -= b.damage;
                     spawnBloodParticles(bot.x, bot.y);
-                    if (bot.hp <= 0) { aiBots.splice(j, 1); updateHUD(); }
-                    bullets.splice(i, 1);
+                    hit = true;
+                    if (bot.hp <= 0) {
+                        aiBots.splice(bIdx, 1);
+                        updateHUD();
+                    }
                     break;
                 }
             }
         }
+
+        // 모든 실제 유저(원격 + 본인) 충돌 확인
+        const allHumanPlayers = [myPlayer, ...Object.values(remotePlayers)];
+        for(let targetP of allHumanPlayers) {
+            if(!hit && b.ownerId !== targetP.id) {
+                const distSq = distToSegmentSquared({x: targetP.x, y: targetP.y}, {x: b.prevX, y: b.prevY}, {x: b.x, y: b.y});
+                if (distSq <= 20 * 20) {
+                    targetP.hp -= b.damage;
+                    spawnBloodParticles(targetP.x, targetP.y);
+                    hit = true;
+                    if(targetP === myPlayer) triggerDamageEffect();
+                    if (targetP.hp <= 0) {
+                        if(targetP === myPlayer) {
+                            alert("사망하셨습니다!");
+                            location.reload();
+                        }
+                    }
+                }
+            }
+        }
+
+        if (hit) {
+            bullets.splice(i, 1);
+            continue;
+        }
+
+        if(b.x < 0 || b.x > WORLD_SIZE || b.y < 0 || b.y > WORLD_SIZE) bullets.splice(i, 1);
     }
 }
 
-function gameLoop() {
-    if (!gameStarted) return;
+function getIntersection(ray, segment) {
+    const r_px = ray.a.x, r_py = ray.a.y;
+    const r_dx = ray.b.x - ray.a.x, r_dy = ray.b.y - ray.a.y;
 
-    updatePlayerMovement();
-    updateAI();
-    updateBullets();
+    const s_px = segment.a.x, s_py = segment.a.y;
+    const s_dx = segment.b.x - segment.a.x, s_dy = segment.b.y - segment.a.y;
 
+    const r_mag = Math.hypot(r_dx, r_dy);
+    const s_mag = Math.hypot(s_dx, s_dy);
+
+    if (r_mag === 0 || s_mag === 0) return null;
+    if (r_dx / r_mag === s_dx / s_mag && r_dy / r_mag === s_dy / s_mag) return null;
+
+    const div = (s_dx * r_dy - s_dy * r_dx);
+    if (Math.abs(div) < 0.0001) return null;
+
+    const T2 = (r_dx * (s_py - r_py) + r_dy * (r_px - s_px)) / div;
+    const T1 = (Math.abs(r_dx) > 0.0001) ? (s_px + s_dx * T2 - r_px) / r_dx : (s_py + s_dy * T2 - r_py) / r_dy;
+
+    if (T1 < 0 || T2 < 0 || T2 > 1) return null;
+
+    return { x: r_px + r_dx * T1, y: r_py + r_dy * T1, param: T1 };
+}
+
+function drawFogOfWar() {
+    const px = myPlayer.x;
+    const py = myPlayer.y;
+
+    const viewMargin = 1500; 
+    const screenLeft = camera.x - canvas.width / 2 - viewMargin;
+    const screenRight = camera.x + canvas.width / 2 + viewMargin;
+    const screenTop = camera.y - canvas.height / 2 - viewMargin;
+    const screenBottom = camera.y + canvas.height / 2 + viewMargin;
+
+    const segments = [
+        { a: { x: screenLeft, y: screenTop }, b: { x: screenRight, y: screenTop } },
+        { a: { x: screenRight, y: screenTop }, b: { x: screenRight, y: screenBottom } },
+        { a: { x: screenRight, y: screenBottom }, b: { x: screenLeft, y: screenBottom } },
+        { a: { x: screenLeft, y: screenBottom }, b: { x: screenLeft, y: screenTop } }
+    ];
+
+    const angles = [];
+
+    obstacles.forEach(obs => {
+        if (obs.x + obs.w >= screenLeft && obs.x <= screenRight &&
+            obs.y + obs.h >= screenTop && obs.y <= screenBottom) {
+
+            const corners = [
+                { x: obs.x, y: obs.y },
+                { x: obs.x + obs.w, y: obs.y },
+                { x: obs.x + obs.w, y: obs.y + obs.h },
+                { x: obs.x, y: obs.y + obs.h }
+            ];
+
+            for (let i = 0; i < 4; i++) {
+                segments.push({ a: corners[i], b: corners[(i + 1) % 4] });
+            }
+
+            corners.forEach(c => {
+                const angle = Math.atan2(c.y - py, c.x - px);
+                angles.push(angle - 0.0001, angle, angle + 0.0001);
+            });
+        }
+    });
+
+    angles.push(
+        Math.atan2(screenTop - py, screenLeft - px),
+        Math.atan2(screenTop - py, screenRight - px),
+        Math.atan2(screenBottom - py, screenRight - px),
+        Math.atan2(screenBottom - py, screenLeft - px)
+    );
+
+    angles.sort((a, b) => a - b);
+
+    const maxRayDistance = Math.hypot(camera.x - px, camera.y - py) + Math.max(canvas.width, canvas.height) + 2000;
+
+    const intersects = [];
+    angles.forEach(angle => {
+        const ray = { 
+            a: { x: px, y: py }, 
+            b: { x: px + Math.cos(angle) * maxRayDistance, y: py + Math.sin(angle) * maxRayDistance } 
+        };
+        let closest = null;
+
+        segments.forEach(seg => {
+            const intersect = getIntersection(ray, seg);
+            if (!intersect) return;
+            if (!closest || intersect.param < closest.param) {
+                closest = intersect;
+            }
+        });
+
+        if (closest) intersects.push(closest);
+    });
+
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+    const maskCanvas = document.createElement('canvas');
+    maskCanvas.width = canvas.width;
+    maskCanvas.height = canvas.height;
+    const mCtx = maskCanvas.getContext('2d');
+
+    mCtx.fillStyle = 'rgba(0,0,0,0.95)';
+    mCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
+
+    mCtx.globalCompositeOperation = 'destination-out';
+    mCtx.save();
+    mCtx.translate(canvas.width / 2 - camera.x, canvas.height / 2 - camera.y);
+
+    mCtx.beginPath();
+    if (intersects.length > 0) {
+        mCtx.moveTo(intersects[0].x, intersects[0].y);
+        for (let i = 1; i < intersects.length; i++) {
+            mCtx.lineTo(intersects[i].x, intersects[i].y);
+        }
+    }
+    mCtx.closePath();
+    mCtx.fill();
+    mCtx.restore();
+
+    ctx.drawImage(maskCanvas, 0, 0);
+    ctx.restore();
+}
+
+function draw() {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if(!gameStarted) return;
 
     ctx.save();
     ctx.translate(canvas.width / 2 - camera.x, canvas.height / 2 - camera.y);
 
-    // 격자
-    ctx.strokeStyle = '#222';
-    ctx.lineWidth = 1;
-    for (let x = 0; x <= WORLD_SIZE; x += 100) {
+    ctx.fillStyle = '#1e3b1e';
+    ctx.fillRect(0, 0, WORLD_SIZE, WORLD_SIZE);
+
+    ctx.strokeStyle = '#274a27'; ctx.lineWidth = 2;
+    for (let x = 0; x <= WORLD_SIZE; x += 300) {
         ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, WORLD_SIZE); ctx.stroke();
     }
-    for (let y = 0; y <= WORLD_SIZE; y += 100) {
+    for (let y = 0; y <= WORLD_SIZE; y += 300) {
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(WORLD_SIZE, y); ctx.stroke();
     }
 
-    // 테두리
-    ctx.strokeStyle = '#ff0000';
-    ctx.lineWidth = 5;
-    ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
-
-    // 자기장 원 표시 (배틀로얄 모드만)
-    if (currentGameMode === 'battleroyale') {
-        ctx.strokeStyle = 'rgba(0, 150, 255, 0.7)';
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.arc(safeZone.x, safeZone.y, safeZone.radius, 0, Math.PI * 2);
-        ctx.stroke();
+    if (selectedMode === 'br') {
+        ctx.strokeStyle = '#00aaff'; ctx.lineWidth = 10;
+        ctx.beginPath(); ctx.arc(zone.x, zone.y, zone.radius, 0, Math.PI * 2); ctx.stroke();
     }
 
-    // 장애물
-    ctx.fillStyle = '#444';
-    obstacles.forEach(obs => { ctx.fillRect(obs.x, obs.y, obs.w, obs.h); });
+    ctx.fillStyle = '#444'; ctx.strokeStyle = '#666'; ctx.lineWidth = 3;
+    obstacles.forEach(obs => {
+        ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+        ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
+    });
 
-    // 드랍 아이템
     droppedItems.forEach(item => {
-        ctx.fillStyle = item.type.startsWith('ammo') ? '#ffcc00' : '#00ffcc';
-        ctx.beginPath(); ctx.arc(item.x, item.y, 6, 0, Math.PI * 2); ctx.fill();
+        if(item.type.startsWith('ammo_')) {
+            ctx.fillStyle = '#ff8800';
+            ctx.beginPath(); ctx.arc(item.x, item.y, 6, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#fff'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
+            ctx.fillText("AMMO", item.x, item.y - 10);
+        } else {
+            ctx.fillStyle = ['ar', 'sniper', 'shotgun'].includes(item.type) ? '#ffcc00' : '#00ffcc';
+            ctx.beginPath(); ctx.arc(item.x, item.y, 8, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#fff'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
+            ctx.fillText(item.type.toUpperCase(), item.x, item.y - 12);
+        }
     });
 
-    // 피 이펙트
-    for (let i = bloodParticles.length - 1; i >= 0; i--) {
-        let p = bloodParticles[i];
-        p.x += p.vx; p.y += p.vy; p.alpha -= 0.02;
-        if (p.alpha <= 0) { bloodParticles.splice(i, 1); continue; }
-        ctx.fillStyle = `rgba(255, 0, 0, ${p.alpha})`;
+    const now = Date.now();
+    soundEvents.forEach(snd => {
+        const age = now - snd.time;
+        const maxAge = snd.type === 'gunshot' ? 1200 : 300;
+        const progress = age / maxAge;
+        const alpha = (1 - progress) * (snd.type === 'gunshot' ? 0.3 : 0.15);
+
+        ctx.strokeStyle = snd.type === 'gunshot' ? `rgba(255, 68, 68, ${alpha})` : `rgba(255, 255, 255, ${alpha})`;
+        ctx.lineWidth = snd.type === 'gunshot' ? 3 : 1.5;
+        ctx.beginPath();
+        ctx.arc(snd.x, snd.y, snd.radius * (0.2 + progress * 0.8), 0, Math.PI * 2);
+        ctx.stroke();
+    });
+
+    bloodParticles.forEach(p => {
+        ctx.fillStyle = `rgba(200, 0, 0, ${p.alpha})`;
         ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fill();
-    }
+    });
 
-    // 총알
-    ctx.strokeStyle = '#ffff00';
-    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#ffcc00'; ctx.lineWidth = 3;
     bullets.forEach(b => {
-        ctx.beginPath(); ctx.moveTo(b.prevX, b.prevY); ctx.lineTo(b.x, b.y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.prevX, b.prevY); ctx.stroke();
     });
 
-    // 원격 접속 플레이어
-    Object.values(remotePlayers).forEach(p => {
-        if(p.hp <= 0) return;
-        ctx.save();
-        ctx.translate(p.x, p.y);
-        ctx.rotate(p.angle);
-        ctx.fillStyle = '#ff0000';
-        ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI * 2); ctx.fill();
-        ctx.restore();
-
-        ctx.fillStyle = '#fff';
-        ctx.font = '12px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(p.name, p.x, p.y - 25);
-    });
-
-    // AI 봇
     aiBots.forEach(bot => {
-        ctx.save();
-        ctx.translate(bot.x, bot.y);
-        ctx.rotate(bot.angle);
-        ctx.fillStyle = '#ff8800';
-        ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI * 2); ctx.fill();
-        ctx.restore();
-
-        ctx.fillStyle = '#fff';
-        ctx.font = '12px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(bot.name, bot.x, bot.y - 25);
+        drawCharacter(bot, '#ff4444');
     });
 
-    // 본인 플레이어
-    if (myPlayer.hp > 0) {
-        ctx.save();
-        ctx.translate(myPlayer.x, myPlayer.y);
-        ctx.rotate(myPlayer.angle);
-        ctx.fillStyle = '#00ffcc';
-        ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI * 2); ctx.fill();
-        if (myPlayer.weapon) { ctx.fillStyle = '#666'; ctx.fillRect(10, 3, 15, 5); }
-        ctx.restore();
-
-        ctx.fillStyle = '#00ffcc';
-        ctx.font = 'bold 12px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(myPlayer.name, myPlayer.x, myPlayer.y - 25);
+    // 멀티플레이 다른 유저 렌더링
+    for(let id in remotePlayers) {
+        drawCharacter(remotePlayers[id], '#ffaa00');
     }
+
+    drawCharacter(myPlayer, '#00ffcc');
 
     ctx.restore();
 
-    drawMinimap();
-    requestAnimationFrame(gameLoop);
+    drawFogOfWar();
+
+    if(myPlayer.isAiming && myPlayer.weapon && !isMobile) drawScopeCrosshair(myPlayer.equippedScope);
+
+    drawRotatingRadarMinimap();
+
+    if (document.getElementById('fullMapOverlay').style.display === 'flex') {
+        drawFullMap();
+    }
 }
 
-function drawMinimap() {
+function drawRotatingRadarMinimap() {
     mCtx.clearRect(0, 0, 200, 200);
-    const scale = 200 / WORLD_SIZE;
 
-    mCtx.fillStyle = '#222';
-    mCtx.fillRect(0, 0, 200, 200);
+    const radarRange = 2500;
+    const center = 100;
+    const scale = center / radarRange;
 
-    if (currentGameMode === 'battleroyale') {
-        mCtx.strokeStyle = '#0099ff';
-        mCtx.lineWidth = 2;
-        mCtx.beginPath();
-        mCtx.arc(safeZone.x * scale, safeZone.y * scale, safeZone.radius * scale, 0, Math.PI * 2);
-        mCtx.stroke();
-    }
+    mCtx.save();
+    mCtx.beginPath();
+    mCtx.arc(center, center, center, 0, Math.PI * 2);
+    mCtx.clip();
 
-    mCtx.fillStyle = '#ff8800';
-    aiBots.forEach(bot => {
-        mCtx.fillRect(bot.x * scale - 2, bot.y * scale - 2, 4, 4);
+    mCtx.fillStyle = '#666';
+    obstacles.forEach(obs => {
+        const relX = (obs.x - myPlayer.x) * scale;
+        const relY = (obs.y - myPlayer.y) * scale;
+        const relW = obs.w * scale;
+        const relH = obs.h * scale;
+
+        if (Math.hypot(relX, relY) < center + 50) {
+            mCtx.fillRect(center + relX, center + relY, relW, relH);
+        }
     });
 
-    if (myPlayer.hp > 0) {
-        mCtx.fillStyle = '#00ffcc';
-        mCtx.beginPath();
-        mCtx.arc(myPlayer.x * scale, myPlayer.y * scale, 3, 0, Math.PI * 2);
-        mCtx.fill();
+    soundEvents.forEach(snd => {
+        const relX = (snd.x - myPlayer.x) * scale;
+        const relY = (snd.y - myPlayer.y) * scale;
+        if(Math.hypot(relX, relY) < center) {
+            mCtx.strokeStyle = snd.type === 'gunshot' ? '#ff4444' : '#ffffff';
+            mCtx.lineWidth = 2;
+            mCtx.beginPath();
+            mCtx.arc(center + relX, center + relY, snd.type === 'gunshot' ? 6 : 3, 0, Math.PI * 2);
+            mCtx.stroke();
+        }
+    });
+
+    mCtx.fillStyle = '#00ffcc';
+    mCtx.beginPath();
+    mCtx.arc(center, center, 4, 0, Math.PI * 2);
+    mCtx.fill();
+
+    mCtx.strokeStyle = '#00ffcc'; mCtx.lineWidth = 2;
+    mCtx.beginPath();
+    mCtx.moveTo(center, center);
+    mCtx.lineTo(center + Math.cos(myPlayer.angle) * 12, center + Math.sin(myPlayer.angle) * 12);
+    mCtx.stroke();
+
+    mCtx.restore();
+}
+
+function drawFullMap() {
+    fCtx.clearRect(0, 0, 500, 500);
+    const scale = 500 / WORLD_SIZE;
+
+    fCtx.fillStyle = '#1e3b1e';
+    fCtx.fillRect(0, 0, 500, 500);
+
+    if (selectedMode === 'br') {
+        fCtx.strokeStyle = '#00aaff'; fCtx.lineWidth = 2;
+        fCtx.beginPath();
+        fCtx.arc(zone.x * scale, zone.y * scale, zone.radius * scale, 0, Math.PI * 2);
+        fCtx.stroke();
     }
+
+    fCtx.fillStyle = '#444';
+    obstacles.forEach(obs => {
+        fCtx.fillRect(obs.x * scale, obs.y * scale, obs.w * scale, obs.h * scale);
+    });
+
+    fCtx.fillStyle = '#00ffcc';
+    fCtx.beginPath();
+    fCtx.arc(myPlayer.x * scale, myPlayer.y * scale, 6, 0, Math.PI * 2);
+    fCtx.fill();
+    
+    fCtx.fillStyle = '#ffffff'; fCtx.font = '12px sans-serif';
+    fCtx.fillText("내 위치", myPlayer.x * scale - 18, myPlayer.y * scale - 10);
+}
+
+function drawCharacter(p, color) {
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    
+    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(-20, -30, 40, 5);
+    ctx.fillStyle = '#00ff55'; ctx.fillRect(-20, -30, 40 * (p.hp / p.maxHp), 5);
+
+    ctx.rotate(p.angle);
+    ctx.fillStyle = color;
+    ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI * 2); ctx.fill();
+    
+    if(p.weapon) {
+        ctx.fillStyle = '#aaa'; 
+        ctx.fillRect(0, -3, p.weapon === 'sniper' ? 30 : 22, 6);
+    }
+    ctx.restore();
+}
+
+function drawScopeCrosshair(scopeType) {
+    const cx = mouse.x, cy = mouse.y;
+    ctx.save();
+
+    if (!scopeType || scopeType === '1x') {
+        ctx.fillStyle = 'red'; ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI * 2); ctx.fill();
+    } else if (scopeType === '2x') {
+        ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(cx, cy, 14, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(cx, cy, 2, 0, Math.PI * 2); ctx.fill();
+    } else if (scopeType === '3x') {
+        ctx.strokeStyle = '#ff3300'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(cx - 8, cy + 8); ctx.lineTo(cx, cy); ctx.lineTo(cx + 8, cy + 8); ctx.stroke();
+    } else if (scopeType === '4x') {
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(cx - 25, cy); ctx.lineTo(cx + 25, cy); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx, cy - 25); ctx.lineTo(cx, cy + 25); ctx.stroke();
+        ctx.strokeStyle = 'red'; ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2); ctx.stroke();
+    } else if (scopeType === '8x') {
+        ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(cx - 50, cy); ctx.lineTo(cx + 50, cy); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx, cy - 50); ctx.lineTo(cx, cy + 50); ctx.stroke();
+        ctx.fillStyle = 'red'; ctx.beginPath(); ctx.arc(cx, cy, 2, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+}
+
+function gameLoop() {
+    update();
+    draw();
+    requestAnimationFrame(gameLoop);
 }
 </script>
 </body>
