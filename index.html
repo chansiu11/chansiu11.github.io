@@ -859,21 +859,31 @@ function update() {
     }
 }
 
-// 360도 전방위 전체 시야 확보 & 벽 뒤 반투명 검은색 그림자 레이캐스팅
+// 수정된 Fog of War 로직 (전체 오버레이 후 시야 영역만 투명 구멍 뚫기)
 function drawFogOfWar() {
     const viewRadius = 1200; 
     const rayCount = 360;    
 
     ctx.save();
     
-    // 1. 시야 외부 및 벽 뒤쪽에 씌울 반투명한 검은색 안개
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.75)'; 
-    ctx.fillRect(camera.x - canvas.width, camera.y - canvas.height, canvas.width * 2, canvas.height * 2);
+    // 화면 절대 좌표에 반투명 어둠 오버레이 생성
+    ctx.setTransform(1, 0, 0, 1, 0, 0); 
+    
+    // 오프스크린 가상 캔버스 패턴 적용
+    const fogCanvas = document.createElement('canvas');
+    fogCanvas.width = canvas.width;
+    fogCanvas.height = canvas.height;
+    const fCtx = fogCanvas.getContext('2d');
 
-    // 2. 장애물에 막히지 않는 주변 영역을 투명하게 깎아서 시야를 밝힘
-    ctx.globalCompositeOperation = 'destination-out';
-    ctx.beginPath();
-    ctx.moveTo(myPlayer.x, myPlayer.y);
+    fCtx.fillStyle = 'rgba(0, 0, 0, 0.75)'; 
+    fCtx.fillRect(0, 0, canvas.width, canvas.height);
+
+    fCtx.globalCompositeOperation = 'destination-out';
+    fCtx.beginPath();
+
+    const screenPx = canvas.width / 2 + (myPlayer.x - camera.x);
+    const screenPy = canvas.height / 2 + (myPlayer.y - camera.y);
+    fCtx.moveTo(screenPx, screenPy);
 
     for (let i = 0; i <= rayCount; i++) {
         const angle = (i / rayCount) * Math.PI * 2;
@@ -901,23 +911,25 @@ function drawFogOfWar() {
             }
         }
 
-        const hitX = myPlayer.x + cos * closestDist;
-        const hitY = myPlayer.y + sin * closestDist;
-        ctx.lineTo(hitX, hitY);
+        const hitX = screenPx + cos * closestDist;
+        const hitY = screenPy + sin * closestDist;
+        fCtx.lineTo(hitX, hitY);
     }
 
-    ctx.closePath();
-    ctx.fill();
+    fCtx.closePath();
+    fCtx.fill();
+
+    ctx.drawImage(fogCanvas, 0, 0);
     ctx.restore();
 }
 
 function draw() {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if(!gameStarted) return;
 
     ctx.save();
-    ctx.translate(canvas.width / 2, canvas.height / 2);
-    ctx.translate(-camera.x, -camera.y);
+    ctx.translate(canvas.width / 2 - camera.x, canvas.height / 2 - camera.y);
 
     ctx.fillStyle = '#1e3b1e';
     ctx.fillRect(0, 0, WORLD_SIZE, WORLD_SIZE);
@@ -980,9 +992,9 @@ function draw() {
 
     drawCharacter(myPlayer, '#00ffcc');
 
-    drawFogOfWar();
-
     ctx.restore();
+
+    drawFogOfWar();
 
     if(myPlayer.isAiming && myPlayer.weapon) drawScopeCrosshair(myPlayer.equippedScope);
 
