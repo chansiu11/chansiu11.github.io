@@ -544,7 +544,6 @@ function shoot(shooter, extraSpread = 0) {
     }
 }
 
-// 점과 선분 사이의 최단 거리 제곱을 구하는 함수 (총알 스킵 현상 해결)
 function distToSegmentSquared(p, v, w) {
     const l2 = (v.x - w.x) ** 2 + (v.y - w.y) ** 2;
     if (l2 === 0) return (p.x - v.x) ** 2 + (p.y - v.y) ** 2;
@@ -806,7 +805,6 @@ function update() {
         if(now - soundEvents[i].time > duration) soundEvents.splice(i, 1);
     }
 
-    // 버그 수정: 총알 궤적 사이(Raycast) 피격 판정 추가
     for(let i = bullets.length - 1; i >= 0; i--) {
         const b = bullets[i];
         b.prevX = b.x;
@@ -821,12 +819,11 @@ function update() {
 
         let hit = false;
         
-        // AI 피격 체크
         for (let bIdx = aiBots.length - 1; bIdx >= 0; bIdx--) {
             const bot = aiBots[bIdx];
             if (b.ownerId !== bot.id) {
                 const distSq = distToSegmentSquared({x: bot.x, y: bot.y}, {x: b.prevX, y: b.prevY}, {x: b.x, y: b.y});
-                if (distSq <= 20 * 20) { // 히트박스 반경 20
+                if (distSq <= 20 * 20) {
                     bot.hp -= b.damage;
                     spawnBloodParticles(bot.x, bot.y);
                     hit = true;
@@ -839,7 +836,6 @@ function update() {
             }
         }
 
-        // 플레이어 피격 체크
         if (!hit && b.ownerId !== myPlayer.id) {
             const distSq = distToSegmentSquared({x: myPlayer.x, y: myPlayer.y}, {x: b.prevX, y: b.prevY}, {x: b.x, y: b.y});
             if (distSq <= 20 * 20) {
@@ -863,33 +859,53 @@ function update() {
     }
 }
 
-// 버그 수정: 화면 블랙아웃 방지 및 안정된 전장 안개 그리기 기능
+// 360도 레이캐스팅 적용: 내 주변 시야 보장 및 장애물 뒤 가림 구현
 function drawFogOfWar() {
     const viewRadius = 1200;
-    const fovAngle = Math.PI * 0.7;
+    const rayCount = 360; 
 
     ctx.save();
     
-    // 화면 전체 커버용 패스 생성
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.92)';
+    ctx.fillRect(camera.x - canvas.width, camera.y - canvas.height, canvas.width * 2, canvas.height * 2);
+
+    ctx.globalCompositeOperation = 'destination-out';
     ctx.beginPath();
-    ctx.rect(camera.x - canvas.width, camera.y - canvas.height, canvas.width * 2, canvas.height * 2);
-
-    // 뚫어낼 시야 구역 (반시계 방향 클리핑 패스 오프셋)
-    ctx.arc(myPlayer.x, myPlayer.y, 120, 0, Math.PI * 2, true);
-
     ctx.moveTo(myPlayer.x, myPlayer.y);
-    ctx.arc(
-        myPlayer.x, myPlayer.y, 
-        viewRadius, 
-        myPlayer.angle + fovAngle / 2, 
-        myPlayer.angle - fovAngle / 2, 
-        true
-    );
+
+    for (let i = 0; i <= rayCount; i++) {
+        const angle = (i / rayCount) * Math.PI * 2;
+        const cos = Math.cos(angle);
+        const sin = Math.sin(angle);
+        
+        let closestDist = viewRadius;
+
+        for (let obs of obstacles) {
+            let tMinX = (obs.x - myPlayer.x) / cos;
+            let tMaxX = (obs.x + obs.w - myPlayer.x) / cos;
+            if (tMinX > tMaxX) [tMinX, tMaxX] = [tMaxX, tMinX];
+
+            let tMinY = (obs.y - myPlayer.y) / sin;
+            let tMaxY = (obs.y + obs.h - myPlayer.y) / sin;
+            if (tMinY > tMaxY) [tMinY, tMaxY] = [tMaxY, tMinY];
+
+            let tNear = Math.max(tMinX, tMinY);
+            let tFar = Math.min(tMaxX, tMaxY);
+
+            if (tNear < tFar && tNear > 0) {
+                if (tNear < closestDist) {
+                    closestDist = tNear;
+                }
+            }
+        }
+
+        const hitX = myPlayer.x + cos * closestDist;
+        const hitY = myPlayer.y + sin * closestDist;
+        ctx.lineTo(hitX, hitY);
+    }
 
     ctx.closePath();
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
-    ctx.fill('evenodd'); // 비어있는 안쪽 시야 부분 반전 채우기 방식 사용
-
+    ctx.fill();
     ctx.restore();
 }
 
