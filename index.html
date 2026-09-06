@@ -859,68 +859,9 @@ function update() {
     }
 }
 
-// 수정된 Fog of War 로직 (전체 오버레이 후 시야 영역만 투명 구멍 뚫기)
+// 주위 어둠/시야제한 원(Fog of War) 완전 제거
 function drawFogOfWar() {
-    const viewRadius = 1200; 
-    const rayCount = 360;    
-
-    ctx.save();
-    
-    // 화면 절대 좌표에 반투명 어둠 오버레이 생성
-    ctx.setTransform(1, 0, 0, 1, 0, 0); 
-    
-    // 오프스크린 가상 캔버스 패턴 적용
-    const fogCanvas = document.createElement('canvas');
-    fogCanvas.width = canvas.width;
-    fogCanvas.height = canvas.height;
-    const fCtx = fogCanvas.getContext('2d');
-
-    fCtx.fillStyle = 'rgba(0, 0, 0, 0.75)'; 
-    fCtx.fillRect(0, 0, canvas.width, canvas.height);
-
-    fCtx.globalCompositeOperation = 'destination-out';
-    fCtx.beginPath();
-
-    const screenPx = canvas.width / 2 + (myPlayer.x - camera.x);
-    const screenPy = canvas.height / 2 + (myPlayer.y - camera.y);
-    fCtx.moveTo(screenPx, screenPy);
-
-    for (let i = 0; i <= rayCount; i++) {
-        const angle = (i / rayCount) * Math.PI * 2;
-        const cos = Math.cos(angle);
-        const sin = Math.sin(angle);
-        
-        let closestDist = viewRadius;
-
-        for (let obs of obstacles) {
-            let tMinX = (obs.x - myPlayer.x) / cos;
-            let tMaxX = (obs.x + obs.w - myPlayer.x) / cos;
-            if (tMinX > tMaxX) [tMinX, tMaxX] = [tMaxX, tMinX];
-
-            let tMinY = (obs.y - myPlayer.y) / sin;
-            let tMaxY = (obs.y + obs.h - myPlayer.y) / sin;
-            if (tMinY > tMaxY) [tMinY, tMaxY] = [tMaxY, tMinY];
-
-            let tNear = Math.max(tMinX, tMinY);
-            let tFar = Math.min(tMaxX, tMaxY);
-
-            if (tNear < tFar && tNear > 0) {
-                if (tNear < closestDist) {
-                    closestDist = tNear;
-                }
-            }
-        }
-
-        const hitX = screenPx + cos * closestDist;
-        const hitY = screenPy + sin * closestDist;
-        fCtx.lineTo(hitX, hitY);
-    }
-
-    fCtx.closePath();
-    fCtx.fill();
-
-    ctx.drawImage(fogCanvas, 0, 0);
-    ctx.restore();
+    // 안개 오버레이를 그리지 않음
 }
 
 function draw() {
@@ -954,12 +895,10 @@ function draw() {
     });
 
     droppedItems.forEach(item => {
-        if(hasLineOfSight(myPlayer, item)) {
-            ctx.fillStyle = ['ar', 'sniper', 'shotgun'].includes(item.type) ? '#ffcc00' : '#00ffcc';
-            ctx.beginPath(); ctx.arc(item.x, item.y, 8, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#fff'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
-            ctx.fillText(item.type.toUpperCase(), item.x, item.y - 12);
-        }
+        ctx.fillStyle = ['ar', 'sniper', 'shotgun'].includes(item.type) ? '#ffcc00' : '#00ffcc';
+        ctx.beginPath(); ctx.arc(item.x, item.y, 8, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText(item.type.toUpperCase(), item.x, item.y - 12);
     });
 
     const now = Date.now();
@@ -987,7 +926,7 @@ function draw() {
     });
 
     aiBots.forEach(bot => {
-        if(hasLineOfSight(myPlayer, bot)) drawCharacter(bot, '#ff4444');
+        drawCharacter(bot, '#ff4444');
     });
 
     drawCharacter(myPlayer, '#00ffcc');
