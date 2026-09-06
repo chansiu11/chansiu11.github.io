@@ -54,14 +54,19 @@
             border: 2px solid #00ffcc; border-radius: 50%;
             z-index: 5; display: none; box-shadow: 0 0 15px rgba(0,255,200,0.2);
         }
-        /* M 키용 전체 오버레이 맵 */
         #fullMapOverlay {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             width: 80vh; height: 80vh; background: rgba(10, 10, 10, 0.92);
             border: 3px solid #00ffcc; border-radius: 12px; z-index: 30; display: none;
             box-shadow: 0 0 30px rgba(0,0,0,0.9); flex-direction: column; align-items: center; justify-content: center;
         }
-        canvas#gameCanvas { width: 100vw; height: 100vh; display: none; background-color: #1a1a1a; }
+        #victoryOverlay {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.85); border: 4px solid #ffcc00; padding: 40px;
+            border-radius: 20px; text-align: center; display: none; z-index: 100;
+            box-shadow: 0 0 50px rgba(255, 204, 0, 0.5);
+        }
+        canvas#gameCanvas { width: 100vw; height: 100vh; display: none; background-color: #1e3b1e; }
     </style>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 </head>
@@ -87,6 +92,11 @@
     <p>참가 인원: <span id="playerCount" style="color:#00ffcc; font-size:22px; font-weight:bold;">1</span> / 20</p>
     <p>남은 시간: <span id="timerDisplay" style="color:#ff4444; font-size:24px; font-weight:bold;">10</span>초</p>
     <div style="font-size: 13px; color: #aaa;">인원이 부족할 경우 AI 봇으로 자동 대체됩니다.</div>
+</div>
+
+<div id="victoryOverlay">
+    <h1 style="font-size: 48px; color: #ffcc00; margin: 0;">🏆 1등! 우승하셨습니다! 🏆</h1>
+    <p style="font-size: 20px; color: #fff; margin-top: 15px;">5초 후 메인 메뉴로 이동합니다...</p>
 </div>
 
 <div id="statusHUD">
@@ -124,7 +134,7 @@
 
 <script>
 const WORLD_SIZE = 24000; 
-const TOTAL_PLAYERS = 20; // 20명 설정
+const TOTAL_PLAYERS = 20;
 
 const SCOPES = {
     '1x': { name: "1배율 (레드닷)", viewOffset: 300 },
@@ -144,6 +154,7 @@ const PUBLIC_ROOM_ID = "gungame-public-server-room-v1";
 let peer = null, conn = null;
 
 let gameStarted = false;
+let gameEnded = false;
 let waitingTimer = null;
 let timeLeft = 10;
 let realPlayerCount = 1;
@@ -264,7 +275,8 @@ function spawnAIBots(count) {
             weapon: null,
             equippedScope: null,
             lastShootTime: 0,
-            targetItem: null
+            targetItem: null,
+            firstSeenTime: null // AI 인식 지연용 타이머
         });
     }
 }
@@ -278,7 +290,7 @@ function startGame() {
     gameStarted = true;
     
     setInterval(() => {
-        if(!gameStarted) return;
+        if(!gameStarted || gameEnded) return;
         if(zoneTimer > 0) {
             zoneTimer--;
             document.getElementById('hudZoneTimer').innerText = zoneTimer;
@@ -392,9 +404,23 @@ function pickupItem() {
 }
 
 function updateHUD() {
-    document.getElementById('hudAliveCount').innerText = aiBots.length + 1;
+    const alive = aiBots.length + 1;
+    document.getElementById('hudAliveCount').innerText = alive;
     document.getElementById('hudWeapon').innerText = myPlayer.weapon ? WEAPONS[myPlayer.weapon].name : "맨손";
     document.getElementById('hudScope').innerText = myPlayer.equippedScope ? SCOPES[myPlayer.equippedScope].name : "없음";
+
+    // 1등 승리 판정
+    if (alive === 1 && gameStarted && !gameEnded) {
+        triggerVictory();
+    }
+}
+
+function triggerVictory() {
+    gameEnded = true;
+    document.getElementById('victoryOverlay').style.display = 'block';
+    setTimeout(() => {
+        location.reload();
+    }, 5000);
 }
 
 function hasLineOfSight(p1, p2) {
@@ -411,13 +437,18 @@ function hasLineOfSight(p1, p2) {
     return true;
 }
 
-function shoot(shooter) {
+// 사격 처리 (달리기 여부에 따라 탄 퍼짐 증가)
+function shoot(shooter, extraSpread = 0) {
     if(!shooter.weapon) return;
     const w = WEAPONS[shooter.weapon];
     soundEvents.push({ x: shooter.x, y: shooter.y, time: Date.now() });
 
+    // 달리기 시 탄 퍼짐 3배 심화
+    const isRunning = shooter === myPlayer && keys['shift'];
+    const baseSpread = isRunning ? w.spread * 3.0 : w.spread;
+
     for(let i=0; i < w.pellets; i++) {
-        const spread = (Math.random() - 0.5) * w.spread;
+        const spread = (Math.random() - 0.5) * (baseSpread + extraSpread);
         const angle = shooter.angle + spread;
         bullets.push({
             x: shooter.x, y: shooter.y,
@@ -429,22 +460,32 @@ function shoot(shooter) {
     }
 }
 
-// AI 로직: 자기장 회피 기능 추가
 function updateAI() {
-    aiBots.forEach(bot => {
+    const now = Date.now();
+
+    for(let i = aiBots.length - 1; i >= 0; i--) {
+        const bot = aiBots[i];
         const distToZoneCenter = Math.hypot(bot.x - zone.x, bot.y - zone.y);
 
-        // 1. 자기장 바깥에 있거나 경계 근처에 있을 경우 -> 자기장 안전지대로 회피 이동
+        // AI 자기장 대미지 및 사망 처리
+        if (distToZoneCenter > zone.radius) {
+            bot.hp -= 0.3; // 자기장 대미지
+            if (bot.hp <= 0) {
+                aiBots.splice(i, 1);
+                updateHUD();
+                continue;
+            }
+        }
+
+        // 자기장 경계 시 중앙으로 회피
         if (distToZoneCenter > zone.radius - 300) {
             bot.angle = Math.atan2(zone.y - bot.y, zone.x - bot.x);
             bot.x += Math.cos(bot.angle) * 2.5;
             bot.y += Math.sin(bot.angle) * 2.5;
-            
-            if(distToZoneCenter > zone.radius) bot.hp -= 0.15; // 자기장 밖 대미지
-            return;
+            bot.firstSeenTime = null;
+            continue;
         }
 
-        // 2. 기존 교전 및 아이템 탐색 AI
         let targets = [myPlayer, ...aiBots.filter(b => b.id !== bot.id)];
         let closestTarget = null;
         let minDst = 1000;
@@ -460,16 +501,26 @@ function updateAI() {
         if(closestTarget && bot.weapon) {
             bot.targetItem = null;
             bot.angle = Math.atan2(closestTarget.y - bot.y, closestTarget.x - bot.x);
-            if(minDst > 180) {
-                bot.x += Math.cos(bot.angle) * 1.8;
-                bot.y += Math.sin(bot.angle) * 1.8;
+
+            if (!bot.firstSeenTime) {
+                bot.firstSeenTime = now; // 최초 인식 시간 기록
             }
-            const now = Date.now();
-            if (now - bot.lastShootTime >= WEAPONS[bot.weapon].cooldown) {
-                shoot(bot);
-                bot.lastShootTime = now;
+
+            // 0.5초(500ms) 지연 후 사격 시작
+            if (now - bot.firstSeenTime >= 500) {
+                if(minDst > 180) {
+                    bot.x += Math.cos(bot.angle) * 1.8;
+                    bot.y += Math.sin(bot.angle) * 1.8;
+                }
+                if (now - bot.lastShootTime >= WEAPONS[bot.weapon].cooldown) {
+                    // 명중률 감소를 위한 탄 퍼짐 (0.08 추가)
+                    shoot(bot, 0.08); 
+                    bot.lastShootTime = now;
+                }
             }
         } else {
+            bot.firstSeenTime = null;
+
             if(!bot.targetItem || !droppedItems.includes(bot.targetItem)) {
                 let nearest = null;
                 let nearDst = 2500;
@@ -501,7 +552,7 @@ function updateAI() {
                 if(Math.random() < 0.02) bot.angle += (Math.random() - 0.5) * 2;
             }
         }
-    });
+    }
 }
 
 function checkObstacleCollision(x, y) {
@@ -514,7 +565,7 @@ function checkObstacleCollision(x, y) {
 }
 
 function update() {
-    if(!gameStarted) return;
+    if(!gameStarted || gameEnded) return;
 
     if(isZoneShrinking && zone.radius > 200) {
         zone.radius -= zone.shrinkRate;
@@ -528,7 +579,6 @@ function update() {
         }
     }
 
-    // Shift 키 누르면 이동 속도 증가 (달리기)
     const currentSpeed = keys['shift'] ? 5.5 : 3.0;
 
     let dx = 0, dy = 0;
@@ -624,7 +674,11 @@ function draw() {
     ctx.translate(canvas.width / 2, canvas.height / 2);
     ctx.translate(-camera.x, -camera.y);
 
-    ctx.strokeStyle = '#252525'; ctx.lineWidth = 2;
+    // 풀밭 바닥 재질 그래픽 (#1e3b1e 및 어두운 연초록 격자)
+    ctx.fillStyle = '#1e3b1e';
+    ctx.fillRect(0, 0, WORLD_SIZE, WORLD_SIZE);
+
+    ctx.strokeStyle = '#274a27'; ctx.lineWidth = 2;
     for (let x = 0; x <= WORLD_SIZE; x += 300) {
         ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, WORLD_SIZE); ctx.stroke();
     }
@@ -632,15 +686,18 @@ function draw() {
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(WORLD_SIZE, y); ctx.stroke();
     }
 
+    // 자기장 서클
     ctx.strokeStyle = '#00aaff'; ctx.lineWidth = 10;
     ctx.beginPath(); ctx.arc(zone.x, zone.y, zone.radius, 0, Math.PI * 2); ctx.stroke();
 
+    // 장애물(건물)
     ctx.fillStyle = '#444'; ctx.strokeStyle = '#666'; ctx.lineWidth = 3;
     obstacles.forEach(obs => {
         ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
         ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
     });
 
+    // 드랍 아이템
     droppedItems.forEach(item => {
         if(hasLineOfSight(myPlayer, item)) {
             ctx.fillStyle = ['ar', 'sniper', 'shotgun'].includes(item.type) ? '#ffcc00' : '#00ffcc';
@@ -650,11 +707,13 @@ function draw() {
         }
     });
 
+    // 총알
     ctx.strokeStyle = '#ffcc00'; ctx.lineWidth = 3;
     bullets.forEach(b => {
         ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.dx*0.2, b.y - b.dy*0.2); ctx.stroke();
     });
 
+    // 플레이어 및 AI
     drawCharacter(myPlayer, '#00ffcc');
 
     aiBots.forEach(bot => {
@@ -667,7 +726,6 @@ function draw() {
 
     drawRotatingRadarMinimap();
 
-    // M키 눌렀을 경우 전체 맵 렌더링
     if (document.getElementById('fullMapOverlay').style.display === 'flex') {
         drawFullMap();
     }
@@ -722,10 +780,13 @@ function drawRotatingRadarMinimap() {
     mCtx.restore();
 }
 
-// M 키 클릭 시 전채 맵을 그리는 함수
 function drawFullMap() {
     fCtx.clearRect(0, 0, 500, 500);
     const scale = 500 / WORLD_SIZE;
+
+    // 풀밭 배경색
+    fCtx.fillStyle = '#1e3b1e';
+    fCtx.fillRect(0, 0, 500, 500);
 
     // 자기장 표시
     fCtx.strokeStyle = '#00aaff';
@@ -740,13 +801,12 @@ function drawFullMap() {
         fCtx.fillRect(obs.x * scale, obs.y * scale, obs.w * scale, obs.h * scale);
     });
 
-    // 내 위치 표시 (깜빡이는 큰 녹색 점)
+    // 내 위치 표시
     fCtx.fillStyle = '#00ffcc';
     fCtx.beginPath();
     fCtx.arc(myPlayer.x * scale, myPlayer.y * scale, 6, 0, Math.PI * 2);
     fCtx.fill();
     
-    // 내 위치 텍스트 표시
     fCtx.fillStyle = '#ffffff';
     fCtx.font = '12px sans-serif';
     fCtx.fillText("내 위치", myPlayer.x * scale - 18, myPlayer.y * scale - 10);
