@@ -455,7 +455,6 @@ function startGame() {
     document.getElementById('waitingRoom').style.display = 'none';
     document.getElementById('statusHUD').style.display = 'block';
 
-    // 데스매치(기본 모드) 선택 시 맵 크기 1/10 축소
     if (selectedMode === 'normal') {
         WORLD_SIZE = 2400; 
 
@@ -750,7 +749,8 @@ function updateHUD() {
         : "- / -";
     document.getElementById('hudScope').innerText = myPlayer.equippedScope ? SCOPES[myPlayer.equippedScope].name : "없음";
 
-    if (initialPlayerCount > 1 && alive === 1 && gameStarted && !gameEnded) {
+    // 버그 수정: 배틀로얄 모드('br')일 때만 생존자 1명 승리 체크
+    if (selectedMode === 'br' && initialPlayerCount > 1 && alive === 1 && gameStarted && !gameEnded) {
         triggerVictory();
     }
 }
