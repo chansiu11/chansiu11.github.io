@@ -185,6 +185,7 @@ let selectedMode = 'br';
 
 let gameStarted = false;
 let gameEnded = false;
+let initialPlayerCount = 1; // 초기 참가 인원 추적 변수 추가
 
 let zoneTimer = 120;
 let isZoneShrinking = false;
@@ -342,6 +343,9 @@ function startGame() {
         document.getElementById('hudZoneContainer').style.display = 'none';
     }
 
+    // 초기 플레이어 총원 기록 (AI + 본인)
+    initialPlayerCount = aiBots.length + 1;
+
     canvas.style.display = 'block';
     minimapCanvas.style.display = 'block';
     gameStarted = true;
@@ -470,7 +474,8 @@ function updateHUD() {
     document.getElementById('hudWeapon').innerText = myPlayer.weapon ? WEAPONS[myPlayer.weapon].name : "맨손";
     document.getElementById('hudScope').innerText = myPlayer.equippedScope ? SCOPES[myPlayer.equippedScope].name : "없음";
 
-    if (alive === 1 && gameStarted && !gameEnded) {
+    // 버그 수정: 처음 시작 인원이 2명 이상일 때만 1명 남았을 시 승리 처리
+    if (initialPlayerCount > 1 && alive === 1 && gameStarted && !gameEnded) {
         triggerVictory();
     }
 }
@@ -710,12 +715,11 @@ function update() {
         }
     }
 
-    // 1. 달리기 속도 대폭 상향 (5.5 -> 8.5)
     let currentSpeed = 3.0;
     let footstepRadius = 0;
 
     if (keys['shift']) {
-        currentSpeed = 8.5; // 변경된 달리기 속도
+        currentSpeed = 8.5;
         myPlayer.movementMode = 'sprint';
         footstepRadius = 700;
     } else if (keys['control']) {
@@ -830,26 +834,20 @@ function update() {
     }
 }
 
-// 2. 안 보이는 곳(Fog of War)을 검은색으로 가리는 그리기 함수
 function drawFogOfWar() {
-    const viewRadius = 1200; // 시야 거리
-    const fovAngle = Math.PI * 0.7; // 시야각 (약 126도)
+    const viewRadius = 1200;
+    const fovAngle = Math.PI * 0.7;
 
     ctx.save();
-    
-    // 전체 화면을 일단 암전 레이어로 덮음
     ctx.fillStyle = 'rgba(0, 0, 0, 0.98)';
     ctx.fillRect(camera.x - canvas.width, camera.y - canvas.height, canvas.width * 2, canvas.height * 2);
 
-    // 플레이어 중심 밝은 시야 원뿔 선언 (Composite Operation 활용)
     ctx.globalCompositeOperation = 'destination-out';
 
-    // 1) 내 주변 아주 가까운 기본 시야 (360도)
     ctx.beginPath();
     ctx.arc(myPlayer.x, myPlayer.y, 120, 0, Math.PI * 2);
     ctx.fill();
 
-    // 2) 바라보는 방향의 시야 부채꼴
     ctx.beginPath();
     ctx.moveTo(myPlayer.x, myPlayer.y);
     ctx.arc(
@@ -872,11 +870,9 @@ function draw() {
     ctx.translate(canvas.width / 2, canvas.height / 2);
     ctx.translate(-camera.x, -camera.y);
 
-    // 바닥 맵
     ctx.fillStyle = '#1e3b1e';
     ctx.fillRect(0, 0, WORLD_SIZE, WORLD_SIZE);
 
-    // 격자선
     ctx.strokeStyle = '#274a27'; ctx.lineWidth = 2;
     for (let x = 0; x <= WORLD_SIZE; x += 300) {
         ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, WORLD_SIZE); ctx.stroke();
@@ -885,20 +881,17 @@ function draw() {
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(WORLD_SIZE, y); ctx.stroke();
     }
 
-    // 자기장 (배틀로얄 모드일 때만)
     if (selectedMode === 'br') {
         ctx.strokeStyle = '#00aaff'; ctx.lineWidth = 10;
         ctx.beginPath(); ctx.arc(zone.x, zone.y, zone.radius, 0, Math.PI * 2); ctx.stroke();
     }
 
-    // 장애물
     ctx.fillStyle = '#444'; ctx.strokeStyle = '#666'; ctx.lineWidth = 3;
     obstacles.forEach(obs => {
         ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
         ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
     });
 
-    // 아이템
     droppedItems.forEach(item => {
         if(hasLineOfSight(myPlayer, item)) {
             ctx.fillStyle = ['ar', 'sniper', 'shotgun'].includes(item.type) ? '#ffcc00' : '#00ffcc';
@@ -908,7 +901,6 @@ function draw() {
         }
     });
 
-    // 사운드 이펙트
     const now = Date.now();
     soundEvents.forEach(snd => {
         const age = now - snd.time;
@@ -923,27 +915,22 @@ function draw() {
         ctx.stroke();
     });
 
-    // 피 파티클
     bloodParticles.forEach(p => {
         ctx.fillStyle = `rgba(200, 0, 0, ${p.alpha})`;
         ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fill();
     });
 
-    // 총알
     ctx.strokeStyle = '#ffcc00'; ctx.lineWidth = 3;
     bullets.forEach(b => {
         ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.dx*0.2, b.y - b.dy*0.2); ctx.stroke();
     });
 
-    // AI 봇
     aiBots.forEach(bot => {
         if(hasLineOfSight(myPlayer, bot)) drawCharacter(bot, '#ff4444');
     });
 
-    // 내 캐릭터
     drawCharacter(myPlayer, '#00ffcc');
 
-    // 시야 밖 검은색 가림막 (Fog of War) 적용
     drawFogOfWar();
 
     ctx.restore();
