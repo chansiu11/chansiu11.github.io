@@ -142,9 +142,9 @@ const WEAPONS = {
         baseSpeed: 1.55,
         maxSprintSpeed: 2.3,
         zoomPower: 0.15,
-        maxOffset: 120,
-        baseSpread: 0.03, // 기본 탄퍼짐 살짝 감소
-        movingSpreadMult: 0.08 // 기본 이동 시 탄퍼짐 대폭 줄임 (기존 0.18 -> 0.08)
+        maxOffset: 120,    // 기본 및 조준 시 오프셋
+        baseSpread: 0.03,
+        movingSpreadMult: 0.08
     },
     sniper: {
         name: "스나이퍼",
@@ -153,8 +153,8 @@ const WEAPONS = {
         damage: 50,
         baseSpeed: 1.25,
         maxSprintSpeed: 1.80,
-        zoomPower: 1.5, // 시야범위 확대에 맞춰 줌 배율 상향 (기존 1.5 -> 2.25)
-        maxOffset: 630,  // 시야 범위 1.5배 증가 (기존 420 -> 630)
+        zoomPower: 2.5,    // 줌 시 시야 확장율 대폭 강화
+        maxOffset: 120,    // 기본 전체 시야범위 120
         baseSpread: 0.005,
         movingSpreadMult: 1.5
     }
@@ -502,10 +502,11 @@ function update() {
     let targetZoom = 1.0;
 
     if (myPlayer.isAiming) {
-        const mouseOffsetX = (mouse.x - screenCenterX) * 0.65; 
-        const mouseOffsetY = (mouse.y - screenCenterY) * 0.65;
+        const mouseOffsetX = (mouse.x - screenCenterX) * 0.8; 
+        const mouseOffsetY = (mouse.y - screenCenterY) * 0.8;
         
-        const maxOffset = wSpec.maxOffset;
+        // 스나이퍼는 조준 시 zoomPower에 맞춰 카메라 이동 오프셋 한계를 훨씬 더 멀리 확장
+        const maxOffset = wSpec.maxOffset * (myPlayer.weaponType === 'sniper' ? (1 + wSpec.zoomPower) : 1);
         const dist = Math.hypot(mouseOffsetX, mouseOffsetY);
         
         let actualOffsetX = mouseOffsetX;
@@ -547,7 +548,7 @@ function update() {
         actionUI.innerText = `전력 질주 (속도 ${myPlayer.currentSpeed.toFixed(2)})`;
         actionUI.style.color = "#ffcc00";
     } else if (myPlayer.isAiming) {
-        actionUI.innerText = myPlayer.weaponType === 'sniper' ? "스나이퍼 줌인 (울트라 고배율 원거리 시야)" : "정밀 조준 (근거리 표준 시야)";
+        actionUI.innerText = myPlayer.weaponType === 'sniper' ? "스나이퍼 줌인 (원거리 원거리 오프셋 시야)" : "정밀 조준 (근거리 표준 시야)";
         actionUI.style.color = "#00ffcc";
     } else {
         actionUI.innerText = `기본 이동 (속도 ${myPlayer.currentSpeed.toFixed(2)})`;
