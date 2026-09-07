@@ -98,9 +98,13 @@
         }
         #victoryOverlay {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.85); border: 4px solid #ffcc00; padding: 40px;
+            background: rgba(0, 0, 0, 0.9); border: 4px solid #ffcc00; padding: 30px;
             border-radius: 20px; text-align: center; display: none; z-index: 100;
-            box-shadow: 0 0 50px rgba(255, 204, 0, 0.5);
+            box-shadow: 0 0 50px rgba(255, 204, 0, 0.5); min-width: 320px;
+        }
+        #rankList {
+            margin: 15px 0; text-align: left; font-size: 16px; line-height: 1.6;
+            max-height: 200px; overflow-y: auto; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px;
         }
         #damageOverlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -156,6 +160,9 @@
             outline: 2px dashed #00ffcc !important;
             cursor: move;
         }
+        
+        /* 게스트 대기실 인포 보이기용 스타일 */
+        .info-value { color: #00ffcc; font-weight: bold; float: right; }
     </style>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 </head>
@@ -204,38 +211,51 @@
         <button onclick="closeSettings()" class="btn-secondary">닫기</button>
     </div>
 
+    <!-- 대기실 화면 -->
     <div id="waitingRoom">
-        <h2>대기실 (방장 설정)</h2>
+        <h2 id="waitingTitle">대기실 (방장 설정)</h2>
         <p>방 코드: <span id="displayRoomCode" style="color:#00ffcc; font-size:20px; font-weight:bold;">-</span></p>
         
-        <div class="form-group">
-            <label for="aiToggle">AI 봇 포함 여부:</label>
-            <select id="aiToggle" onchange="toggleAiInput()">
-                <option value="true">AI 봇 포함</option>
-                <option value="false">AI 봇 없음 (유저 전용)</option>
-            </select>
+        <div id="hostSettingsControls" style="width:100%;">
+            <div class="form-group">
+                <label for="aiToggle">AI 봇 포함 여부:</label>
+                <select id="aiToggle" onchange="onHostSettingsChange()">
+                    <option value="true">AI 봇 포함</option>
+                    <option value="false">AI 봇 없음 (유저 전용)</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="aiDifficultyGroup">
+                <label for="aiDifficultySelect">AI 난이도 설정:</label>
+                <select id="aiDifficultySelect" onchange="onHostSettingsChange()">
+                    <option value="very_easy">매우 쉬움 (매우 둔함)</option>
+                    <option value="easy">쉬움 (반응 느림 / 낮은 명중률)</option>
+                    <option value="hard" selected>어려움 (빠른 반응 / 높은 명중률)</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="aiCountGroup">
+                <label for="aiCountInput">AI 봇 수 (최대 30):</label>
+                <input type="number" id="aiCountInput" value="19" min="0" max="30" onchange="onHostSettingsChange()" oninput="onHostSettingsChange()">
+            </div>
         </div>
 
-        <div class="form-group" id="aiDifficultyGroup">
-            <label for="aiDifficultySelect">AI 난이도 설정:</label>
-            <select id="aiDifficultySelect">
-                <option value="very_easy">매우 쉬움 (매우 둔함)</option>
-                <option value="easy">쉬움 (반응 느림 / 낮은 명중률)</option>
-                <option value="hard" selected>어려움 (빠른 반응 / 높은 명중률)</option>
-            </select>
-        </div>
-
-        <div class="form-group" id="aiCountGroup">
-            <label for="aiCountInput">AI 봇 수 (최대 30):</label>
-            <input type="number" id="aiCountInput" value="19" min="0" max="30">
+        <!-- 게스트 전용 대기화면 (방장의 설정 텍스트만 표시) -->
+        <div id="guestSettingsDisplay" style="display:none; width:100%; text-align:left; background:rgba(0,0,0,0.4); padding:15px; border-radius:8px; margin: 10px 0;">
+            <div style="margin-bottom:8px;">게임 모드: <span id="guestModeVal" class="info-value">배틀로얄</span></div>
+            <div style="margin-bottom:8px;">AI 봇 여부: <span id="guestAiVal" class="info-value">포함</span></div>
+            <div style="margin-bottom:8px;">AI 난이도: <span id="guestDiffVal" class="info-value">어려움</span></div>
+            <div>AI 봇 수: <span id="guestCountVal" class="info-value">19명</span></div>
         </div>
 
         <button id="startButton" onclick="hostStartGame()" style="background-color: #00ffcc; margin-top: 10px;">게임 시작</button>
+        <p id="guestWaitText" style="color:#00ffcc; display:none; margin-top:15px;">방장이 게임을 시작하기를 기다리는 중...</p>
     </div>
 
     <div id="victoryOverlay">
-        <h1 style="font-size: 48px; color: #ffcc00; margin: 0;">🏆 1등! 우승하셨습니다! 🏆</h1>
-        <p style="font-size: 20px; color: #fff; margin-top: 15px;">5초 후 메인 메뉴로 이동합니다...</p>
+        <h1 id="victoryTitle" style="font-size: 36px; color: #ffcc00; margin: 0;">🏆 승리! 🏆</h1>
+        <div id="rankList"></div>
+        <p style="font-size: 16px; color: #fff; margin-top: 15px;">5초 후 메인 메뉴로 이동합니다...</p>
     </div>
 
     <div id="statusHUD">
@@ -514,10 +534,20 @@ function generateMapData(mode) {
 
 function generateShortId() { return Math.random().toString(36).substring(2, 7).toLowerCase(); }
 
-function toggleAiInput() {
+// 1. 방장 설정 변경 시 방송 전송
+function onHostSettingsChange() {
+    if(!isHost) return;
     const enabled = document.getElementById('aiToggle').value === 'true';
     document.getElementById('aiCountGroup').style.display = enabled ? 'block' : 'none';
     document.getElementById('aiDifficultyGroup').style.display = enabled ? 'block' : 'none';
+
+    broadcastData({
+        type: 'ROOM_SETTINGS',
+        mode: selectedMode,
+        aiToggle: enabled,
+        aiDiff: document.getElementById('aiDifficultySelect').value,
+        aiCount: document.getElementById('aiCountInput').value
+    });
 }
 
 function createRoom() {
@@ -532,12 +562,25 @@ function createRoom() {
     
     document.getElementById('ui').style.display = 'none';
     document.getElementById('waitingRoom').style.display = 'flex';
+    document.getElementById('waitingTitle').innerText = "대기실 (방장 설정)";
+    document.getElementById('hostSettingsControls').style.display = 'block';
+    document.getElementById('guestSettingsDisplay').style.display = 'none';
+    document.getElementById('startButton').style.display = 'block';
+    document.getElementById('guestWaitText').style.display = 'none';
 
     peer = new Peer('gungame-room-' + code);
     
     peer.on('connection', c => { 
         c.on('open', () => {
             connections[c.peer] = c;
+            // 게스트에게 현재 방 설정 보냄
+            c.send({
+                type: 'ROOM_SETTINGS',
+                mode: selectedMode,
+                aiToggle: document.getElementById('aiToggle').value === 'true',
+                aiDiff: document.getElementById('aiDifficultySelect').value,
+                aiCount: document.getElementById('aiCountInput').value
+            });
         });
 
         c.on('data', data => {
@@ -575,8 +618,14 @@ function joinRoom() {
         hostConn.on('open', () => {
             document.getElementById('ui').style.display = 'none';
             document.getElementById('waitingRoom').style.display = 'flex';
+            document.getElementById('displayRoomCode').innerText = input;
+            
+            // 게스트 대기 UI 적용
+            document.getElementById('waitingTitle').innerText = "대기실";
+            document.getElementById('hostSettingsControls').style.display = 'none';
+            document.getElementById('guestSettingsDisplay').style.display = 'block';
             document.getElementById('startButton').style.display = 'none'; 
-            document.getElementById('waitingRoom').innerHTML += "<p style='color:#00ffcc;'>방장이 게임을 시작하기를 기다리는 중...</p>";
+            document.getElementById('guestWaitText').style.display = 'block';
         });
         hostConn.on('data', data => handleNetworkData(data));
         hostConn.on('error', () => alert('방 접속 실패!'));
@@ -607,10 +656,36 @@ function addKill(killerId) {
         const bot = aiBots.find(b => b.id === killerId);
         if (bot) bot.kills = (bot.kills || 0) + 1;
     }
+    checkDeathmatchVictory();
+}
+
+// 4. 데스매치(기본모드) 20점 달성 체크 함수
+function checkDeathmatchVictory() {
+    if (selectedMode !== 'normal' || gameEnded) return;
+
+    let maxKills = myPlayer.kills;
+    for (let id in remotePlayers) {
+        if (remotePlayers[id].kills > maxKills) maxKills = remotePlayers[id].kills;
+    }
+    aiBots.forEach(b => {
+        if (b.kills > maxKills) maxKills = b.kills;
+    });
+
+    if (maxKills >= 20) {
+        triggerEndGame();
+    }
 }
 
 function handleNetworkData(data) {
-    if(data.type === 'START') {
+    if(data.type === 'ROOM_SETTINGS') {
+        if(!isHost) {
+            const diffMap = { very_easy: '매우 쉬움', easy: '쉬움', hard: '어려움' };
+            document.getElementById('guestModeVal').innerText = data.mode === 'br' ? '배틀로얄' : '기본 모드(데스매치)';
+            document.getElementById('guestAiVal').innerText = data.aiToggle ? '포함' : '없음';
+            document.getElementById('guestDiffVal').innerText = diffMap[data.aiDiff] || data.aiDiff;
+            document.getElementById('guestCountVal').innerText = data.aiCount + "명";
+        }
+    } else if(data.type === 'START') {
         selectedMode = data.mode;
         aiDifficulty = data.aiDiff;
         obstacles = data.mapData.obstacles;
@@ -629,10 +704,11 @@ function handleNetworkData(data) {
                         remotePlayers[p.id] = p;
                         activeIds[p.id] = true;
                     } else {
+                        // 2. 방장에게서 온 피격 HP 데이터 및 Kill/Death 동기화
                         myPlayer.hp = p.hp;
                         myPlayer.isDead = p.isDead;
-                        myPlayer.kills = p.kills || myPlayer.kills;
-                        myPlayer.deaths = p.deaths || myPlayer.deaths;
+                        myPlayer.kills = p.kills || 0;
+                        myPlayer.deaths = p.deaths || 0;
                     }
                 });
             }
@@ -645,6 +721,7 @@ function handleNetworkData(data) {
                 data.aiBots.forEach(b => aiBots.push(b));
             }
             updateHUD();
+            checkDeathmatchVictory();
         } else {
             if(data.player) remotePlayers[data.player.id] = data.player;
         }
@@ -658,13 +735,15 @@ function handleNetworkData(data) {
             emitSoundEvent(data.player.x, data.player.y, 2500, 'gunshot');
         }
     } else if(data.type === 'DAMAGE' && data.targetId === myPlayer.id) {
-        if (myPlayer.hp > 0) {
-            myPlayer.hp -= data.damage;
-            triggerDamageEffect();
-            if(myPlayer.hp <= 0) {
-                handleMyDeath(data.attackerId);
-            }
+        // 호스트로부터 피해를 받았을 때 직관적 피격 효과 적용
+        myPlayer.hp = data.newHp;
+        triggerDamageEffect();
+        if(myPlayer.hp <= 0) {
+            handleMyDeath(data.attackerId);
         }
+    } else if(data.type === 'GAME_OVER') {
+        // 호스트에서 게임 종료 신호
+        displayRankings(data.rankings);
     } else if(data.type === 'KILL_EVENT') {
         if (data.killerId === myPlayer.id) {
             myPlayer.kills++;
@@ -1222,12 +1301,48 @@ function updateHUD() {
     document.getElementById('hudScope').innerText = myPlayer.equippedScope ? SCOPES[myPlayer.equippedScope].name : "없음";
 
     if (selectedMode === 'br' && alive === 1 && myPlayer.hp > 0 && !myPlayer.isDead && gameStarted && !gameEnded && initialPlayerCount > 1) {
-        triggerVictory();
+        triggerEndGame();
     }
 }
 
-function triggerVictory() {
+// 4. 게임 종료 처리 및 순위 띄우기
+function triggerEndGame() {
+    if (gameEnded) return;
     gameEnded = true;
+
+    let participants = [
+        { name: myPlayer.name, kills: myPlayer.kills, deaths: myPlayer.deaths, isMe: true },
+        ...Object.values(remotePlayers).map(p => ({ name: p.name, kills: p.kills || 0, deaths: p.deaths || 0, isMe: false })),
+        ...aiBots.map(b => ({ name: b.name, kills: b.kills || 0, deaths: b.deaths || 0, isMe: false }))
+    ];
+
+    participants.sort((a, b) => b.kills - a.kills || a.deaths - b.deaths);
+
+    if (isHost) {
+        broadcastData({ type: 'GAME_OVER', rankings: participants });
+    }
+
+    displayRankings(participants);
+}
+
+function displayRankings(rankings) {
+    gameEnded = true;
+    const title = document.getElementById('victoryTitle');
+    const rankList = document.getElementById('rankList');
+
+    if (selectedMode === 'br') {
+        title.innerText = "🏆 승리! 게임 종료! 🏆";
+    } else {
+        title.innerText = "🎯 데스매치 종료 🎯";
+    }
+
+    let html = "";
+    rankings.forEach((p, index) => {
+        const color = p.isMe ? "#00ffcc" : "#ffffff";
+        html += `<div style="color:${color};">[${index + 1}등] ${p.name} - ${p.kills} 킬 / ${p.deaths} 데스</div>`;
+    });
+    rankList.innerHTML = html;
+
     document.getElementById('victoryOverlay').style.display = 'block';
     setTimeout(() => { location.reload(); }, 5000);
 }
@@ -1750,6 +1865,7 @@ function update() {
                     if(b.ownerId !== targetP.id && targetP.hp > 0 && !targetP.isDead) {
                         const distSq = distToSegmentSquared({x: targetP.x, y: targetP.y}, {x: b.prevX, y: b.prevY}, {x: b.x, y: b.y});
                         if (distSq <= 25 * 25) {
+                            // 2. 피격 체력 계산 후 동기화 데이터 준비
                             targetP.hp -= b.damage;
                             spawnBloodParticles(targetP.x, targetP.y);
                             hit = true;
@@ -1770,7 +1886,7 @@ function update() {
                                         respawnRemotePlayer(targetP); 
                                     }
                                 }
-                                broadcastData({ type: 'DAMAGE', targetId: targetP.id, damage: b.damage, attackerId: b.ownerId });
+                                broadcastData({ type: 'DAMAGE', targetId: targetP.id, newHp: targetP.hp, attackerId: b.ownerId });
                             }
                             break;
                         }
@@ -1998,7 +2114,10 @@ function draw() {
 
     drawFogOfWar();
 
-    if(myPlayer.isAiming && myPlayer.weapon && !isMobile && !isSpectating && !isRespawning && myPlayer.hp > 0 && !myPlayer.isDead) drawScopeCrosshair(myPlayer.equippedScope);
+    // 3. 모바일 및 PC 환경 조준선 표출
+    if(myPlayer.isAiming && !isSpectating && !isRespawning && myPlayer.hp > 0 && !myPlayer.isDead) {
+        drawScopeCrosshair(myPlayer.equippedScope);
+    }
 
     drawRotatingRadarMinimap();
 
@@ -2112,8 +2231,20 @@ function drawCharacter(p, color) {
     ctx.restore();
 }
 
+// 3. 모바일 화면 및 PC 조준점 표시 연산 구현
 function drawScopeCrosshair(scopeType) {
-    const cx = mouse.x, cy = mouse.y;
+    let cx = mouse.x;
+    let cy = mouse.y;
+
+    if (isMobile) {
+        const sc = (myPlayer.weapon && myPlayer.equippedScope) ? SCOPES[myPlayer.equippedScope] : { viewOffset: 200 };
+        const screenCenterX = canvas.width / 2;
+        const screenCenterY = canvas.height / 2;
+        
+        cx = screenCenterX + mobileAimVec.x * sc.viewOffset;
+        cy = screenCenterY + mobileAimVec.y * sc.viewOffset;
+    }
+
     ctx.save();
 
     if (!scopeType || scopeType === '1x') {
