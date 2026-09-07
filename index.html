@@ -161,7 +161,6 @@
             cursor: move;
         }
         
-        /* 게스트 대기실 인포 보이기용 스타일 */
         .info-value { color: #00ffcc; font-weight: bold; float: right; }
     </style>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
@@ -211,7 +210,6 @@
         <button onclick="closeSettings()" class="btn-secondary">닫기</button>
     </div>
 
-    <!-- 대기실 화면 -->
     <div id="waitingRoom">
         <h2 id="waitingTitle">대기실 (방장 설정)</h2>
         <p>방 코드: <span id="displayRoomCode" style="color:#00ffcc; font-size:20px; font-weight:bold;">-</span></p>
@@ -240,7 +238,6 @@
             </div>
         </div>
 
-        <!-- 게스트 전용 대기화면 (방장의 설정 텍스트만 표시) -->
         <div id="guestSettingsDisplay" style="display:none; width:100%; text-align:left; background:rgba(0,0,0,0.4); padding:15px; border-radius:8px; margin: 10px 0;">
             <div style="margin-bottom:8px;">게임 모드: <span id="guestModeVal" class="info-value">배틀로얄</span></div>
             <div style="margin-bottom:8px;">AI 봇 여부: <span id="guestAiVal" class="info-value">포함</span></div>
@@ -534,7 +531,6 @@ function generateMapData(mode) {
 
 function generateShortId() { return Math.random().toString(36).substring(2, 7).toLowerCase(); }
 
-// 1. 방장 설정 변경 시 방송 전송
 function onHostSettingsChange() {
     if(!isHost) return;
     const enabled = document.getElementById('aiToggle').value === 'true';
@@ -573,7 +569,6 @@ function createRoom() {
     peer.on('connection', c => { 
         c.on('open', () => {
             connections[c.peer] = c;
-            // 게스트에게 현재 방 설정 보냄
             c.send({
                 type: 'ROOM_SETTINGS',
                 mode: selectedMode,
@@ -620,7 +615,6 @@ function joinRoom() {
             document.getElementById('waitingRoom').style.display = 'flex';
             document.getElementById('displayRoomCode').innerText = input;
             
-            // 게스트 대기 UI 적용
             document.getElementById('waitingTitle').innerText = "대기실";
             document.getElementById('hostSettingsControls').style.display = 'none';
             document.getElementById('guestSettingsDisplay').style.display = 'block';
@@ -656,10 +650,14 @@ function addKill(killerId) {
         const bot = aiBots.find(b => b.id === killerId);
         if (bot) bot.kills = (bot.kills || 0) + 1;
     }
+
+    if (isHost) {
+        broadcastData({ type: 'KILL_EVENT', killerId: killerId });
+    }
+
     checkDeathmatchVictory();
 }
 
-// 4. 데스매치(기본모드) 20점 달성 체크 함수
 function checkDeathmatchVictory() {
     if (selectedMode !== 'normal' || gameEnded) return;
 
@@ -704,7 +702,6 @@ function handleNetworkData(data) {
                         remotePlayers[p.id] = p;
                         activeIds[p.id] = true;
                     } else {
-                        // 2. 방장에게서 온 피격 HP 데이터 및 Kill/Death 동기화
                         myPlayer.hp = p.hp;
                         myPlayer.isDead = p.isDead;
                         myPlayer.kills = p.kills || 0;
@@ -723,7 +720,9 @@ function handleNetworkData(data) {
             updateHUD();
             checkDeathmatchVictory();
         } else {
-            if(data.player) remotePlayers[data.player.id] = data.player;
+            if(data.player) {
+                remotePlayers[data.player.id] = data.player;
+            }
         }
     } else if(data.type === 'SHOOT') {
         if (isHost) {
@@ -735,19 +734,19 @@ function handleNetworkData(data) {
             emitSoundEvent(data.player.x, data.player.y, 2500, 'gunshot');
         }
     } else if(data.type === 'DAMAGE' && data.targetId === myPlayer.id) {
-        // 호스트로부터 피해를 받았을 때 직관적 피격 효과 적용
         myPlayer.hp = data.newHp;
         triggerDamageEffect();
         if(myPlayer.hp <= 0) {
             handleMyDeath(data.attackerId);
         }
     } else if(data.type === 'GAME_OVER') {
-        // 호스트에서 게임 종료 신호
         displayRankings(data.rankings);
     } else if(data.type === 'KILL_EVENT') {
         if (data.killerId === myPlayer.id) {
             myPlayer.kills++;
             updateHUD();
+        } else if (remotePlayers[data.killerId]) {
+            remotePlayers[data.killerId].kills = (remotePlayers[data.killerId].kills || 0) + 1;
         }
     } else if(data.type === 'RESPAWN_REMOTE' && isHost) {
         const targetP = remotePlayers[data.playerId];
@@ -1305,7 +1304,6 @@ function updateHUD() {
     }
 }
 
-// 4. 게임 종료 처리 및 순위 띄우기
 function triggerEndGame() {
     if (gameEnded) return;
     gameEnded = true;
@@ -1865,7 +1863,6 @@ function update() {
                     if(b.ownerId !== targetP.id && targetP.hp > 0 && !targetP.isDead) {
                         const distSq = distToSegmentSquared({x: targetP.x, y: targetP.y}, {x: b.prevX, y: b.prevY}, {x: b.x, y: b.y});
                         if (distSq <= 25 * 25) {
-                            // 2. 피격 체력 계산 후 동기화 데이터 준비
                             targetP.hp -= b.damage;
                             spawnBloodParticles(targetP.x, targetP.y);
                             hit = true;
@@ -2114,7 +2111,6 @@ function draw() {
 
     drawFogOfWar();
 
-    // 3. 모바일 및 PC 환경 조준선 표출
     if(myPlayer.isAiming && !isSpectating && !isRespawning && myPlayer.hp > 0 && !myPlayer.isDead) {
         drawScopeCrosshair(myPlayer.equippedScope);
     }
@@ -2231,7 +2227,6 @@ function drawCharacter(p, color) {
     ctx.restore();
 }
 
-// 3. 모바일 화면 및 PC 조준점 표시 연산 구현
 function drawScopeCrosshair(scopeType) {
     let cx = mouse.x;
     let cy = mouse.y;
