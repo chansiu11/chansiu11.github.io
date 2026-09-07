@@ -2027,78 +2027,93 @@ function drawFogOfWar() {
 }
 
 function drawPlayer(p) {
+    if (p.isDead || p.hp <= 0) return;
+
     ctx.save();
     ctx.translate(p.x, p.y);
     ctx.rotate(p.angle);
 
-    ctx.fillStyle = (p.id === myPlayer.id) ? '#00ffcc' : '#ff4444';
+    ctx.fillStyle = '#ffcc00';
     ctx.beginPath();
-    ctx.arc(0, 0, 18, 0, Math.PI * 2);
+    ctx.arc(0, 0, 20, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = '#000';
-    ctx.fillRect(8, -4, 15, 8);
+    ctx.fillStyle = '#333';
+    ctx.fillRect(10, 8, 25, 6);
+
+    ctx.fillStyle = '#ffcc00';
+    ctx.beginPath();
+    ctx.arc(12, -12, 6, 0, Math.PI * 2);
+    ctx.arc(12, 12, 6, 0, Math.PI * 2);
+    ctx.fill();
 
     ctx.restore();
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(p.x - 25, p.y - 35, 50, 6);
+    ctx.fillStyle = p.hp > 50 ? '#00ffcc' : '#ff4444';
+    ctx.fillRect(p.x - 25, p.y - 35, (p.hp / p.maxHp) * 50, 6);
 
     ctx.fillStyle = '#ffffff';
     ctx.font = '12px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(p.name || '플레이어', p.x, p.y - 25);
-
-    ctx.fillStyle = '#ff0000';
-    ctx.fillRect(p.x - 20, p.y - 22, 40, 4);
-    ctx.fillStyle = '#00ff00';
-    ctx.fillRect(p.x - 20, p.y - 22, (p.hp / p.maxHp) * 40, 4);
+    ctx.fillText(p.name, p.x, p.y - 42);
 }
 
-function drawMap() {
-    ctx.fillStyle = '#1e1e1e';
-    ctx.fillRect(0, 0, WORLD_SIZE, WORLD_SIZE);
+function render() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    ctx.strokeStyle = '#2d2d2d';
+    ctx.save();
+    ctx.translate(canvas.width / 2 - camera.x, canvas.height / 2 - camera.y);
+
+    ctx.strokeStyle = '#222';
     ctx.lineWidth = 2;
-    for (let x = 0; x <= WORLD_SIZE; x += 100) {
+    const gridSize = 100;
+    const startX = Math.floor((camera.x - canvas.width / 2) / gridSize) * gridSize;
+    const endX = startX + canvas.width + gridSize * 2;
+    const startY = Math.floor((camera.y - canvas.height / 2) / gridSize) * gridSize;
+    const endY = startY + canvas.height + gridSize * 2;
+
+    for (let x = startX; x < endX; x += gridSize) {
         ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, WORLD_SIZE);
+        ctx.moveTo(x, startY); ctx.lineTo(x, endY);
         ctx.stroke();
     }
-    for (let y = 0; y <= WORLD_SIZE; y += 100) {
+    for (let y = startY; y < endY; y += gridSize) {
         ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(WORLD_SIZE, y);
+        ctx.moveTo(startX, y); ctx.lineTo(endX, y);
         ctx.stroke();
     }
+
+    ctx.strokeStyle = '#ff0000';
+    ctx.lineWidth = 5;
+    ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
 
     if (selectedMode === 'br') {
-        ctx.strokeStyle = 'rgba(0, 255, 200, 0.5)';
+        ctx.strokeStyle = 'rgba(0, 255, 204, 0.8)';
         ctx.lineWidth = 4;
         ctx.beginPath();
         ctx.arc(zone.x, zone.y, zone.radius, 0, Math.PI * 2);
         ctx.stroke();
     }
 
-    ctx.fillStyle = '#444444';
-    ctx.strokeStyle = '#666666';
-    ctx.lineWidth = 2;
-    obstacles.forEach(obs => {
-        ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
-        ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
-    });
-
     droppedItems.forEach(item => {
-        ctx.fillStyle = item.type.startsWith('ammo_') ? '#ffcc00' : (WEAPONS[item.type] ? '#00ffcc' : '#ff00ff');
+        ctx.fillStyle = item.type.startsWith('ammo_') ? '#ffff00' : (WEAPONS[item.type] ? '#00ffcc' : '#ff00ff');
         ctx.beginPath();
         ctx.arc(item.x, item.y, 8, 0, Math.PI * 2);
         ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(item.type.toUpperCase(), item.x, item.y - 12);
     });
 
-    ctx.fillStyle = '#ffff00';
-    bullets.forEach(b => {
-        ctx.beginPath();
-        ctx.arc(b.x, b.y, 3, 0, Math.PI * 2);
-        ctx.fill();
+    obstacles.forEach(obs => {
+        ctx.fillStyle = '#333344';
+        ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+        ctx.strokeStyle = '#555577';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
     });
 
     bloodParticles.forEach(p => {
@@ -2108,79 +2123,98 @@ function drawMap() {
         ctx.fill();
     });
 
-    const allPlayers = [myPlayer, ...Object.values(remotePlayers), ...aiBots];
-    allPlayers.forEach(p => {
-        if (p && p.hp > 0 && !p.isDead) {
-            drawPlayer(p);
+    bullets.forEach(b => {
+        ctx.strokeStyle = '#ffcc00';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(b.prevX, b.prevY);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+    });
+
+    if (myPlayer.hp > 0 && !myPlayer.isDead) drawPlayer(myPlayer);
+    Object.values(remotePlayers).forEach(p => drawPlayer(p));
+    aiBots.forEach(b => drawPlayer(b));
+
+    soundEvents.forEach(snd => {
+        const age = Date.now() - snd.time;
+        const maxAge = snd.type === 'gunshot' ? 1200 : 300;
+        const progress = age / maxAge;
+        const currentRadius = snd.radius * progress;
+        
+        ctx.strokeStyle = snd.type === 'gunshot' ? `rgba(255, 68, 68, ${1 - progress})` : `rgba(255, 255, 255, ${1 - progress})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(snd.x, snd.y, currentRadius, 0, Math.PI * 2);
+        ctx.stroke();
+    });
+
+    ctx.restore();
+
+    drawFogOfWar();
+
+    renderMinimap();
+    if (document.getElementById('fullMapOverlay').style.display === 'flex') {
+        renderFullMap();
+    }
+}
+
+function renderMinimap() {
+    mCtx.clearRect(0, 0, minimapCanvas.width, minimapCanvas.height);
+    const scale = minimapCanvas.width / WORLD_SIZE;
+
+    mCtx.fillStyle = 'rgba(255, 0, 0, 0.2)';
+    mCtx.beginPath();
+    mCtx.arc(zone.x * scale, zone.y * scale, zone.radius * scale, 0, Math.PI * 2);
+    mCtx.fill();
+
+    mCtx.fillStyle = '#00ffcc';
+    mCtx.beginPath();
+    mCtx.arc(myPlayer.x * scale, myPlayer.y * scale, 4, 0, Math.PI * 2);
+    mCtx.fill();
+
+    mCtx.fillStyle = '#ff4444';
+    Object.values(remotePlayers).forEach(p => {
+        if (p.hp > 0 && !p.isDead) {
+            mCtx.beginPath();
+            mCtx.arc(p.x * scale, p.y * scale, 3, 0, Math.PI * 2);
+            mCtx.fill();
         }
     });
 }
 
-function drawMinimap() {
-    mCtx.clearRect(0, 0, minimapCanvas.width, minimapCanvas.height);
-    const scale = minimapCanvas.width / WORLD_SIZE;
+function renderFullMap() {
+    fCtx.clearRect(0, 0, fullMapCanvas.width, fullMapCanvas.height);
+    const scale = fullMapCanvas.width / WORLD_SIZE;
 
-    mCtx.fillStyle = '#111111';
-    mCtx.fillRect(0, 0, minimapCanvas.width, minimapCanvas.height);
+    fCtx.fillStyle = '#111';
+    fCtx.fillRect(0, 0, fullMapCanvas.width, fullMapCanvas.height);
+
+    fCtx.strokeStyle = '#333';
+    fCtx.lineWidth = 1;
+    obstacles.forEach(obs => {
+        fCtx.fillRect(obs.x * scale, obs.y * scale, obs.w * scale, obs.h * scale);
+    });
 
     if (selectedMode === 'br') {
-        mCtx.strokeStyle = 'rgba(0, 255, 200, 0.8)';
-        mCtx.lineWidth = 1;
-        mCtx.beginPath();
-        mCtx.arc(zone.x * scale, zone.y * scale, zone.radius * scale, 0, Math.PI * 2);
-        mCtx.stroke();
-    }
-
-    mCtx.fillStyle = '#00ffcc';
-    mCtx.beginPath();
-    mCtx.arc(myPlayer.x * scale, myPlayer.y * scale, 3, 0, Math.PI * 2);
-    mCtx.fill();
-
-    if (document.getElementById('fullMapOverlay').style.display === 'flex') {
-        fCtx.clearRect(0, 0, fullMapCanvas.width, fullMapCanvas.height);
-        const fScale = fullMapCanvas.width / WORLD_SIZE;
-
-        fCtx.fillStyle = '#151515';
-        fCtx.fillRect(0, 0, fullMapCanvas.width, fullMapCanvas.height);
-
-        fCtx.fillStyle = '#333333';
-        obstacles.forEach(obs => {
-            fCtx.fillRect(obs.x * fScale, obs.y * fScale, obs.w * fScale, obs.h * fScale);
-        });
-
-        if (selectedMode === 'br') {
-            fCtx.strokeStyle = '#00ffcc';
-            fCtx.lineWidth = 2;
-            fCtx.beginPath();
-            fCtx.arc(zone.x * fScale, zone.y * fScale, zone.radius * fScale, 0, Math.PI * 2);
-            fCtx.stroke();
-        }
-
-        fCtx.fillStyle = '#00ffcc';
+        fCtx.strokeStyle = '#00ffcc';
+        fCtx.lineWidth = 2;
         fCtx.beginPath();
-        fCtx.arc(myPlayer.x * fScale, myPlayer.y * fScale, 5, 0, Math.PI * 2);
-        fCtx.fill();
+        fCtx.arc(zone.x * scale, zone.y * scale, zone.radius * scale, 0, Math.PI * 2);
+        fCtx.stroke();
     }
-}
 
-function render() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    ctx.save();
-    ctx.translate(canvas.width / 2 - camera.x, canvas.height / 2 - camera.y);
-    drawMap();
-    ctx.restore();
-
-    drawFogOfWar();
-    drawMinimap();
+    fCtx.fillStyle = '#00ffcc';
+    fCtx.beginPath();
+    fCtx.arc(myPlayer.x * scale, myPlayer.y * scale, 5, 0, Math.PI * 2);
+    fCtx.fill();
 }
 
 function gameLoop() {
+    if (!gameStarted) return;
     update();
     render();
-    if (gameStarted) {
-        requestAnimationFrame(gameLoop);
-    }
+    requestAnimationFrame(gameLoop);
 }
 </script>
 </body>
