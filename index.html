@@ -1244,6 +1244,58 @@ function updateAI() {
             }
         }
 
+        // 1순위: 총이 없거나 탄약이 전혀 없는 경우 최우선으로 총/탄약 아이템 탐색 및 이동
+        const hasWeaponAndAmmo = bot.weapon && (bot.clipAmmo > 0 || bot.reserveAmmo > 0);
+        if (!hasWeaponAndAmmo) {
+            bot.firstSeenTime = null;
+            bot.investigateTarget = null;
+
+            if (!bot.targetItem || !droppedItems.includes(bot.targetItem)) {
+                let nearest = null;
+                let nearDst = Infinity;
+                droppedItems.forEach(item => {
+                    const isWeapon = ['ar', 'sniper', 'shotgun'].includes(item.type);
+                    const isAmmo = item.type.startsWith('ammo_');
+                    if ((!bot.weapon && isWeapon) || (bot.weapon && isAmmo)) {
+                        const d = Math.hypot(item.x - bot.x, item.y - bot.y);
+                        if (d < nearDst) { nearDst = d; nearest = item; }
+                    }
+                });
+                bot.targetItem = nearest;
+            }
+
+            if (bot.targetItem) {
+                bot.angle = Math.atan2(bot.targetItem.y - bot.y, bot.targetItem.x - bot.x);
+                bot.movementMode = 'sprint';
+                bot.x += Math.cos(bot.angle) * 2.5 * diff.speedMult;
+                bot.y += Math.sin(bot.angle) * 2.5 * diff.speedMult;
+                emitSoundEvent(bot.x, bot.y, 600, 'footstep');
+
+                if (Math.hypot(bot.targetItem.x - bot.x, bot.targetItem.y - bot.y) < 35) {
+                    const item = bot.targetItem;
+                    if (['ar', 'sniper', 'shotgun'].includes(item.type)) {
+                        bot.weapon = item.type;
+                        bot.clipAmmo = WEAPONS[item.type].maxClip;
+                        bot.reserveAmmo += WEAPONS[item.type].maxClip * 2;
+                    } else if (item.type.startsWith('ammo_')) {
+                        bot.reserveAmmo += 30;
+                    }
+                    const itemIdx = droppedItems.findIndex(i => i.id === item.id);
+                    if (itemIdx !== -1) {
+                        droppedItems.splice(itemIdx, 1);
+                        broadcastData({ type: 'PICKUP_ITEM', itemId: item.id });
+                    }
+                    bot.targetItem = null;
+                }
+            } else {
+                bot.x += Math.cos(bot.angle) * 1.5 * diff.speedMult;
+                bot.y += Math.sin(bot.angle) * 1.5 * diff.speedMult;
+                if (Math.random() < 0.02) bot.angle += (Math.random() - 0.5) * 2;
+            }
+            continue; // 무기/탄약을 찾는 중일 때는 적 추적 및 사격 로직을 건너뜀
+        }
+
+        // 총과 탄약이 둘 다 확보된 상태일 때만 소리 감지 및 전투/탐색 로직 수행
         soundEvents.forEach(snd => {
             const dst = Math.hypot(bot.x - snd.x, bot.y - snd.y);
             if (dst <= snd.radius && dst > 50) {
@@ -1269,7 +1321,7 @@ function updateAI() {
             }
         });
 
-        if(closestTarget && bot.weapon) {
+        if(closestTarget) {
             bot.targetItem = null;
             bot.investigateTarget = null;
             bot.angle = Math.atan2(closestTarget.y - bot.y, closestTarget.x - bot.x);
@@ -1309,10 +1361,9 @@ function updateAI() {
                     let nearest = null;
                     let nearDst = 3000;
                     droppedItems.forEach(item => {
-                        const isWeapon = ['ar', 'sniper', 'shotgun'].includes(item.type);
                         const isScope = ['1x', '2x', '3x', '4x', '8x'].includes(item.type);
 
-                        if ((!bot.weapon && isWeapon) || (!bot.equippedScope && isScope)) {
+                        if (!bot.equippedScope && isScope) {
                             const d = Math.hypot(item.x - bot.x, item.y - bot.y);
                             if(d < nearDst) { nearDst = d; nearest = item; }
                         }
@@ -1329,10 +1380,7 @@ function updateAI() {
 
                     if(Math.hypot(bot.targetItem.x - bot.x, bot.targetItem.y - bot.y) < 30) {
                         const item = bot.targetItem;
-                        if(['ar', 'sniper', 'shotgun'].includes(item.type)) {
-                            bot.weapon = item.type;
-                            bot.clipAmmo = WEAPONS[item.type].maxClip;
-                        } else if(!bot.equippedScope) {
+                        if(!bot.equippedScope) {
                             bot.equippedScope = item.type;
                         }
                         const itemIdx = droppedItems.findIndex(i => i.id === item.id);
