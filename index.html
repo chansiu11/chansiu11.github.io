@@ -12,13 +12,12 @@
             display: flex; align-items: center; justify-content: center;
         }
 
-        /* 기기별 동일 시야 보장을 위한 고정 비율(16:9) 최댓값 프레임 */
         #gameFrame {
             position: relative;
             width: 100vw;
-            height: 56.25vw; /* 16:9 비율 */
+            height: 56.25vw;
             max-height: 100vh;
-            max-width: 177.78vh; /* 16:9 비율 */
+            max-width: 177.78vh;
             background-color: #111;
             overflow: hidden;
             box-shadow: 0 0 30px rgba(0, 0, 0, 0.9);
@@ -111,33 +110,42 @@
         }
         canvas#gameCanvas { position: absolute; top:0; left:0; width: 100%; height: 100%; display: none; background-color: #000; z-index: 1; }
 
+        /* 모바일 터치 영역 및 가변 조이스틱 스타일 */
         #mobileControls {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             z-index: 30; pointer-events: none; display: none;
         }
         .touch-zone { position: absolute; pointer-events: auto; }
-        #joystickContainer {
-            bottom: 40px; left: 40px; width: 140px; height: 140px;
-            background: rgba(255, 255, 255, 0.1); border: 2px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
+        
+        #moveTouchArea {
+            position: absolute; top: 0; left: 0; width: 50%; height: 100%;
+            pointer-events: auto;
+        }
+        #aimTouchArea {
+            position: absolute; top: 0; right: 0; width: 50%; height: 100%;
+            pointer-events: auto;
+        }
+
+        #joystickContainer, #aimPadContainer {
+            position: absolute; width: 140px; height: 140px;
+            background: rgba(255, 255, 255, 0.15); border: 2px solid rgba(255, 255, 255, 0.4);
+            border-radius: 50%; display: none; transform: translate(-50%, -50%);
+            pointer-events: none;
         }
         #joystickKnob {
             position: absolute; top: 45px; left: 45px; width: 50px; height: 50px;
-            background: rgba(0, 255, 204, 0.6); border-radius: 50%;
-        }
-        #aimPadContainer {
-            bottom: 40px; right: 40px; width: 140px; height: 140px;
-            background: rgba(255, 255, 255, 0.1); border: 2px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
+            background: rgba(0, 255, 204, 0.7); border-radius: 50%;
         }
         #aimPadKnob {
             position: absolute; top: 45px; left: 45px; width: 50px; height: 50px;
-            background: rgba(255, 68, 68, 0.6); border-radius: 50%;
+            background: rgba(255, 68, 68, 0.7); border-radius: 50%;
         }
+
         .mobile-btn {
             position: absolute; width: 65px; height: 65px; border-radius: 50%;
             background: rgba(0,0,0,0.6); border: 2px solid #00ffcc; color: white;
             font-weight: bold; font-size: 13px; display: flex; align-items: center; justify-content: center;
+            z-index: 40; pointer-events: auto;
         }
         #btnReload { bottom: 35px; right: 190px; }
         #btnPickup { bottom: 185px; right: 40px; }
@@ -251,10 +259,13 @@
     </div>
 
     <div id="mobileControls">
-        <div id="joystickContainer" class="touch-zone">
+        <div id="moveTouchArea"></div>
+        <div id="aimTouchArea"></div>
+
+        <div id="joystickContainer">
             <div id="joystickKnob"></div>
         </div>
-        <div id="aimPadContainer" class="touch-zone">
+        <div id="aimPadContainer">
             <div id="aimPadKnob"></div>
         </div>
         <div id="btnReload" class="mobile-btn touch-zone">장전</div>
@@ -291,7 +302,7 @@
 </div>
 
 <script>
-let WORLD_SIZE = 8000; // 배틀로얄 전장 크기를 조절하여 루즈함 축소
+let WORLD_SIZE = 8000;
 
 const SCOPES = {
     '1x': { name: "1배율 (레드닷)", viewOffset: 300 },
@@ -310,7 +321,7 @@ const WEAPONS = {
 const AI_DIFFICULTY = {
     very_easy: { delay: 1500, spread: 0.25, speedMult: 0.6 },
     easy: { delay: 900, spread: 0.15, speedMult: 0.8 },
-    hard: { delay: 300, spread: 0.08, speedMult: 1.0 } // 보스급 난이도 하향 조정
+    hard: { delay: 300, spread: 0.08, speedMult: 1.0 }
 };
 
 let peer = null;
@@ -331,7 +342,7 @@ let isRespawning = false;
 let respawnTimerVal = 5;
 let respawnInterval = null;
 
-let zoneTimer = 60; // 초반 대기시간 120초 -> 60초 단축
+let zoneTimer = 60;
 let isZoneShrinking = false;
 let zoneTimerInterval = null;
 const zone = {
@@ -638,7 +649,14 @@ function handleNetworkData(data) {
             if(data.player) remotePlayers[data.player.id] = data.player;
         }
     } else if(data.type === 'SHOOT') {
-        shoot(data.player, data.extraSpread);
+        if (isHost) {
+            shoot(data.player, data.extraSpread);
+            broadcastData({ type: 'SHOOT_EVENT', player: data.player, extraSpread: data.extraSpread });
+        }
+    } else if(data.type === 'SHOOT_EVENT') {
+        if (!isHost && data.player.id !== myPlayer.id) {
+            emitSoundEvent(data.player.x, data.player.y, 2500, 'gunshot');
+        }
     } else if(data.type === 'DAMAGE' && data.targetId === myPlayer.id) {
         if (myPlayer.hp > 0) {
             myPlayer.hp -= data.damage;
@@ -711,11 +729,7 @@ function startRespawnTimer(killerId) {
 }
 
 function setSpectateTargetById(targetId) {
-    if (!targetId) {
-        findNextSpectateTarget();
-        return;
-    }
-    if (targetId === myPlayer.id) {
+    if (!targetId || targetId === myPlayer.id) {
         findNextSpectateTarget();
         return;
     }
@@ -941,17 +955,25 @@ function initEvents() {
     });
 }
 
+/* 6. 모바일 가변 조이스틱/에임패드 터치 로직 개선 */
 function initMobileControls() {
+    const moveArea = document.getElementById('moveTouchArea');
     const joyContainer = document.getElementById('joystickContainer');
     const joyKnob = document.getElementById('joystickKnob');
     let joyTouchId = null, joyCenter = {x:0, y:0};
 
-    joyContainer.addEventListener('touchstart', e => {
-        if(isEditingKeys || isSpectating || isRespawning) return;
+    moveArea.addEventListener('touchstart', e => {
+        if(isEditingKeys || isSpectating || isRespawning || joyTouchId !== null) return;
         const touch = e.changedTouches[0];
         joyTouchId = touch.identifier;
-        const rect = joyContainer.getBoundingClientRect();
-        joyCenter = { x: rect.left + rect.width/2, y: rect.top + rect.height/2 };
+        
+        const rect = gameFrame.getBoundingClientRect();
+        joyCenter = { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+        
+        joyContainer.style.left = joyCenter.x + 'px';
+        joyContainer.style.top = joyCenter.y + 'px';
+        joyContainer.style.display = 'block';
+        
         updateJoystick(touch);
     });
 
@@ -967,6 +989,7 @@ function initMobileControls() {
             if (t.identifier === joyTouchId) {
                 joyTouchId = null;
                 mobileMoveVec = { x: 0, y: 0 };
+                joyContainer.style.display = 'none';
                 joyKnob.style.top = '45px'; joyKnob.style.left = '45px';
             }
         }
@@ -975,8 +998,12 @@ function initMobileControls() {
     window.addEventListener('touchcancel', resetJoy);
 
     function updateJoystick(touch) {
-        let dx = touch.clientX - joyCenter.x;
-        let dy = touch.clientY - joyCenter.y;
+        const rect = gameFrame.getBoundingClientRect();
+        let currentX = touch.clientX - rect.left;
+        let currentY = touch.clientY - rect.top;
+
+        let dx = currentX - joyCenter.x;
+        let dy = currentY - joyCenter.y;
         let dist = Math.hypot(dx, dy);
         let maxDist = 45;
         if (dist > maxDist) { dx = (dx / dist) * maxDist; dy = (dy / dist) * maxDist; }
@@ -985,16 +1012,23 @@ function initMobileControls() {
         mobileMoveVec = { x: dx / maxDist, y: dy / maxDist };
     }
 
+    const aimArea = document.getElementById('aimTouchArea');
     const aimPad = document.getElementById('aimPadContainer');
     const aimKnob = document.getElementById('aimPadKnob');
     let aimTouchId = null, aimCenter = {x:0, y:0};
 
-    aimPad.addEventListener('touchstart', e => {
-        if(isEditingKeys || isSpectating || isRespawning) return;
+    aimArea.addEventListener('touchstart', e => {
+        if(isEditingKeys || isSpectating || isRespawning || aimTouchId !== null) return;
         const touch = e.changedTouches[0];
         aimTouchId = touch.identifier;
-        const rect = aimPad.getBoundingClientRect();
-        aimCenter = { x: rect.left + rect.width/2, y: rect.top + rect.height/2 };
+        
+        const rect = gameFrame.getBoundingClientRect();
+        aimCenter = { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+        
+        aimPad.style.left = aimCenter.x + 'px';
+        aimPad.style.top = aimCenter.y + 'px';
+        aimPad.style.display = 'block';
+
         updateAim(touch);
         myPlayer.isAiming = true;
 
@@ -1024,6 +1058,7 @@ function initMobileControls() {
                 }
 
                 mobileAimVec = { x: 0, y: 0 };
+                aimPad.style.display = 'none';
                 aimKnob.style.top = '45px'; aimKnob.style.left = '45px';
                 myPlayer.isAiming = false;
                 myPlayer.isShooting = false;
@@ -1034,8 +1069,12 @@ function initMobileControls() {
     window.addEventListener('touchcancel', resetAim);
 
     function updateAim(touch) {
-        let dx = touch.clientX - aimCenter.x;
-        let dy = touch.clientY - aimCenter.y;
+        const rect = gameFrame.getBoundingClientRect();
+        let currentX = touch.clientX - rect.left;
+        let currentY = touch.clientY - rect.top;
+
+        let dx = currentX - aimCenter.x;
+        let dy = currentY - aimCenter.y;
         let dist = Math.hypot(dx, dy);
         let maxDist = 45;
         if (dist > maxDist) { dx = (dx / dist) * maxDist; dy = (dy / dist) * maxDist; }
@@ -1223,12 +1262,14 @@ function emitSoundEvent(x, y, radius, type = 'gunshot') {
     soundEvents.push({ x: x, y: y, radius: radius, type: type, time: Date.now() });
 }
 
+/* 5. 네트워크 참여 플레이어 총알 생성 관련 처리 동기화 강화 */
 function shoot(shooter, extraSpread = 0) {
+    if(!shooter.weapon || shooter.clipAmmo <= 0 || shooter.isReloading) return;
+    
     if(!isHost && shooter.id === myPlayer.id) {
         broadcastData({ type: 'SHOOT', player: shooter, extraSpread: extraSpread });
     }
 
-    if(!shooter.weapon || shooter.clipAmmo <= 0 || shooter.isReloading) return;
     shooter.clipAmmo--;
     if(shooter.id === myPlayer.id) updateHUD();
 
@@ -1287,6 +1328,14 @@ function respawnRemotePlayer(p) {
     }, 5000);
 }
 
+/* 1. AI 봇 충돌 검사 지원 유틸리티 */
+function moveAIBot(bot, vx, vy) {
+    let nextX = bot.x + vx;
+    let nextY = bot.y + vy;
+    if (!checkObstacleCollision(nextX, bot.y, 15)) bot.x = nextX;
+    if (!checkObstacleCollision(bot.x, nextY, 15)) bot.y = nextY;
+}
+
 function updateAI() {
     if(!isHost) return; 
 
@@ -1311,8 +1360,7 @@ function updateAI() {
 
             if (distToZoneCenter > zone.radius - 300) {
                 bot.angle = Math.atan2(zone.y - bot.y, zone.x - bot.x);
-                bot.x += Math.cos(bot.angle) * 2.5 * diff.speedMult;
-                bot.y += Math.sin(bot.angle) * 2.5 * diff.speedMult;
+                moveAIBot(bot, Math.cos(bot.angle) * 2.5 * diff.speedMult, Math.sin(bot.angle) * 2.5 * diff.speedMult);
                 bot.firstSeenTime = null;
                 bot.movementMode = 'sprint';
                 emitSoundEvent(bot.x, bot.y, 600, 'footstep');
@@ -1346,8 +1394,7 @@ function updateAI() {
             if (bot.targetItem) {
                 bot.angle = Math.atan2(bot.targetItem.y - bot.y, bot.targetItem.x - bot.x);
                 bot.movementMode = 'sprint';
-                bot.x += Math.cos(bot.angle) * 2.5 * diff.speedMult;
-                bot.y += Math.sin(bot.angle) * 2.5 * diff.speedMult;
+                moveAIBot(bot, Math.cos(bot.angle) * 2.5 * diff.speedMult, Math.sin(bot.angle) * 2.5 * diff.speedMult);
                 emitSoundEvent(bot.x, bot.y, 600, 'footstep');
 
                 if (Math.hypot(bot.targetItem.x - bot.x, bot.targetItem.y - bot.y) < 35) {
@@ -1367,8 +1414,7 @@ function updateAI() {
                     bot.targetItem = null;
                 }
             } else {
-                bot.x += Math.cos(bot.angle) * 1.5 * diff.speedMult;
-                bot.y += Math.sin(bot.angle) * 1.5 * diff.speedMult;
+                moveAIBot(bot, Math.cos(bot.angle) * 1.5 * diff.speedMult, Math.sin(bot.angle) * 1.5 * diff.speedMult);
                 if (Math.random() < 0.02) bot.angle += (Math.random() - 0.5) * 2;
             }
             continue;
@@ -1409,8 +1455,7 @@ function updateAI() {
             if (now - bot.firstSeenTime >= diff.delay) {
                 if(minDst > 200) {
                     bot.movementMode = 'sprint';
-                    bot.x += Math.cos(bot.angle) * 2.5 * diff.speedMult;
-                    bot.y += Math.sin(bot.angle) * 2.5 * diff.speedMult;
+                    moveAIBot(bot, Math.cos(bot.angle) * 2.5 * diff.speedMult, Math.sin(bot.angle) * 2.5 * diff.speedMult);
                     emitSoundEvent(bot.x, bot.y, 600, 'footstep');
                 }
                 if (now - bot.lastShootTime >= WEAPONS[bot.weapon].cooldown) {
@@ -1422,8 +1467,7 @@ function updateAI() {
         else if (bot.investigateTarget && now - bot.investigateTarget.time < 5000) {
             bot.angle = Math.atan2(bot.investigateTarget.y - bot.y, bot.investigateTarget.x - bot.x);
             bot.movementMode = 'sprint';
-            bot.x += Math.cos(bot.angle) * 2.3 * diff.speedMult;
-            bot.y += Math.sin(bot.angle) * 2.3 * diff.speedMult;
+            moveAIBot(bot, Math.cos(bot.angle) * 2.3 * diff.speedMult, Math.sin(bot.angle) * 2.3 * diff.speedMult);
             emitSoundEvent(bot.x, bot.y, 600, 'footstep');
 
             if (Math.hypot(bot.investigateTarget.x - bot.x, bot.investigateTarget.y - bot.y) < 50) {
@@ -1452,8 +1496,7 @@ function updateAI() {
                 if(bot.targetItem) {
                     bot.angle = Math.atan2(bot.targetItem.y - bot.y, bot.targetItem.x - bot.x);
                     bot.movementMode = 'walk';
-                    bot.x += Math.cos(bot.angle) * 2.0 * diff.speedMult;
-                    bot.y += Math.sin(bot.angle) * 2.0 * diff.speedMult;
+                    moveAIBot(bot, Math.cos(bot.angle) * 2.0 * diff.speedMult, Math.sin(bot.angle) * 2.0 * diff.speedMult);
                     emitSoundEvent(bot.x, bot.y, 250, 'footstep');
 
                     if(Math.hypot(bot.targetItem.x - bot.x, bot.targetItem.y - bot.y) < 30) {
@@ -1469,8 +1512,7 @@ function updateAI() {
                         bot.targetItem = null;
                     }
                 } else {
-                    bot.x += Math.cos(bot.angle) * 1.5 * diff.speedMult;
-                    bot.y += Math.sin(bot.angle) * 1.5 * diff.speedMult;
+                    moveAIBot(bot, Math.cos(bot.angle) * 1.5 * diff.speedMult, Math.sin(bot.angle) * 1.5 * diff.speedMult);
                     if(Math.random() < 0.02) bot.angle += (Math.random() - 0.5) * 2;
                 }
             } 
@@ -1482,8 +1524,7 @@ function updateAI() {
                 if (centerDst > 200) {
                     bot.angle = Math.atan2(targetY - bot.y, targetX - bot.x);
                     bot.movementMode = 'walk';
-                    bot.x += Math.cos(bot.angle) * 1.8 * diff.speedMult;
-                    bot.y += Math.sin(bot.angle) * 1.8 * diff.speedMult;
+                    moveAIBot(bot, Math.cos(bot.angle) * 1.8 * diff.speedMult, Math.sin(bot.angle) * 1.8 * diff.speedMult);
                     emitSoundEvent(bot.x, bot.y, 250, 'footstep');
                 } else {
                     if(Math.random() < 0.03) bot.angle += (Math.random() - 0.5) * 1.5;
@@ -1554,7 +1595,9 @@ function update() {
         if (keys['s']) dy += 1;
         if (keys['a']) dx -= 1;
         if (keys['d']) dx += 1;
-        if (dx !== 0 && dy !== 0) { dx *= 0.7071; dy *= 0.7071; }
+        /* 4. 대각선 이동 시 속도 정규화 */
+        let len = Math.hypot(dx, dy);
+        if (len > 0) { dx /= len; dy /= len; }
     } else {
         dx = mobileMoveVec.x;
         dy = mobileMoveVec.y;
@@ -1764,7 +1807,6 @@ function getIntersection(ray, segment) {
     return { x: r_px + r_dx * T1, y: r_py + r_dy * T1, param: T1 };
 }
 
-// 캔버스 재사용을 통해 메모리 누수 방지
 const maskCanvas = document.createElement('canvas');
 const mCtxMask = maskCanvas.getContext('2d');
 
@@ -2042,12 +2084,20 @@ function drawFullMap() {
     fCtx.fillText((isSpectating || isRespawning) ? "관전 대상" : "내 위치", targetObj.x * scale - 18, targetObj.y * scale - 10);
 }
 
+/* 3. 이름 및 체력바 표시 위치 개선 */
 function drawCharacter(p, color) {
     ctx.save();
     ctx.translate(p.x, p.y);
     
-    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(-20, -30, 40, 5);
-    ctx.fillStyle = '#00ff55'; ctx.fillRect(-20, -30, 40 * Math.max(0, (p.hp / p.maxHp)), 5);
+    // 3. 체력바 위에 닉네임 표시
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(p.name || '플레이어', 0, -35);
+
+    // 체력바
+    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(-20, -28, 40, 5);
+    ctx.fillStyle = '#00ff55'; ctx.fillRect(-20, -28, 40 * Math.max(0, (p.hp / p.maxHp)), 5);
 
     ctx.rotate(p.angle);
     ctx.fillStyle = color;
