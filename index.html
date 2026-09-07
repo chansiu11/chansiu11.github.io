@@ -676,6 +676,13 @@ function respawnPlayer() {
     myPlayer.y = safePos.y;
     myPlayer.hp = myPlayer.maxHp;
     isRespawning = false;
+    isSpectating = false;
+    
+    // UI 및 컨트롤 복구
+    document.getElementById('statusHUD').style.display = 'block';
+    document.getElementById('spectateHUD').style.display = 'none';
+    if (isMobile) document.getElementById('mobileControls').style.display = 'block';
+
     updateHUD();
 }
 
@@ -761,6 +768,11 @@ function startGame() {
     const safePos = getSafeSpawnPos(200, WORLD_SIZE);
     myPlayer.x = safePos.x;
     myPlayer.y = safePos.y;
+    myPlayer.hp = myPlayer.maxHp;
+    isSpectating = false;
+    isRespawning = false;
+    gameEnded = false;
+
     camera.x = myPlayer.x;
     camera.y = myPlayer.y;
 
@@ -1057,7 +1069,8 @@ function updateHUD() {
         : "- / -";
     document.getElementById('hudScope').innerText = myPlayer.equippedScope ? SCOPES[myPlayer.equippedScope].name : "없음";
 
-    if (selectedMode === 'br' && alive === 1 && myPlayer.hp > 0 && gameStarted && !gameEnded) {
+    // 버그 수정: initialPlayerCount가 최소 2명 이상일 때 또는 AI나 원격 유저가 실제로 존재했거나 남아있는 상태일 때만 1등 판정
+    if (selectedMode === 'br' && alive === 1 && myPlayer.hp > 0 && gameStarted && !gameEnded && initialPlayerCount > 1) {
         triggerVictory();
     }
 }
