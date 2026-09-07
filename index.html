@@ -651,6 +651,16 @@ function handleNetworkData(data) {
             myPlayer.kills++;
             updateHUD();
         }
+    } else if(data.type === 'RESPAWN_REMOTE' && isHost) {
+        // 원격 플레이어 리스폰 처리 (방장)
+        const targetP = remotePlayers[data.playerId];
+        if (targetP) {
+            const safePos = getSafeSpawnPos(100, WORLD_SIZE);
+            targetP.x = safePos.x;
+            targetP.y = safePos.y;
+            targetP.hp = targetP.maxHp;
+            targetP.isDead = false;
+        }
     } else if(data.type === 'PICKUP_ITEM') {
         droppedItems = droppedItems.filter(item => item.id !== data.itemId);
         if(isHost) broadcastData({ type: 'SYNC_ITEMS', items: droppedItems });
@@ -669,18 +679,26 @@ function handleMyDeath(killerId) {
         addKill(killerId);
     }
     if (selectedMode === 'normal') {
-        startRespawnTimer();
+        startRespawnTimer(killerId);
     } else {
-        startSpectating();
+        startSpectating(killerId);
     }
     updateHUD();
 }
 
-function startRespawnTimer() {
+function startRespawnTimer(killerId) {
     isRespawning = true;
     respawnTimerVal = 5;
+    
+    // 사망 즉시 내 상태를 관전 모드로 전환하여 킬러를 5초간 주시
+    document.getElementById('statusHUD').style.display = 'none';
+    if (isMobile) document.getElementById('mobileControls').style.display = 'none';
+    document.getElementById('spectateHUD').style.display = 'block';
     document.getElementById('respawnHUD').style.display = 'block';
     document.getElementById('respawnTimer').innerText = respawnTimerVal;
+
+    // 킬러 정보 찾아서 관전 대상으로 설정
+    setSpectateTargetById(killerId);
 
     if (respawnInterval) clearInterval(respawnInterval);
     respawnInterval = setInterval(() => {
@@ -692,6 +710,27 @@ function startRespawnTimer() {
             respawnPlayer();
         }
     }, 1000);
+}
+
+function setSpectateTargetById(targetId) {
+    if (!targetId) {
+        findNextSpectateTarget();
+        return;
+    }
+    if (targetId === myPlayer.id) {
+        findNextSpectateTarget();
+        return;
+    }
+    
+    let target = Object.values(remotePlayers).find(p => p.id === targetId && p.hp > 0);
+    if (!target) target = aiBots.find(b => b.id === targetId && b.hp > 0);
+
+    if (target) {
+        spectateTarget = target;
+        document.getElementById('spectateTargetName').innerText = target.name;
+    } else {
+        findNextSpectateTarget();
+    }
 }
 
 function respawnPlayer() {
@@ -706,23 +745,32 @@ function respawnPlayer() {
     document.getElementById('spectateHUD').style.display = 'none';
     if (isMobile) document.getElementById('mobileControls').style.display = 'block';
 
+    if (!isHost) {
+        broadcastData({ type: 'RESPAWN_REMOTE', playerId: myPlayer.id });
+    }
+
     updateHUD();
 }
 
-function startSpectating() {
+function startSpectating(killerId) {
     isSpectating = true;
     document.getElementById('statusHUD').style.display = 'none';
     if (isMobile) document.getElementById('mobileControls').style.display = 'none';
     document.getElementById('spectateHUD').style.display = 'block';
-    findNextSpectateTarget();
+    
+    if (killerId) {
+        setSpectateTargetById(killerId);
+    } else {
+        findNextSpectateTarget();
+    }
 }
 
 function findNextSpectateTarget() {
-    const aliveRemotes = Object.values(remotePlayers).filter(p => p.hp > 0);
+    const aliveRemotes = Object.values(remotePlayers).filter(p => p.hp > 0 && !p.isDead);
     if (aliveRemotes.length > 0) {
         spectateTarget = aliveRemotes[0];
-    } else if (aiBots.length > 0) {
-        spectateTarget = aiBots[0];
+    } else if (aiBots.filter(b => b.hp > 0 && !b.isDead).length > 0) {
+        spectateTarget = aiBots.filter(b => b.hp > 0 && !b.isDead)[0];
     } else {
         spectateTarget = null;
     }
@@ -773,6 +821,7 @@ function spawnAIBots(count) {
             y: spawnPos.y,
             angle: 0, hp: 200, maxHp: 200,
             kills: 0, deaths: 0,
+            isDead: false,
             name: `AI 봇_${i+1}`,
             weapon: null, clipAmmo: 0, reserveAmmo: 100,
             equippedScope: null,
@@ -849,7 +898,7 @@ function startGame() {
 
 function initEvents() {
     window.addEventListener('keydown', e => {
-        if (isSpectating) return;
+        if (isSpectating || isRespawning) return;
         keys[e.key.toLowerCase()] = true;
         if(e.key === 'Shift') keys['shift'] = true;
         if(e.key === 'Control') keys['control'] = true;
@@ -859,7 +908,7 @@ function initEvents() {
         if(e.key.toLowerCase() === 'r') reloadWeapon(myPlayer);
     });
     window.addEventListener('keyup', e => {
-        if (isSpectating) return;
+        if (isSpectating || isRespawning) return;
         keys[e.key.toLowerCase()] = false;
         if(e.key === 'Shift') keys['shift'] = false;
         if(e.key === 'Control') keys['control'] = false;
@@ -871,7 +920,7 @@ function initEvents() {
     });
     canvas.addEventListener('contextmenu', e => e.preventDefault());
     canvas.addEventListener('mousedown', e => {
-        if (isSpectating) {
+        if (isSpectating || isRespawning) {
             if (e.button === 0) findNextSpectateTarget();
             return;
         }
@@ -879,7 +928,7 @@ function initEvents() {
         if (e.button === 0) myPlayer.isShooting = true;
     });
     canvas.addEventListener('mouseup', e => {
-        if (isSpectating) return;
+        if (isSpectating || isRespawning) return;
         if (e.button === 2) myPlayer.isAiming = false;
         if (e.button === 0) myPlayer.isShooting = false;
     });
@@ -891,7 +940,7 @@ function initMobileControls() {
     let joyTouchId = null, joyCenter = {x:0, y:0};
 
     joyContainer.addEventListener('touchstart', e => {
-        if(isEditingKeys || isSpectating) return;
+        if(isEditingKeys || isSpectating || isRespawning) return;
         const touch = e.changedTouches[0];
         joyTouchId = touch.identifier;
         const rect = joyContainer.getBoundingClientRect();
@@ -900,7 +949,7 @@ function initMobileControls() {
     });
 
     window.addEventListener('touchmove', e => {
-        if(isEditingKeys || isSpectating) return;
+        if(isEditingKeys || isSpectating || isRespawning) return;
         for (let t of e.changedTouches) {
             if (t.identifier === joyTouchId) updateJoystick(t);
         }
@@ -934,7 +983,7 @@ function initMobileControls() {
     let aimTouchId = null, aimCenter = {x:0, y:0};
 
     aimPad.addEventListener('touchstart', e => {
-        if(isEditingKeys || isSpectating) return;
+        if(isEditingKeys || isSpectating || isRespawning) return;
         const touch = e.changedTouches[0];
         aimTouchId = touch.identifier;
         const rect = aimPad.getBoundingClientRect();
@@ -948,7 +997,7 @@ function initMobileControls() {
     });
 
     window.addEventListener('touchmove', e => {
-        if(isEditingKeys || isSpectating) return;
+        if(isEditingKeys || isSpectating || isRespawning) return;
         for (let t of e.changedTouches) {
             if (t.identifier === aimTouchId) updateAim(t);
         }
@@ -988,10 +1037,10 @@ function initMobileControls() {
         mobileAimVec = { x: dx / maxDist, y: dy / maxDist };
     }
 
-    document.getElementById('btnReload').addEventListener('touchstart', (e) => { if(!isEditingKeys && !isSpectating){ e.preventDefault(); reloadWeapon(myPlayer); } });
-    document.getElementById('btnPickup').addEventListener('touchstart', (e) => { if(!isEditingKeys && !isSpectating){ e.preventDefault(); pickupItem(); } });
-    document.getElementById('btnBag').addEventListener('touchstart', (e) => { if(!isEditingKeys && !isSpectating){ e.preventDefault(); toggleInventory(); } });
-    document.getElementById('btnMap').addEventListener('touchstart', (e) => { if(!isEditingKeys && !isSpectating){ e.preventDefault(); toggleFullMap(); } });
+    document.getElementById('btnReload').addEventListener('touchstart', (e) => { if(!isEditingKeys && !isSpectating && !isRespawning){ e.preventDefault(); reloadWeapon(myPlayer); } });
+    document.getElementById('btnPickup').addEventListener('touchstart', (e) => { if(!isEditingKeys && !isSpectating && !isRespawning){ e.preventDefault(); pickupItem(); } });
+    document.getElementById('btnBag').addEventListener('touchstart', (e) => { if(!isEditingKeys && !isSpectating && !isRespawning){ e.preventDefault(); toggleInventory(); } });
+    document.getElementById('btnMap').addEventListener('touchstart', (e) => { if(!isEditingKeys && !isSpectating && !isRespawning){ e.preventDefault(); toggleFullMap(); } });
 }
 
 function toggleFullMap() {
@@ -1000,7 +1049,7 @@ function toggleFullMap() {
 }
 
 function toggleInventory() {
-    if (isSpectating) return;
+    if (isSpectating || isRespawning) return;
     const inv = document.getElementById('inventory');
     inv.style.display = (inv.style.display === 'flex') ? 'none' : 'flex';
     if(inv.style.display === 'flex') renderInventory();
@@ -1108,7 +1157,7 @@ function pickupItem() {
 }
 
 function updateHUD() {
-    const alive = aiBots.length + (myPlayer.hp > 0 ? 1 : 0) + Object.values(remotePlayers).filter(p => p.hp > 0).length;
+    const alive = aiBots.filter(b => b.hp > 0 && !b.isDead).length + (myPlayer.hp > 0 ? 1 : 0) + Object.values(remotePlayers).filter(p => p.hp > 0 && !p.isDead).length;
     document.getElementById('hudAliveCount').innerText = alive;
     document.getElementById('hudKills').innerText = myPlayer.kills;
     document.getElementById('hudDeaths').innerText = myPlayer.deaths;
@@ -1208,6 +1257,29 @@ function distToSegmentSquared(p, v, w) {
     return (p.x - (v.x + t * (w.x - v.x))) ** 2 + (p.y - (v.y + t * (w.y - v.y))) ** 2;
 }
 
+function respawnBot(bot) {
+    setTimeout(() => {
+        const safePos = getSafeSpawnPos(100, WORLD_SIZE);
+        bot.x = safePos.x;
+        bot.y = safePos.y;
+        bot.hp = bot.maxHp;
+        bot.isDead = false;
+        bot.targetItem = null;
+        updateHUD();
+    }, 5000);
+}
+
+function respawnRemotePlayer(p) {
+    setTimeout(() => {
+        const safePos = getSafeSpawnPos(100, WORLD_SIZE);
+        p.x = safePos.x;
+        p.y = safePos.y;
+        p.hp = p.maxHp;
+        p.isDead = false;
+        updateHUD();
+    }, 5000);
+}
+
 function updateAI() {
     if(!isHost) return; 
 
@@ -1216,6 +1288,7 @@ function updateAI() {
 
     for(let i = aiBots.length - 1; i >= 0; i--) {
         const bot = aiBots[i];
+        if (bot.isDead) continue; // 사망 후 5초 대기 중인 AI 스킵
 
         if (selectedMode === 'br') {
             const distToZoneCenter = Math.hypot(bot.x - zone.x, bot.y - zone.y);
@@ -1240,8 +1313,12 @@ function updateAI() {
             }
         }
 
-        const hasWeaponAndAmmo = bot.weapon && (bot.clipAmmo > 0 || bot.reserveAmmo > 0);
-        if (!hasWeaponAndAmmo) {
+        const totalAmmo = (bot.clipAmmo || 0) + (bot.reserveAmmo || 0);
+        const hasWeapon = !!bot.weapon;
+        const needsAmmo = hasWeapon && totalAmmo === 0; // 무기는 있으나 총알이 0발인 경우
+
+        // 1. 총이 없거나, 무기가 있어도 총알이 완전히 떨어진 경우 -> 아이템/총알 탐색 최우선 수행
+        if (!hasWeapon || needsAmmo) {
             bot.firstSeenTime = null;
             bot.investigateTarget = null;
 
@@ -1251,7 +1328,9 @@ function updateAI() {
                 droppedItems.forEach(item => {
                     const isWeapon = ['ar', 'sniper', 'shotgun'].includes(item.type);
                     const isAmmo = item.type.startsWith('ammo_');
-                    if ((!bot.weapon && isWeapon) || (bot.weapon && isAmmo)) {
+
+                    // 총알이 없는 상태면 탄약 아이템('ammo_')을 최우선 검색
+                    if ((needsAmmo && isAmmo) || (!hasWeapon && isWeapon)) {
                         const d = Math.hypot(item.x - bot.x, item.y - bot.y);
                         if (d < nearDst) { nearDst = d; nearest = item; }
                     }
@@ -1300,9 +1379,9 @@ function updateAI() {
         });
 
         let targets = [];
-        if(myPlayer.hp > 0) targets.push(myPlayer);
-        Object.values(remotePlayers).forEach(p => { if(p.hp > 0) targets.push(p); });
-        aiBots.filter(b => b.id !== bot.id).forEach(b => targets.push(b));
+        if(myPlayer.hp > 0 && !isRespawning) targets.push(myPlayer);
+        Object.values(remotePlayers).forEach(p => { if(p.hp > 0 && !p.isDead) targets.push(p); });
+        aiBots.filter(b => b.id !== bot.id && b.hp > 0 && !b.isDead).forEach(b => targets.push(b));
 
         let closestTarget = null;
         let minDst = 1200;
@@ -1437,7 +1516,7 @@ function update() {
         }
     }
 
-    if(selectedMode === 'br' && myPlayer.hp > 0) {
+    if(selectedMode === 'br' && myPlayer.hp > 0 && !isRespawning) {
         if(Math.hypot(myPlayer.x - zone.x, myPlayer.y - zone.y) > zone.radius) {
             myPlayer.hp -= 0.15;
             triggerDamageEffect();
@@ -1511,8 +1590,8 @@ function update() {
     const screenCenterX = canvas.width / 2;
     const screenCenterY = canvas.height / 2;
 
-    if (isSpectating) {
-        if (!spectateTarget || spectateTarget.hp <= 0) {
+    if (isSpectating || isRespawning) {
+        if (!spectateTarget || spectateTarget.hp <= 0 || spectateTarget.isDead) {
             findNextSpectateTarget();
         }
         if (spectateTarget) {
@@ -1579,14 +1658,18 @@ function update() {
             
             for (let bIdx = aiBots.length - 1; bIdx >= 0; bIdx--) {
                 const bot = aiBots[bIdx];
-                if (b.ownerId !== bot.id) {
+                if (b.ownerId !== bot.id && !bot.isDead && bot.hp > 0) {
                     const distSq = distToSegmentSquared({x: bot.x, y: bot.y}, {x: b.prevX, y: b.prevY}, {x: b.x, y: b.y});
                     if (distSq <= 25 * 25) {
                         bot.hp -= b.damage;
                         spawnBloodParticles(bot.x, bot.y);
                         hit = true;
                         if (bot.hp <= 0) {
+                            bot.hp = 0;
+                            bot.isDead = true; // 화면에서 지움
+                            bot.deaths++;
                             addKill(b.ownerId);
+
                             if (bot.weapon) {
                                 const dropWeaponItem = {
                                     id: 'item_' + Math.random().toString(36).substring(2, 9),
@@ -1595,14 +1678,11 @@ function update() {
                                 droppedItems.push(dropWeaponItem);
                                 broadcastData({ type: 'DROP_ITEM', item: dropWeaponItem });
                             }
+
                             if (selectedMode === 'br') {
                                 aiBots.splice(bIdx, 1);
                             } else {
-                                const respawnPos = getSafeSpawnPos(100, WORLD_SIZE);
-                                bot.x = respawnPos.x;
-                                bot.y = respawnPos.y;
-                                bot.hp = bot.maxHp;
-                                bot.deaths++;
+                                respawnBot(bot); // 5초 뒤 랜덤 위치 부활
                             }
                             updateHUD();
                         }
@@ -1614,7 +1694,7 @@ function update() {
             if (!hit) {
                 const allHumanPlayers = [myPlayer, ...Object.values(remotePlayers)];
                 for(let targetP of allHumanPlayers) {
-                    if(b.ownerId !== targetP.id && targetP.hp > 0) {
+                    if(b.ownerId !== targetP.id && targetP.hp > 0 && !targetP.isDead) {
                         const distSq = distToSegmentSquared({x: targetP.x, y: targetP.y}, {x: b.prevX, y: b.prevY}, {x: b.x, y: b.y});
                         if (distSq <= 25 * 25) {
                             targetP.hp -= b.damage;
@@ -1628,8 +1708,14 @@ function update() {
                                 }
                             } else {
                                 if (targetP.hp <= 0) {
+                                    targetP.hp = 0;
+                                    targetP.isDead = true; // 화면에서 지움
                                     targetP.deaths = (targetP.deaths || 0) + 1;
                                     addKill(b.ownerId);
+
+                                    if (selectedMode === 'normal') {
+                                        respawnRemotePlayer(targetP); // 원격 플레이어 5초 뒤 리스폰
+                                    }
                                 }
                                 broadcastData({ type: 'DAMAGE', targetId: targetP.id, damage: b.damage, attackerId: b.ownerId });
                             }
@@ -1674,7 +1760,7 @@ function getIntersection(ray, segment) {
 }
 
 function drawFogOfWar() {
-    if (isSpectating) return;
+    if (isSpectating || isRespawning) return;
 
     const px = myPlayer.x;
     const py = myPlayer.y;
@@ -1845,20 +1931,20 @@ function draw() {
     });
 
     aiBots.forEach(bot => {
-        if(bot.hp > 0) drawCharacter(bot, '#ff4444');
+        if(bot.hp > 0 && !bot.isDead) drawCharacter(bot, '#ff4444');
     });
 
     for(let id in remotePlayers) {
-        if(remotePlayers[id].hp > 0) drawCharacter(remotePlayers[id], '#ffaa00');
+        if(remotePlayers[id].hp > 0 && !remotePlayers[id].isDead) drawCharacter(remotePlayers[id], '#ffaa00');
     }
 
-    if(myPlayer.hp > 0) drawCharacter(myPlayer, '#00ffcc');
+    if(myPlayer.hp > 0 && !isRespawning) drawCharacter(myPlayer, '#00ffcc');
 
     ctx.restore();
 
     drawFogOfWar();
 
-    if(myPlayer.isAiming && myPlayer.weapon && !isMobile && !isSpectating && myPlayer.hp > 0) drawScopeCrosshair(myPlayer.equippedScope);
+    if(myPlayer.isAiming && myPlayer.weapon && !isMobile && !isSpectating && !isRespawning && myPlayer.hp > 0) drawScopeCrosshair(myPlayer.equippedScope);
 
     drawRotatingRadarMinimap();
 
@@ -1870,7 +1956,7 @@ function draw() {
 function drawRotatingRadarMinimap() {
     mCtx.clearRect(0, 0, 200, 200);
 
-    const centerObj = isSpectating && spectateTarget ? spectateTarget : myPlayer;
+    const centerObj = (isSpectating || isRespawning) && spectateTarget ? spectateTarget : myPlayer;
 
     const radarRange = 2500;
     const center = 100;
@@ -1905,12 +1991,13 @@ function drawRotatingRadarMinimap() {
         }
     });
 
-    mCtx.fillStyle = isSpectating ? '#ffaa00' : '#00ffcc';
+    const isObserverMode = isSpectating || isRespawning;
+    mCtx.fillStyle = isObserverMode ? '#ffaa00' : '#00ffcc';
     mCtx.beginPath();
     mCtx.arc(center, center, 4, 0, Math.PI * 2);
     mCtx.fill();
 
-    mCtx.strokeStyle = isSpectating ? '#ffaa00' : '#00ffcc'; mCtx.lineWidth = 2;
+    mCtx.strokeStyle = isObserverMode ? '#ffaa00' : '#00ffcc'; mCtx.lineWidth = 2;
     mCtx.beginPath();
     mCtx.moveTo(center, center);
     mCtx.lineTo(center + Math.cos(centerObj.angle) * 12, center + Math.sin(centerObj.angle) * 12);
@@ -1938,14 +2025,14 @@ function drawFullMap() {
         fCtx.fillRect(obs.x * scale, obs.y * scale, obs.w * scale, obs.h * scale);
     });
 
-    const targetObj = isSpectating && spectateTarget ? spectateTarget : myPlayer;
-    fCtx.fillStyle = isSpectating ? '#ffaa00' : '#00ffcc';
+    const targetObj = (isSpectating || isRespawning) && spectateTarget ? spectateTarget : myPlayer;
+    fCtx.fillStyle = (isSpectating || isRespawning) ? '#ffaa00' : '#00ffcc';
     fCtx.beginPath();
     fCtx.arc(targetObj.x * scale, targetObj.y * scale, 6, 0, Math.PI * 2);
     fCtx.fill();
     
     fCtx.fillStyle = '#ffffff'; fCtx.font = '12px sans-serif';
-    fCtx.fillText(isSpectating ? "관전 대상" : "내 위치", targetObj.x * scale - 18, targetObj.y * scale - 10);
+    fCtx.fillText((isSpectating || isRespawning) ? "관전 대상" : "내 위치", targetObj.x * scale - 18, targetObj.y * scale - 10);
 }
 
 function drawCharacter(p, color) {
