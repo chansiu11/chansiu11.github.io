@@ -929,7 +929,6 @@ function initMobileControls() {
         mobileMoveVec = { x: dx / maxDist, y: dy / maxDist };
     }
 
-    // 모바일 조준 패드 (조준 후 발사/AR 연사 처리)
     const aimPad = document.getElementById('aimPadContainer');
     const aimKnob = document.getElementById('aimPadKnob');
     let aimTouchId = null, aimCenter = {x:0, y:0};
@@ -943,7 +942,6 @@ function initMobileControls() {
         updateAim(touch);
         myPlayer.isAiming = true;
 
-        // AR 소총일 경우 터치와 동시에 연속 사격 시작
         if (myPlayer.weapon === 'ar') {
             myPlayer.isShooting = true;
         }
@@ -961,7 +959,6 @@ function initMobileControls() {
             if (t.identifier === aimTouchId) {
                 aimTouchId = null;
                 
-                // 손을 떼는 순간 사격 처리 (AR이 아닌 단발/샷건/스나이퍼 무기)
                 if (myPlayer.weapon && myPlayer.weapon !== 'ar') {
                     const now = Date.now();
                     if (now - myPlayer.lastShootTime >= WEAPONS[myPlayer.weapon].cooldown) {
@@ -970,11 +967,10 @@ function initMobileControls() {
                     }
                 }
 
-                // 조준 패드 초기화
                 mobileAimVec = { x: 0, y: 0 };
                 aimKnob.style.top = '45px'; aimKnob.style.left = '45px';
                 myPlayer.isAiming = false;
-                myPlayer.isShooting = false; // 연사 중지
+                myPlayer.isShooting = false;
             }
         }
     };
@@ -1244,7 +1240,6 @@ function updateAI() {
             }
         }
 
-        // 1순위: 총이 없거나 탄약이 전혀 없는 경우 최우선으로 총/탄약 아이템 탐색 및 이동
         const hasWeaponAndAmmo = bot.weapon && (bot.clipAmmo > 0 || bot.reserveAmmo > 0);
         if (!hasWeaponAndAmmo) {
             bot.firstSeenTime = null;
@@ -1292,10 +1287,9 @@ function updateAI() {
                 bot.y += Math.sin(bot.angle) * 1.5 * diff.speedMult;
                 if (Math.random() < 0.02) bot.angle += (Math.random() - 0.5) * 2;
             }
-            continue; // 무기/탄약을 찾는 중일 때는 적 추적 및 사격 로직을 건너뜀
+            continue;
         }
 
-        // 총과 탄약이 둘 다 확보된 상태일 때만 소리 감지 및 전투/탐색 로직 수행
         soundEvents.forEach(snd => {
             const dst = Math.hypot(bot.x - snd.x, bot.y - snd.y);
             if (dst <= snd.radius && dst > 50) {
@@ -1989,13 +1983,17 @@ function drawScopeCrosshair(scopeType) {
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)'; ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.moveTo(cx - 25, cy); ctx.lineTo(cx + 25, cy); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(cx, cy - 25); ctx.lineTo(cx, cy + 25); ctx.stroke();
-        ctx.strokeStyle = 'red'; ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = 'red'; ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2); ctx.stroke();
     } else if (scopeType === '8x') {
-        ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.moveTo(cx - 50, cy); ctx.lineTo(cx + 50, cy); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(cx, cy - 50); ctx.lineTo(cx, cy + 50); ctx.stroke();
+        ctx.strokeStyle = 'black'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(cx - 40, cy); ctx.lineTo(cx + 40, cy); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx, cy - 40); ctx.lineTo(cx, cy + 40); ctx.stroke();
+        ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(cx, cy, 10, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(cx, cy, 20, 0, Math.PI * 2); ctx.stroke();
         ctx.fillStyle = 'red'; ctx.beginPath(); ctx.arc(cx, cy, 2, 0, Math.PI * 2); ctx.fill();
     }
+
     ctx.restore();
 }
 
