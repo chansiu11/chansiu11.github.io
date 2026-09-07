@@ -235,7 +235,7 @@
         [모드]: <span id="hudGameMode" style="color:#00ffcc;">배틀로얄</span> | 
         [생존 인원]: <span id="hudAliveCount" style="color:#ff4444; font-size: 16px;">20</span> 명 <br>
         [킬]: <span id="hudKills" style="color:#00ffcc;">0</span> | [데스]: <span id="hudDeaths" style="color:#ff4444;">0</span> <br>
-        <span id="hudZoneContainer">[자기장 축소까지]: <span id="hudZoneTimer" style="color:#ffcc00;">120</span> 초<br></span>
+        <span id="hudZoneContainer">[자기장 축소까지]: <span id="hudZoneTimer" style="color:#ffcc00;">60</span> 초<br></span>
         [무기]: <span id="hudWeapon" style="color:#00ffcc;">맨손</span> | [탄약]: <span id="hudAmmo" style="color:#ffcc00;">- / -</span> <br>
         [장착 스코프]: <span id="hudScope" style="color:#ffcc00;">없음</span> <br>
         <span id="hudControlsHint">[조작법]: Shift(달리기) / Ctrl(은신) / E(줍기) / R(장전) / Tab(가방)</span>
@@ -291,7 +291,7 @@
 </div>
 
 <script>
-let WORLD_SIZE = 24000; 
+let WORLD_SIZE = 8000; // 배틀로얄 전장 크기를 조절하여 루즈함 축소
 
 const SCOPES = {
     '1x': { name: "1배율 (레드닷)", viewOffset: 300 },
@@ -310,7 +310,7 @@ const WEAPONS = {
 const AI_DIFFICULTY = {
     very_easy: { delay: 1500, spread: 0.25, speedMult: 0.6 },
     easy: { delay: 900, spread: 0.15, speedMult: 0.8 },
-    hard: { delay: 100, spread: 0.02, speedMult: 1.2 }
+    hard: { delay: 300, spread: 0.08, speedMult: 1.0 } // 보스급 난이도 하향 조정
 };
 
 let peer = null;
@@ -331,8 +331,9 @@ let isRespawning = false;
 let respawnTimerVal = 5;
 let respawnInterval = null;
 
-let zoneTimer = 120;
+let zoneTimer = 60; // 초반 대기시간 120초 -> 60초 단축
 let isZoneShrinking = false;
+let zoneTimerInterval = null;
 const zone = {
     x: WORLD_SIZE / 2,
     y: WORLD_SIZE / 2,
@@ -474,9 +475,9 @@ function getSafeSpawnPos(padding = 200, bound = WORLD_SIZE) {
 }
 
 function generateMapData(mode) {
-    const size = mode === 'normal' ? 2400 : 24000;
-    const obsCount = mode === 'normal' ? 25 : 500;
-    const itemCount = mode === 'normal' ? 80 : 800;
+    const size = mode === 'normal' ? 2400 : 8000;
+    const obsCount = mode === 'normal' ? 25 : 180;
+    const itemCount = mode === 'normal' ? 80 : 350;
 
     const newObstacles = [];
     for (let i = 0; i < obsCount; i++) {
@@ -652,7 +653,6 @@ function handleNetworkData(data) {
             updateHUD();
         }
     } else if(data.type === 'RESPAWN_REMOTE' && isHost) {
-        // 원격 플레이어 리스폰 처리 (방장)
         const targetP = remotePlayers[data.playerId];
         if (targetP) {
             const safePos = getSafeSpawnPos(100, WORLD_SIZE);
@@ -690,14 +690,12 @@ function startRespawnTimer(killerId) {
     isRespawning = true;
     respawnTimerVal = 5;
     
-    // 사망 즉시 내 상태를 관전 모드로 전환하여 킬러를 5초간 주시
     document.getElementById('statusHUD').style.display = 'none';
     if (isMobile) document.getElementById('mobileControls').style.display = 'none';
     document.getElementById('spectateHUD').style.display = 'block';
     document.getElementById('respawnHUD').style.display = 'block';
     document.getElementById('respawnTimer').innerText = respawnTimerVal;
 
-    // 킬러 정보 찾아서 관전 대상으로 설정
     setSpectateTargetById(killerId);
 
     if (respawnInterval) clearInterval(respawnInterval);
@@ -789,9 +787,12 @@ function hostStartGame() {
 
     if (selectedMode === 'normal') {
         WORLD_SIZE = 2400; 
-        zone.x = WORLD_SIZE / 2;
-        zone.y = WORLD_SIZE / 2;
+    } else {
+        WORLD_SIZE = 8000;
     }
+    zone.x = WORLD_SIZE / 2;
+    zone.y = WORLD_SIZE / 2;
+    zone.radius = WORLD_SIZE * 0.7;
 
     const mapData = generateMapData(selectedMode);
     obstacles = mapData.obstacles;
@@ -841,9 +842,12 @@ function startGame() {
 
     if (selectedMode === 'normal') {
         WORLD_SIZE = 2400; 
-        zone.x = WORLD_SIZE / 2;
-        zone.y = WORLD_SIZE / 2;
+    } else {
+        WORLD_SIZE = 8000;
     }
+    zone.x = WORLD_SIZE / 2;
+    zone.y = WORLD_SIZE / 2;
+    zone.radius = WORLD_SIZE * 0.7;
 
     const safePos = getSafeSpawnPos(100, WORLD_SIZE);
     myPlayer.x = safePos.x;
@@ -878,7 +882,10 @@ function startGame() {
     gameStarted = true;
     
     if (selectedMode === 'br') {
-        setInterval(() => {
+        zoneTimer = 60;
+        isZoneShrinking = false;
+        if(zoneTimerInterval) clearInterval(zoneTimerInterval);
+        zoneTimerInterval = setInterval(() => {
             if(!gameStarted || gameEnded) return;
             if(zoneTimer > 0) {
                 zoneTimer--;
@@ -1288,7 +1295,7 @@ function updateAI() {
 
     for(let i = aiBots.length - 1; i >= 0; i--) {
         const bot = aiBots[i];
-        if (bot.isDead) continue; // 사망 후 5초 대기 중인 AI 스킵
+        if (bot.isDead) continue; 
 
         if (selectedMode === 'br') {
             const distToZoneCenter = Math.hypot(bot.x - zone.x, bot.y - zone.y);
@@ -1315,9 +1322,8 @@ function updateAI() {
 
         const totalAmmo = (bot.clipAmmo || 0) + (bot.reserveAmmo || 0);
         const hasWeapon = !!bot.weapon;
-        const needsAmmo = hasWeapon && totalAmmo === 0; // 무기는 있으나 총알이 0발인 경우
+        const needsAmmo = hasWeapon && totalAmmo === 0; 
 
-        // 1. 총이 없거나, 무기가 있어도 총알이 완전히 떨어진 경우 -> 아이템/총알 탐색 최우선 수행
         if (!hasWeapon || needsAmmo) {
             bot.firstSeenTime = null;
             bot.investigateTarget = null;
@@ -1329,7 +1335,6 @@ function updateAI() {
                     const isWeapon = ['ar', 'sniper', 'shotgun'].includes(item.type);
                     const isAmmo = item.type.startsWith('ammo_');
 
-                    // 총알이 없는 상태면 탄약 아이템('ammo_')을 최우선 검색
                     if ((needsAmmo && isAmmo) || (!hasWeapon && isWeapon)) {
                         const d = Math.hypot(item.x - bot.x, item.y - bot.y);
                         if (d < nearDst) { nearDst = d; nearest = item; }
@@ -1666,7 +1671,7 @@ function update() {
                         hit = true;
                         if (bot.hp <= 0) {
                             bot.hp = 0;
-                            bot.isDead = true; // 화면에서 지움
+                            bot.isDead = true; 
                             bot.deaths++;
                             addKill(b.ownerId);
 
@@ -1682,7 +1687,7 @@ function update() {
                             if (selectedMode === 'br') {
                                 aiBots.splice(bIdx, 1);
                             } else {
-                                respawnBot(bot); // 5초 뒤 랜덤 위치 부활
+                                respawnBot(bot); 
                             }
                             updateHUD();
                         }
@@ -1709,12 +1714,12 @@ function update() {
                             } else {
                                 if (targetP.hp <= 0) {
                                     targetP.hp = 0;
-                                    targetP.isDead = true; // 화면에서 지움
+                                    targetP.isDead = true; 
                                     targetP.deaths = (targetP.deaths || 0) + 1;
                                     addKill(b.ownerId);
 
                                     if (selectedMode === 'normal') {
-                                        respawnRemotePlayer(targetP); // 원격 플레이어 5초 뒤 리스폰
+                                        respawnRemotePlayer(targetP); 
                                     }
                                 }
                                 broadcastData({ type: 'DAMAGE', targetId: targetP.id, damage: b.damage, attackerId: b.ownerId });
@@ -1758,6 +1763,10 @@ function getIntersection(ray, segment) {
 
     return { x: r_px + r_dx * T1, y: r_py + r_dy * T1, param: T1 };
 }
+
+// 캔버스 재사용을 통해 메모리 누수 방지
+const maskCanvas = document.createElement('canvas');
+const mCtxMask = maskCanvas.getContext('2d');
 
 function drawFogOfWar() {
     if (isSpectating || isRespawning) return;
@@ -1835,28 +1844,26 @@ function drawFogOfWar() {
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-    const maskCanvas = document.createElement('canvas');
     maskCanvas.width = canvas.width;
     maskCanvas.height = canvas.height;
-    const mCtx = maskCanvas.getContext('2d');
 
-    mCtx.fillStyle = 'rgba(0,0,0,0.95)';
-    mCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
+    mCtxMask.fillStyle = 'rgba(0,0,0,0.95)';
+    mCtxMask.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
 
-    mCtx.globalCompositeOperation = 'destination-out';
-    mCtx.save();
-    mCtx.translate(canvas.width / 2 - camera.x, canvas.height / 2 - camera.y);
+    mCtxMask.globalCompositeOperation = 'destination-out';
+    mCtxMask.save();
+    mCtxMask.translate(canvas.width / 2 - camera.x, canvas.height / 2 - camera.y);
 
-    mCtx.beginPath();
+    mCtxMask.beginPath();
     if (intersects.length > 0) {
-        mCtx.moveTo(intersects[0].x, intersects[0].y);
+        mCtxMask.moveTo(intersects[0].x, intersects[0].y);
         for (let i = 1; i < intersects.length; i++) {
-            mCtx.lineTo(intersects[i].x, intersects[i].y);
+            mCtxMask.lineTo(intersects[i].x, intersects[i].y);
         }
     }
-    mCtx.closePath();
-    mCtx.fill();
-    mCtx.restore();
+    mCtxMask.closePath();
+    mCtxMask.fill();
+    mCtxMask.restore();
 
     ctx.drawImage(maskCanvas, 0, 0);
     ctx.restore();
