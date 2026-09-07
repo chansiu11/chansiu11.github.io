@@ -126,7 +126,7 @@
             background: rgba(0, 255, 204, 0.6); border-radius: 50%;
         }
         #aimPadContainer {
-            bottom: 40px; right: 180px; width: 140px; height: 140px;
+            bottom: 40px; right: 40px; width: 140px; height: 140px;
             background: rgba(255, 255, 255, 0.1); border: 2px solid rgba(255, 255, 255, 0.3);
             border-radius: 50%;
         }
@@ -139,10 +139,9 @@
             background: rgba(0,0,0,0.6); border: 2px solid #00ffcc; color: white;
             font-weight: bold; font-size: 13px; display: flex; align-items: center; justify-content: center;
         }
-        #btnFire { bottom: 110px; right: 40px; background: rgba(255, 50, 50, 0.7); border-color: #ff5555; }
-        #btnReload { bottom: 35px; right: 110px; }
+        #btnReload { bottom: 35px; right: 190px; }
         #btnPickup { bottom: 185px; right: 40px; }
-        #btnBag { bottom: 185px; right: 110px; }
+        #btnBag { bottom: 185px; right: 120px; }
         #btnMap { top: 20px; right: 20px; width: 55px; height: 55px; border-color: #ffcc00; color: #ffcc00; }
         #btnSettings { top: 20px; right: 85px; width: 55px; height: 55px; border-color: #aaaaaa; color: #ffffff; }
 
@@ -258,7 +257,6 @@
         <div id="aimPadContainer" class="touch-zone">
             <div id="aimPadKnob"></div>
         </div>
-        <div id="btnFire" class="mobile-btn touch-zone">사격</div>
         <div id="btnReload" class="mobile-btn touch-zone">장전</div>
         <div id="btnPickup" class="mobile-btn touch-zone">줍기</div>
         <div id="btnBag" class="mobile-btn touch-zone">가방</div>
@@ -704,7 +702,6 @@ function respawnPlayer() {
     isRespawning = false;
     isSpectating = false;
     
-    // UI 및 컨트롤 복구
     document.getElementById('statusHUD').style.display = 'block';
     document.getElementById('spectateHUD').style.display = 'none';
     if (isMobile) document.getElementById('mobileControls').style.display = 'block';
@@ -767,7 +764,7 @@ function hostStartGame() {
 }
 
 function spawnAIBots(count) {
-    aiBots.length = 0; // 초기화
+    aiBots.length = 0;
     for (let i = 0; i < count; i++) {
         const spawnPos = getSafeSpawnPos(100, WORLD_SIZE);
         aiBots.push({
@@ -932,6 +929,7 @@ function initMobileControls() {
         mobileMoveVec = { x: dx / maxDist, y: dy / maxDist };
     }
 
+    // 모바일 조준 패드 (조준 후 발사/AR 연사 처리)
     const aimPad = document.getElementById('aimPadContainer');
     const aimKnob = document.getElementById('aimPadKnob');
     let aimTouchId = null, aimCenter = {x:0, y:0};
@@ -944,6 +942,11 @@ function initMobileControls() {
         aimCenter = { x: rect.left + rect.width/2, y: rect.top + rect.height/2 };
         updateAim(touch);
         myPlayer.isAiming = true;
+
+        // AR 소총일 경우 터치와 동시에 연속 사격 시작
+        if (myPlayer.weapon === 'ar') {
+            myPlayer.isShooting = true;
+        }
     });
 
     window.addEventListener('touchmove', e => {
@@ -957,9 +960,21 @@ function initMobileControls() {
         for (let t of e.changedTouches) {
             if (t.identifier === aimTouchId) {
                 aimTouchId = null;
+                
+                // 손을 떼는 순간 사격 처리 (AR이 아닌 단발/샷건/스나이퍼 무기)
+                if (myPlayer.weapon && myPlayer.weapon !== 'ar') {
+                    const now = Date.now();
+                    if (now - myPlayer.lastShootTime >= WEAPONS[myPlayer.weapon].cooldown) {
+                        shoot(myPlayer);
+                        myPlayer.lastShootTime = now;
+                    }
+                }
+
+                // 조준 패드 초기화
                 mobileAimVec = { x: 0, y: 0 };
                 aimKnob.style.top = '45px'; aimKnob.style.left = '45px';
                 myPlayer.isAiming = false;
+                myPlayer.isShooting = false; // 연사 중지
             }
         }
     };
@@ -977,8 +992,6 @@ function initMobileControls() {
         mobileAimVec = { x: dx / maxDist, y: dy / maxDist };
     }
 
-    document.getElementById('btnFire').addEventListener('touchstart', (e) => { if(!isEditingKeys && !isSpectating){ e.preventDefault(); myPlayer.isShooting = true; } });
-    document.getElementById('btnFire').addEventListener('touchend', (e) => { if(!isEditingKeys && !isSpectating){ e.preventDefault(); myPlayer.isShooting = false; } });
     document.getElementById('btnReload').addEventListener('touchstart', (e) => { if(!isEditingKeys && !isSpectating){ e.preventDefault(); reloadWeapon(myPlayer); } });
     document.getElementById('btnPickup').addEventListener('touchstart', (e) => { if(!isEditingKeys && !isSpectating){ e.preventDefault(); pickupItem(); } });
     document.getElementById('btnBag').addEventListener('touchstart', (e) => { if(!isEditingKeys && !isSpectating){ e.preventDefault(); toggleInventory(); } });
@@ -1543,7 +1556,6 @@ function update() {
                             if (selectedMode === 'br') {
                                 aiBots.splice(bIdx, 1);
                             } else {
-                                // 데스매치: 봇 리스폰
                                 const respawnPos = getSafeSpawnPos(100, WORLD_SIZE);
                                 bot.x = respawnPos.x;
                                 bot.y = respawnPos.y;
