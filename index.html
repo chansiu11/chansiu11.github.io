@@ -235,6 +235,7 @@
     <div id="statusHUD">
         [모드]: <span id="hudGameMode" style="color:#00ffcc;">배틀로얄</span> | 
         [생존 인원]: <span id="hudAliveCount" style="color:#ff4444; font-size: 16px;">20</span> 명 <br>
+        [킬]: <span id="hudKills" style="color:#00ffcc;">0</span> | [데스]: <span id="hudDeaths" style="color:#ff4444;">0</span> <br>
         <span id="hudZoneContainer">[자기장 축소까지]: <span id="hudZoneTimer" style="color:#ffcc00;">120</span> 초<br></span>
         [무기]: <span id="hudWeapon" style="color:#00ffcc;">맨손</span> | [탄약]: <span id="hudAmmo" style="color:#ffcc00;">- / -</span> <br>
         [장착 스코프]: <span id="hudScope" style="color:#ffcc00;">없음</span> <br>
@@ -364,6 +365,7 @@ const myPlayer = {
     x: 1000,
     y: 1000,
     angle: 0, speed: 3.0, hp: 200, maxHp: 200,
+    kills: 0, deaths: 0,
     name: '플레이어', weapon: null,
     clipAmmo: 0, reserveAmmo: 0, isReloading: false,
     equippedScope: null,
@@ -462,7 +464,7 @@ function checkObstacleCollision(x, y, radius = 15) {
     return false;
 }
 
-function getSafeSpawnPos(padding = 500, bound = WORLD_SIZE) {
+function getSafeSpawnPos(padding = 200, bound = WORLD_SIZE) {
     let safeX, safeY;
     let attempts = 0;
     do {
@@ -586,6 +588,18 @@ function broadcastData(data) {
     }
 }
 
+function addKill(killerId) {
+    if (killerId === myPlayer.id) {
+        myPlayer.kills++;
+        updateHUD();
+    } else if (remotePlayers[killerId]) {
+        remotePlayers[killerId].kills = (remotePlayers[killerId].kills || 0) + 1;
+    } else {
+        const bot = aiBots.find(b => b.id === killerId);
+        if (bot) bot.kills = (bot.kills || 0) + 1;
+    }
+}
+
 function handleNetworkData(data) {
     if(data.type === 'START') {
         selectedMode = data.mode;
@@ -607,6 +621,8 @@ function handleNetworkData(data) {
                         activeIds[p.id] = true;
                     } else {
                         myPlayer.hp = p.hp;
+                        myPlayer.kills = p.kills || myPlayer.kills;
+                        myPlayer.deaths = p.deaths || myPlayer.deaths;
                     }
                 });
             }
@@ -629,8 +645,13 @@ function handleNetworkData(data) {
             myPlayer.hp -= data.damage;
             triggerDamageEffect();
             if(myPlayer.hp <= 0) {
-                handleMyDeath();
+                handleMyDeath(data.attackerId);
             }
+        }
+    } else if(data.type === 'KILL_EVENT') {
+        if (data.killerId === myPlayer.id) {
+            myPlayer.kills++;
+            updateHUD();
         }
     } else if(data.type === 'PICKUP_ITEM') {
         droppedItems = droppedItems.filter(item => item.id !== data.itemId);
@@ -643,13 +664,18 @@ function handleNetworkData(data) {
     }
 }
 
-function handleMyDeath() {
+function handleMyDeath(killerId) {
     myPlayer.hp = 0;
+    myPlayer.deaths++;
+    if (killerId) {
+        addKill(killerId);
+    }
     if (selectedMode === 'normal') {
         startRespawnTimer();
     } else {
         startSpectating();
     }
+    updateHUD();
 }
 
 function startRespawnTimer() {
@@ -716,11 +742,17 @@ function hostStartGame() {
     const aiCount = parseInt(document.getElementById('aiCountInput').value) || 0;
     aiDifficulty = document.getElementById('aiDifficultySelect').value;
 
+    if (selectedMode === 'normal') {
+        WORLD_SIZE = 2400; 
+        zone.x = WORLD_SIZE / 2;
+        zone.y = WORLD_SIZE / 2;
+    }
+
     const mapData = generateMapData(selectedMode);
     obstacles = mapData.obstacles;
     droppedItems = mapData.items;
 
-    if (includeAi) {
+    if (includeAi && aiCount > 0) {
         spawnAIBots(aiCount);
     }
 
@@ -735,13 +767,15 @@ function hostStartGame() {
 }
 
 function spawnAIBots(count) {
+    aiBots.length = 0; // 초기화
     for (let i = 0; i < count; i++) {
-        const spawnPos = getSafeSpawnPos(1000, WORLD_SIZE);
+        const spawnPos = getSafeSpawnPos(100, WORLD_SIZE);
         aiBots.push({
             id: 'bot_' + i,
             x: spawnPos.x,
             y: spawnPos.y,
             angle: 0, hp: 200, maxHp: 200,
+            kills: 0, deaths: 0,
             name: `AI 봇_${i+1}`,
             weapon: null, clipAmmo: 0, reserveAmmo: 100,
             equippedScope: null,
@@ -765,10 +799,12 @@ function startGame() {
         zone.y = WORLD_SIZE / 2;
     }
 
-    const safePos = getSafeSpawnPos(200, WORLD_SIZE);
+    const safePos = getSafeSpawnPos(100, WORLD_SIZE);
     myPlayer.x = safePos.x;
     myPlayer.y = safePos.y;
     myPlayer.hp = myPlayer.maxHp;
+    myPlayer.kills = 0;
+    myPlayer.deaths = 0;
     isSpectating = false;
     isRespawning = false;
     gameEnded = false;
@@ -785,6 +821,8 @@ function startGame() {
     document.getElementById('hudGameMode').innerText = selectedMode === 'br' ? "배틀로얄" : "기본 모드";
     if (selectedMode !== 'br') {
         document.getElementById('hudZoneContainer').style.display = 'none';
+    } else {
+        document.getElementById('hudZoneContainer').style.display = 'inline';
     }
 
     initialPlayerCount = aiBots.length + 1 + Object.keys(connections).length;
@@ -1063,13 +1101,14 @@ function pickupItem() {
 function updateHUD() {
     const alive = aiBots.length + (myPlayer.hp > 0 ? 1 : 0) + Object.values(remotePlayers).filter(p => p.hp > 0).length;
     document.getElementById('hudAliveCount').innerText = alive;
+    document.getElementById('hudKills').innerText = myPlayer.kills;
+    document.getElementById('hudDeaths').innerText = myPlayer.deaths;
     document.getElementById('hudWeapon').innerText = myPlayer.weapon ? WEAPONS[myPlayer.weapon].name : "맨손";
     document.getElementById('hudAmmo').innerText = myPlayer.weapon 
         ? `${myPlayer.clipAmmo} / ${myPlayer.reserveAmmo} ${myPlayer.isReloading ? '(장전중...)' : ''}` 
         : "- / -";
     document.getElementById('hudScope').innerText = myPlayer.equippedScope ? SCOPES[myPlayer.equippedScope].name : "없음";
 
-    // 버그 수정: initialPlayerCount가 최소 2명 이상일 때 또는 AI나 원격 유저가 실제로 존재했거나 남아있는 상태일 때만 1등 판정
     if (selectedMode === 'br' && alive === 1 && myPlayer.hp > 0 && gameStarted && !gameEnded && initialPlayerCount > 1) {
         triggerVictory();
     }
@@ -1348,7 +1387,7 @@ function update() {
             myPlayer.hp -= 0.15;
             triggerDamageEffect();
             if(myPlayer.hp <= 0) {
-                handleMyDeath();
+                handleMyDeath(null);
             }
         }
     }
@@ -1492,6 +1531,7 @@ function update() {
                         spawnBloodParticles(bot.x, bot.y);
                         hit = true;
                         if (bot.hp <= 0) {
+                            addKill(b.ownerId);
                             if (bot.weapon) {
                                 const dropWeaponItem = {
                                     id: 'item_' + Math.random().toString(36).substring(2, 9),
@@ -1500,7 +1540,16 @@ function update() {
                                 droppedItems.push(dropWeaponItem);
                                 broadcastData({ type: 'DROP_ITEM', item: dropWeaponItem });
                             }
-                            aiBots.splice(bIdx, 1);
+                            if (selectedMode === 'br') {
+                                aiBots.splice(bIdx, 1);
+                            } else {
+                                // 데스매치: 봇 리스폰
+                                const respawnPos = getSafeSpawnPos(100, WORLD_SIZE);
+                                bot.x = respawnPos.x;
+                                bot.y = respawnPos.y;
+                                bot.hp = bot.maxHp;
+                                bot.deaths++;
+                            }
                             updateHUD();
                         }
                         break;
@@ -1521,10 +1570,14 @@ function update() {
                             if(targetP.id === myPlayer.id) {
                                 triggerDamageEffect();
                                 if(myPlayer.hp <= 0) {
-                                    handleMyDeath();
+                                    handleMyDeath(b.ownerId);
                                 }
                             } else {
-                                broadcastData({ type: 'DAMAGE', targetId: targetP.id, damage: b.damage });
+                                if (targetP.hp <= 0) {
+                                    targetP.deaths = (targetP.deaths || 0) + 1;
+                                    addKill(b.ownerId);
+                                }
+                                broadcastData({ type: 'DAMAGE', targetId: targetP.id, damage: b.damage, attackerId: b.ownerId });
                             }
                             break;
                         }
