@@ -212,9 +212,9 @@
         <div class="form-group" id="aiDifficultyGroup">
             <label for="aiDifficultySelect">AI 난이도 설정:</label>
             <select id="aiDifficultySelect">
+                <option value="very_easy">매우 쉬움 (매우 둔함)</option>
                 <option value="easy">쉬움 (반응 느림 / 낮은 명중률)</option>
-                <option value="medium" selected>보통 (일반 수준)</option>
-                <option value="hard">어려움 (빠른 반응 / 높은 명중률)</option>
+                <option value="hard" selected>어려움 (빠른 반응 / 높은 명중률)</option>
             </select>
         </div>
 
@@ -308,8 +308,8 @@ const WEAPONS = {
 };
 
 const AI_DIFFICULTY = {
+    very_easy: { delay: 1500, spread: 0.25, speedMult: 0.6 },
     easy: { delay: 900, spread: 0.15, speedMult: 0.8 },
-    medium: { delay: 400, spread: 0.08, speedMult: 1.0 },
     hard: { delay: 100, spread: 0.02, speedMult: 1.2 }
 };
 
@@ -319,7 +319,7 @@ let hostConn = null;
 let isHost = false;
 let selectedMode = 'br';
 let isMobile = false;
-let aiDifficulty = 'medium';
+let aiDifficulty = 'hard';
 
 let gameStarted = false;
 let gameEnded = false;
