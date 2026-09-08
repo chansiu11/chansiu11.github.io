@@ -2026,94 +2026,47 @@ function drawFogOfWar() {
     ctx.drawImage(maskCanvas, 0, 0);
 }
 
-function renderPlayer(p, isSelf = false) {
+function drawPlayer(p) {
     if (p.isDead || p.hp <= 0) return;
 
     ctx.save();
     ctx.translate(p.x, p.y);
+    ctx.rotate(p.angle);
 
+    // 총기 그리기
     if (p.weapon) {
-        ctx.save();
-        ctx.rotate(p.angle);
-        ctx.fillStyle = '#888';
-        ctx.fillRect(10, 3, 22, 5);
-        ctx.restore();
+        ctx.fillStyle = '#666';
+        ctx.fillRect(10, 5, 20, 6);
     }
 
+    // 캐릭터 본체
     ctx.beginPath();
-    ctx.arc(0, 0, 18, 0, Math.PI * 2);
-    ctx.fillStyle = isSelf ? '#00ffcc' : '#ff4444';
+    ctx.arc(0, 0, 20, 0, Math.PI * 2);
+    ctx.fillStyle = p.id === myPlayer.id ? '#00ffcc' : (p.id.startsWith('bot_') ? '#ff4444' : '#ffcc00');
     ctx.fill();
     ctx.lineWidth = 3;
-    ctx.strokeStyle = '#ffffff';
+    ctx.strokeStyle = '#000';
     ctx.stroke();
 
-    ctx.save();
-    ctx.rotate(p.angle);
-    ctx.fillStyle = '#333';
-    ctx.beginPath(); ctx.arc(10, -10, 5, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(10, 10, 5, 0, Math.PI * 2); ctx.fill();
+    // 방향 지표 (손/눈)
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(12, -8, 5, 0, Math.PI * 2);
+    ctx.arc(12, 8, 5, 0, Math.PI * 2);
+    ctx.fill();
+
     ctx.restore();
 
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 12px sans-serif';
+    // 닉네임 및 체력바
+    ctx.font = '12px sans-serif';
+    ctx.fillStyle = '#fff';
     ctx.textAlign = 'center';
-    ctx.fillText(p.name || '플레이어', 0, -28);
+    ctx.fillText(p.name, p.x, p.y - 32);
 
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillRect(-20, -24, 40, 5);
-    ctx.fillStyle = p.hp > 50 ? '#00ff00' : '#ff0000';
-    ctx.fillRect(-20, -24, (Math.max(0, p.hp) / (p.maxHp || 200)) * 40, 5);
-
-    ctx.restore();
-}
-
-function renderMapCanvas(targetCtx, mapW, mapH) {
-    targetCtx.fillStyle = '#1a1a1a';
-    targetCtx.fillRect(0, 0, mapW, mapH);
-
-    const scaleX = mapW / WORLD_SIZE;
-    const scaleY = mapH / WORLD_SIZE;
-
-    if (selectedMode === 'br') {
-        targetCtx.strokeStyle = '#ff0055';
-        targetCtx.lineWidth = 2;
-        targetCtx.beginPath();
-        targetCtx.arc(zone.x * scaleX, zone.y * scaleY, zone.radius * scaleX, 0, Math.PI * 2);
-        targetCtx.stroke();
-    }
-
-    targetCtx.fillStyle = '#444444';
-    obstacles.forEach(obs => {
-        targetCtx.fillRect(obs.x * scaleX, obs.y * scaleY, obs.w * scaleX, obs.h * scaleY);
-    });
-
-    droppedItems.forEach(item => {
-        targetCtx.fillStyle = ['ar', 'sniper', 'shotgun'].includes(item.type) ? '#ffcc00' : '#00ffcc';
-        targetCtx.fillRect(item.x * scaleX - 2, item.y * scaleY - 2, 4, 4);
-    });
-
-    const renderIcon = (p, color) => {
-        if (!p || p.isDead || p.hp <= 0) return;
-        targetCtx.fillStyle = color;
-        targetCtx.beginPath();
-        targetCtx.arc(p.x * scaleX, p.y * scaleY, 4, 0, Math.PI * 2);
-        targetCtx.fill();
-    };
-
-    renderIcon(myPlayer, '#00ffcc');
-    Object.values(remotePlayers).forEach(p => renderIcon(p, '#ff4444'));
-    aiBots.forEach(b => renderIcon(b, '#ffcc00'));
-}
-
-function renderMinimap() {
-    renderMapCanvas(mCtx, minimapCanvas.width, minimapCanvas.height);
-}
-
-function renderFullMap() {
-    if (document.getElementById('fullMapOverlay').style.display === 'flex') {
-        renderMapCanvas(fCtx, fullMapCanvas.width, fullMapCanvas.height);
-    }
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(p.x - 20, p.y - 27, 40, 5);
+    ctx.fillStyle = p.hp > 50 ? '#00ffcc' : '#ff4444';
+    ctx.fillRect(p.x - 20, p.y - 27, (p.hp / p.maxHp) * 40, 5);
 }
 
 function render() {
@@ -2122,112 +2075,161 @@ function render() {
     ctx.save();
     ctx.translate(canvas.width / 2 - camera.x, canvas.height / 2 - camera.y);
 
-    ctx.fillStyle = '#222222';
-    ctx.fillRect(0, 0, WORLD_SIZE, WORLD_SIZE);
-
-    ctx.strokeStyle = '#333333';
+    // 격자 배경
+    ctx.strokeStyle = '#222';
     ctx.lineWidth = 2;
     const gridSize = 100;
-    for (let x = 0; x <= WORLD_SIZE; x += gridSize) {
-        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, WORLD_SIZE); ctx.stroke();
+    const startX = Math.floor((camera.x - canvas.width / 2) / gridSize) * gridSize;
+    const endX = startX + canvas.width + gridSize * 2;
+    const startY = Math.floor((camera.y - canvas.height / 2) / gridSize) * gridSize;
+    const endY = startY + canvas.height + gridSize * 2;
+
+    for (let x = startX; x < endX; x += gridSize) {
+        ctx.beginPath(); ctx.moveTo(x, startY); ctx.lineTo(x, endY); ctx.stroke();
     }
-    for (let y = 0; y <= WORLD_SIZE; y += gridSize) {
-        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(0, WORLD_SIZE); ctx.stroke();
+    for (let y = startY; y < endY; y += gridSize) {
+        ctx.beginPath(); ctx.moveTo(startX, y); ctx.lineTo(endX, y); ctx.stroke();
     }
 
+    // 맵 경계 선
+    ctx.strokeStyle = '#ff0055';
+    ctx.lineWidth = 5;
+    ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
+
+    // 자기장 표시 (배틀로얄)
     if (selectedMode === 'br') {
-        ctx.save();
-        ctx.fillStyle = 'rgba(255, 0, 85, 0.15)';
-        ctx.strokeStyle = '#ff0055';
-        ctx.lineWidth = 6;
         ctx.beginPath();
         ctx.arc(zone.x, zone.y, zone.radius, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.strokeStyle = 'rgba(0, 200, 255, 0.8)';
+        ctx.lineWidth = 4;
         ctx.stroke();
-        ctx.restore();
+        ctx.fillStyle = 'rgba(0, 150, 255, 0.08)';
+        ctx.fill();
     }
 
-    const now = Date.now();
-    soundEvents.forEach(snd => {
-        const elapsed = now - snd.time;
-        const maxDuration = snd.type === 'gunshot' ? 1200 : 300;
-        const progress = elapsed / maxDuration;
-        const currentRadius = snd.radius * progress;
-        const alpha = (1 - progress) * 0.4;
-
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(snd.x, snd.y, currentRadius, 0, Math.PI * 2);
-        ctx.strokeStyle = snd.type === 'gunshot' ? `rgba(255, 68, 68, ${alpha})` : `rgba(255, 255, 255, ${alpha})`;
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        ctx.restore();
-    });
-
+    // 바닥 아이템
     droppedItems.forEach(item => {
-        ctx.save();
-        ctx.translate(item.x, item.y);
-        ctx.fillStyle = '#000';
-        ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI * 2); ctx.fill();
-        ctx.lineWidth = 2;
-
-        if (['ar', 'sniper', 'shotgun'].includes(item.type)) {
-            ctx.strokeStyle = '#ffcc00'; ctx.stroke();
-            ctx.fillStyle = '#ffcc00';
-            ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.fillText(item.type.toUpperCase(), 0, 0);
-        } else if (item.type.startsWith('ammo_')) {
-            ctx.strokeStyle = '#00ffcc'; ctx.stroke();
-            ctx.fillStyle = '#00ffcc';
-            ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.fillText('AMMO', 0, 0);
-        } else {
-            ctx.strokeStyle = '#00ffcc'; ctx.stroke();
-            ctx.fillStyle = '#00ffcc';
-            ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.fillText(item.type, 0, 0);
-        }
-        ctx.restore();
+        ctx.beginPath();
+        ctx.arc(item.x, item.y, 8, 0, Math.PI * 2);
+        ctx.fillStyle = item.type.startsWith('ammo_') ? '#ffcc00' : (SCOPES[item.type] ? '#00ffff' : '#ff00ff');
+        ctx.fill();
+        ctx.font = '10px sans-serif';
+        ctx.fillStyle = '#fff';
+        ctx.textAlign = 'center';
+        ctx.fillText(item.type.toUpperCase(), item.x, item.y - 12);
     });
 
-    ctx.fillStyle = '#444455';
-    ctx.strokeStyle = '#666688';
+    // 장애물
+    ctx.fillStyle = '#333';
+    ctx.strokeStyle = '#555';
     ctx.lineWidth = 3;
     obstacles.forEach(obs => {
         ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
         ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
     });
 
+    // 피 이펙트
     bloodParticles.forEach(p => {
-        ctx.save();
-        ctx.fillStyle = `rgba(200, 0, 0, ${p.alpha})`;
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(200, 0, 0, ${p.alpha})`;
         ctx.fill();
-        ctx.restore();
     });
 
+    // 플레이어 렌더링
+    if (myPlayer.hp > 0 && !myPlayer.isDead) drawPlayer(myPlayer);
+    Object.values(remotePlayers).forEach(p => drawPlayer(p));
+    aiBots.forEach(b => drawPlayer(b));
+
+    // 총알
+    ctx.fillStyle = '#ffeb3b';
     bullets.forEach(b => {
-        ctx.strokeStyle = '#ffcc00';
-        ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.moveTo(b.prevX, b.prevY);
-        ctx.lineTo(b.x, b.y);
-        ctx.stroke();
+        ctx.arc(b.x, b.y, 3, 0, Math.PI * 2);
+        ctx.fill();
     });
 
-    renderPlayer(myPlayer, true);
-    Object.values(remotePlayers).forEach(p => renderPlayer(p, false));
-    aiBots.forEach(b => renderPlayer(b, false));
+    // 소리 파동 이펙트
+    const now = Date.now();
+    soundEvents.forEach(snd => {
+        const elapsed = now - snd.time;
+        const maxTime = snd.type === 'gunshot' ? 1200 : 300;
+        const progress = elapsed / maxTime;
+        if (progress <= 1) {
+            ctx.beginPath();
+            ctx.arc(snd.x, snd.y, snd.radius * progress, 0, Math.PI * 2);
+            ctx.strokeStyle = snd.type === 'gunshot' ? `rgba(255, 50, 50, ${1 - progress})` : `rgba(255, 255, 255, ${1 - progress})`;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+    });
 
     ctx.restore();
 
+    // 시야 안개(Fog of War) 적용
     drawFogOfWar();
-    renderMinimap();
-    renderFullMap();
+
+    // 미니맵 / 전체맵 드로잉
+    renderMap(mCtx, minimapCanvas.width, minimapCanvas.height, true);
+    if (document.getElementById('fullMapOverlay').style.display === 'flex') {
+        renderMap(fCtx, fullMapCanvas.width, fullMapCanvas.height, false);
+    }
+}
+
+function renderMap(mapCtx, width, height, isMinimap) {
+    mapCtx.clearRect(0, 0, width, height);
+
+    let scale, offX, offY;
+    if (isMinimap) {
+        scale = width / 1200;
+        offX = width / 2 - camera.x * scale;
+        offY = height / 2 - camera.y * scale;
+
+        mapCtx.save();
+        mapCtx.beginPath();
+        mapCtx.arc(width / 2, height / 2, width / 2, 0, Math.PI * 2);
+        mapCtx.clip();
+    } else {
+        scale = width / WORLD_SIZE;
+        offX = 0; offY = 0;
+    }
+
+    mapCtx.fillStyle = '#111';
+    mapCtx.fillRect(0, 0, width, height);
+
+    // 자기장
+    if (selectedMode === 'br') {
+        mapCtx.beginPath();
+        mapCtx.arc(zone.x * scale + offX, zone.y * scale + offY, zone.radius * scale, 0, Math.PI * 2);
+        mapCtx.strokeStyle = '#00ccff';
+        mapCtx.lineWidth = 2;
+        mapCtx.stroke();
+    }
+
+    // 장애물
+    mapCtx.fillStyle = '#444';
+    obstacles.forEach(o => {
+        mapCtx.fillRect(o.x * scale + offX, o.y * scale + offY, o.w * scale, o.h * scale);
+    });
+
+    // 플레이어 마커
+    const drawMarker = (p, color) => {
+        if (p.isDead || p.hp <= 0) return;
+        mapCtx.beginPath();
+        mapCtx.arc(p.x * scale + offX, p.y * scale + offY, isMinimap ? 4 : 3, 0, Math.PI * 2);
+        mapCtx.fillStyle = color;
+        mapCtx.fill();
+    };
+
+    if (myPlayer.hp > 0 && !myPlayer.isDead) drawMarker(myPlayer, '#00ffcc');
+    Object.values(remotePlayers).forEach(p => drawMarker(p, '#ffcc00'));
+    aiBots.forEach(b => drawMarker(b, '#ff4444'));
+
+    if (isMinimap) mapCtx.restore();
 }
 
 function gameLoop() {
+    if (!gameStarted) return;
     update();
     render();
     requestAnimationFrame(gameLoop);
