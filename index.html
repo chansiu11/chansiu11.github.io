@@ -2132,7 +2132,25 @@ function render() {
         ctx.stroke();
     });
 
-    if (myPlayer.hp > 0 && !myPlayer.isDead) drawPlayer(myPlayer);
+    if (myPlayer.hp > 0 && !myPlayer.isDead) {
+        drawPlayer(myPlayer);
+
+        // [추가된 부분] 모바일 환경 조준 패드 사용 시 발사 위치(총구 방향)에 조준점 표시
+        if (isMobile && (mobileAimVec.x !== 0 || mobileAimVec.y !== 0)) {
+            const crosshairDist = 120; // 플레이어로부터 떨어진 거리
+            const crossX = myPlayer.x + Math.cos(myPlayer.angle) * crosshairDist;
+            const crossY = myPlayer.y + Math.sin(myPlayer.angle) * crosshairDist;
+
+            ctx.strokeStyle = '#ff4444';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(crossX, crossY, 10, 0, Math.PI * 2);
+            ctx.moveTo(crossX - 14, crossY); ctx.lineTo(crossX + 14, crossY);
+            ctx.moveTo(crossX, crossY - 14); ctx.lineTo(crossX, crossY + 14);
+            ctx.stroke();
+        }
+    }
+
     Object.values(remotePlayers).forEach(p => drawPlayer(p));
     aiBots.forEach(b => drawPlayer(b));
 
@@ -2170,9 +2188,6 @@ function renderMinimap() {
         mCtx.arc(zone.x * scale, zone.y * scale, zone.radius * scale, 0, Math.PI * 2);
         mCtx.stroke();
     }
-
-    const minimapCenterX = myPlayer.x * scale;
-    const minimapCenterY = myPlayer.y * scale;
 
     soundEvents.forEach(snd => {
         const dx = snd.x - myPlayer.x;
