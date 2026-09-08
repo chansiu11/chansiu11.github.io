@@ -702,8 +702,11 @@ function handleNetworkData(data) {
                         remotePlayers[p.id] = p;
                         activeIds[p.id] = true;
                     } else {
-                        myPlayer.hp = p.hp;
-                        myPlayer.isDead = p.isDead;
+                        // 서버로부터 내 생존/부활 여부가 반영될 때, 서버가 이미 살아났다면 내 로컬 사망상태도 해제
+                        if (!p.isDead && myPlayer.isDead && !isRespawning) {
+                            myPlayer.isDead = false;
+                            myPlayer.hp = p.hp;
+                        }
                         myPlayer.kills = p.kills || 0;
                         myPlayer.deaths = p.deaths || 0;
                     }
@@ -736,7 +739,7 @@ function handleNetworkData(data) {
     } else if(data.type === 'DAMAGE' && data.targetId === myPlayer.id) {
         myPlayer.hp = data.newHp;
         triggerDamageEffect();
-        if(myPlayer.hp <= 0) {
+        if(myPlayer.hp <= 0 && !myPlayer.isDead) {
             handleMyDeath(data.attackerId);
         }
     } else if(data.type === 'GAME_OVER') {
@@ -748,14 +751,42 @@ function handleNetworkData(data) {
         } else if (remotePlayers[data.killerId]) {
             remotePlayers[data.killerId].kills = (remotePlayers[data.killerId].kills || 0) + 1;
         }
-    } else if(data.type === 'RESPAWN_REMOTE' && isHost) {
-        const targetP = remotePlayers[data.playerId];
-        if (targetP) {
-            const safePos = getSafeSpawnPos(100, WORLD_SIZE);
-            targetP.x = safePos.x;
-            targetP.y = safePos.y;
-            targetP.hp = targetP.maxHp;
-            targetP.isDead = false;
+    } else if(data.type === 'RESPAWN_REMAPPED') {
+        // 호스트로부터 부활 승인을 받았을 때 처리 (클라이언트 전용)
+        if (data.playerId === myPlayer.id && isRespawning) {
+            myPlayer.x = data.x;
+            myPlayer.y = data.y;
+            myPlayer.hp = myPlayer.maxHp;
+            myPlayer.isDead = false;
+            isRespawning = false;
+            isSpectating = false;
+            spectateTarget = null;
+
+            document.getElementById('statusHUD').style.display = 'block';
+            document.getElementById('spectateHUD').style.display = 'none';
+            if (isMobile) document.getElementById('mobileControls').style.display = 'block';
+            updateHUD();
+        }
+    } else if(data.type === 'RESPAWN_REMOTE') {
+        if (isHost) {
+            const targetP = remotePlayers[data.playerId];
+            if (targetP) {
+                const safePos = getSafeSpawnPos(100, WORLD_SIZE);
+                targetP.x = safePos.x;
+                targetP.y = safePos.y;
+                targetP.hp = targetP.maxHp;
+                targetP.isDead = false;
+                
+                // 클라이언트에게 부활 위치 전송
+                if(connections[data.peerId]) {
+                    connections[data.peerId].send({
+                        type: 'RESPAWN_REMAPPED',
+                        playerId: targetP.id,
+                        x: safePos.x,
+                        y: safePos.y
+                    });
+                }
+            }
         }
     } else if(data.type === 'PICKUP_ITEM') {
         droppedItems = droppedItems.filter(item => item.id !== data.itemId);
@@ -769,6 +800,7 @@ function handleNetworkData(data) {
 }
 
 function handleMyDeath(killerId) {
+    if (myPlayer.isDead) return;
     myPlayer.hp = 0;
     myPlayer.isDead = true;
     myPlayer.deaths++;
@@ -839,7 +871,10 @@ function respawnPlayer() {
     if (isMobile) document.getElementById('mobileControls').style.display = 'block';
 
     if (!isHost) {
-        broadcastData({ type: 'RESPAWN_REMOTE', playerId: myPlayer.id });
+        // 호스트에게 내 peer id와 함께 부활 요청 전달
+        if (hostConn && hostConn.open) {
+            hostConn.send({ type: 'RESPAWN_REMOTE', playerId: myPlayer.id, peerId: peer.id });
+        }
     }
 
     updateHUD();
@@ -1437,13 +1472,22 @@ function respawnBot(bot) {
     }, 5000);
 }
 
-function respawnRemotePlayer(p) {
+function respawnRemotePlayer(p, peerId) {
     setTimeout(() => {
         const safePos = getSafeSpawnPos(100, WORLD_SIZE);
         p.x = safePos.x;
         p.y = safePos.y;
         p.hp = p.maxHp;
         p.isDead = false;
+        
+        if (isHost && peerId && connections[peerId]) {
+            connections[peerId].send({
+                type: 'RESPAWN_REMAPPED',
+                playerId: p.id,
+                x: safePos.x,
+                y: safePos.y
+            });
+        }
         updateHUD();
     }, 5000);
 }
@@ -1685,7 +1729,7 @@ function update() {
         if(Math.hypot(myPlayer.x - zone.x, myPlayer.y - zone.y) > zone.radius) {
             myPlayer.hp -= 0.15;
             triggerDamageEffect();
-            if(myPlayer.hp <= 0) {
+            if(myPlayer.hp <= 0 && !myPlayer.isDead) {
                 handleMyDeath(null);
             }
         }
@@ -1869,18 +1913,26 @@ function update() {
 
                             if(targetP.id === myPlayer.id) {
                                 triggerDamageEffect();
-                                if(myPlayer.hp <= 0) {
+                                if(myPlayer.hp <= 0 && !myPlayer.isDead) {
                                     handleMyDeath(b.ownerId);
                                 }
                             } else {
-                                if (targetP.hp <= 0) {
+                                if (targetP.hp <= 0 && !targetP.isDead) {
                                     targetP.hp = 0;
                                     targetP.isDead = true; 
                                     targetP.deaths = (targetP.deaths || 0) + 1;
                                     addKill(b.ownerId);
 
                                     if (selectedMode === 'normal') {
-                                        respawnRemotePlayer(targetP); 
+                                        // 방장 측에서 원격 플레이어 부활 타이머 구동
+                                        let connectedPeerId = null;
+                                        for(let pKey in connections) {
+                                            if(connections[pKey].playerId === targetP.id) {
+                                                connectedPeerId = pKey;
+                                                break;
+                                            }
+                                        }
+                                        respawnRemotePlayer(targetP, connectedPeerId); 
                                     }
                                 }
                                 broadcastData({ type: 'DAMAGE', targetId: targetP.id, newHp: targetP.hp, attackerId: b.ownerId });
@@ -2135,9 +2187,8 @@ function render() {
     if (myPlayer.hp > 0 && !myPlayer.isDead) {
         drawPlayer(myPlayer);
 
-        // [추가된 부분] 모바일 환경 조준 패드 사용 시 발사 위치(총구 방향)에 조준점 표시
         if (isMobile && (mobileAimVec.x !== 0 || mobileAimVec.y !== 0)) {
-            const crosshairDist = 120; // 플레이어로부터 떨어진 거리
+            const crosshairDist = 120;
             const crossX = myPlayer.x + Math.cos(myPlayer.angle) * crosshairDist;
             const crossY = myPlayer.y + Math.sin(myPlayer.angle) * crosshairDist;
 
