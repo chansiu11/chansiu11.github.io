@@ -24,7 +24,7 @@
             border: 1px solid #333;
         }
 
-        #ui, #waitingRoom, #settingsModal {
+        #ui, #waitingRoom, #settingsModal, #weaponSelectModal {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             background: rgba(20, 20, 20, 0.95); padding: 25px; border-radius: 12px;
             display: flex; flex-direction: column; gap: 12px; align-items: center;
@@ -34,9 +34,8 @@
             background: rgba(15, 15, 15, 0.95); padding: 30px;
             display: none; box-shadow: 0 0 25px rgba(0,255,200,0.3); width: 420px; text-align: center;
         }
-        #settingsModal {
-            display: none; z-index: 100; border: 2px solid #00ffcc; width: 380px;
-        }
+        #settingsModal { display: none; z-index: 100; border: 2px solid #00ffcc; width: 380px; }
+        #weaponSelectModal { display: none; z-index: 90; border: 2px solid #ffcc00; width: 400px; text-align: center; }
 
         input[type="text"], select, input[type="number"], input[type="range"] {
             padding: 10px; font-size: 15px; border-radius: 6px; border: 1px solid #444;
@@ -56,6 +55,12 @@
             position: absolute; top: 20px; left: 20px; font-size: 14px; font-weight: bold;
             text-shadow: 2px 2px 4px #000; z-index: 20; display: none; background: rgba(0,0,0,0.6); padding: 12px; border-radius: 8px;
             pointer-events: none;
+        }
+        #spawnSelectHUD {
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            font-size: 20px; font-weight: bold; color: #00ffcc; text-shadow: 2px 2px 4px #000;
+            z-index: 35; display: none; background: rgba(0,0,0,0.8); padding: 12px 24px; border-radius: 8px;
+            pointer-events: none; text-align: center; border: 2px solid #00ffcc;
         }
         #spectateHUD {
             position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
@@ -77,14 +82,14 @@
         }
         #inventory {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 500px; height: 380px; background: rgba(20, 20, 20, 0.95);
+            width: 500px; height: 480px; background: rgba(20, 20, 20, 0.95);
             border: 2px solid #00ffcc; border-radius: 10px; z-index: 60; display: none;
-            padding: 20px; flex-direction: column; gap: 12px;
+            padding: 20px; flex-direction: column; gap: 10px; overflow-y: auto;
         }
-        .inv-section { border: 1px solid #444; padding: 10px; border-radius: 6px; background: #1a1a1a; }
-        .inv-grid { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+        .inv-section { border: 1px solid #444; padding: 8px; border-radius: 6px; background: #1a1a1a; }
+        .inv-grid { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
         .inv-item {
-            padding: 8px 12px; background: #333; border: 1px solid #666; border-radius: 4px;
+            padding: 6px 10px; background: #333; border: 1px solid #666; border-radius: 4px;
             cursor: pointer; font-size: 13px;
         }
         .inv-item:hover { background: #00ffcc; color: #000; }
@@ -240,8 +245,8 @@
             </div>
 
             <div class="form-group" id="aiCountGroup">
-                <label for="aiCountInput">AI 봇 수 (최대 30):</label>
-                <input type="number" id="aiCountInput" value="19" min="0" max="30" onchange="onHostSettingsChange()" oninput="onHostSettingsChange()">
+                <label for="aiCountInput">AI 봇 수 (최대 <span id="maxAiText">100</span>):</label>
+                <input type="number" id="aiCountInput" value="19" min="0" max="100" onchange="onHostSettingsChange()" oninput="onHostSettingsChange()">
             </div>
         </div>
 
@@ -256,18 +261,34 @@
         <p id="guestWaitText" style="color:#00ffcc; display:none; margin-top:15px;">방장이 게임을 시작하기를 기다리는 중...</p>
     </div>
 
+    <div id="weaponSelectModal">
+        <h2 style="color:#ffcc00; margin-top:0;">🔫 총기 선택 (10초)</h2>
+        <p>사용할 주 무기를 선택하세요:</p>
+        <div style="display:flex; flex-direction:column; gap:10px; width:100%;">
+            <button onclick="selectDeathmatchWeapon('ar')">돌격소총 (AR)</button>
+            <button onclick="selectDeathmatchWeapon('shotgun')">샷건 (Shotgun)</button>
+            <button onclick="selectDeathmatchWeapon('sniper')">스나이퍼 (Sniper)</button>
+        </div>
+        <p style="margin-top:15px; font-weight:bold; color:#00ffcc;">남은 시간: <span id="weaponSelectTimer">10</span>초</p>
+    </div>
+
     <div id="victoryOverlay">
         <h1 id="victoryTitle" style="font-size: 36px; color: #ffcc00; margin: 0;">🏆 승리! 🏆</h1>
         <div id="rankList"></div>
         <p style="font-size: 16px; color: #fff; margin-top: 15px;">5초 후 메인 메뉴로 이동합니다...</p>
     </div>
 
+    <div id="spawnSelectHUD">
+        📍 맵을 클릭하여 스폰 위치를 선택하세요! (<span id="spawnTimer">10</span>초)
+    </div>
+
     <div id="statusHUD">
         [모드]: <span id="hudGameMode" style="color:#00ffcc;">배틀로얄</span> | 
         [생존 인원]: <span id="hudAliveCount" style="color:#ff4444; font-size: 16px;">20</span> 명 <br>
         [킬]: <span id="hudKills" style="color:#00ffcc;">0</span> | [데스]: <span id="hudDeaths" style="color:#ff4444;">0</span> <br>
-        <span id="hudZoneContainer">[자기장 축소까지]: <span id="hudZoneTimer" style="color:#ffcc00;">60</span> 초<br></span>
+        <span id="hudZoneContainer">[자기장 단계]: <span id="hudZoneStage" style="color:#00ffcc;">1단계</span> | [축소까지]: <span id="hudZoneTimer" style="color:#ffcc00;">60</span> 초<br></span>
         [무기]: <span id="hudWeapon" style="color:#00ffcc;">맨손</span> | [탄약]: <span id="hudAmmo" style="color:#ffcc00;">- / -</span> <br>
+        [머리 갑바]: <span id="hudHelmet" style="color:#00ffcc;">없음</span> | [몸 갑바]: <span id="hudArmor" style="color:#00ffcc;">없음</span> <br>
         [장착 스코프]: <span id="hudScope" style="color:#ffcc00;">없음</span> <br>
         <span id="hudControlsHint">[조작법]: Shift(달리기) / Ctrl(은신) / E(줍기) / R(장전) / Tab(가방)</span>
     </div>
@@ -305,6 +326,14 @@
             <div id="equippedWeaponArea" style="margin-top:5px; color:#aaa;">맨손</div>
         </div>
         <div class="inv-section">
+            <strong>현재 장착 방어구:</strong>
+            <div id="equippedArmorArea" style="margin-top:5px; color:#aaa;">머리: 없음 | 몸: 없음</div>
+        </div>
+        <div class="inv-section">
+            <strong>보유 중인 방어구:</strong>
+            <div id="armorList" class="inv-grid"></div>
+        </div>
+        <div class="inv-section">
             <strong>현재 장착 스코프:</strong>
             <div id="equippedScopeArea" style="margin-top:5px; color:#aaa;">없음</div>
         </div>
@@ -315,8 +344,8 @@
         <button onclick="toggleInventory()" style="margin-top:auto;">닫기 (Tab)</button>
     </div>
 
-    <div id="fullMapOverlay" onclick="toggleFullMap()">
-        <h3 style="margin: 10px 0 5px 0; color:#00ffcc;">전체 맵 (터치하여 닫기)</h3>
+    <div id="fullMapOverlay" onclick="handleMapClick(event)">
+        <h3 style="margin: 10px 0 5px 0; color:#00ffcc;">전체 맵 (<span id="mapNoticeText">터치하여 닫기</span>)</h3>
         <canvas id="fullMapCanvas" width="500" height="500"></canvas>
     </div>
 
@@ -325,7 +354,7 @@
 </div>
 
 <script>
-let WORLD_SIZE = 8000;
+let WORLD_SIZE = 12000; // 배틀로얄 맵 확장을 위해 기존 8000에서 12000으로 증대
 
 const SCOPES = {
     '1x': { name: "1배율 (레드닷)", viewOffset: 300 },
@@ -333,6 +362,15 @@ const SCOPES = {
     '3x': { name: "3배율", viewOffset: 850 },
     '4x': { name: "4배율", viewOffset: 1200 },
     '8x': { name: "8배율", viewOffset: 1800 }
+};
+
+const ARMORS = {
+    'helmet_1': { name: "1레벨 머리갑바", type: "helmet", reduction: 0.15 },
+    'helmet_2': { name: "2레벨 머리갑바", type: "helmet", reduction: 0.30 },
+    'helmet_3': { name: "3레벨 머리갑바", type: "helmet", reduction: 0.50 },
+    'body_1': { name: "1레벨 몸갑바", type: "body", reduction: 0.15 },
+    'body_2': { name: "2레벨 몸갑바", type: "body", reduction: 0.30 },
+    'body_3': { name: "3레벨 몸갑바", type: "body", reduction: 0.50 }
 };
 
 const WEAPONS = {
@@ -365,19 +403,32 @@ let isRespawning = false;
 let respawnTimerVal = 5;
 let respawnInterval = null;
 
-// 연속 킬(멀티킬) 관련 변수
-let killStreakCount = 0;
-let killStreakTimer = null;
+// 스폰 선택 및 자기장 단계 관리
+let isSpawnSelecting = false;
+let hasSelectedSpawn = false;
+let spawnTimerVal = 10;
+let spawnTimerInterval = null;
 
+let zoneStage = 1;
+let maxZoneStages = 5;
 let zoneTimer = 60;
 let isZoneShrinking = false;
 let zoneTimerInterval = null;
+let targetZone = { x: WORLD_SIZE / 2, y: WORLD_SIZE / 2, radius: WORLD_SIZE * 0.7 };
 const zone = {
     x: WORLD_SIZE / 2,
     y: WORLD_SIZE / 2,
     radius: WORLD_SIZE * 0.7,
-    shrinkRate: 4.0
+    shrinkRate: 3.0
 };
+
+// 데스매치 총기 선택 관리
+let weaponSelectTimerVal = 10;
+let weaponSelectInterval = null;
+
+// 연속 킬 관련 변수
+let killStreakCount = 0;
+let killStreakTimer = null;
 
 const gameFrame = document.getElementById('gameFrame');
 const canvas = document.getElementById('gameCanvas');
@@ -406,7 +457,9 @@ const myPlayer = {
     name: '플레이어', weapon: null,
     clipAmmo: 0, reserveAmmo: 0, isReloading: false,
     equippedScope: null,
-    inventory: { scopes: [] },
+    equippedHelmet: null,
+    equippedBodyArmor: null,
+    inventory: { scopes: [], armors: [] },
     isAiming: false, isShooting: false, lastShootTime: 0,
     isMoving: false, movementMode: 'walk'
 };
@@ -512,10 +565,20 @@ function getSafeSpawnPos(padding = 200, bound = WORLD_SIZE) {
     return { x: safeX, y: safeY };
 }
 
+function getEdgeRandomSpawnPos(padding = 400, bound = WORLD_SIZE) {
+    let side = Math.floor(Math.random() * 4);
+    let x, y;
+    if(side === 0) { x = Math.random() * bound; y = padding; }
+    else if(side === 1) { x = bound - padding; y = Math.random() * bound; }
+    else if(side === 2) { x = Math.random() * bound; y = bound - padding; }
+    else { x = padding; y = Math.random() * bound; }
+    return { x: Math.max(100, Math.min(bound - 100, x)), y: Math.max(100, Math.min(bound - 100, y)) };
+}
+
 function generateMapData(mode) {
-    const size = mode === 'normal' ? 2400 : 8000;
-    const obsCount = mode === 'normal' ? 25 : 180;
-    const itemCount = mode === 'normal' ? 80 : 350;
+    const size = mode === 'normal' ? 2400 : 12000;
+    const obsCount = mode === 'normal' ? 25 : 250;
+    const itemCount = mode === 'normal' ? 80 : 500;
 
     const newObstacles = [];
     for (let i = 0; i < obsCount; i++) {
@@ -526,7 +589,13 @@ function generateMapData(mode) {
         newObstacles.push({ x, y, w, h });
     }
 
-    const types = ['ar', 'sniper', 'shotgun', '1x', '2x', '3x', '4x', '8x', 'ammo_ar', 'ammo_sniper', 'ammo_shotgun'];
+    const types = [
+        'ar', 'sniper', 'shotgun', 
+        '1x', '2x', '3x', '4x', '8x', 
+        'ammo_ar', 'ammo_sniper', 'ammo_shotgun',
+        'helmet_1', 'helmet_2', 'helmet_3',
+        'body_1', 'body_2', 'body_3'
+    ];
     const newItems = [];
     for (let i = 0; i < itemCount; i++) {
         newItems.push({
@@ -557,12 +626,29 @@ function onHostSettingsChange() {
     });
 }
 
+function updateModeSettingsUI() {
+    const mode = document.getElementById('gameModeSelect').value;
+    const aiInput = document.getElementById('aiCountInput');
+    const maxText = document.getElementById('maxAiText');
+    if(mode === 'normal') {
+        aiInput.max = "20";
+        if(parseInt(aiInput.value) > 20) aiInput.value = "20";
+        maxText.innerText = "20";
+    } else {
+        aiInput.max = "100";
+        maxText.innerText = "100";
+    }
+}
+document.getElementById('gameModeSelect').addEventListener('change', updateModeSettingsUI);
+
 function createRoom() {
     const nick = document.getElementById('nicknameInput').value.trim();
     if(nick) myPlayer.name = nick;
     selectedMode = document.getElementById('gameModeSelect').value;
     isMobile = document.getElementById('platformSelect').value === 'mobile';
     isHost = true;
+
+    updateModeSettingsUI();
 
     const code = generateShortId();
     document.getElementById('displayRoomCode').innerText = code;
@@ -651,12 +737,10 @@ function broadcastData(data) {
     }
 }
 
-// 킬 알림 및 연속 처치(더블킬 등) 효과 함수
 function showKillNotification() {
     killStreakCount++;
     if (killStreakTimer) clearTimeout(killStreakTimer);
 
-    // 5초 이내에 추가 킬을 하면 연속 킬 유지, 지나면 초기화
     killStreakTimer = setTimeout(() => {
         killStreakCount = 0;
     }, 5000);
@@ -697,7 +781,7 @@ function addKill(killerId) {
     if (killerId === myPlayer.id) {
         myPlayer.kills++;
         updateHUD();
-        showKillNotification(); // 내 플레이어 킬 시 알림 호출
+        showKillNotification();
     } else if (remotePlayers[killerId]) {
         remotePlayers[killerId].kills = (remotePlayers[killerId].kills || 0) + 1;
     } else {
@@ -747,6 +831,9 @@ function handleNetworkData(data) {
         if(!isHost) {
             bullets = data.bullets || [];
             zone.radius = data.zoneRadius;
+            zone.x = data.zoneX;
+            zone.y = data.zoneY;
+            zoneStage = data.zoneStage;
             droppedItems = data.items || droppedItems;
             
             let activeIds = {};
@@ -818,6 +905,10 @@ function handleNetworkData(data) {
             document.getElementById('spectateHUD').style.display = 'none';
             if (isMobile) document.getElementById('mobileControls').style.display = 'block';
             updateHUD();
+
+            if(selectedMode === 'normal') {
+                openDeathmatchWeaponModal();
+            }
         }
     } else if(data.type === 'RESPAWN_REMOTE') {
         if (isHost) {
@@ -857,6 +948,18 @@ function handleMyDeath(killerId) {
     myPlayer.deaths++;
     if (killerId) {
         addKill(killerId);
+
+        // 데스매치 적 처치 시 보상 수급
+        if(selectedMode === 'normal') {
+            if(killerId === myPlayer.id) {
+                giveDeathmatchKillAmmo(myPlayer);
+            } else if(remotePlayers[killerId]) {
+                giveDeathmatchKillAmmo(remotePlayers[killerId]);
+            } else {
+                const bot = aiBots.find(b => b.id === killerId);
+                if(bot) giveDeathmatchKillAmmo(bot);
+            }
+        }
     }
     if (selectedMode === 'normal') {
         startRespawnTimer(killerId);
@@ -864,6 +967,14 @@ function handleMyDeath(killerId) {
         startSpectating(killerId);
     }
     updateHUD();
+}
+
+function giveDeathmatchKillAmmo(p) {
+    if(p.weapon) {
+        const ammoAdd = WEAPONS[p.weapon].maxClip * 2;
+        p.reserveAmmo += ammoAdd;
+        if(p === myPlayer) updateHUD();
+    }
 }
 
 function startRespawnTimer(killerId) {
@@ -928,6 +1039,10 @@ function respawnPlayer() {
     }
 
     updateHUD();
+
+    if(selectedMode === 'normal') {
+        openDeathmatchWeaponModal();
+    }
 }
 
 function startSpectating(killerId) {
@@ -965,13 +1080,15 @@ function findNextSpectateTarget() {
 
 function hostStartGame() {
     const includeAi = document.getElementById('aiToggle').value === 'true';
-    const aiCount = parseInt(document.getElementById('aiCountInput').value) || 0;
+    let aiCount = parseInt(document.getElementById('aiCountInput').value) || 0;
     aiDifficulty = document.getElementById('aiDifficultySelect').value;
 
     if (selectedMode === 'normal') {
         WORLD_SIZE = 2400; 
+        if(aiCount > 20) aiCount = 20;
     } else {
-        WORLD_SIZE = 8000;
+        WORLD_SIZE = 12000;
+        if(aiCount > 100) aiCount = 100;
     }
     zone.x = WORLD_SIZE / 2;
     zone.y = WORLD_SIZE / 2;
@@ -1000,8 +1117,14 @@ function hostStartGame() {
 function spawnAIBots(count) {
     aiBots.length = 0;
     for (let i = 0; i < count; i++) {
-        const spawnPos = getSafeSpawnPos(100, WORLD_SIZE);
-        aiBots.push({
+        let spawnPos;
+        if(selectedMode === 'br') {
+            spawnPos = getEdgeRandomSpawnPos(500, WORLD_SIZE);
+        } else {
+            spawnPos = getSafeSpawnPos(100, WORLD_SIZE);
+        }
+        
+        const botObj = {
             id: 'bot_' + i,
             x: spawnPos.x,
             y: spawnPos.y,
@@ -1011,12 +1134,24 @@ function spawnAIBots(count) {
             name: `AI 봇_${i+1}`,
             weapon: null, clipAmmo: 0, reserveAmmo: 100,
             equippedScope: null,
+            equippedHelmet: null,
+            equippedBodyArmor: null,
             lastShootTime: 0,
             targetItem: null,
             firstSeenTime: null,
             investigateTarget: null,
             movementMode: 'walk'
-        });
+        };
+
+        if(selectedMode === 'normal') {
+            const wKeys = ['ar', 'shotgun', 'sniper'];
+            const wType = wKeys[Math.floor(Math.random() * wKeys.length)];
+            botObj.weapon = wType;
+            botObj.clipAmmo = WEAPONS[wType].maxClip;
+            botObj.reserveAmmo = WEAPONS[wType].maxClip * 4;
+        }
+
+        aiBots.push(botObj);
     }
 }
 
@@ -1028,25 +1163,23 @@ function startGame() {
     if (selectedMode === 'normal') {
         WORLD_SIZE = 2400; 
     } else {
-        WORLD_SIZE = 8000;
+        WORLD_SIZE = 12000;
     }
     zone.x = WORLD_SIZE / 2;
     zone.y = WORLD_SIZE / 2;
     zone.radius = WORLD_SIZE * 0.7;
 
-    const safePos = getSafeSpawnPos(100, WORLD_SIZE);
-    myPlayer.x = safePos.x;
-    myPlayer.y = safePos.y;
     myPlayer.hp = myPlayer.maxHp;
     myPlayer.isDead = false;
     myPlayer.kills = 0;
     myPlayer.deaths = 0;
+    myPlayer.weapon = null;
+    myPlayer.equippedHelmet = null;
+    myPlayer.equippedBodyArmor = null;
+    myPlayer.inventory = { scopes: [], armors: [] };
     isSpectating = false;
     isRespawning = false;
     gameEnded = false;
-
-    camera.x = myPlayer.x;
-    camera.y = myPlayer.y;
 
     if (isMobile) {
         document.getElementById('mobileControls').style.display = 'block';
@@ -1066,27 +1199,150 @@ function startGame() {
     canvas.style.display = 'block';
     minimapCanvas.style.display = 'block';
     gameStarted = true;
-    
-    if (selectedMode === 'br') {
-        zoneTimer = 60;
-        isZoneShrinking = false;
-        if(zoneTimerInterval) clearInterval(zoneTimerInterval);
-        zoneTimerInterval = setInterval(() => {
-            if(!gameStarted || gameEnded) return;
-            if(zoneTimer > 0) {
-                zoneTimer--;
-                document.getElementById('hudZoneTimer').innerText = zoneTimer;
-            } else {
-                isZoneShrinking = true;
-                document.getElementById('hudZoneTimer').innerText = "축소 중!";
-            }
-        }, 1000);
+
+    if(selectedMode === 'br') {
+        startSpawnSelectionPhase();
+    } else {
+        const safePos = getSafeSpawnPos(100, WORLD_SIZE);
+        myPlayer.x = safePos.x;
+        myPlayer.y = safePos.y;
+        camera.x = myPlayer.x;
+        camera.y = myPlayer.y;
+        openDeathmatchWeaponModal();
     }
 
     updateHUD();
     resizeCanvas();
     initEvents();
     gameLoop();
+}
+
+// 1. 배틀로얄 스폰 위치 선택 단계 (10초)
+function startSpawnSelectionPhase() {
+    isSpawnSelecting = true;
+    hasSelectedSpawn = false;
+    spawnTimerVal = 10;
+
+    const spawnHUD = document.getElementById('spawnSelectHUD');
+    spawnHUD.style.display = 'block';
+    document.getElementById('spawnTimer').innerText = spawnTimerVal;
+
+    document.getElementById('mapNoticeText').innerText = "클릭하여 스폰 위치 선택";
+    document.getElementById('fullMapOverlay').style.display = 'flex';
+
+    if (spawnTimerInterval) clearInterval(spawnTimerInterval);
+    spawnTimerInterval = setInterval(() => {
+        spawnTimerVal--;
+        document.getElementById('spawnTimer').innerText = spawnTimerVal;
+        if(spawnTimerVal <= 0) {
+            endSpawnSelectionPhase();
+        }
+    }, 1000);
+}
+
+function handleMapClick(e) {
+    if(isSpawnSelecting && !hasSelectedSpawn) {
+        const rect = fullMapCanvas.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const clickY = e.clientY - rect.top;
+        if(clickX >= 0 && clickX <= fullMapCanvas.width && clickY >= 0 && clickY <= fullMapCanvas.height) {
+            const mapX = (clickX / fullMapCanvas.width) * WORLD_SIZE;
+            const mapY = (clickY / fullMapCanvas.height) * WORLD_SIZE;
+            myPlayer.x = mapX;
+            myPlayer.y = mapY;
+            camera.x = myPlayer.x;
+            camera.y = myPlayer.y;
+            hasSelectedSpawn = true;
+            endSpawnSelectionPhase();
+        }
+    } else if(!isSpawnSelecting) {
+        toggleFullMap();
+    }
+}
+
+function endSpawnSelectionPhase() {
+    if(!isSpawnSelecting) return;
+    isSpawnSelecting = false;
+    if(spawnTimerInterval) clearInterval(spawnTimerInterval);
+
+    document.getElementById('spawnSelectHUD').style.display = 'none';
+    document.getElementById('fullMapOverlay').style.display = 'none';
+    document.getElementById('mapNoticeText').innerText = "터치하여 닫기";
+
+    if(!hasSelectedSpawn) {
+        const edgePos = getEdgeRandomSpawnPos(500, WORLD_SIZE);
+        myPlayer.x = edgePos.x;
+        myPlayer.y = edgePos.y;
+        camera.x = myPlayer.x;
+        camera.y = myPlayer.y;
+    }
+
+    startBattleRoyaleZoneLogic();
+}
+
+// 1. 배틀로얄 무작위 위치 무작위 자기장 축소 시스템
+function startBattleRoyaleZoneLogic() {
+    zoneStage = 1;
+    zoneTimer = 60;
+    isZoneShrinking = false;
+    zone.x = WORLD_SIZE / 2;
+    zone.y = WORLD_SIZE / 2;
+    zone.radius = WORLD_SIZE * 0.7;
+
+    setupNextZoneTarget();
+
+    if(zoneTimerInterval) clearInterval(zoneTimerInterval);
+    zoneTimerInterval = setInterval(() => {
+        if(!gameStarted || gameEnded || selectedMode !== 'br' || isSpawnSelecting) return;
+        
+        if(zoneTimer > 0) {
+            zoneTimer--;
+            document.getElementById('hudZoneTimer').innerText = zoneTimer;
+        } else {
+            isZoneShrinking = true;
+            document.getElementById('hudZoneTimer').innerText = "축소 중!";
+        }
+    }, 1000);
+}
+
+function setupNextZoneTarget() {
+    const nextRadius = zone.radius * 0.55;
+    const maxOffset = zone.radius - nextRadius;
+    const angle = Math.random() * Math.PI * 2;
+    const dist = Math.random() * maxOffset * 0.8;
+
+    targetZone = {
+        x: zone.x + Math.cos(angle) * dist,
+        y: zone.y + Math.sin(angle) * dist,
+        radius: nextRadius
+    };
+}
+
+// 2. 데스매치 총기 선택 모달 (10초)
+function openDeathmatchWeaponModal() {
+    weaponSelectTimerVal = 10;
+    const modal = document.getElementById('weaponSelectModal');
+    modal.style.display = 'flex';
+    document.getElementById('weaponSelectTimer').innerText = weaponSelectTimerVal;
+
+    if (weaponSelectInterval) clearInterval(weaponSelectInterval);
+    weaponSelectInterval = setInterval(() => {
+        weaponSelectTimerVal--;
+        document.getElementById('weaponSelectTimer').innerText = weaponSelectTimerVal;
+        if(weaponSelectTimerVal <= 0) {
+            selectDeathmatchWeapon('ar'); 
+        }
+    }, 1000);
+}
+
+function selectDeathmatchWeapon(type) {
+    if(weaponSelectInterval) clearInterval(weaponSelectInterval);
+    document.getElementById('weaponSelectModal').style.display = 'none';
+
+    myPlayer.weapon = type;
+    myPlayer.clipAmmo = WEAPONS[type].maxClip;
+    myPlayer.reserveAmmo = WEAPONS[type].maxClip * 4;
+    updateHUD();
 }
 
 function initEvents() {
@@ -1274,12 +1530,28 @@ function toggleInventory() {
 
 function renderInventory() {
     const weapArea = document.getElementById('equippedWeaponArea');
+    const armorArea = document.getElementById('equippedArmorArea');
+    const armorList = document.getElementById('armorList');
     const scopeArea = document.getElementById('equippedScopeArea');
     const scopeList = document.getElementById('scopeList');
     
     weapArea.innerHTML = myPlayer.weapon 
         ? `${WEAPONS[myPlayer.weapon].name} <button style="width:auto; padding:2px 8px; margin-left:10px;" onclick="unequipWeapon()">해제(버리기)</button>` 
         : "맨손";
+
+    let helmetText = myPlayer.equippedHelmet ? ARMORS[myPlayer.equippedHelmet].name : "없음";
+    let bodyText = myPlayer.equippedBodyArmor ? ARMORS[myPlayer.equippedBodyArmor].name : "없음";
+    armorArea.innerHTML = `머리: ${helmetText} | 몸: ${bodyText}`;
+
+    armorList.innerHTML = "";
+    if(!myPlayer.inventory.armors) myPlayer.inventory.armors = [];
+    myPlayer.inventory.armors.forEach(armKey => {
+        const item = document.createElement('div');
+        item.className = 'inv-item';
+        item.innerText = ARMORS[armKey].name;
+        item.onclick = () => equipArmor(armKey);
+        armorList.appendChild(item);
+    });
 
     scopeArea.innerHTML = myPlayer.equippedScope 
         ? `${SCOPES[myPlayer.equippedScope].name} <button style="width:auto; padding:2px 8px; margin-left:10px;" onclick="unequipScope()">해제</button>` 
@@ -1295,16 +1567,35 @@ function renderInventory() {
     });
 }
 
+function equipArmor(armKey) {
+    const arm = ARMORS[armKey];
+    if(arm.type === 'helmet') {
+        if(myPlayer.equippedHelmet) myPlayer.inventory.armors.push(myPlayer.equippedHelmet);
+        myPlayer.equippedHelmet = armKey;
+    } else if(arm.type === 'body') {
+        if(myPlayer.equippedBodyArmor) myPlayer.inventory.armors.push(myPlayer.equippedBodyArmor);
+        myPlayer.equippedBodyArmor = armKey;
+    }
+    
+    const idx = myPlayer.inventory.armors.indexOf(armKey);
+    if(idx !== -1) myPlayer.inventory.armors.splice(idx, 1);
+
+    updateHUD();
+    renderInventory();
+}
+
 function unequipWeapon() {
     if(myPlayer.weapon) {
-        const newItem = {
-            id: 'item_' + Math.random().toString(36).substring(2, 9),
-            x: myPlayer.x,
-            y: myPlayer.y,
-            type: myPlayer.weapon
-        };
-        droppedItems.push(newItem);
-        broadcastData({ type: 'DROP_ITEM', item: newItem });
+        if(selectedMode !== 'normal') {
+            const newItem = {
+                id: 'item_' + Math.random().toString(36).substring(2, 9),
+                x: myPlayer.x,
+                y: myPlayer.y,
+                type: myPlayer.weapon
+            };
+            droppedItems.push(newItem);
+            broadcastData({ type: 'DROP_ITEM', item: newItem });
+        }
 
         myPlayer.weapon = null;
         myPlayer.equippedScope = null;
@@ -1361,6 +1652,9 @@ function pickupItem() {
                 myPlayer.reserveAmmo += WEAPONS[item.type].maxClip * 2;
             } else if(item.type.startsWith('ammo_')) {
                 myPlayer.reserveAmmo += 30;
+            } else if(ARMORS[item.type]) {
+                if(!myPlayer.inventory.armors) myPlayer.inventory.armors = [];
+                myPlayer.inventory.armors.push(item.type);
             } else {
                 myPlayer.inventory.scopes.push(item.type);
             }
@@ -1383,6 +1677,9 @@ function updateHUD() {
         ? `${myPlayer.clipAmmo} / ${myPlayer.reserveAmmo} ${myPlayer.isReloading ? '(장전중...)' : ''}` 
         : "- / -";
     document.getElementById('hudScope').innerText = myPlayer.equippedScope ? SCOPES[myPlayer.equippedScope].name : "없음";
+    document.getElementById('hudHelmet').innerText = myPlayer.equippedHelmet ? ARMORS[myPlayer.equippedHelmet].name : "없음";
+    document.getElementById('hudArmor').innerText = myPlayer.equippedBodyArmor ? ARMORS[myPlayer.equippedBodyArmor].name : "없음";
+    document.getElementById('hudZoneStage').innerText = zoneStage + "단계";
 
     if (selectedMode === 'br' && alive === 1 && myPlayer.hp > 0 && !myPlayer.isDead && gameStarted && !gameEnded && initialPlayerCount > 1) {
         triggerEndGame();
@@ -1518,6 +1815,15 @@ function respawnBot(bot) {
         bot.hp = bot.maxHp;
         bot.isDead = false;
         bot.targetItem = null;
+
+        if(selectedMode === 'normal') {
+            const wKeys = ['ar', 'shotgun', 'sniper'];
+            const wType = wKeys[Math.floor(Math.random() * wKeys.length)];
+            bot.weapon = wType;
+            bot.clipAmmo = WEAPONS[wType].maxClip;
+            bot.reserveAmmo = WEAPONS[wType].maxClip * 4;
+        }
+
         updateHUD();
     }, 5000);
 }
@@ -1550,7 +1856,7 @@ function moveAIBot(bot, vx, vy) {
 }
 
 function updateAI() {
-    if(!isHost) return; 
+    if(!isHost || isSpawnSelecting) return; 
 
     const now = Date.now();
     const diff = AI_DIFFICULTY[aiDifficulty];
@@ -1562,7 +1868,7 @@ function updateAI() {
         if (selectedMode === 'br') {
             const distToZoneCenter = Math.hypot(bot.x - zone.x, bot.y - zone.y);
             if (distToZoneCenter > zone.radius) {
-                bot.hp -= 0.3;
+                bot.hp -= 0.3 * zoneStage;
                 if (bot.hp <= 0) {
                     spawnBloodParticles(bot.x, bot.y);
                     aiBots.splice(i, 1);
@@ -1750,7 +2056,10 @@ function updateNetwork() {
             aiBots: aiBots,
             bullets: bullets,
             items: droppedItems,
-            zoneRadius: zone.radius
+            zoneRadius: zone.radius,
+            zoneX: zone.x,
+            zoneY: zone.y,
+            zoneStage: zoneStage
         });
     } else if(hostConn && hostConn.open) {
         hostConn.send({
@@ -1763,15 +2072,32 @@ function updateNetwork() {
 function update() {
     if(!gameStarted || gameEnded) return;
 
-    if(selectedMode === 'br' && isHost) {
-        if(isZoneShrinking && zone.radius > 200) {
-            zone.radius -= zone.shrinkRate;
+    // 배틀로얄 무작위 위치 단계별 축소 진행
+    if(selectedMode === 'br' && isHost && !isSpawnSelecting) {
+        if(isZoneShrinking) {
+            const dx = targetZone.x - zone.x;
+            const dy = targetZone.y - zone.y;
+            const dist = Math.hypot(dx, dy);
+
+            if(zone.radius > targetZone.radius) {
+                zone.radius -= zone.shrinkRate;
+                if(dist > 2) {
+                    zone.x += (dx / dist) * zone.shrinkRate * 0.5;
+                    zone.y += (dy / dist) * zone.shrinkRate * 0.5;
+                }
+            } else {
+                isZoneShrinking = false;
+                zoneStage++;
+                zoneTimer = Math.max(20, 60 - zoneStage * 8);
+                setupNextZoneTarget();
+                updateHUD();
+            }
         }
     }
 
-    if(selectedMode === 'br' && myPlayer.hp > 0 && !myPlayer.isDead && !isRespawning) {
+    if(selectedMode === 'br' && myPlayer.hp > 0 && !myPlayer.isDead && !isRespawning && !isSpawnSelecting) {
         if(Math.hypot(myPlayer.x - zone.x, myPlayer.y - zone.y) > zone.radius) {
-            myPlayer.hp -= 0.15;
+            myPlayer.hp -= 0.15 * zoneStage;
             triggerDamageEffect();
             if(myPlayer.hp <= 0 && !myPlayer.isDead) {
                 handleMyDeath(null);
@@ -1807,7 +2133,7 @@ function update() {
 
     myPlayer.isMoving = (dx !== 0 || dy !== 0);
 
-    if (myPlayer.hp > 0 && !myPlayer.isDead && !isSpectating && !isRespawning) {
+    if (myPlayer.hp > 0 && !myPlayer.isDead && !isSpectating && !isRespawning && !isSpawnSelecting) {
         let nextX = Math.max(50, Math.min(WORLD_SIZE - 50, myPlayer.x + dx * currentSpeed));
         let nextY = Math.max(50, Math.min(WORLD_SIZE - 50, myPlayer.y + dy * currentSpeed));
 
@@ -1883,10 +2209,11 @@ function update() {
 
     const now = Date.now();
     for(let i = gunshotEvents.length - 1; i >= 0; i--) {
-        const duration = 800; // 총소리 표시 시간 (0.8초)
+        const duration = 800;
         if(now - gunshotEvents[i].time > duration) gunshotEvents.splice(i, 1);
     }
 
+    // 총알 충돌 판정 및 갑바 대미지 경감 적용
     if(isHost) {
         for(let i = bullets.length - 1; i >= 0; i--) {
             const b = bullets[i];
@@ -1907,7 +2234,11 @@ function update() {
                 if (b.ownerId !== bot.id && !bot.isDead && bot.hp > 0) {
                     const distSq = distToSegmentSquared({x: bot.x, y: bot.y}, {x: b.prevX, y: b.prevY}, {x: b.x, y: b.y});
                     if (distSq <= 25 * 25) {
-                        bot.hp -= b.damage;
+                        let finalDmg = b.damage;
+                        if(bot.equippedBodyArmor && ARMORS[bot.equippedBodyArmor]) {
+                            finalDmg *= (1 - ARMORS[bot.equippedBodyArmor].reduction);
+                        }
+                        bot.hp -= finalDmg;
                         spawnBloodParticles(bot.x, bot.y);
                         hit = true;
                         if (bot.hp <= 0) {
@@ -1916,7 +2247,11 @@ function update() {
                             bot.deaths++;
                             addKill(b.ownerId);
 
-                            if (bot.weapon) {
+                            if(selectedMode === 'normal') {
+                                giveDeathmatchKillAmmoById(b.ownerId);
+                            }
+
+                            if (selectedMode === 'br' && bot.weapon) {
                                 const dropWeaponItem = {
                                     id: 'item_' + Math.random().toString(36).substring(2, 9),
                                     x: bot.x, y: bot.y, type: bot.weapon
@@ -1943,7 +2278,11 @@ function update() {
                     if(b.ownerId !== targetP.id && targetP.hp > 0 && !targetP.isDead) {
                         const distSq = distToSegmentSquared({x: targetP.x, y: targetP.y}, {x: b.prevX, y: b.prevY}, {x: b.x, y: b.y});
                         if (distSq <= 25 * 25) {
-                            targetP.hp -= b.damage;
+                            let finalDmg = b.damage;
+                            if(targetP.equippedBodyArmor && ARMORS[targetP.equippedBodyArmor]) {
+                                finalDmg *= (1 - ARMORS[targetP.equippedBodyArmor].reduction);
+                            }
+                            targetP.hp -= finalDmg;
                             spawnBloodParticles(targetP.x, targetP.y);
                             hit = true;
 
@@ -1958,6 +2297,10 @@ function update() {
                                     targetP.isDead = true; 
                                     targetP.deaths = (targetP.deaths || 0) + 1;
                                     addKill(b.ownerId);
+
+                                    if(selectedMode === 'normal') {
+                                        giveDeathmatchKillAmmoById(b.ownerId);
+                                    }
 
                                     if (selectedMode === 'normal') {
                                         let connectedPeerId = null;
@@ -1985,6 +2328,17 @@ function update() {
 
             if(b.x < 0 || b.x > WORLD_SIZE || b.y < 0 || b.y > WORLD_SIZE) bullets.splice(i, 1);
         }
+    }
+}
+
+function giveDeathmatchKillAmmoById(killerId) {
+    if(killerId === myPlayer.id) {
+        giveDeathmatchKillAmmo(myPlayer);
+    } else if(remotePlayers[killerId]) {
+        giveDeathmatchKillAmmo(remotePlayers[killerId]);
+    } else {
+        const bot = aiBots.find(b => b.id === killerId);
+        if(bot) giveDeathmatchKillAmmo(bot);
     }
 }
 
@@ -2125,6 +2479,23 @@ function drawPlayer(p) {
     ctx.arc(0, 0, 20, 0, Math.PI * 2);
     ctx.fill();
 
+    // 몸 갑바 착용 시 외곽 테두리 링 시각화
+    if(p.equippedBodyArmor) {
+        ctx.strokeStyle = p.equippedBodyArmor.includes('3') ? '#ff0000' : (p.equippedBodyArmor.includes('2') ? '#00ffcc' : '#ffffff');
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(0, 0, 22, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+
+    // 머리 갑바 착용 시 머리 덮개 시각화
+    if(p.equippedHelmet) {
+        ctx.fillStyle = p.equippedHelmet.includes('3') ? '#ff0000' : (p.equippedHelmet.includes('2') ? '#00ffcc' : '#aaaaaa');
+        ctx.beginPath();
+        ctx.arc(0, 0, 14, -Math.PI/2, Math.PI/2);
+        ctx.fill();
+    }
+
     ctx.fillStyle = '#333';
     ctx.fillRect(10, 8, 25, 6);
 
@@ -2147,15 +2518,13 @@ function drawPlayer(p) {
     ctx.fillText(p.name, p.x, p.y - 42);
 }
 
-// 거리 내 총소리 발생 시 캐릭터 주위에 방향 표시기(화살표) 그리기
 function drawGunshotIndicators() {
     if (myPlayer.isDead || myPlayer.hp <= 0 || isSpectating || isRespawning) return;
 
-    const maxDist = 2500; // 감지할 최대 거리
+    const maxDist = 2500;
     const now = Date.now();
 
     gunshotEvents.forEach(snd => {
-        // 자신이 쏜 총소리는 제외
         if (snd.shooterId === myPlayer.id) return;
 
         const dst = Math.hypot(snd.x - myPlayer.x, snd.y - myPlayer.y);
@@ -2169,7 +2538,6 @@ function drawGunshotIndicators() {
             ctx.translate(myPlayer.x, myPlayer.y);
             ctx.rotate(angle);
 
-            // 캐릭터 반지름(20) 바깥쪽(약 60px 떨어진 곳)에 빨간 화살표 표시
             const distFromPlayer = 60;
             ctx.fillStyle = `rgba(255, 50, 50, ${alpha})`;
             ctx.beginPath();
@@ -2191,11 +2559,9 @@ function render() {
     ctx.save();
     ctx.translate(canvas.width / 2 - camera.x, canvas.height / 2 - camera.y);
 
-    // 회색 배경 칠하기
     ctx.fillStyle = '#2b2b2b';
     ctx.fillRect(0, 0, WORLD_SIZE, WORLD_SIZE);
 
-    // 회색 바탕 위에 # 무늬 그리기
     ctx.strokeStyle = '#3a3a3a';
     ctx.lineWidth = 2;
     ctx.font = 'bold 24px sans-serif';
@@ -2220,7 +2586,6 @@ function render() {
         ctx.stroke();
     }
 
-    // 각 격자 칸마다 # 무늬 배치
     for (let x = startX; x < endX; x += gridSize) {
         for (let y = startY; y < endY; y += gridSize) {
             if (x >= 0 && x < WORLD_SIZE && y >= 0 && y < WORLD_SIZE) {
@@ -2241,16 +2606,23 @@ function render() {
         ctx.stroke();
     }
 
-    droppedItems.forEach(item => {
-        ctx.fillStyle = item.type.startsWith('ammo_') ? '#ffff00' : (WEAPONS[item.type] ? '#00ffcc' : '#ff00ff');
-        ctx.beginPath();
-        ctx.arc(item.x, item.y, 8, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '12px bold sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(item.type.toUpperCase(), item.x, item.y - 14);
-    });
+    // 바닥 아이템 렌더링 (데스매치 시 렌더링 안 함)
+    if(selectedMode !== 'normal') {
+        droppedItems.forEach(item => {
+            if(ARMORS[item.type]) {
+                ctx.fillStyle = '#00aaff';
+            } else {
+                ctx.fillStyle = item.type.startsWith('ammo_') ? '#ffff00' : (WEAPONS[item.type] ? '#00ffcc' : '#ff00ff');
+            }
+            ctx.beginPath();
+            ctx.arc(item.x, item.y, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '12px bold sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(item.type.toUpperCase(), item.x, item.y - 14);
+        });
+    }
 
     obstacles.forEach(obs => {
         ctx.fillStyle = '#333344';
@@ -2374,6 +2746,12 @@ function renderFullMap() {
         fCtx.lineWidth = 2;
         fCtx.beginPath();
         fCtx.arc(zone.x * scale, zone.y * scale, zone.radius * scale, 0, Math.PI * 2);
+        fCtx.stroke();
+
+        fCtx.strokeStyle = 'rgba(255, 204, 0, 0.6)';
+        fCtx.lineWidth = 1;
+        fCtx.beginPath();
+        fCtx.arc(targetZone.x * scale, targetZone.y * scale, targetZone.radius * scale, 0, Math.PI * 2);
         fCtx.stroke();
     }
 
