@@ -226,9 +226,9 @@
             <div class="form-group" id="aiDifficultyGroup">
                 <label for="aiDifficultySelect">AI 난이도 설정:</label>
                 <select id="aiDifficultySelect" onchange="onHostSettingsChange()">
-                    <option value="very_easy">매우 쉬움 (매우 둔함)</option>
-                    <option value="easy">쉬움 (반응 느림 / 낮은 명중률)</option>
-                    <option value="hard" selected>어려움 (빠른 반응 / 높은 명중률)</option>
+                    <option value="very_easy" selected>매우 쉬움 (최하 난이도)</option>
+                    <option value="easy">쉬움</option>
+                    <option value="hard">어려움</option>
                 </select>
             </div>
 
@@ -241,7 +241,7 @@
         <div id="guestSettingsDisplay" style="display:none; width:100%; text-align:left; background:rgba(0,0,0,0.4); padding:15px; border-radius:8px; margin: 10px 0;">
             <div style="margin-bottom:8px;">게임 모드: <span id="guestModeVal" class="info-value">배틀로얄</span></div>
             <div style="margin-bottom:8px;">AI 봇 여부: <span id="guestAiVal" class="info-value">포함</span></div>
-            <div style="margin-bottom:8px;">AI 난이도: <span id="guestDiffVal" class="info-value">어려움</span></div>
+            <div style="margin-bottom:8px;">AI 난이도: <span id="guestDiffVal" class="info-value">매우 쉬움</span></div>
             <div>AI 봇 수: <span id="guestCountVal" class="info-value">19명</span></div>
         </div>
 
@@ -335,7 +335,7 @@ const WEAPONS = {
 };
 
 const AI_DIFFICULTY = {
-    very_easy: { delay: 1500, spread: 0.25, speedMult: 0.6 },
+    very_easy: { delay: 3500, spread: 0.5, speedMult: 0.4 },
     easy: { delay: 900, spread: 0.15, speedMult: 0.8 },
     hard: { delay: 300, spread: 0.08, speedMult: 1.0 }
 };
@@ -346,7 +346,7 @@ let hostConn = null;
 let isHost = false;
 let selectedMode = 'br';
 let isMobile = false;
-let aiDifficulty = 'hard';
+let aiDifficulty = 'very_easy';
 
 let gameStarted = false;
 let gameEnded = false;
@@ -1803,7 +1803,7 @@ function update() {
 
     const now = Date.now();
     for(let i = soundEvents.length - 1; i >= 0; i--) {
-        const duration = soundEvents[i].type === 'gunshot' ? 1200 : 300;
+        const duration = 300;
         if(now - soundEvents[i].time > duration) soundEvents.splice(i, 1);
     }
 
@@ -2033,40 +2033,31 @@ function drawPlayer(p) {
     ctx.translate(p.x, p.y);
     ctx.rotate(p.angle);
 
-    // 총기 그리기
-    if (p.weapon) {
-        ctx.fillStyle = '#666';
-        ctx.fillRect(10, 5, 20, 6);
-    }
-
-    // 캐릭터 본체
+    ctx.fillStyle = '#ffcc00';
     ctx.beginPath();
     ctx.arc(0, 0, 20, 0, Math.PI * 2);
-    ctx.fillStyle = p.id === myPlayer.id ? '#00ffcc' : (p.id.startsWith('bot_') ? '#ff4444' : '#ffcc00');
     ctx.fill();
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = '#000';
-    ctx.stroke();
 
-    // 방향 지표 (손/눈)
-    ctx.fillStyle = '#fff';
+    ctx.fillStyle = '#333';
+    ctx.fillRect(10, 8, 25, 6);
+
+    ctx.fillStyle = '#ffcc00';
     ctx.beginPath();
-    ctx.arc(12, -8, 5, 0, Math.PI * 2);
-    ctx.arc(12, 8, 5, 0, Math.PI * 2);
+    ctx.arc(12, -12, 6, 0, Math.PI * 2);
+    ctx.arc(12, 12, 6, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();
 
-    // 닉네임 및 체력바
-    ctx.font = '12px sans-serif';
-    ctx.fillStyle = '#fff';
-    ctx.textAlign = 'center';
-    ctx.fillText(p.name, p.x, p.y - 32);
-
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-    ctx.fillRect(p.x - 20, p.y - 27, 40, 5);
+    ctx.fillRect(p.x - 25, p.y - 35, 50, 6);
     ctx.fillStyle = p.hp > 50 ? '#00ffcc' : '#ff4444';
-    ctx.fillRect(p.x - 20, p.y - 27, (p.hp / p.maxHp) * 40, 5);
+    ctx.fillRect(p.x - 25, p.y - 35, (p.hp / p.maxHp) * 50, 6);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(p.name, p.x, p.y - 42);
 }
 
 function render() {
@@ -2075,7 +2066,6 @@ function render() {
     ctx.save();
     ctx.translate(canvas.width / 2 - camera.x, canvas.height / 2 - camera.y);
 
-    // 격자 배경
     ctx.strokeStyle = '#222';
     ctx.lineWidth = 2;
     const gridSize = 100;
@@ -2085,147 +2075,154 @@ function render() {
     const endY = startY + canvas.height + gridSize * 2;
 
     for (let x = startX; x < endX; x += gridSize) {
-        ctx.beginPath(); ctx.moveTo(x, startY); ctx.lineTo(x, endY); ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x, startY); ctx.lineTo(x, endY);
+        ctx.stroke();
     }
     for (let y = startY; y < endY; y += gridSize) {
-        ctx.beginPath(); ctx.moveTo(startX, y); ctx.lineTo(endX, y); ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(startX, y); ctx.lineTo(endX, y);
+        ctx.stroke();
     }
 
-    // 맵 경계 선
-    ctx.strokeStyle = '#ff0055';
+    ctx.strokeStyle = '#ff0000';
     ctx.lineWidth = 5;
     ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
 
-    // 자기장 표시 (배틀로얄)
     if (selectedMode === 'br') {
+        ctx.strokeStyle = 'rgba(0, 255, 204, 0.8)';
+        ctx.lineWidth = 4;
         ctx.beginPath();
         ctx.arc(zone.x, zone.y, zone.radius, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(0, 200, 255, 0.8)';
-        ctx.lineWidth = 4;
         ctx.stroke();
-        ctx.fillStyle = 'rgba(0, 150, 255, 0.08)';
-        ctx.fill();
     }
 
-    // 바닥 아이템
     droppedItems.forEach(item => {
+        ctx.fillStyle = item.type.startsWith('ammo_') ? '#ffff00' : (WEAPONS[item.type] ? '#00ffcc' : '#ff00ff');
         ctx.beginPath();
         ctx.arc(item.x, item.y, 8, 0, Math.PI * 2);
-        ctx.fillStyle = item.type.startsWith('ammo_') ? '#ffcc00' : (SCOPES[item.type] ? '#00ffff' : '#ff00ff');
         ctx.fill();
-        ctx.font = '10px sans-serif';
-        ctx.fillStyle = '#fff';
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '12px bold sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(item.type.toUpperCase(), item.x, item.y - 12);
+        ctx.fillText(item.type.toUpperCase(), item.x, item.y - 14);
     });
 
-    // 장애물
-    ctx.fillStyle = '#333';
-    ctx.strokeStyle = '#555';
-    ctx.lineWidth = 3;
     obstacles.forEach(obs => {
+        ctx.fillStyle = '#333344';
         ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+        ctx.strokeStyle = '#555577';
+        ctx.lineWidth = 3;
         ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
     });
 
-    // 피 이펙트
     bloodParticles.forEach(p => {
+        ctx.fillStyle = `rgba(200, 0, 0, ${p.alpha})`;
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(200, 0, 0, ${p.alpha})`;
         ctx.fill();
     });
 
-    // 플레이어 렌더링
+    bullets.forEach(b => {
+        ctx.strokeStyle = '#ffcc00';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(b.prevX, b.prevY);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+    });
+
     if (myPlayer.hp > 0 && !myPlayer.isDead) drawPlayer(myPlayer);
     Object.values(remotePlayers).forEach(p => drawPlayer(p));
     aiBots.forEach(b => drawPlayer(b));
 
-    // 총알
-    ctx.fillStyle = '#ffeb3b';
-    bullets.forEach(b => {
-        ctx.beginPath();
-        ctx.arc(b.x, b.y, 3, 0, Math.PI * 2);
-        ctx.fill();
-    });
-
-    // 소리 파동 이펙트
-    const now = Date.now();
-    soundEvents.forEach(snd => {
-        const elapsed = now - snd.time;
-        const maxTime = snd.type === 'gunshot' ? 1200 : 300;
-        const progress = elapsed / maxTime;
-        if (progress <= 1) {
-            ctx.beginPath();
-            ctx.arc(snd.x, snd.y, snd.radius * progress, 0, Math.PI * 2);
-            ctx.strokeStyle = snd.type === 'gunshot' ? `rgba(255, 50, 50, ${1 - progress})` : `rgba(255, 255, 255, ${1 - progress})`;
-            ctx.lineWidth = 2;
-            ctx.stroke();
-        }
-    });
-
     ctx.restore();
 
-    // 시야 안개(Fog of War) 적용
     drawFogOfWar();
 
-    // 미니맵 / 전체맵 드로잉
-    renderMap(mCtx, minimapCanvas.width, minimapCanvas.height, true);
+    renderMinimap();
     if (document.getElementById('fullMapOverlay').style.display === 'flex') {
-        renderMap(fCtx, fullMapCanvas.width, fullMapCanvas.height, false);
+        renderFullMap();
     }
 }
 
-function renderMap(mapCtx, width, height, isMinimap) {
-    mapCtx.clearRect(0, 0, width, height);
+function renderMinimap() {
+    mCtx.clearRect(0, 0, minimapCanvas.width, minimapCanvas.height);
+    const scale = minimapCanvas.width / WORLD_SIZE;
 
-    let scale, offX, offY;
-    if (isMinimap) {
-        scale = width / 1200;
-        offX = width / 2 - camera.x * scale;
-        offY = height / 2 - camera.y * scale;
+    mCtx.save();
+    mCtx.beginPath();
+    mCtx.arc(minimapCanvas.width / 2, minimapCanvas.height / 2, minimapCanvas.width / 2, 0, Math.PI * 2);
+    mCtx.clip();
 
-        mapCtx.save();
-        mapCtx.beginPath();
-        mapCtx.arc(width / 2, height / 2, width / 2, 0, Math.PI * 2);
-        mapCtx.clip();
-    } else {
-        scale = width / WORLD_SIZE;
-        offX = 0; offY = 0;
-    }
+    mCtx.fillStyle = '#151515';
+    mCtx.fillRect(0, 0, minimapCanvas.width, minimapCanvas.height);
 
-    mapCtx.fillStyle = '#111';
-    mapCtx.fillRect(0, 0, width, height);
-
-    // 자기장
-    if (selectedMode === 'br') {
-        mapCtx.beginPath();
-        mapCtx.arc(zone.x * scale + offX, zone.y * scale + offY, zone.radius * scale, 0, Math.PI * 2);
-        mapCtx.strokeStyle = '#00ccff';
-        mapCtx.lineWidth = 2;
-        mapCtx.stroke();
-    }
-
-    // 장애물
-    mapCtx.fillStyle = '#444';
-    obstacles.forEach(o => {
-        mapCtx.fillRect(o.x * scale + offX, o.y * scale + offY, o.w * scale, o.h * scale);
+    mCtx.fillStyle = '#333344';
+    obstacles.forEach(obs => {
+        mCtx.fillRect(obs.x * scale, obs.y * scale, obs.w * scale, obs.h * scale);
     });
 
-    // 플레이어 마커
-    const drawMarker = (p, color) => {
-        if (p.isDead || p.hp <= 0) return;
-        mapCtx.beginPath();
-        mapCtx.arc(p.x * scale + offX, p.y * scale + offY, isMinimap ? 4 : 3, 0, Math.PI * 2);
-        mapCtx.fillStyle = color;
-        mapCtx.fill();
-    };
+    if (selectedMode === 'br') {
+        mCtx.strokeStyle = 'rgba(0, 255, 204, 0.6)';
+        mCtx.lineWidth = 2;
+        mCtx.beginPath();
+        mCtx.arc(zone.x * scale, zone.y * scale, zone.radius * scale, 0, Math.PI * 2);
+        mCtx.stroke();
+    }
 
-    if (myPlayer.hp > 0 && !myPlayer.isDead) drawMarker(myPlayer, '#00ffcc');
-    Object.values(remotePlayers).forEach(p => drawMarker(p, '#ffcc00'));
-    aiBots.forEach(b => drawMarker(b, '#ff4444'));
+    const minimapCenterX = myPlayer.x * scale;
+    const minimapCenterY = myPlayer.y * scale;
 
-    if (isMinimap) mapCtx.restore();
+    soundEvents.forEach(snd => {
+        const dx = snd.x - myPlayer.x;
+        const dy = snd.y - myPlayer.y;
+        const angle = Math.atan2(dy, dx);
+        
+        const indicatorRadius = 80;
+        const ix = (minimapCanvas.width / 2) + Math.cos(angle) * indicatorRadius;
+        const iy = (minimapCanvas.height / 2) + Math.sin(angle) * indicatorRadius;
+
+        mCtx.fillStyle = '#ff4444';
+        mCtx.beginPath();
+        mCtx.arc(ix, iy, 5, 0, Math.PI * 2);
+        mCtx.fill();
+    });
+
+    mCtx.restore();
+
+    mCtx.strokeStyle = '#00ffcc';
+    mCtx.lineWidth = 2;
+    mCtx.beginPath();
+    mCtx.arc(minimapCanvas.width / 2, minimapCanvas.height / 2, (minimapCanvas.width / 2) - 1, 0, Math.PI * 2);
+    mCtx.stroke();
+}
+
+function renderFullMap() {
+    fCtx.clearRect(0, 0, fullMapCanvas.width, fullMapCanvas.height);
+    const scale = fullMapCanvas.width / WORLD_SIZE;
+
+    fCtx.fillStyle = '#111';
+    fCtx.fillRect(0, 0, fullMapCanvas.width, fullMapCanvas.height);
+
+    fCtx.strokeStyle = '#333';
+    fCtx.lineWidth = 1;
+    obstacles.forEach(obs => {
+        fCtx.fillRect(obs.x * scale, obs.y * scale, obs.w * scale, obs.h * scale);
+    });
+
+    if (selectedMode === 'br') {
+        fCtx.strokeStyle = '#00ffcc';
+        fCtx.lineWidth = 2;
+        fCtx.beginPath();
+        fCtx.arc(zone.x * scale, zone.y * scale, zone.radius * scale, 0, Math.PI * 2);
+        fCtx.stroke();
+    }
+
+    fCtx.fillStyle = '#00ffcc';
+    fCtx.beginPath();
+    fCtx.arc(myPlayer.x * scale, myPlayer.y * scale, 5, 0, Math.PI * 2);
+    fCtx.fill();
 }
 
 function gameLoop() {
