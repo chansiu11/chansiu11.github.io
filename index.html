@@ -82,7 +82,7 @@
         }
         #inventory {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 500px; height: 480px; background: rgba(20, 20, 20, 0.95);
+            width: 500px; height: 520px; background: rgba(20, 20, 20, 0.95);
             border: 2px solid #00ffcc; border-radius: 10px; z-index: 60; display: none;
             padding: 20px; flex-direction: column; gap: 10px; overflow-y: auto;
         }
@@ -164,6 +164,7 @@
         #btnReload { bottom: 35px; right: 190px; }
         #btnPickup { bottom: 185px; right: 40px; }
         #btnBag { bottom: 185px; right: 120px; }
+        #btnHeal { bottom: 35px; right: 270px; border-color: #ff44aa; color: #ff44aa; }
         #btnMap { top: 20px; right: 20px; width: 55px; height: 55px; border-color: #ffcc00; color: #ffcc00; }
         #btnSettings { top: 20px; right: 85px; width: 55px; height: 55px; border-color: #aaaaaa; color: #ffffff; }
 
@@ -285,12 +286,14 @@
     <div id="statusHUD">
         [모드]: <span id="hudGameMode" style="color:#00ffcc;">배틀로얄</span> | 
         [생존 인원]: <span id="hudAliveCount" style="color:#ff4444; font-size: 16px;">20</span> 명 <br>
+        [체력]: <span id="hudHp" style="color:#00ff88;">200 / 200</span> <br>
         [킬]: <span id="hudKills" style="color:#00ffcc;">0</span> | [데스]: <span id="hudDeaths" style="color:#ff4444;">0</span> <br>
         <span id="hudZoneContainer">[자기장 단계]: <span id="hudZoneStage" style="color:#00ffcc;">1단계</span> | [축소까지]: <span id="hudZoneTimer" style="color:#ffcc00;">60</span> 초<br></span>
         [무기]: <span id="hudWeapon" style="color:#00ffcc;">맨손</span> | [탄약]: <span id="hudAmmo" style="color:#ffcc00;">- / -</span> <br>
         [머리 갑바]: <span id="hudHelmet" style="color:#00ffcc;">없음</span> | [몸 갑바]: <span id="hudArmor" style="color:#00ffcc;">없음</span> <br>
+        [구급상자]: <span id="hudMedkit" style="color:#ff44aa;">0개</span> <br>
         [장착 스코프]: <span id="hudScope" style="color:#ffcc00;">없음</span> <br>
-        <span id="hudControlsHint">[조작법]: Shift(달리기) / Ctrl(은신) / E(줍기) / R(장전) / Tab(가방)</span>
+        <span id="hudControlsHint">[조작법]: Shift(달리기) / Ctrl(은신) / E(줍기) / R(장전) / F(회복) / Tab(가방)</span>
     </div>
 
     <div id="spectateHUD">
@@ -315,6 +318,7 @@
         <div id="btnReload" class="mobile-btn touch-zone">장전</div>
         <div id="btnPickup" class="mobile-btn touch-zone">줍기</div>
         <div id="btnBag" class="mobile-btn touch-zone">가방</div>
+        <div id="btnHeal" class="mobile-btn touch-zone">회복</div>
         <div id="btnMap" class="mobile-btn touch-zone">지도</div>
         <div id="btnSettings" class="mobile-btn touch-zone" onclick="openSettings()">⚙️</div>
     </div>
@@ -332,6 +336,10 @@
         <div class="inv-section">
             <strong>보유 중인 방어구:</strong>
             <div id="armorList" class="inv-grid"></div>
+        </div>
+        <div class="inv-section">
+            <strong>보유 중인 회복 아이템:</strong>
+            <div id="medkitArea" style="margin-top:5px; color:#aaa;">구급상자: 0개</div>
         </div>
         <div class="inv-section">
             <strong>현재 장착 스코프:</strong>
@@ -459,6 +467,7 @@ const myPlayer = {
     equippedScope: null,
     equippedHelmet: null,
     equippedBodyArmor: null,
+    medkits: 0, isHealing: false,
     inventory: { scopes: [], armors: [] },
     isAiming: false, isShooting: false, lastShootTime: 0,
     isMoving: false, movementMode: 'walk'
@@ -594,7 +603,8 @@ function generateMapData(mode) {
         '1x', '2x', '3x', '4x', '8x', 
         'ammo_ar', 'ammo_sniper', 'ammo_shotgun',
         'helmet_1', 'helmet_2', 'helmet_3',
-        'body_1', 'body_2', 'body_3'
+        'body_1', 'body_2', 'body_3',
+        'medkit'
     ];
     const newItems = [];
     for (let i = 0; i < itemCount; i++) {
@@ -1136,6 +1146,8 @@ function spawnAIBots(count) {
             equippedScope: null,
             equippedHelmet: null,
             equippedBodyArmor: null,
+            medkits: 1, isHealing: false,
+            inventory: { scopes: [], armors: [] },
             lastShootTime: 0,
             targetItem: null,
             firstSeenTime: null,
@@ -1176,6 +1188,8 @@ function startGame() {
     myPlayer.weapon = null;
     myPlayer.equippedHelmet = null;
     myPlayer.equippedBodyArmor = null;
+    myPlayer.medkits = 0;
+    myPlayer.isHealing = false;
     myPlayer.inventory = { scopes: [], armors: [] };
     isSpectating = false;
     isRespawning = false;
@@ -1355,6 +1369,7 @@ function initEvents() {
         if(e.key.toLowerCase() === 'm') toggleFullMap();
         if(e.key.toLowerCase() === 'e') pickupItem();
         if(e.key.toLowerCase() === 'r') reloadWeapon(myPlayer);
+        if(e.key.toLowerCase() === 'f') useMedkit(myPlayer);
     });
     window.addEventListener('keyup', e => {
         if (isSpectating || isRespawning) return;
@@ -1513,7 +1528,24 @@ function initMobileControls() {
     document.getElementById('btnReload').addEventListener('touchstart', (e) => { if(!isEditingKeys && !isSpectating && !isRespawning){ e.preventDefault(); reloadWeapon(myPlayer); } });
     document.getElementById('btnPickup').addEventListener('touchstart', (e) => { if(!isEditingKeys && !isSpectating && !isRespawning){ e.preventDefault(); pickupItem(); } });
     document.getElementById('btnBag').addEventListener('touchstart', (e) => { if(!isEditingKeys && !isSpectating && !isRespawning){ e.preventDefault(); toggleInventory(); } });
+    document.getElementById('btnHeal').addEventListener('touchstart', (e) => { if(!isEditingKeys && !isSpectating && !isRespawning){ e.preventDefault(); useMedkit(myPlayer); } });
     document.getElementById('btnMap').addEventListener('touchstart', (e) => { if(!isEditingKeys && !isSpectating && !isRespawning){ e.preventDefault(); toggleFullMap(); } });
+}
+
+function useMedkit(p) {
+    if (p.isHealing || p.medkits <= 0 || p.hp >= p.maxHp) return;
+
+    p.isHealing = true;
+    if (p === myPlayer) updateHUD();
+
+    setTimeout(() => {
+        if (!p.isDead && p.hp > 0 && p.medkits > 0) {
+            p.hp = Math.min(p.maxHp, p.hp + 75);
+            p.medkits--;
+        }
+        p.isHealing = false;
+        if (p === myPlayer) updateHUD();
+    }, 2500);
 }
 
 function toggleFullMap() {
@@ -1532,6 +1564,7 @@ function renderInventory() {
     const weapArea = document.getElementById('equippedWeaponArea');
     const armorArea = document.getElementById('equippedArmorArea');
     const armorList = document.getElementById('armorList');
+    const medkitArea = document.getElementById('medkitArea');
     const scopeArea = document.getElementById('equippedScopeArea');
     const scopeList = document.getElementById('scopeList');
     
@@ -1552,6 +1585,8 @@ function renderInventory() {
         item.onclick = () => equipArmor(armKey);
         armorList.appendChild(item);
     });
+
+    medkitArea.innerHTML = `구급상자: ${myPlayer.medkits || 0}개 ${myPlayer.medkits > 0 ? `<button style="width:auto; padding:2px 8px; margin-left:10px;" onclick="useMedkit(myPlayer)">사용 (F)</button>` : ''}`;
 
     scopeArea.innerHTML = myPlayer.equippedScope 
         ? `${SCOPES[myPlayer.equippedScope].name} <button style="width:auto; padding:2px 8px; margin-left:10px;" onclick="unequipScope()">해제</button>` 
@@ -1652,9 +1687,41 @@ function pickupItem() {
                 myPlayer.reserveAmmo += WEAPONS[item.type].maxClip * 2;
             } else if(item.type.startsWith('ammo_')) {
                 myPlayer.reserveAmmo += 30;
+            } else if(item.type === 'medkit') {
+                myPlayer.medkits = (myPlayer.medkits || 0) + 1;
             } else if(ARMORS[item.type]) {
-                if(!myPlayer.inventory.armors) myPlayer.inventory.armors = [];
-                myPlayer.inventory.armors.push(item.type);
+                const arm = ARMORS[item.type];
+                if(arm.type === 'helmet') {
+                    if(!myPlayer.equippedHelmet) {
+                        myPlayer.equippedHelmet = item.type;
+                    } else {
+                        const curLvl = parseInt(myPlayer.equippedHelmet.split('_')[1]);
+                        const newLvl = parseInt(item.type.split('_')[1]);
+                        if(newLvl > curLvl) {
+                            if(!myPlayer.inventory.armors) myPlayer.inventory.armors = [];
+                            myPlayer.inventory.armors.push(myPlayer.equippedHelmet);
+                            myPlayer.equippedHelmet = item.type;
+                        } else {
+                            if(!myPlayer.inventory.armors) myPlayer.inventory.armors = [];
+                            myPlayer.inventory.armors.push(item.type);
+                        }
+                    }
+                } else if(arm.type === 'body') {
+                    if(!myPlayer.equippedBodyArmor) {
+                        myPlayer.equippedBodyArmor = item.type;
+                    } else {
+                        const curLvl = parseInt(myPlayer.equippedBodyArmor.split('_')[1]);
+                        const newLvl = parseInt(item.type.split('_')[1]);
+                        if(newLvl > curLvl) {
+                            if(!myPlayer.inventory.armors) myPlayer.inventory.armors = [];
+                            myPlayer.inventory.armors.push(myPlayer.equippedBodyArmor);
+                            myPlayer.equippedBodyArmor = item.type;
+                        } else {
+                            if(!myPlayer.inventory.armors) myPlayer.inventory.armors = [];
+                            myPlayer.inventory.armors.push(item.type);
+                        }
+                    }
+                }
             } else {
                 myPlayer.inventory.scopes.push(item.type);
             }
@@ -1670,6 +1737,7 @@ function pickupItem() {
 function updateHUD() {
     const alive = aiBots.filter(b => b.hp > 0 && !b.isDead).length + (myPlayer.hp > 0 && !myPlayer.isDead ? 1 : 0) + Object.values(remotePlayers).filter(p => p.hp > 0 && !p.isDead).length;
     document.getElementById('hudAliveCount').innerText = alive;
+    document.getElementById('hudHp').innerText = `${Math.ceil(myPlayer.hp)} / ${myPlayer.maxHp} ${myPlayer.isHealing ? '(치료중...)' : ''}`;
     document.getElementById('hudKills').innerText = myPlayer.kills;
     document.getElementById('hudDeaths').innerText = myPlayer.deaths;
     document.getElementById('hudWeapon').innerText = myPlayer.weapon ? WEAPONS[myPlayer.weapon].name : "맨손";
@@ -1679,6 +1747,7 @@ function updateHUD() {
     document.getElementById('hudScope').innerText = myPlayer.equippedScope ? SCOPES[myPlayer.equippedScope].name : "없음";
     document.getElementById('hudHelmet').innerText = myPlayer.equippedHelmet ? ARMORS[myPlayer.equippedHelmet].name : "없음";
     document.getElementById('hudArmor').innerText = myPlayer.equippedBodyArmor ? ARMORS[myPlayer.equippedBodyArmor].name : "없음";
+    document.getElementById('hudMedkit').innerText = `${myPlayer.medkits || 0}개`;
     document.getElementById('hudZoneStage').innerText = zoneStage + "단계";
 
     if (selectedMode === 'br' && alive === 1 && myPlayer.hp > 0 && !myPlayer.isDead && gameStarted && !gameEnded && initialPlayerCount > 1) {
@@ -1865,6 +1934,10 @@ function updateAI() {
         const bot = aiBots[i];
         if (bot.isDead) continue; 
 
+        if (bot.hp <= 120 && bot.medkits > 0 && !bot.isHealing) {
+            useMedkit(bot);
+        }
+
         if (selectedMode === 'br') {
             const distToZoneCenter = Math.hypot(bot.x - zone.x, bot.y - zone.y);
             if (distToZoneCenter > zone.radius) {
@@ -1991,7 +2064,7 @@ function updateAI() {
         }
         else {
             bot.firstSeenTime = null;
-            const hasFullGear = bot.weapon && bot.equippedScope;
+            const hasFullGear = bot.weapon && bot.equippedScope && bot.equippedHelmet && bot.equippedBodyArmor;
 
             if (!hasFullGear) {
                 if(!bot.targetItem || !droppedItems.includes(bot.targetItem)) {
@@ -1999,8 +2072,32 @@ function updateAI() {
                     let nearDst = 3000;
                     droppedItems.forEach(item => {
                         const isScope = ['1x', '2x', '3x', '4x', '8x'].includes(item.type);
+                        const isArmor = ARMORS[item.type];
+                        const isMedkit = item.type === 'medkit';
 
-                        if (!bot.equippedScope && isScope) {
+                        let needsThis = false;
+                        if (!bot.equippedScope && isScope) needsThis = true;
+                        if (isMedkit && bot.medkits < 2) needsThis = true;
+                        if (isArmor) {
+                            const arm = ARMORS[item.type];
+                            if (arm.type === 'helmet') {
+                                if (!bot.equippedHelmet) needsThis = true;
+                                else {
+                                    const curLvl = parseInt(bot.equippedHelmet.split('_')[1]);
+                                    const newLvl = parseInt(item.type.split('_')[1]);
+                                    if (newLvl > curLvl) needsThis = true;
+                                }
+                            } else if (arm.type === 'body') {
+                                if (!bot.equippedBodyArmor) needsThis = true;
+                                else {
+                                    const curLvl = parseInt(bot.equippedBodyArmor.split('_')[1]);
+                                    const newLvl = parseInt(item.type.split('_')[1]);
+                                    if (newLvl > curLvl) needsThis = true;
+                                }
+                            }
+                        }
+
+                        if (needsThis) {
                             const d = Math.hypot(item.x - bot.x, item.y - bot.y);
                             if(d < nearDst) { nearDst = d; nearest = item; }
                         }
@@ -2015,7 +2112,13 @@ function updateAI() {
 
                     if(Math.hypot(bot.targetItem.x - bot.x, bot.targetItem.y - bot.y) < 30) {
                         const item = bot.targetItem;
-                        if(!bot.equippedScope) {
+                        if(item.type === 'medkit') {
+                            bot.medkits = (bot.medkits || 0) + 1;
+                        } else if(ARMORS[item.type]) {
+                            const arm = ARMORS[item.type];
+                            if(arm.type === 'helmet') bot.equippedHelmet = item.type;
+                            else if(arm.type === 'body') bot.equippedBodyArmor = item.type;
+                        } else if(!bot.equippedScope) {
                             bot.equippedScope = item.type;
                         }
                         const itemIdx = droppedItems.findIndex(i => i.id === item.id);
@@ -2342,431 +2445,219 @@ function giveDeathmatchKillAmmoById(killerId) {
     }
 }
 
-function getIntersection(ray, segment) {
-    const r_px = ray.a.x, r_py = ray.a.y;
-    const r_dx = ray.b.x - ray.a.x, r_dy = ray.b.y - ray.a.y;
-
-    const s_px = segment.a.x, s_py = segment.a.y;
-    const s_dx = segment.b.x - segment.a.x, s_dy = segment.b.y - segment.a.y;
-
-    const r_mag = Math.hypot(r_dx, r_dy);
-    const s_mag = Math.hypot(s_dx, s_dy);
-
-    if (r_mag === 0 || s_mag === 0) return null;
-    if (r_dx / r_mag === s_dx / s_mag && r_dy / r_mag === s_dy / s_mag) return null;
-
-    const div = (s_dx * r_dy - s_dy * r_dx);
-    if (Math.abs(div) < 0.0001) return null;
-
-    const T2 = (r_dx * (s_py - r_py) + r_dy * (r_px - s_px)) / div;
-    const T1 = (Math.abs(r_dx) > 0.0001) ? (s_px + s_dx * T2 - r_px) / r_dx : (s_py + s_dy * T2 - r_py) / r_dy;
-
-    if (T1 < 0 || T2 < 0 || T2 > 1) return null;
-
-    return { x: r_px + r_dx * T1, y: r_py + r_dy * T1, param: T1 };
-}
-
-const maskCanvas = document.createElement('canvas');
-const mCtxMask = maskCanvas.getContext('2d');
-
-function drawFogOfWar() {
-    if (isSpectating || isRespawning) return;
-
-    const px = myPlayer.x;
-    const py = myPlayer.y;
-
-    const viewMargin = 1200; 
-    const screenLeft = camera.x - canvas.width / 2 - viewMargin;
-    const screenRight = camera.x + canvas.width / 2 + viewMargin;
-    const screenTop = camera.y - canvas.height / 2 - viewMargin;
-    const screenBottom = camera.y + canvas.height / 2 + viewMargin;
-
-    const segments = [
-        { a: { x: screenLeft, y: screenTop }, b: { x: screenRight, y: screenTop } },
-        { a: { x: screenRight, y: screenTop }, b: { x: screenRight, y: screenBottom } },
-        { a: { x: screenRight, y: screenBottom }, b: { x: screenLeft, y: screenBottom } },
-        { a: { x: screenLeft, y: screenBottom }, b: { x: screenLeft, y: screenTop } }
-    ];
-
-    const angles = [];
-
-    obstacles.forEach(obs => {
-        if (obs.x + obs.w >= screenLeft && obs.x <= screenRight &&
-            obs.y + obs.h >= screenTop && obs.y <= screenBottom) {
-
-            const corners = [
-                { x: obs.x, y: obs.y },
-                { x: obs.x + obs.w, y: obs.y },
-                { x: obs.x + obs.w, y: obs.y + obs.h },
-                { x: obs.x, y: obs.y + obs.h }
-            ];
-
-            for (let i = 0; i < 4; i++) {
-                segments.push({ a: corners[i], b: corners[(i + 1) % 4] });
-            }
-
-            corners.forEach(c => {
-                const angle = Math.atan2(c.y - py, c.x - px);
-                angles.push(angle - 0.0001, angle, angle + 0.0001);
-            });
-        }
-    });
-
-    angles.push(
-        Math.atan2(screenTop - py, screenLeft - px),
-        Math.atan2(screenTop - py, screenRight - px),
-        Math.atan2(screenBottom - py, screenRight - px),
-        Math.atan2(screenBottom - py, screenLeft - px)
-    );
-
-    angles.sort((a, b) => a - b);
-
-    const maxRayDistance = Math.hypot(camera.x - px, camera.y - py) + Math.max(canvas.width, canvas.height) + 1000;
-
-    const intersects = [];
-    angles.forEach(angle => {
-        const ray = { 
-            a: { x: px, y: py }, 
-            b: { x: px + Math.cos(angle) * maxRayDistance, y: py + Math.sin(angle) * maxRayDistance } 
-        };
-        let closest = null;
-
-        segments.forEach(seg => {
-            const intersect = getIntersection(ray, seg);
-            if (!intersect) return;
-            if (!closest || intersect.param < closest.param) {
-                closest = intersect;
-            }
-        });
-
-        if (closest) intersects.push(closest);
-    });
-
-    maskCanvas.width = canvas.width;
-    maskCanvas.height = canvas.height;
-
-    mCtxMask.fillStyle = 'rgba(0,0,0,0.95)';
-    mCtxMask.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
-
-    mCtxMask.globalCompositeOperation = 'destination-out';
-    mCtxMask.save();
-    mCtxMask.translate(canvas.width / 2 - camera.x, canvas.height / 2 - camera.y);
-
-    mCtxMask.beginPath();
-    if (intersects.length > 0) {
-        mCtxMask.moveTo(intersects[0].x, intersects[0].y);
-        for (let i = 1; i < intersects.length; i++) {
-            mCtxMask.lineTo(intersects[i].x, intersects[i].y);
-        }
-    }
-    mCtxMask.closePath();
-    mCtxMask.fill();
-    mCtxMask.restore();
-
-    mCtxMask.globalCompositeOperation = 'source-over';
-    ctx.drawImage(maskCanvas, 0, 0);
-}
-
-function drawPlayer(p) {
-    if (p.isDead || p.hp <= 0) return;
-
-    ctx.save();
-    ctx.translate(p.x, p.y);
-    ctx.rotate(p.angle);
-
-    ctx.fillStyle = '#ffcc00';
-    ctx.beginPath();
-    ctx.arc(0, 0, 20, 0, Math.PI * 2);
-    ctx.fill();
-
-    // 몸 갑바 착용 시 외곽 테두리 링 시각화
-    if(p.equippedBodyArmor) {
-        ctx.strokeStyle = p.equippedBodyArmor.includes('3') ? '#ff0000' : (p.equippedBodyArmor.includes('2') ? '#00ffcc' : '#ffffff');
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.arc(0, 0, 22, 0, Math.PI * 2);
-        ctx.stroke();
-    }
-
-    // 머리 갑바 착용 시 머리 덮개 시각화
-    if(p.equippedHelmet) {
-        ctx.fillStyle = p.equippedHelmet.includes('3') ? '#ff0000' : (p.equippedHelmet.includes('2') ? '#00ffcc' : '#aaaaaa');
-        ctx.beginPath();
-        ctx.arc(0, 0, 14, -Math.PI/2, Math.PI/2);
-        ctx.fill();
-    }
-
-    ctx.fillStyle = '#333';
-    ctx.fillRect(10, 8, 25, 6);
-
-    ctx.fillStyle = '#ffcc00';
-    ctx.beginPath();
-    ctx.arc(12, -12, 6, 0, Math.PI * 2);
-    ctx.arc(12, 12, 6, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.restore();
-
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-    ctx.fillRect(p.x - 25, p.y - 35, 50, 6);
-    ctx.fillStyle = p.hp > 50 ? '#00ffcc' : '#ff4444';
-    ctx.fillRect(p.x - 25, p.y - 35, (p.hp / p.maxHp) * 50, 6);
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '12px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(p.name, p.x, p.y - 42);
-}
-
-function drawGunshotIndicators() {
-    if (myPlayer.isDead || myPlayer.hp <= 0 || isSpectating || isRespawning) return;
-
-    const maxDist = 2500;
-    const now = Date.now();
-
-    gunshotEvents.forEach(snd => {
-        if (snd.shooterId === myPlayer.id) return;
-
-        const dst = Math.hypot(snd.x - myPlayer.x, snd.y - myPlayer.y);
-        if (dst <= maxDist && dst > 30) {
-            const angle = Math.atan2(snd.y - myPlayer.y, snd.x - myPlayer.x);
-            const duration = 800;
-            const elapsed = now - snd.time;
-            const alpha = Math.max(0, 1 - elapsed / duration);
-
-            ctx.save();
-            ctx.translate(myPlayer.x, myPlayer.y);
-            ctx.rotate(angle);
-
-            const distFromPlayer = 60;
-            ctx.fillStyle = `rgba(255, 50, 50, ${alpha})`;
-            ctx.beginPath();
-            ctx.moveTo(distFromPlayer + 15, 0);
-            ctx.lineTo(distFromPlayer, -10);
-            ctx.lineTo(distFromPlayer + 4, 0);
-            ctx.lineTo(distFromPlayer, 10);
-            ctx.closePath();
-            ctx.fill();
-
-            ctx.restore();
-        }
-    });
-}
-
 function render() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    const screenCenterX = canvas.width / 2;
+    const screenCenterY = canvas.height / 2;
+
     ctx.save();
-    ctx.translate(canvas.width / 2 - camera.x, canvas.height / 2 - camera.y);
+    ctx.translate(screenCenterX - camera.x, screenCenterY - camera.y);
 
-    ctx.fillStyle = '#2b2b2b';
-    ctx.fillRect(0, 0, WORLD_SIZE, WORLD_SIZE);
-
-    ctx.strokeStyle = '#3a3a3a';
-    ctx.lineWidth = 2;
-    ctx.font = 'bold 24px sans-serif';
-    ctx.fillStyle = '#3a3a3a';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-
-    const gridSize = 100;
-    const startX = Math.floor((camera.x - canvas.width / 2) / gridSize) * gridSize;
-    const endX = startX + canvas.width + gridSize * 2;
-    const startY = Math.floor((camera.y - canvas.height / 2) / gridSize) * gridSize;
-    const endY = startY + canvas.height + gridSize * 2;
+    // 격자 배경
+    ctx.strokeStyle = '#1a1a1a';
+    ctx.lineWidth = 1;
+    const gridSize = 200;
+    const startX = Math.floor((camera.x - screenCenterX) / gridSize) * gridSize;
+    const endX = startX + canvas.width + gridSize;
+    const startY = Math.floor((camera.y - screenCenterY) / gridSize) * gridSize;
+    const endY = startY + canvas.height + gridSize;
 
     for (let x = startX; x < endX; x += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(x, startY); ctx.lineTo(x, endY);
-        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x, startY); ctx.lineTo(x, endY); ctx.stroke();
     }
     for (let y = startY; y < endY; y += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(startX, y); ctx.lineTo(endX, y);
-        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(startX, y); ctx.lineTo(endX, y); ctx.stroke();
     }
 
-    for (let x = startX; x < endX; x += gridSize) {
-        for (let y = startY; y < endY; y += gridSize) {
-            if (x >= 0 && x < WORLD_SIZE && y >= 0 && y < WORLD_SIZE) {
-                ctx.fillText('#', x + gridSize / 2, y + gridSize / 2);
-            }
-        }
-    }
-
-    ctx.strokeStyle = '#ff0000';
-    ctx.lineWidth = 5;
-    ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
-
+    // 자기장 그리기
     if (selectedMode === 'br') {
-        ctx.strokeStyle = 'rgba(0, 255, 204, 0.8)';
-        ctx.lineWidth = 4;
         ctx.beginPath();
         ctx.arc(zone.x, zone.y, zone.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(0, 255, 200, 0.8)';
+        ctx.lineWidth = 6;
         ctx.stroke();
-    }
+        ctx.fillStyle = 'rgba(0, 255, 200, 0.05)';
+        ctx.fill();
 
-    // 바닥 아이템 렌더링 (데스매치 시 렌더링 안 함)
-    if(selectedMode !== 'normal') {
-        droppedItems.forEach(item => {
-            if(ARMORS[item.type]) {
-                ctx.fillStyle = '#00aaff';
-            } else {
-                ctx.fillStyle = item.type.startsWith('ammo_') ? '#ffff00' : (WEAPONS[item.type] ? '#00ffcc' : '#ff00ff');
-            }
-            ctx.beginPath();
-            ctx.arc(item.x, item.y, 8, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = '#ffffff';
-            ctx.font = '12px bold sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText(item.type.toUpperCase(), item.x, item.y - 14);
-        });
-    }
-
-    obstacles.forEach(obs => {
-        ctx.fillStyle = '#333344';
-        ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
-        ctx.strokeStyle = '#555577';
+        ctx.beginPath();
+        ctx.arc(targetZone.x, targetZone.y, targetZone.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(255, 204, 0, 0.6)';
         ctx.lineWidth = 3;
+        ctx.setLineDash([10, 10]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+
+    // 장애물 그리기
+    obstacles.forEach(obs => {
+        ctx.fillStyle = '#2a2a2a';
+        ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+        ctx.strokeStyle = '#444';
+        ctx.lineWidth = 2;
         ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
     });
 
-    bloodParticles.forEach(p => {
-        ctx.fillStyle = `rgba(200, 0, 0, ${p.alpha})`;
+    // 드롭된 아이템 그리기
+    droppedItems.forEach(item => {
         ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.arc(item.x, item.y, 8, 0, Math.PI * 2);
+        if(['ar', 'sniper', 'shotgun'].includes(item.type)) ctx.fillStyle = '#ffcc00';
+        else if(item.type.startsWith('ammo_')) ctx.fillStyle = '#00ffcc';
+        else if(item.type === 'medkit') ctx.fillStyle = '#ff44aa';
+        else if(ARMORS[item.type]) ctx.fillStyle = '#4488ff';
+        else ctx.fillStyle = '#ffffff';
         ctx.fill();
-    });
-
-    bullets.forEach(b => {
-        ctx.strokeStyle = '#ffcc00';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.moveTo(b.prevX, b.prevY);
-        ctx.lineTo(b.x, b.y);
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 1;
         ctx.stroke();
     });
 
-    if (myPlayer.hp > 0 && !myPlayer.isDead) {
-        drawPlayer(myPlayer);
-        drawGunshotIndicators();
+    // 피 피클
+    bloodParticles.forEach(p => {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(200, 0, 0, ${p.alpha})`;
+        ctx.fill();
+    });
 
-        if (isMobile && (mobileAimVec.x !== 0 || mobileAimVec.y !== 0)) {
-            const crosshairDist = 120;
-            const crossX = myPlayer.x + Math.cos(myPlayer.angle) * crosshairDist;
-            const crossY = myPlayer.y + Math.sin(myPlayer.angle) * crosshairDist;
+    // 총알 그리기
+    bullets.forEach(b => {
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, 3, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffcc00';
+        ctx.fill();
+    });
 
-            ctx.strokeStyle = '#ff4444';
-            ctx.lineWidth = 2;
+    // 플레이어 / 봇 렌더링 함수
+    function drawEntity(p, isSelf = false) {
+        if (p.isDead || p.hp <= 0) return;
+
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.angle);
+
+        // 총기
+        if (p.weapon) {
+            ctx.fillStyle = '#666';
+            ctx.fillRect(10, 5, 20, 6);
+        }
+
+        // 본체
+        ctx.beginPath();
+        ctx.arc(0, 0, 20, 0, Math.PI * 2);
+        ctx.fillStyle = isSelf ? '#00ffcc' : (p.id.startsWith('bot_') ? '#ff4444' : '#ff8800');
+        ctx.fill();
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // 몸 갑바 표시
+        if (p.equippedBodyArmor) {
             ctx.beginPath();
-            ctx.arc(crossX, crossY, 10, 0, Math.PI * 2);
-            ctx.moveTo(crossX - 14, crossY); ctx.lineTo(crossX + 14, crossY);
-            ctx.moveTo(crossX, crossY - 14); ctx.lineTo(crossX + 14, crossY);
+            ctx.arc(0, 0, 22, 0, Math.PI * 2);
+            ctx.strokeStyle = '#0088ff';
+            ctx.lineWidth = 3;
             ctx.stroke();
         }
+
+        // 머리 갑바 표시
+        if (p.equippedHelmet) {
+            ctx.beginPath();
+            ctx.arc(0, 0, 14, 0, Math.PI * 2);
+            ctx.fillStyle = '#0055cc';
+            ctx.fill();
+        }
+
+        ctx.restore();
+
+        // 이름 및 체력바
+        ctx.font = '12px sans-serif';
+        ctx.fillStyle = '#fff';
+        ctx.textAlign = 'center';
+        ctx.fillText(p.name, p.x, p.y - 30);
+
+        // 체력바 배경
+        ctx.fillStyle = '#333';
+        ctx.fillRect(p.x - 20, p.y - 25, 40, 5);
+        // 체력바
+        const hpWidth = Math.max(0, (p.hp / p.maxHp) * 40);
+        ctx.fillStyle = p.hp > 100 ? '#00ff88' : (p.hp > 50 ? '#ffcc00' : '#ff4444');
+        ctx.fillRect(p.x - 20, p.y - 25, hpWidth, 5);
     }
 
-    Object.values(remotePlayers).forEach(p => drawPlayer(p));
-    aiBots.forEach(b => drawPlayer(b));
+    // AI 봇
+    aiBots.forEach(bot => drawEntity(bot));
+
+    // 원격 플레이어
+    Object.values(remotePlayers).forEach(p => drawEntity(p));
+
+    // 나 자신
+    if (!myPlayer.isDead) drawEntity(myPlayer, true);
 
     ctx.restore();
 
-    drawFogOfWar();
-
+    // 미니맵 그리기
     renderMinimap();
-    if (document.getElementById('fullMapOverlay').style.display === 'flex') {
-        renderFullMap();
-    }
 }
 
 function renderMinimap() {
     mCtx.clearRect(0, 0, minimapCanvas.width, minimapCanvas.height);
+    
     const scale = minimapCanvas.width / WORLD_SIZE;
 
-    mCtx.save();
-    mCtx.beginPath();
-    mCtx.arc(minimapCanvas.width / 2, minimapCanvas.height / 2, minimapCanvas.width / 2, 0, Math.PI * 2);
-    mCtx.clip();
-
-    mCtx.fillStyle = '#151515';
+    mCtx.fillStyle = 'rgba(15, 15, 15, 0.8)';
     mCtx.fillRect(0, 0, minimapCanvas.width, minimapCanvas.height);
 
-    mCtx.fillStyle = '#333344';
-    obstacles.forEach(obs => {
-        mCtx.fillRect(obs.x * scale, obs.y * scale, obs.w * scale, obs.h * scale);
-    });
-
+    // 자기장
     if (selectedMode === 'br') {
-        mCtx.strokeStyle = 'rgba(0, 255, 204, 0.6)';
-        mCtx.lineWidth = 2;
         mCtx.beginPath();
         mCtx.arc(zone.x * scale, zone.y * scale, zone.radius * scale, 0, Math.PI * 2);
+        mCtx.strokeStyle = 'rgba(0, 255, 200, 0.8)';
+        mCtx.lineWidth = 2;
         mCtx.stroke();
     }
 
-    gunshotEvents.forEach(snd => {
-        const dx = snd.x - myPlayer.x;
-        const dy = snd.y - myPlayer.y;
-        const angle = Math.atan2(dy, dx);
-        
-        const indicatorRadius = 80;
-        const ix = (minimapCanvas.width / 2) + Math.cos(angle) * indicatorRadius;
-        const iy = (minimapCanvas.height / 2) + Math.sin(angle) * indicatorRadius;
-
-        mCtx.fillStyle = '#ff4444';
-        mCtx.beginPath();
-        mCtx.arc(ix, iy, 5, 0, Math.PI * 2);
-        mCtx.fill();
-    });
-
-    mCtx.restore();
-
-    mCtx.strokeStyle = '#00ffcc';
-    mCtx.lineWidth = 2;
-    mCtx.beginPath();
-    mCtx.arc(minimapCanvas.width / 2, minimapCanvas.height / 2, (minimapCanvas.width / 2) - 1, 0, Math.PI * 2);
-    mCtx.stroke();
-}
-
-function renderFullMap() {
-    fCtx.clearRect(0, 0, fullMapCanvas.width, fullMapCanvas.height);
-    const scale = fullMapCanvas.width / WORLD_SIZE;
-
-    fCtx.fillStyle = '#111';
-    fCtx.fillRect(0, 0, fullMapCanvas.width, fullMapCanvas.height);
-
-    fCtx.fillStyle = '#333344';
+    // 장애물
     obstacles.forEach(obs => {
-        fCtx.fillRect(obs.x * scale, obs.y * scale, obs.w * scale, obs.h * scale);
+        mCtx.fillStyle = '#555';
+        mCtx.fillRect(obs.x * scale, obs.y * scale, obs.w * scale, obs.h * scale);
     });
 
-    if (selectedMode === 'br') {
-        fCtx.strokeStyle = 'rgba(0, 255, 204, 0.8)';
-        fCtx.lineWidth = 2;
-        fCtx.beginPath();
-        fCtx.arc(zone.x * scale, zone.y * scale, zone.radius * scale, 0, Math.PI * 2);
-        fCtx.stroke();
+    // 봇 위치
+    aiBots.forEach(bot => {
+        if (!bot.isDead) {
+            mCtx.beginPath();
+            mCtx.arc(bot.x * scale, bot.y * scale, 2, 0, Math.PI * 2);
+            mCtx.fillStyle = '#ff4444';
+            mCtx.fill();
+        }
+    });
 
-        fCtx.strokeStyle = 'rgba(255, 204, 0, 0.6)';
-        fCtx.lineWidth = 1;
-        fCtx.beginPath();
-        fCtx.arc(targetZone.x * scale, targetZone.y * scale, targetZone.radius * scale, 0, Math.PI * 2);
-        fCtx.stroke();
-    }
+    // 다른 플레이어
+    Object.values(remotePlayers).forEach(p => {
+        if (!p.isDead) {
+            mCtx.beginPath();
+            mCtx.arc(p.x * scale, p.y * scale, 2, 0, Math.PI * 2);
+            mCtx.fillStyle = '#ff8800';
+            mCtx.fill();
+        }
+    });
 
-    if (myPlayer.hp > 0 && !myPlayer.isDead) {
-        fCtx.fillStyle = '#00ffcc';
-        fCtx.beginPath();
-        fCtx.arc(myPlayer.x * scale, myPlayer.y * scale, 5, 0, Math.PI * 2);
-        fCtx.fill();
+    // 나 자신
+    if (!myPlayer.isDead) {
+        mCtx.beginPath();
+        mCtx.arc(myPlayer.x * scale, myPlayer.y * scale, 3, 0, Math.PI * 2);
+        mCtx.fillStyle = '#00ffcc';
+        mCtx.fill();
     }
 }
 
 function gameLoop() {
+    if (!gameStarted) return;
     update();
     render();
-    if (gameStarted) requestAnimationFrame(gameLoop);
+    requestAnimationFrame(gameLoop);
 }
 </script>
 </body>
