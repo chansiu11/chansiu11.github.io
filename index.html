@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Skill-Based Isometric Action RPG</title>
+  <title>Skill-Based Open World RPG</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
     body { background-color: #0a0a0c; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; }
@@ -38,6 +38,7 @@
     .hud-fill-stamina { height: 100%; background: #00e676; width: 100%; transition: width 0.05s linear; }
     .hud-fill-exp { height: 100%; background: #ffd700; width: 0%; transition: width 0.05s linear; }
 
+    .zone-indicator { position: absolute; top: 16px; right: 16px; background: rgba(10, 10, 15, 0.85); padding: 8px 16px; border-radius: 6px; border: 1px solid #333345; font-weight: bold; color: #00e676; }
     .controls-hint { position: absolute; bottom: 12px; left: 12px; background: rgba(0,0,0,0.75); padding: 8px 16px; border-radius: 6px; font-size: 12px; color: #aaa; border: 1px solid #222; }
 
     /* Modals */
@@ -62,10 +63,10 @@
 </head>
 <body>
 
-  <!-- 1. 로그인 -->
+  <!-- 로그인 -->
   <div id="screen-login" class="screen active">
     <div class="auth-card">
-      <h2>⚔️ REAL-SKILL RPG</h2>
+      <h2>⚔️ OPEN WORLD RPG</h2>
       <input type="text" id="login-id" placeholder="아이디">
       <input type="password" id="login-pw" placeholder="비밀번호">
       <button onclick="login()">로그인</button>
@@ -73,7 +74,7 @@
     </div>
   </div>
 
-  <!-- 2. 회원가입 -->
+  <!-- 회원가입 -->
   <div id="screen-signup" class="screen">
     <div class="auth-card">
       <h2>회원가입</h2>
@@ -84,36 +85,35 @@
     </div>
   </div>
 
-  <!-- 3. 메인 메뉴 -->
+  <!-- 메인 메뉴 -->
   <div id="screen-menu" class="screen">
     <div class="menu-card">
       <h1 id="user-greeting">반갑습니다!</h1>
-      <p style="color:#888; font-size:13px; margin-bottom: 20px;">운 요소 0% - 오직 컨트롤로 승부하세요.</p>
-      <button class="btn-start" onclick="startGame()">게임 시작</button>
+      <p style="color:#888; font-size:13px; margin-bottom: 20px;">20배 확장된 월드와 다채로운 지형 탐험</p>
+      <button class="btn-start" onclick="startGame()">모험 시작</button>
       <button class="btn-logout" onclick="logout()">로그아웃</button>
     </div>
   </div>
 
-  <!-- 4. 게임 화면 -->
+  <!-- 게임 화면 -->
   <div id="screen-game" class="screen">
     <div id="game-container">
       <canvas id="gameCanvas" width="960" height="640"></canvas>
       
-      <!-- HUD -->
       <div class="hud">
         <div><strong id="hud-name">Player</strong> (Lv.<span id="hud-level">1</span>)</div>
         <div style="margin-top:4px;">HP: <span id="hud-hp-txt">100/100</span></div>
         <div class="hud-bar"><div id="hud-hp-bar" class="hud-fill-hp"></div></div>
-        <div style="margin-top:4px;">STAMINA (대시):</div>
+        <div style="margin-top:4px;">STAMINA:</div>
         <div class="hud-bar"><div id="hud-stamina-bar" class="hud-fill-stamina"></div></div>
         <div style="margin-top:4px;">EXP: <span id="hud-exp-txt">0/50</span></div>
         <div class="hud-bar"><div id="hud-exp-bar" class="hud-fill-exp"></div></div>
-        <div style="margin-top:6px; color:#ffd700;">💰 <span id="hud-gold">0</span> Gold</div>
       </div>
 
+      <div class="zone-indicator" id="zone-indicator">📍 평화로운 마을</div>
       <div class="controls-hint" id="hud-controls-hint">조작키 불러오는 중...</div>
 
-      <!-- 인벤토리 창 -->
+      <!-- 인벤토리 -->
       <div id="inventory-modal" class="modal">
         <div class="modal-header">
           <span>🎒 가방 (인벤토리)</span>
@@ -134,10 +134,10 @@
         <div id="inv-grid" class="inv-grid"></div>
       </div>
 
-      <!-- 키 커스텀 설정 창 -->
+      <!-- 키 커스텀 설정 -->
       <div id="settings-modal" class="modal">
         <div class="modal-header">
-          <span>⚙️ 키 설정 (Keybindings)</span>
+          <span>⚙️ 키 설정</span>
           <span class="close-btn" onclick="toggleModal('settings-modal')">X</span>
         </div>
         <div id="keybind-list"></div>
@@ -152,14 +152,8 @@
   let currentUser = null;
 
   const DEFAULT_KEYBINDS = {
-    moveUp: 'w',
-    moveDown: 's',
-    moveLeft: 'a',
-    moveRight: 'd',
-    attack: 'j',
-    dash: 'k',
-    inventory: 'i',
-    settings: 'Escape'
+    moveUp: 'w', moveDown: 's', moveLeft: 'a', moveRight: 'd',
+    attack: 'j', dash: 'k', inventory: 'i', settings: 'Escape'
   };
 
   function showScreen(id) {
@@ -203,11 +197,11 @@
       x: 0, y: 0,
       level: 1, exp: 0, maxExp: 50,
       hp: 100, maxHp: 100,
-      atk: 20, gold: 0,
+      atk: 25, gold: 0,
       equip: { weapon: null, armor: null },
       inventory: [
-        { id: 'sword1', name: '🗡️ 롱소드', type: 'weapon', atk: 15, range: 1.4, count: 1 },
-        { id: 'armor1', name: '🛡️ 기사 갑옷', type: 'armor', hp: 50, count: 1 }
+        { id: 'sword1', name: '🗡️ 강철 롱소드', type: 'weapon', atk: 20, range: 1.5, count: 1 },
+        { id: 'armor1', name: '🛡️ 사슬 갑옷', type: 'armor', hp: 60, count: 1 }
       ],
       keybinds: { ...DEFAULT_KEYBINDS }
     };
@@ -219,38 +213,51 @@
     localStorage.setItem('skill_rpg_users', JSON.stringify(users));
   }
 
-  // --- [2. 게임 물리 & 그래픽 엔진] ---
-  const canvas = document.getElementById('gameCanvas');
-  const ctx = canvas.getContext('2d');
-
+  // --- [2. 오픈 월드 지형 및 건물 정의] ---
+  const MAP_BOUNDS = 30; // -30 ~ 30 (기존 대비 20배 크기의 넓은 맵)
   const TILE_W = 64;
   const TILE_H = 32;
 
+  // 건물 데이터
+  const BUILDINGS = [
+    { name: '마을 회관', x: 0, y: -2, width: 2, height: 2, color: '#795548', type: 'town' },
+    { name: '무기점', x: -3, y: 1, width: 1.5, height: 1.5, color: '#5d4037', type: 'town' },
+    { name: '독성 동굴 입구', x: 18, y: 18, width: 2.5, height: 2.5, color: '#311b92', type: 'cave_entrance' },
+    { name: '설원 요새', x: -18, y: -18, width: 3, height: 3, color: '#37474f', type: 'fortress' }
+  ];
+
   let gameState = {
     playerData: null,
-    // 부드러운 이동용 물리 파라미터
     playerPhys: {
-      x: 0, y: 0,
-      vx: 0, vy: 0,
-      ax: 0, ay: 0,
-      angle: 0,
+      x: 0, y: 0, vx: 0, vy: 0, ax: 0, ay: 0,
       stamina: 100, maxStamina: 100,
-      isDashing: 0,
-      invincibleTime: 0,
-      attackCooldown: 0
+      isDashing: 0, invincibleTime: 0, attackCooldown: 0,
+      poisonTimer: 0
     },
     monsters: [],
     particles: [],
     floatingTexts: [],
     keysPressed: {},
     bindingAction: null,
-    lastTime: performance.now()
+    lastTime: performance.now(),
+    currentZoneName: ''
   };
 
+  function getBiome(x, y) {
+    if (Math.hypot(x, y) < 8) return { type: 'TOWN', name: '📍 평화로운 마을', color1: '#2e7d32', color2: '#1b5e20', speedMod: 1.0 };
+    if (x > 8 && y > 8) return { type: 'CAVE', name: '☠️ 독성 축축한 동굴', color1: '#1a237e', color2: '#0d47a1', speedMod: 0.95 };
+    if (x < -8 && y < -8) return { type: 'SNOW', name: '❄️ 얼어붙은 설원 지대', color1: '#eceff1', color2: '#cfd8dc', speedMod: 0.65 };
+    return { type: 'PLAINS', name: '🌿 야생 초원 지대', color1: '#33691e', color2: '#1b5e20', speedMod: 1.0 };
+  }
+
   function toIso(x, y) {
+    // 플레이어 중심 스크롤 지원
+    const p = gameState.playerPhys;
+    const relX = x - p.x;
+    const relY = y - p.y;
     return {
-      screenX: (x - y) * (TILE_W / 2) + canvas.width / 2,
-      screenY: (x + y) * (TILE_H / 2) + 160
+      screenX: (relX - relY) * (TILE_W / 2) + canvas.width / 2,
+      screenY: (relX + relY) * (TILE_H / 2) + canvas.height / 2
     };
   }
 
@@ -259,7 +266,7 @@
     gameState.playerPhys.x = gameState.playerData.x || 0;
     gameState.playerPhys.y = gameState.playerData.y || 0;
 
-    spawnMonsters();
+    spawnWorldMonsters();
     showScreen('screen-game');
     updateHUD();
     renderInventoryUI();
@@ -270,14 +277,23 @@
     requestAnimationFrame(gameLoop);
   }
 
-  function spawnMonsters() {
+  function spawnWorldMonsters() {
     gameState.monsters = [
-      { id: 1, name: '검사 훈련병', x: 2.5, y: -2, hp: 120, maxHp: 120, atk: 15, exp: 30, color: '#ff9800', attackTimer: 0, windup: 0 },
-      { id: 2, name: '엘리트 정예기사', x: -3, y: 3, hp: 300, maxHp: 300, atk: 30, exp: 80, color: '#e91e63', attackTimer: 0, windup: 0, isBoss: true }
+      // 초원 지대 몬스터 (빠른 이동속도)
+      { id: 1, name: '초원 슬라임', zone: 'PLAINS', x: 12, y: -10, hp: 100, maxHp: 100, atk: 12, exp: 25, color: '#8bc34a', attackTimer: 0, windup: 0, speed: 2.8 },
+      { id: 2, name: '야생 늑대', zone: 'PLAINS', x: -14, y: 12, hp: 140, maxHp: 140, atk: 20, exp: 40, color: '#ff9800', attackTimer: 0, windup: 0, speed: 3.5 },
+
+      // 독성 동굴 몬스터 (전하 고속격파 패턴)
+      { id: 3, name: '독성 스파이더', zone: 'CAVE', x: 20, y: 22, hp: 250, maxHp: 250, atk: 35, exp: 80, color: '#9c27b0', attackTimer: 0, windup: 0, speed: 2.0 },
+      { id: 4, name: '동굴 심연 골렘', zone: 'CAVE', x: 26, y: 25, hp: 600, maxHp: 600, atk: 55, exp: 200, color: '#673ab7', attackTimer: 0, windup: 0, speed: 1.2, isBoss: true },
+
+      // 설원 지대 몬스터 (범위 강타)
+      { id: 5, name: '설원 팩 늑대', zone: 'SNOW', x: -22, y: -20, hp: 200, maxHp: 200, atk: 28, exp: 65, color: '#00bcd4', attackTimer: 0, windup: 0, speed: 2.2 },
+      { id: 6, name: '서리 거인', zone: 'SNOW', x: -25, y: -25, hp: 800, maxHp: 800, atk: 70, exp: 350, color: '#0288d1', attackTimer: 0, windup: 0, speed: 1.0, isBoss: true }
     ];
   }
 
-  // --- [3. 키 입력 handling] ---
+  // --- [3. 키 입력 이벤트] ---
   window.addEventListener('keydown', (e) => {
     if (gameState.bindingAction) {
       e.preventDefault();
@@ -306,43 +322,71 @@
   function updateControlsHint() {
     const kb = gameState.playerData.keybinds;
     document.getElementById('hud-controls-hint').innerText = 
-      `이동: [${kb.moveUp.toUpperCase()},${kb.moveLeft.toUpperCase()},${kb.moveDown.toUpperCase()},${kb.moveRight.toUpperCase()}] | 공격: [${kb.attack.toUpperCase()}] | 회피대시(무적): [${kb.dash.toUpperCase()}] | 가방: [${kb.inventory.toUpperCase()}]`;
+      `이동: [${kb.moveUp.toUpperCase()},${kb.moveLeft.toUpperCase()},${kb.moveDown.toUpperCase()},${kb.moveRight.toUpperCase()}] | 공격: [${kb.attack.toUpperCase()}] | 회피대시: [${kb.dash.toUpperCase()}] | 가방: [${kb.inventory.toUpperCase()}]`;
   }
 
-  // --- [4. 부드러운 물리 이동 & 액션] ---
+  // --- [4. 물리 및 지형 엔진] ---
   function updatePhysics(dt) {
     const p = gameState.playerPhys;
     const kb = gameState.playerData.keybinds;
+    const currentBiome = getBiome(p.x, p.y);
 
-    // 가속도 초기화
+    if (gameState.currentZoneName !== currentBiome.name) {
+      gameState.currentZoneName = currentBiome.name;
+      document.getElementById('zone-indicator').innerText = currentBiome.name;
+    }
+
     p.ax = 0; p.ay = 0;
-    const accel = 35; // 관성 가속도
+    const accel = 35 * currentBiome.speedMod; // 설원 감속 마찰력 반영
 
     if (gameState.keysPressed[kb.moveUp]) { p.ax -= accel; p.ay -= accel; }
     if (gameState.keysPressed[kb.moveDown]) { p.ax += accel; p.ay += accel; }
     if (gameState.keysPressed[kb.moveLeft]) { p.ax -= accel; p.ay += accel; }
     if (gameState.keysPressed[kb.moveRight]) { p.ax += accel; p.ay -= accel; }
 
-    // 대시 중엔 보정된 고속 이동
     if (p.isDashing > 0) {
       p.isDashing -= dt;
-      p.invincibleTime = 0.1; // 대시 중 무적
+      p.invincibleTime = 0.1;
     } else {
-      // 속도 및 마찰력 계산 (부드러운 감속)
       p.vx += p.ax * dt;
       p.vy += p.ay * dt;
       p.vx *= 0.82; 
       p.vy *= 0.82;
     }
 
-    p.x += p.vx * dt;
-    p.y += p.vy * dt;
+    let nextX = p.x + p.vx * dt;
+    let nextY = p.y + p.vy * dt;
 
-    // 위치 저장
-    gameState.playerData.x = p.x;
-    gameState.playerData.y = p.y;
+    // 맵 경계 제한
+    nextX = Math.max(-MAP_BOUNDS, Math.min(MAP_BOUNDS, nextX));
+    nextY = Math.max(-MAP_BOUNDS, Math.min(MAP_BOUNDS, nextY));
 
-    // 스태미나 자동 회복
+    // 건물 충돌 체크
+    let canMove = true;
+    BUILDINGS.forEach(b => {
+      if (nextX >= b.x && nextX <= b.x + b.width && nextY >= b.y && nextY <= b.y + b.height) {
+        canMove = false;
+      }
+    });
+
+    if (canMove) {
+      p.x = nextX;
+      p.y = nextY;
+      gameState.playerData.x = p.x;
+      gameState.playerData.y = p.y;
+    }
+
+    // 독성 동굴 지속 장판 피해
+    if (currentBiome.type === 'CAVE' && p.invincibleTime <= 0) {
+      p.poisonTimer = (p.poisonTimer || 0) + dt;
+      if (p.poisonTimer >= 1.0) {
+        p.poisonTimer = 0;
+        gameState.playerData.hp = Math.max(1, gameState.playerData.hp - 5);
+        addFloatingText("독성 피해 -5", p.x, p.y, '#ab47bc');
+        updateHUD();
+      }
+    }
+
     if (p.stamina < p.maxStamina) {
       p.stamina = Math.min(p.maxStamina, p.stamina + 35 * dt);
     }
@@ -354,10 +398,9 @@
     const p = gameState.playerPhys;
     if (p.stamina >= 30 && p.isDashing <= 0) {
       p.stamina -= 30;
-      p.isDashing = 0.25; // 0.25초 무적 대시
+      p.isDashing = 0.25;
       
-      // 입력 방향으로 순식간에 이동
-      let speed = 18;
+      let speed = 20;
       let dirX = p.vx === 0 ? 1 : Math.sign(p.vx);
       let dirY = p.vy === 0 ? 1 : Math.sign(p.vy);
       p.vx = dirX * speed;
@@ -371,18 +414,17 @@
     const p = gameState.playerPhys;
     if (p.attackCooldown > 0) return;
 
-    p.attackCooldown = 0.35; // 공격 쿨타임 0.35초
-    let range = gameState.playerData.equip.weapon?.range || 1.2;
+    p.attackCooldown = 0.35;
+    let range = gameState.playerData.equip.weapon?.range || 1.3;
     let baseAtk = gameState.playerData.atk + (gameState.playerData.equip.weapon?.atk || 0);
 
-    // 공격 이펙트 파티클
     gameState.particles.push({ x: p.x, y: p.y, radius: range * 25, life: 0.15, maxLife: 0.15 });
 
     gameState.monsters.forEach(m => {
       if (m.hp <= 0) return;
       let dist = Math.hypot(m.x - p.x, m.y - p.y);
       if (dist <= range) {
-        m.hp -= baseAtk; // 고정 대미지 (운 요소 제거)
+        m.hp -= baseAtk;
         addFloatingText(`-${baseAtk}`, m.x, m.y, '#ffd700');
 
         if (m.hp <= 0) {
@@ -396,7 +438,7 @@
             gameState.playerData.hp = gameState.playerData.maxHp;
             addFloatingText("LEVEL UP!", p.x, p.y, '#00e676');
           }
-          setTimeout(() => { m.hp = m.maxHp; }, 6000);
+          setTimeout(() => { m.hp = m.maxHp; }, 8000);
         }
       }
     });
@@ -405,7 +447,7 @@
     saveData();
   }
 
-  // --- [5. 몬스터 패턴 AI (패턴 전조 증상 제공)] ---
+  // --- [5. 지형별 몬스터 인공지능 (AI)] ---
   function updateMonsters(dt) {
     const p = gameState.playerPhys;
 
@@ -414,36 +456,38 @@
 
       let dist = Math.hypot(p.x - m.x, p.y - m.y);
 
-      // 1. 추적
-      if (dist < 5.0 && dist > 0.9 && m.windup <= 0) {
-        m.x += ((p.x - m.x) / dist) * 1.8 * dt;
-        m.y += ((p.y - m.y) / dist) * 1.8 * dt;
+      // 6m 범위 내 감지 시 추적
+      if (dist < 6.0 && dist > 1.0 && m.windup <= 0) {
+        m.x += ((p.x - m.x) / dist) * m.speed * dt;
+        m.y += ((p.y - m.y) / dist) * m.speed * dt;
       }
 
-      // 2. 공격 전조 증상 (Red Telegraph)
-      if (dist <= 1.2 && m.windup <= 0 && m.attackTimer <= 0) {
-        m.windup = 0.6; // 0.6초간 선딜레이 (공격 전조)
+      // 선딜레이 공격 예고 (Red Telegraph)
+      if (dist <= 1.3 && m.windup <= 0 && m.attackTimer <= 0) {
+        m.windup = m.isBoss ? 0.9 : 0.5;
       }
 
       if (m.windup > 0) {
         m.windup -= dt;
         if (m.windup <= 0) {
-          // 공격 발동
-          if (dist <= 1.3) {
+          if (dist <= 1.5) {
             if (p.invincibleTime > 0) {
               addFloatingText("EVADE!", p.x, p.y, '#00e676');
             } else {
+              let bonusHp = gameState.playerData.equip.armor?.hp || 0;
+              let currentMaxHp = gameState.playerData.maxHp + bonusHp;
               gameState.playerData.hp = Math.max(0, gameState.playerData.hp - m.atk);
               addFloatingText(`-${m.atk}`, p.x, p.y, '#ff5252');
+              
               if (gameState.playerData.hp <= 0) {
-                alert("체력이 0이 되었습니다! 원점으로 복귀합니다.");
-                gameState.playerData.hp = gameState.playerData.maxHp;
+                alert("사망하였습니다! 마을로 부활합니다.");
+                gameState.playerData.hp = currentMaxHp;
                 p.x = 0; p.y = 0;
               }
               updateHUD();
             }
           }
-          m.attackTimer = 1.5; // 후딜레이
+          m.attackTimer = 1.6;
         }
       }
 
@@ -455,28 +499,56 @@
     gameState.floatingTexts.push({ text, x, y, alpha: 1.0, color, life: 0.8 });
   }
 
-  // --- [6. 렌더링 Engine] ---
+  // --- [6. 시점 고정 Isometric 그래픽 렌더링 Engine] ---
   function render() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 그리드 필드
-    for (let x = -6; x <= 6; x++) {
-      for (let y = -6; y <= 6; y++) {
+    const p = gameState.playerPhys;
+
+    // 타일 렌더링 범위 (화면 내 타일만 렌더링)
+    let minX = Math.floor(p.x - 12);
+    let maxX = Math.ceil(p.x + 12);
+    let minY = Math.floor(p.y - 12);
+    let maxY = Math.ceil(p.y + 12);
+
+    for (let x = minX; x <= maxX; x++) {
+      for (let y = minY; y <= maxY; y++) {
+        if (x < -MAP_BOUNDS || x > MAP_BOUNDS || y < -MAP_BOUNDS || y > MAP_BOUNDS) continue;
+
         let pos = toIso(x, y);
+        let biome = getBiome(x, y);
+
         ctx.beginPath();
         ctx.moveTo(pos.screenX, pos.screenY);
         ctx.lineTo(pos.screenX + TILE_W / 2, pos.screenY + TILE_H / 2);
         ctx.lineTo(pos.screenX, pos.screenY + TILE_H);
         ctx.lineTo(pos.screenX - TILE_W / 2, pos.screenY + TILE_H / 2);
         ctx.closePath();
-        ctx.fillStyle = (x + y) % 2 === 0 ? '#181822' : '#1e1e2c';
+
+        ctx.fillStyle = (x + y) % 2 === 0 ? biome.color1 : biome.color2;
         ctx.fill();
-        ctx.strokeStyle = '#222233';
+        ctx.strokeStyle = 'rgba(0,0,0,0.15)';
         ctx.stroke();
       }
     }
 
-    // 공격 효과 파티클
+    // 건물 렌더링
+    BUILDINGS.forEach(b => {
+      let pos = toIso(b.x, b.y);
+      let renderY = pos.screenY + TILE_H / 2;
+
+      ctx.fillStyle = b.color;
+      ctx.fillRect(pos.screenX - 25, renderY - 45, 50, 45);
+      ctx.strokeStyle = '#fff';
+      ctx.strokeRect(pos.screenX - 25, renderY - 45, 50, 45);
+
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(b.name, pos.screenX, renderY - 52);
+    });
+
+    // 공격 파티클 효과
     gameState.particles.forEach((pt, index) => {
       let pos = toIso(pt.x, pt.y);
       ctx.beginPath();
@@ -494,30 +566,33 @@
       let pos = toIso(m.x, m.y);
       let drawY = pos.screenY + TILE_H / 2;
 
-      // 선딜레이 빨간색 전조 범위 표시
+      // 선딜레이 빨간색 전조 표시
       if (m.windup > 0) {
         ctx.beginPath();
-        ctx.arc(pos.screenX, drawY, 35, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255, 23, 68, 0.35)';
+        ctx.arc(pos.screenX, drawY, m.isBoss ? 45 : 30, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 23, 68, 0.4)';
         ctx.fill();
       }
 
       ctx.beginPath();
-      ctx.arc(pos.screenX, drawY - 12, m.isBoss ? 18 : 13, 0, Math.PI * 2);
+      ctx.arc(pos.screenX, drawY - 12, m.isBoss ? 18 : 12, 0, Math.PI * 2);
       ctx.fillStyle = m.color;
       ctx.fill();
       ctx.strokeStyle = '#fff';
       ctx.stroke();
 
+      ctx.fillStyle = '#fff';
+      ctx.font = '10px sans-serif';
+      ctx.fillText(m.name, pos.screenX, drawY - 32);
+
       // HP 바
       ctx.fillStyle = 'rgba(0,0,0,0.6)';
-      ctx.fillRect(pos.screenX - 20, drawY - 35, 40, 5);
+      ctx.fillRect(pos.screenX - 20, drawY - 28, 40, 4);
       ctx.fillStyle = '#ff5252';
-      ctx.fillRect(pos.screenX - 20, drawY - 35, (m.hp / m.maxHp) * 40, 5);
+      ctx.fillRect(pos.screenX - 20, drawY - 28, (m.hp / m.maxHp) * 40, 4);
     });
 
     // 플레이어 렌더링
-    const p = gameState.playerPhys;
     let pPos = toIso(p.x, p.y);
     let pDrawY = pPos.screenY + TILE_H / 2;
 
@@ -534,7 +609,7 @@
       let ft = gameState.floatingTexts[i];
       let pos = toIso(ft.x, ft.y);
       ctx.fillStyle = ft.color;
-      ctx.font = 'bold 13px sans-serif';
+      ctx.font = 'bold 12px sans-serif';
       ctx.globalAlpha = Math.max(0, ft.life);
       ctx.fillText(ft.text, pos.screenX, pos.screenY - 25);
       ctx.globalAlpha = 1.0;
@@ -546,7 +621,7 @@
   function gameLoop(now) {
     if (document.getElementById('screen-game').classList.contains('active')) {
       let dt = (now - gameState.lastTime) / 1000;
-      dt = Math.min(dt, 0.05); // 프레임 드랍 보정
+      dt = Math.min(dt, 0.05);
       gameState.lastTime = now;
 
       updatePhysics(dt);
@@ -558,7 +633,7 @@
     }
   }
 
-  // --- [7. UI Control] ---
+  // --- [7. UI 연동] ---
   function updateHUD() {
     const d = gameState.playerData;
     const p = gameState.playerPhys;
@@ -623,7 +698,7 @@
     list.innerHTML = '';
     const labels = {
       moveUp: '위쪽 이동', moveDown: '아래쪽 이동', moveLeft: '왼쪽 이동', moveRight: '오른쪽 이동',
-      attack: '공격', dash: '회피 대시 (무적)', inventory: '가방', settings: '설정'
+      attack: '공격', dash: '회피 대시', inventory: '가방', settings: '설정'
     };
     const kb = gameState.playerData.keybinds;
 
