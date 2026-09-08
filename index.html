@@ -289,8 +289,8 @@
         <span id="hudZoneContainer">[자기장 단계]: <span id="hudZoneStage" style="color:#00ffcc;">1단계</span> | [축소까지]: <span id="hudZoneTimer" style="color:#ffcc00;">60</span> 초<br></span>
         [무기]: <span id="hudWeapon" style="color:#00ffcc;">맨손</span> | [탄약]: <span id="hudAmmo" style="color:#ffcc00;">- / -</span> <br>
         [머리 갑바]: <span id="hudHelmet" style="color:#00ffcc;">없음</span> | [몸 갑바]: <span id="hudArmor" style="color:#00ffcc;">없음</span> <br>
-        [장착 스코프]: <span id="hudScope" style="color:#ffcc00;">없음</span> <br>
-        <span id="hudControlsHint">[조작법]: Shift(달리기) / Ctrl(은신) / E(줍기) / R(장전) / Tab(가방)</span>
+        [장착 스코프]: <span id="hudScope" style="color:#ffcc00;">없음</span> | [구급상자]: <span id="hudMedkit" style="color:#00ffcc;">0개 (F키)</span> <br>
+        <span id="hudControlsHint">[조작법]: Shift(달리기) / Ctrl(은신) / E(줍기) / F(회복) / R(장전) / Tab(가방)</span>
     </div>
 
     <div id="spectateHUD">
@@ -314,6 +314,7 @@
         </div>
         <div id="btnReload" class="mobile-btn touch-zone">장전</div>
         <div id="btnPickup" class="mobile-btn touch-zone">줍기</div>
+        <div id="btnHeal" class="mobile-btn touch-zone" style="bottom:110px; right:120px; border-color:#00ff44; color:#00ff44;">회복</div>
         <div id="btnBag" class="mobile-btn touch-zone">가방</div>
         <div id="btnMap" class="mobile-btn touch-zone">지도</div>
         <div id="btnSettings" class="mobile-btn touch-zone" onclick="openSettings()">⚙️</div>
@@ -332,6 +333,10 @@
         <div class="inv-section">
             <strong>보유 중인 방어구:</strong>
             <div id="armorList" class="inv-grid"></div>
+        </div>
+        <div class="inv-section">
+            <strong>보유 회복 아이템:</strong>
+            <div id="medkitArea" style="margin-top:5px; color:#aaa;">구급상자: 0개</div>
         </div>
         <div class="inv-section">
             <strong>현재 장착 스코프:</strong>
@@ -354,7 +359,7 @@
 </div>
 
 <script>
-let WORLD_SIZE = 12000; // 배틀로얄 맵 확장을 위해 기존 8000에서 12000으로 증대
+let WORLD_SIZE = 12000;
 
 const SCOPES = {
     '1x': { name: "1배율 (레드닷)", viewOffset: 300 },
@@ -403,7 +408,6 @@ let isRespawning = false;
 let respawnTimerVal = 5;
 let respawnInterval = null;
 
-// 스폰 선택 및 자기장 단계 관리
 let isSpawnSelecting = false;
 let hasSelectedSpawn = false;
 let spawnTimerVal = 10;
@@ -422,11 +426,9 @@ const zone = {
     shrinkRate: 3.0
 };
 
-// 데스매치 총기 선택 관리
 let weaponSelectTimerVal = 10;
 let weaponSelectInterval = null;
 
-// 연속 킬 관련 변수
 let killStreakCount = 0;
 let killStreakTimer = null;
 
@@ -459,6 +461,7 @@ const myPlayer = {
     equippedScope: null,
     equippedHelmet: null,
     equippedBodyArmor: null,
+    medkits: 0,
     inventory: { scopes: [], armors: [] },
     isAiming: false, isShooting: false, lastShootTime: 0,
     isMoving: false, movementMode: 'walk'
@@ -594,7 +597,8 @@ function generateMapData(mode) {
         '1x', '2x', '3x', '4x', '8x', 
         'ammo_ar', 'ammo_sniper', 'ammo_shotgun',
         'helmet_1', 'helmet_2', 'helmet_3',
-        'body_1', 'body_2', 'body_3'
+        'body_1', 'body_2', 'body_3',
+        'medkit', 'medkit' // 회복 아이템 추가 드랍
     ];
     const newItems = [];
     for (let i = 0; i < itemCount; i++) {
@@ -949,7 +953,6 @@ function handleMyDeath(killerId) {
     if (killerId) {
         addKill(killerId);
 
-        // 데스매치 적 처치 시 보상 수급
         if(selectedMode === 'normal') {
             if(killerId === myPlayer.id) {
                 giveDeathmatchKillAmmo(myPlayer);
@@ -1136,6 +1139,7 @@ function spawnAIBots(count) {
             equippedScope: null,
             equippedHelmet: null,
             equippedBodyArmor: null,
+            medkits: 1, // 회복 아이템 기본 소지
             lastShootTime: 0,
             targetItem: null,
             firstSeenTime: null,
@@ -1176,6 +1180,7 @@ function startGame() {
     myPlayer.weapon = null;
     myPlayer.equippedHelmet = null;
     myPlayer.equippedBodyArmor = null;
+    myPlayer.medkits = 0;
     myPlayer.inventory = { scopes: [], armors: [] };
     isSpectating = false;
     isRespawning = false;
@@ -1217,7 +1222,6 @@ function startGame() {
     gameLoop();
 }
 
-// 1. 배틀로얄 스폰 위치 선택 단계 (10초)
 function startSpawnSelectionPhase() {
     isSpawnSelecting = true;
     hasSelectedSpawn = false;
@@ -1280,7 +1284,6 @@ function endSpawnSelectionPhase() {
     startBattleRoyaleZoneLogic();
 }
 
-// 1. 배틀로얄 무작위 위치 무작위 자기장 축소 시스템
 function startBattleRoyaleZoneLogic() {
     zoneStage = 1;
     zoneTimer = 60;
@@ -1318,7 +1321,6 @@ function setupNextZoneTarget() {
     };
 }
 
-// 2. 데스매치 총기 선택 모달 (10초)
 function openDeathmatchWeaponModal() {
     weaponSelectTimerVal = 10;
     const modal = document.getElementById('weaponSelectModal');
@@ -1345,6 +1347,16 @@ function selectDeathmatchWeapon(type) {
     updateHUD();
 }
 
+// 회복 아이템 사용 함수
+function useMedkit(player) {
+    if (!player || player.hp <= 0 || player.isDead) return;
+    if (player.medkits > 0 && player.hp < player.maxHp) {
+        player.medkits--;
+        player.hp = Math.min(player.maxHp, player.hp + 75);
+        if (player === myPlayer) updateHUD();
+    }
+}
+
 function initEvents() {
     window.addEventListener('keydown', e => {
         if (isSpectating || isRespawning) return;
@@ -1354,6 +1366,7 @@ function initEvents() {
         if(e.key === 'Tab') { e.preventDefault(); toggleInventory(); }
         if(e.key.toLowerCase() === 'm') toggleFullMap();
         if(e.key.toLowerCase() === 'e') pickupItem();
+        if(e.key.toLowerCase() === 'f') useMedkit(myPlayer); // F키 회복 아이템 사용
         if(e.key.toLowerCase() === 'r') reloadWeapon(myPlayer);
     });
     window.addEventListener('keyup', e => {
@@ -1512,6 +1525,7 @@ function initMobileControls() {
 
     document.getElementById('btnReload').addEventListener('touchstart', (e) => { if(!isEditingKeys && !isSpectating && !isRespawning){ e.preventDefault(); reloadWeapon(myPlayer); } });
     document.getElementById('btnPickup').addEventListener('touchstart', (e) => { if(!isEditingKeys && !isSpectating && !isRespawning){ e.preventDefault(); pickupItem(); } });
+    document.getElementById('btnHeal').addEventListener('touchstart', (e) => { if(!isEditingKeys && !isSpectating && !isRespawning){ e.preventDefault(); useMedkit(myPlayer); } });
     document.getElementById('btnBag').addEventListener('touchstart', (e) => { if(!isEditingKeys && !isSpectating && !isRespawning){ e.preventDefault(); toggleInventory(); } });
     document.getElementById('btnMap').addEventListener('touchstart', (e) => { if(!isEditingKeys && !isSpectating && !isRespawning){ e.preventDefault(); toggleFullMap(); } });
 }
@@ -1534,6 +1548,7 @@ function renderInventory() {
     const armorList = document.getElementById('armorList');
     const scopeArea = document.getElementById('equippedScopeArea');
     const scopeList = document.getElementById('scopeList');
+    const medArea = document.getElementById('medkitArea');
     
     weapArea.innerHTML = myPlayer.weapon 
         ? `${WEAPONS[myPlayer.weapon].name} <button style="width:auto; padding:2px 8px; margin-left:10px;" onclick="unequipWeapon()">해제(버리기)</button>` 
@@ -1552,6 +1567,10 @@ function renderInventory() {
         item.onclick = () => equipArmor(armKey);
         armorList.appendChild(item);
     });
+
+    if(medArea) {
+        medArea.innerHTML = `구급상자: ${myPlayer.medkits || 0}개 <button style="width:auto; padding:2px 8px; margin-left:10px;" onclick="useMedkit(myPlayer)">사용 (F)</button>`;
+    }
 
     scopeArea.innerHTML = myPlayer.equippedScope 
         ? `${SCOPES[myPlayer.equippedScope].name} <button style="width:auto; padding:2px 8px; margin-left:10px;" onclick="unequipScope()">해제</button>` 
@@ -1652,6 +1671,8 @@ function pickupItem() {
                 myPlayer.reserveAmmo += WEAPONS[item.type].maxClip * 2;
             } else if(item.type.startsWith('ammo_')) {
                 myPlayer.reserveAmmo += 30;
+            } else if(item.type === 'medkit') {
+                myPlayer.medkits = (myPlayer.medkits || 0) + 1;
             } else if(ARMORS[item.type]) {
                 if(!myPlayer.inventory.armors) myPlayer.inventory.armors = [];
                 myPlayer.inventory.armors.push(item.type);
@@ -1679,6 +1700,8 @@ function updateHUD() {
     document.getElementById('hudScope').innerText = myPlayer.equippedScope ? SCOPES[myPlayer.equippedScope].name : "없음";
     document.getElementById('hudHelmet').innerText = myPlayer.equippedHelmet ? ARMORS[myPlayer.equippedHelmet].name : "없음";
     document.getElementById('hudArmor').innerText = myPlayer.equippedBodyArmor ? ARMORS[myPlayer.equippedBodyArmor].name : "없음";
+    const medkitHud = document.getElementById('hudMedkit');
+    if(medkitHud) medkitHud.innerText = `${myPlayer.medkits || 0}개 (F키)`;
     document.getElementById('hudZoneStage').innerText = zoneStage + "단계";
 
     if (selectedMode === 'br' && alive === 1 && myPlayer.hp > 0 && !myPlayer.isDead && gameStarted && !gameEnded && initialPlayerCount > 1) {
@@ -1855,6 +1878,15 @@ function moveAIBot(bot, vx, vy) {
     if (!checkObstacleCollision(bot.x, nextY, 15)) bot.y = nextY;
 }
 
+/**
+ * [AI 봇 우선순위 알고리즘 적용 구현부]
+ * 1순위: 자기장 안으로 이동 (밖이면 생존 위해 즉시 진입)
+ * 2순위: 총 파밍 (무기가 없을 때 우선 루팅)
+ * 3순위: 총알 파밍 (보유 총알 부족 시 루팅)
+ * 4순위: 주변 적 탐지 및 교전/공격
+ * 5순위: 갑옷/방어구 루팅
+ * 6순위: 다음 단계 예상 자기장 중앙 지역 사전 진입
+ */
 function updateAI() {
     if(!isHost || isSpawnSelecting) return; 
 
@@ -1865,8 +1897,15 @@ function updateAI() {
         const bot = aiBots[i];
         if (bot.isDead) continue; 
 
+        // AI 회복 아이템 체력 낮을 시 자동 사용
+        if (bot.hp < 120 && bot.medkits > 0) {
+            useMedkit(bot);
+        }
+
+        const distToZoneCenter = Math.hypot(bot.x - zone.x, bot.y - zone.y);
+
+        // 1순위: 자기장 안으로 이동 (자기장 외곽 대미지 및 진입)
         if (selectedMode === 'br') {
-            const distToZoneCenter = Math.hypot(bot.x - zone.x, bot.y - zone.y);
             if (distToZoneCenter > zone.radius) {
                 bot.hp -= 0.3 * zoneStage;
                 if (bot.hp <= 0) {
@@ -1875,77 +1914,60 @@ function updateAI() {
                     updateHUD();
                     continue;
                 }
-            }
-
-            if (distToZoneCenter > zone.radius - 300) {
+                
+                // 자기장 밖이면 최우선 과제로 안으로 이동
                 bot.angle = Math.atan2(zone.y - bot.y, zone.x - bot.x);
-                moveAIBot(bot, Math.cos(bot.angle) * 2.5 * diff.speedMult, Math.sin(bot.angle) * 2.5 * diff.speedMult);
-                bot.firstSeenTime = null;
+                moveAIBot(bot, Math.cos(bot.angle) * 2.8 * diff.speedMult, Math.sin(bot.angle) * 2.8 * diff.speedMult);
                 bot.movementMode = 'sprint';
                 continue;
             }
         }
 
-        const totalAmmo = (bot.clipAmmo || 0) + (bot.reserveAmmo || 0);
         const hasWeapon = !!bot.weapon;
-        const needsAmmo = hasWeapon && totalAmmo === 0; 
+        const totalAmmo = (bot.clipAmmo || 0) + (bot.reserveAmmo || 0);
+        const needsAmmo = hasWeapon && totalAmmo < 30;
 
-        if (!hasWeapon || needsAmmo) {
-            bot.firstSeenTime = null;
-            bot.investigateTarget = null;
-
-            if (!bot.targetItem || !droppedItems.includes(bot.targetItem)) {
-                let nearest = null;
-                let nearDst = Infinity;
-                droppedItems.forEach(item => {
-                    const isWeapon = ['ar', 'sniper', 'shotgun'].includes(item.type);
-                    const isAmmo = item.type.startsWith('ammo_');
-
-                    if ((needsAmmo && isAmmo) || (!hasWeapon && isWeapon)) {
-                        const d = Math.hypot(item.x - bot.x, item.y - bot.y);
-                        if (d < nearDst) { nearDst = d; nearest = item; }
-                    }
-                });
-                bot.targetItem = nearest;
-            }
-
-            if (bot.targetItem) {
-                bot.angle = Math.atan2(bot.targetItem.y - bot.y, bot.targetItem.x - bot.x);
+        // 2순위: 총 구하기
+        if (!hasWeapon) {
+            let weaponItem = droppedItems.find(item => ['ar', 'sniper', 'shotgun'].includes(item.type));
+            if (weaponItem) {
+                bot.angle = Math.atan2(weaponItem.y - bot.y, weaponItem.x - bot.x);
                 bot.movementMode = 'sprint';
                 moveAIBot(bot, Math.cos(bot.angle) * 2.5 * diff.speedMult, Math.sin(bot.angle) * 2.5 * diff.speedMult);
-
-                if (Math.hypot(bot.targetItem.x - bot.x, bot.targetItem.y - bot.y) < 35) {
-                    const item = bot.targetItem;
-                    if (['ar', 'sniper', 'shotgun'].includes(item.type)) {
-                        bot.weapon = item.type;
-                        bot.clipAmmo = WEAPONS[item.type].maxClip;
-                        bot.reserveAmmo += WEAPONS[item.type].maxClip * 2;
-                    } else if (item.type.startsWith('ammo_')) {
-                        bot.reserveAmmo += 30;
+                if (Math.hypot(weaponItem.x - bot.x, weaponItem.y - bot.y) < 35) {
+                    bot.weapon = weaponItem.type;
+                    bot.clipAmmo = WEAPONS[weaponItem.type].maxClip;
+                    bot.reserveAmmo += WEAPONS[weaponItem.type].maxClip * 2;
+                    const idx = droppedItems.indexOf(weaponItem);
+                    if (idx !== -1) {
+                        droppedItems.splice(idx, 1);
+                        broadcastData({ type: 'PICKUP_ITEM', itemId: weaponItem.id });
                     }
-                    const itemIdx = droppedItems.findIndex(i => i.id === item.id);
-                    if (itemIdx !== -1) {
-                        droppedItems.splice(itemIdx, 1);
-                        broadcastData({ type: 'PICKUP_ITEM', itemId: item.id });
-                    }
-                    bot.targetItem = null;
                 }
-            } else {
-                moveAIBot(bot, Math.cos(bot.angle) * 1.5 * diff.speedMult, Math.sin(bot.angle) * 1.5 * diff.speedMult);
-                if (Math.random() < 0.02) bot.angle += (Math.random() - 0.5) * 2;
+                continue;
             }
-            continue;
         }
 
-        gunshotEvents.forEach(snd => {
-            const dst = Math.hypot(bot.x - snd.x, bot.y - snd.y);
-            if (dst <= 2500 && dst > 50) {
-                if (!bot.investigateTarget || now - bot.investigateTarget.time > 3000) {
-                    bot.investigateTarget = { x: snd.x, y: snd.y, time: now };
+        // 3순위: 총알 구하기
+        if (needsAmmo) {
+            let ammoItem = droppedItems.find(item => item.type.startsWith('ammo_'));
+            if (ammoItem) {
+                bot.angle = Math.atan2(ammoItem.y - bot.y, ammoItem.x - bot.x);
+                bot.movementMode = 'sprint';
+                moveAIBot(bot, Math.cos(bot.angle) * 2.5 * diff.speedMult, Math.sin(bot.angle) * 2.5 * diff.speedMult);
+                if (Math.hypot(ammoItem.x - bot.x, ammoItem.y - bot.y) < 35) {
+                    bot.reserveAmmo += 30;
+                    const idx = droppedItems.indexOf(ammoItem);
+                    if (idx !== -1) {
+                        droppedItems.splice(idx, 1);
+                        broadcastData({ type: 'PICKUP_ITEM', itemId: ammoItem.id });
+                    }
                 }
+                continue;
             }
-        });
+        }
 
+        // 4순위: 주변에 사람이 있다면 공격 (Line of Sight 시야 확보 조건)
         let targets = [];
         if(myPlayer.hp > 0 && !myPlayer.isDead && !isRespawning) targets.push(myPlayer);
         Object.values(remotePlayers).forEach(p => { if(p.hp > 0 && !p.isDead) targets.push(p); });
@@ -1962,11 +1984,8 @@ function updateAI() {
             }
         });
 
-        if(closestTarget) {
-            bot.targetItem = null;
-            bot.investigateTarget = null;
+        if(closestTarget && hasWeapon) {
             bot.angle = Math.atan2(closestTarget.y - bot.y, closestTarget.x - bot.x);
-
             if (!bot.firstSeenTime) bot.firstSeenTime = now;
 
             if (now - bot.firstSeenTime >= diff.delay) {
@@ -1979,70 +1998,45 @@ function updateAI() {
                     bot.lastShootTime = now;
                 }
             }
-        } 
-        else if (bot.investigateTarget && now - bot.investigateTarget.time < 5000) {
-            bot.angle = Math.atan2(bot.investigateTarget.y - bot.y, bot.investigateTarget.x - bot.x);
-            bot.movementMode = 'sprint';
-            moveAIBot(bot, Math.cos(bot.angle) * 2.3 * diff.speedMult, Math.sin(bot.angle) * 2.3 * diff.speedMult);
+            continue;
+        }
 
-            if (Math.hypot(bot.investigateTarget.x - bot.x, bot.investigateTarget.y - bot.y) < 50) {
-                bot.investigateTarget = null;
+        // 5순위: 갑옷(방어구) 파밍
+        if (!bot.equippedBodyArmor || !bot.equippedHelmet) {
+            let armorItem = droppedItems.find(item => ARMORS[item.type]);
+            if (armorItem) {
+                bot.angle = Math.atan2(armorItem.y - bot.y, armorItem.x - bot.x);
+                bot.movementMode = 'walk';
+                moveAIBot(bot, Math.cos(bot.angle) * 2.0 * diff.speedMult, Math.sin(bot.angle) * 2.0 * diff.speedMult);
+                if (Math.hypot(armorItem.x - bot.x, armorItem.y - bot.y) < 35) {
+                    const arm = ARMORS[armorItem.type];
+                    if (arm.type === 'helmet') bot.equippedHelmet = armorItem.type;
+                    if (arm.type === 'body') bot.equippedBodyArmor = armorItem.type;
+                    const idx = droppedItems.indexOf(armorItem);
+                    if (idx !== -1) {
+                        droppedItems.splice(idx, 1);
+                        broadcastData({ type: 'PICKUP_ITEM', itemId: armorItem.id });
+                    }
+                }
+                continue;
             }
         }
-        else {
-            bot.firstSeenTime = null;
-            const hasFullGear = bot.weapon && bot.equippedScope;
 
-            if (!hasFullGear) {
-                if(!bot.targetItem || !droppedItems.includes(bot.targetItem)) {
-                    let nearest = null;
-                    let nearDst = 3000;
-                    droppedItems.forEach(item => {
-                        const isScope = ['1x', '2x', '3x', '4x', '8x'].includes(item.type);
-
-                        if (!bot.equippedScope && isScope) {
-                            const d = Math.hypot(item.x - bot.x, item.y - bot.y);
-                            if(d < nearDst) { nearDst = d; nearest = item; }
-                        }
-                    });
-                    bot.targetItem = nearest;
-                }
-
-                if(bot.targetItem) {
-                    bot.angle = Math.atan2(bot.targetItem.y - bot.y, bot.targetItem.x - bot.x);
-                    bot.movementMode = 'walk';
-                    moveAIBot(bot, Math.cos(bot.angle) * 2.0 * diff.speedMult, Math.sin(bot.angle) * 2.0 * diff.speedMult);
-
-                    if(Math.hypot(bot.targetItem.x - bot.x, bot.targetItem.y - bot.y) < 30) {
-                        const item = bot.targetItem;
-                        if(!bot.equippedScope) {
-                            bot.equippedScope = item.type;
-                        }
-                        const itemIdx = droppedItems.findIndex(i => i.id === item.id);
-                        if(itemIdx !== -1) {
-                            droppedItems.splice(itemIdx, 1);
-                            broadcastData({ type: 'PICKUP_ITEM', itemId: item.id });
-                        }
-                        bot.targetItem = null;
-                    }
-                } else {
-                    moveAIBot(bot, Math.cos(bot.angle) * 1.5 * diff.speedMult, Math.sin(bot.angle) * 1.5 * diff.speedMult);
-                    if(Math.random() < 0.02) bot.angle += (Math.random() - 0.5) * 2;
-                }
-            } 
-            else {
-                const targetX = selectedMode === 'br' ? zone.x : WORLD_SIZE / 2;
-                const targetY = selectedMode === 'br' ? zone.y : WORLD_SIZE / 2;
-                
-                const centerDst = Math.hypot(targetX - bot.x, targetY - bot.y);
-                if (centerDst > 200) {
-                    bot.angle = Math.atan2(targetY - bot.y, targetX - bot.x);
-                    bot.movementMode = 'walk';
-                    moveAIBot(bot, Math.cos(bot.angle) * 1.8 * diff.speedMult, Math.sin(bot.angle) * 1.8 * diff.speedMult);
-                } else {
-                    if(Math.random() < 0.03) bot.angle += (Math.random() - 0.5) * 1.5;
-                }
+        // 6순위: 예상되는 자기장 안(targetZone)으로 미리 들어가기
+        if (selectedMode === 'br') {
+            const distToTargetZone = Math.hypot(bot.x - targetZone.x, bot.y - targetZone.y);
+            if (distToTargetZone > targetZone.radius * 0.5) {
+                bot.angle = Math.atan2(targetZone.y - bot.y, targetZone.x - bot.x);
+                bot.movementMode = 'walk';
+                moveAIBot(bot, Math.cos(bot.angle) * 2.0 * diff.speedMult, Math.sin(bot.angle) * 2.0 * diff.speedMult);
+            } else {
+                // 진입 완료 상태일 시 배회
+                moveAIBot(bot, Math.cos(bot.angle) * 1.5 * diff.speedMult, Math.sin(bot.angle) * 1.5 * diff.speedMult);
+                if (Math.random() < 0.02) bot.angle += (Math.random() - 0.5) * 2;
             }
+        } else {
+            moveAIBot(bot, Math.cos(bot.angle) * 1.5 * diff.speedMult, Math.sin(bot.angle) * 1.5 * diff.speedMult);
+            if (Math.random() < 0.02) bot.angle += (Math.random() - 0.5) * 2;
         }
     }
 }
@@ -2072,7 +2066,6 @@ function updateNetwork() {
 function update() {
     if(!gameStarted || gameEnded) return;
 
-    // 배틀로얄 무작위 위치 단계별 축소 진행
     if(selectedMode === 'br' && isHost && !isSpawnSelecting) {
         if(isZoneShrinking) {
             const dx = targetZone.x - zone.x;
@@ -2213,7 +2206,6 @@ function update() {
         if(now - gunshotEvents[i].time > duration) gunshotEvents.splice(i, 1);
     }
 
-    // 총알 충돌 판정 및 갑바 대미지 경감 적용
     if(isHost) {
         for(let i = bullets.length - 1; i >= 0; i--) {
             const b = bullets[i];
@@ -2479,7 +2471,6 @@ function drawPlayer(p) {
     ctx.arc(0, 0, 20, 0, Math.PI * 2);
     ctx.fill();
 
-    // 몸 갑바 착용 시 외곽 테두리 링 시각화
     if(p.equippedBodyArmor) {
         ctx.strokeStyle = p.equippedBodyArmor.includes('3') ? '#ff0000' : (p.equippedBodyArmor.includes('2') ? '#00ffcc' : '#ffffff');
         ctx.lineWidth = 4;
@@ -2488,7 +2479,6 @@ function drawPlayer(p) {
         ctx.stroke();
     }
 
-    // 머리 갑바 착용 시 머리 덮개 시각화
     if(p.equippedHelmet) {
         ctx.fillStyle = p.equippedHelmet.includes('3') ? '#ff0000' : (p.equippedHelmet.includes('2') ? '#00ffcc' : '#aaaaaa');
         ctx.beginPath();
@@ -2553,83 +2543,157 @@ function drawGunshotIndicators() {
     });
 }
 
-function render() {
+function renderItems() {
+    droppedItems.forEach(item => {
+        ctx.save();
+        ctx.translate(item.x, item.y);
+
+        if(['ar', 'sniper', 'shotgun'].includes(item.type)) {
+            ctx.fillStyle = '#ffcc00';
+            ctx.fillRect(-12, -4, 24, 8);
+        } else if(item.type.startsWith('ammo_')) {
+            ctx.fillStyle = '#ff4444';
+            ctx.fillRect(-6, -6, 12, 12);
+        } else if(item.type === 'medkit') { // 회복 아이템 그리기
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(-8, -8, 16, 16);
+            ctx.fillStyle = '#ff0000';
+            ctx.fillRect(-6, -2, 12, 4);
+            ctx.fillRect(-2, -6, 4, 12);
+        } else if(ARMORS[item.type]) {
+            ctx.fillStyle = '#00ffcc';
+            ctx.beginPath();
+            ctx.arc(0, 0, 8, 0, Math.PI * 2);
+            ctx.fill();
+        } else {
+            ctx.fillStyle = '#8888ff';
+            ctx.beginPath();
+            ctx.arc(0, 0, 6, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        ctx.restore();
+    });
+}
+
+function renderMinimap() {
+    mCtx.clearRect(0, 0, minimapCanvas.width, minimapCanvas.height);
+    const scale = minimapCanvas.width / WORLD_SIZE;
+
+    mCtx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    mCtx.fillRect(0, 0, minimapCanvas.width, minimapCanvas.height);
+
+    if (selectedMode === 'br') {
+        mCtx.strokeStyle = 'rgba(0, 255, 204, 0.6)';
+        mCtx.lineWidth = 1;
+        mCtx.beginPath();
+        mCtx.arc(targetZone.x * scale, targetZone.y * scale, targetZone.radius * scale, 0, Math.PI * 2);
+        mCtx.stroke();
+
+        mCtx.strokeStyle = 'rgba(255, 68, 68, 0.8)';
+        mCtx.lineWidth = 2;
+        mCtx.beginPath();
+        mCtx.arc(zone.x * scale, zone.y * scale, zone.radius * scale, 0, Math.PI * 2);
+        mCtx.stroke();
+    }
+
+    aiBots.forEach(b => {
+        if(!b.isDead && b.hp > 0) {
+            mCtx.fillStyle = '#ff4444';
+            mCtx.beginPath();
+            mCtx.arc(b.x * scale, b.y * scale, 2, 0, Math.PI * 2);
+            mCtx.fill();
+        }
+    });
+
+    Object.values(remotePlayers).forEach(p => {
+        if(!p.isDead && p.hp > 0) {
+            mCtx.fillStyle = '#ffcc00';
+            mCtx.beginPath();
+            mCtx.arc(p.x * scale, p.y * scale, 3, 0, Math.PI * 2);
+            mCtx.fill();
+        }
+    });
+
+    if(myPlayer.hp > 0 && !myPlayer.isDead) {
+        mCtx.fillStyle = '#00ffcc';
+        mCtx.beginPath();
+        mCtx.arc(myPlayer.x * scale, myPlayer.y * scale, 4, 0, Math.PI * 2);
+        mCtx.fill();
+    }
+}
+
+function renderFullMap() {
+    if(document.getElementById('fullMapOverlay').style.display !== 'flex') return;
+
+    fCtx.clearRect(0, 0, fullMapCanvas.width, fullMapCanvas.height);
+    const scale = fullMapCanvas.width / WORLD_SIZE;
+
+    fCtx.fillStyle = '#111';
+    fCtx.fillRect(0, 0, fullMapCanvas.width, fullMapCanvas.height);
+
+    fCtx.fillStyle = '#333';
+    obstacles.forEach(obs => {
+        fCtx.fillRect(obs.x * scale, obs.y * scale, obs.w * scale, obs.h * scale);
+    });
+
+    if (selectedMode === 'br') {
+        fCtx.strokeStyle = '#00ffcc';
+        fCtx.lineWidth = 1.5;
+        fCtx.beginPath();
+        fCtx.arc(targetZone.x * scale, targetZone.y * scale, targetZone.radius * scale, 0, Math.PI * 2);
+        fCtx.stroke();
+
+        fCtx.strokeStyle = '#ff4444';
+        fCtx.lineWidth = 2;
+        fCtx.beginPath();
+        fCtx.arc(zone.x * scale, zone.y * scale, zone.radius * scale, 0, Math.PI * 2);
+        fCtx.stroke();
+    }
+
+    fCtx.fillStyle = '#00ffcc';
+    fCtx.beginPath();
+    fCtx.arc(myPlayer.x * scale, myPlayer.y * scale, 5, 0, Math.PI * 2);
+    fCtx.fill();
+}
+
+function gameLoop() {
+    update();
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     ctx.save();
     ctx.translate(canvas.width / 2 - camera.x, canvas.height / 2 - camera.y);
 
-    ctx.fillStyle = '#2b2b2b';
+    ctx.fillStyle = '#1c1c1c';
     ctx.fillRect(0, 0, WORLD_SIZE, WORLD_SIZE);
 
-    ctx.strokeStyle = '#3a3a3a';
-    ctx.lineWidth = 2;
-    ctx.font = 'bold 24px sans-serif';
-    ctx.fillStyle = '#3a3a3a';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-
-    const gridSize = 100;
-    const startX = Math.floor((camera.x - canvas.width / 2) / gridSize) * gridSize;
-    const endX = startX + canvas.width + gridSize * 2;
-    const startY = Math.floor((camera.y - canvas.height / 2) / gridSize) * gridSize;
-    const endY = startY + canvas.height + gridSize * 2;
-
-    for (let x = startX; x < endX; x += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(x, startY); ctx.lineTo(x, endY);
-        ctx.stroke();
-    }
-    for (let y = startY; y < endY; y += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(startX, y); ctx.lineTo(endX, y);
-        ctx.stroke();
-    }
-
-    for (let x = startX; x < endX; x += gridSize) {
-        for (let y = startY; y < endY; y += gridSize) {
-            if (x >= 0 && x < WORLD_SIZE && y >= 0 && y < WORLD_SIZE) {
-                ctx.fillText('#', x + gridSize / 2, y + gridSize / 2);
-            }
-        }
-    }
-
-    ctx.strokeStyle = '#ff0000';
-    ctx.lineWidth = 5;
-    ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
-
     if (selectedMode === 'br') {
-        ctx.strokeStyle = 'rgba(0, 255, 204, 0.8)';
-        ctx.lineWidth = 4;
+        ctx.strokeStyle = 'rgba(0, 255, 204, 0.4)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(targetZone.x, targetZone.y, targetZone.radius, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(255, 68, 68, 0.8)';
+        ctx.lineWidth = 6;
         ctx.beginPath();
         ctx.arc(zone.x, zone.y, zone.radius, 0, Math.PI * 2);
         ctx.stroke();
     }
 
-    // 바닥 아이템 렌더링 (데스매치 시 렌더링 안 함)
-    if(selectedMode !== 'normal') {
-        droppedItems.forEach(item => {
-            if(ARMORS[item.type]) {
-                ctx.fillStyle = '#00aaff';
-            } else {
-                ctx.fillStyle = item.type.startsWith('ammo_') ? '#ffff00' : (WEAPONS[item.type] ? '#00ffcc' : '#ff00ff');
-            }
-            ctx.beginPath();
-            ctx.arc(item.x, item.y, 8, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = '#ffffff';
-            ctx.font = '12px bold sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText(item.type.toUpperCase(), item.x, item.y - 14);
-        });
-    }
-
+    ctx.fillStyle = '#333';
     obstacles.forEach(obs => {
-        ctx.fillStyle = '#333344';
         ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
-        ctx.strokeStyle = '#555577';
-        ctx.lineWidth = 3;
-        ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
+    });
+
+    renderItems();
+
+    bullets.forEach(b => {
+        ctx.fillStyle = '#ffcc00';
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, 3, 0, Math.PI * 2);
+        ctx.fill();
     });
 
     bloodParticles.forEach(p => {
@@ -2639,134 +2703,19 @@ function render() {
         ctx.fill();
     });
 
-    bullets.forEach(b => {
-        ctx.strokeStyle = '#ffcc00';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.moveTo(b.prevX, b.prevY);
-        ctx.lineTo(b.x, b.y);
-        ctx.stroke();
-    });
-
-    if (myPlayer.hp > 0 && !myPlayer.isDead) {
-        drawPlayer(myPlayer);
-        drawGunshotIndicators();
-
-        if (isMobile && (mobileAimVec.x !== 0 || mobileAimVec.y !== 0)) {
-            const crosshairDist = 120;
-            const crossX = myPlayer.x + Math.cos(myPlayer.angle) * crosshairDist;
-            const crossY = myPlayer.y + Math.sin(myPlayer.angle) * crosshairDist;
-
-            ctx.strokeStyle = '#ff4444';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(crossX, crossY, 10, 0, Math.PI * 2);
-            ctx.moveTo(crossX - 14, crossY); ctx.lineTo(crossX + 14, crossY);
-            ctx.moveTo(crossX, crossY - 14); ctx.lineTo(crossX + 14, crossY);
-            ctx.stroke();
-        }
-    }
-
-    Object.values(remotePlayers).forEach(p => drawPlayer(p));
     aiBots.forEach(b => drawPlayer(b));
+    Object.values(remotePlayers).forEach(p => drawPlayer(p));
+    drawPlayer(myPlayer);
+
+    drawGunshotIndicators();
 
     ctx.restore();
 
     drawFogOfWar();
-
     renderMinimap();
-    if (document.getElementById('fullMapOverlay').style.display === 'flex') {
-        renderFullMap();
-    }
-}
+    renderFullMap();
 
-function renderMinimap() {
-    mCtx.clearRect(0, 0, minimapCanvas.width, minimapCanvas.height);
-    const scale = minimapCanvas.width / WORLD_SIZE;
-
-    mCtx.save();
-    mCtx.beginPath();
-    mCtx.arc(minimapCanvas.width / 2, minimapCanvas.height / 2, minimapCanvas.width / 2, 0, Math.PI * 2);
-    mCtx.clip();
-
-    mCtx.fillStyle = '#151515';
-    mCtx.fillRect(0, 0, minimapCanvas.width, minimapCanvas.height);
-
-    mCtx.fillStyle = '#333344';
-    obstacles.forEach(obs => {
-        mCtx.fillRect(obs.x * scale, obs.y * scale, obs.w * scale, obs.h * scale);
-    });
-
-    if (selectedMode === 'br') {
-        mCtx.strokeStyle = 'rgba(0, 255, 204, 0.6)';
-        mCtx.lineWidth = 2;
-        mCtx.beginPath();
-        mCtx.arc(zone.x * scale, zone.y * scale, zone.radius * scale, 0, Math.PI * 2);
-        mCtx.stroke();
-    }
-
-    gunshotEvents.forEach(snd => {
-        const dx = snd.x - myPlayer.x;
-        const dy = snd.y - myPlayer.y;
-        const angle = Math.atan2(dy, dx);
-        
-        const indicatorRadius = 80;
-        const ix = (minimapCanvas.width / 2) + Math.cos(angle) * indicatorRadius;
-        const iy = (minimapCanvas.height / 2) + Math.sin(angle) * indicatorRadius;
-
-        mCtx.fillStyle = '#ff4444';
-        mCtx.beginPath();
-        mCtx.arc(ix, iy, 5, 0, Math.PI * 2);
-        mCtx.fill();
-    });
-
-    mCtx.restore();
-
-    mCtx.strokeStyle = '#00ffcc';
-    mCtx.lineWidth = 2;
-    mCtx.beginPath();
-    mCtx.arc(minimapCanvas.width / 2, minimapCanvas.height / 2, (minimapCanvas.width / 2) - 1, 0, Math.PI * 2);
-    mCtx.stroke();
-}
-
-function renderFullMap() {
-    fCtx.clearRect(0, 0, fullMapCanvas.width, fullMapCanvas.height);
-    const scale = fullMapCanvas.width / WORLD_SIZE;
-
-    fCtx.fillStyle = '#111';
-    fCtx.fillRect(0, 0, fullMapCanvas.width, fullMapCanvas.height);
-
-    fCtx.fillStyle = '#333344';
-    obstacles.forEach(obs => {
-        fCtx.fillRect(obs.x * scale, obs.y * scale, obs.w * scale, obs.h * scale);
-    });
-
-    if (selectedMode === 'br') {
-        fCtx.strokeStyle = 'rgba(0, 255, 204, 0.8)';
-        fCtx.lineWidth = 2;
-        fCtx.beginPath();
-        fCtx.arc(zone.x * scale, zone.y * scale, zone.radius * scale, 0, Math.PI * 2);
-        fCtx.stroke();
-
-        fCtx.strokeStyle = 'rgba(255, 204, 0, 0.6)';
-        fCtx.lineWidth = 1;
-        fCtx.beginPath();
-        fCtx.arc(targetZone.x * scale, targetZone.y * scale, targetZone.radius * scale, 0, Math.PI * 2);
-        fCtx.stroke();
-    }
-
-    if (myPlayer.hp > 0 && !myPlayer.isDead) {
-        fCtx.fillStyle = '#00ffcc';
-        fCtx.beginPath();
-        fCtx.arc(myPlayer.x * scale, myPlayer.y * scale, 5, 0, Math.PI * 2);
-        fCtx.fill();
-    }
-}
-
-function gameLoop() {
-    update();
-    render();
-    if (gameStarted) requestAnimationFrame(gameLoop);
+    requestAnimationFrame(gameLoop);
 }
 </script>
 </body>
