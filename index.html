@@ -3,16 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2D RPG Framework</title>
+    <title>2D RPG - Auth & Game Framework</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background: #111; color: #fff; font-family: sans-serif; overflow: hidden; }
-        
+
+        /* 인증 레이어 (로그인/회원가입) */
+        #authOverlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(10, 10, 10, 0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+        }
+        .auth-card {
+            background: #222;
+            border: 2px solid #555;
+            padding: 30px;
+            border-radius: 12px;
+            width: 320px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+        }
+        .auth-card h2 { margin-bottom: 20px; color: #00ffcc; }
+        .auth-card input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 12px;
+            background: #111;
+            border: 1px solid #444;
+            color: #fff;
+            border-radius: 4px;
+            outline: none;
+        }
+        .auth-card button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 6px;
+            background: #00ffcc;
+            border: none;
+            color: #111;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .auth-card button.secondary {
+            background: #444;
+            color: #fff;
+        }
+        .auth-msg {
+            margin-top: 10px;
+            font-size: 13px;
+            color: #ff5555;
+            min-height: 18px;
+        }
+
         /* 메인 게임 화면 */
-        #gameCanvas { display: block; background: #000; }
+        #gameCanvas { display: none; background: #000; }
 
         /* UI 레이어 */
-        #uiLayer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        #uiLayer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: none; }
         
         /* 오른쪽 상단 미니맵 */
         #minimap {
@@ -51,7 +103,16 @@
             border-radius: 4px;
         }
 
-        /* 안내 문구 */
+        /* 안내 문구 및 유저 정보 */
+        #userInfo {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: rgba(0,0,0,0.6);
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
         #guide {
             position: absolute;
             bottom: 15px;
@@ -65,9 +126,27 @@
 </head>
 <body>
 
+    <!-- 회원가입 / 로그인 화면 -->
+    <div id="authOverlay">
+        <div class="auth-card">
+            <h2 id="authTitle">로그인</h2>
+            <input type="text" id="authUsername" placeholder="아이디" autocomplete="off">
+            <input type="password" id="authPassword" placeholder="비밀번호">
+            <button id="primaryAuthBtn" onclick="handleAuthSubmit()">로그인</button>
+            <button class="secondary" id="toggleAuthBtn" onclick="toggleAuthMode()">회원가입으로 전환</button>
+            <div id="authMsg" class="auth-msg"></div>
+        </div>
+    </div>
+
+    <!-- 게임 화면 -->
     <canvas id="gameCanvas"></canvas>
     
     <div id="uiLayer">
+        <div id="userInfo">
+            <span id="currentUserDisplay"></span>
+            <button onclick="logout()" style="margin-left: 10px; padding: 2px 8px; cursor: pointer;">로그아웃</button>
+        </div>
+
         <!-- 미니맵 Canvas -->
         <canvas id="minimap" width="160" height="160"></canvas>
         
@@ -85,27 +164,65 @@
     </div>
 
 <script>
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-const minimapCanvas = document.getElementById('minimap');
-const minimapCtx = minimapCanvas.getContext('2d');
+// --- 1. 로그인 / 회원가입 시스템 ---
+let isSignUpMode = false;
+let currentUser = null;
 
-// 1. 화면 크기 자동 조절 (검은 화면 방지)
-function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+function toggleAuthMode() {
+    isSignUpMode = !isSignUpMode;
+    document.getElementById('authTitle').innerText = isSignUpMode ? "회원가입" : "로그인";
+    document.getElementById('primaryAuthBtn').innerText = isSignUpMode ? "회원가입 완료" : "로그인";
+    document.getElementById('toggleAuthBtn').innerText = isSignUpMode ? "로그인으로 전환" : "회원가입으로 전환";
+    document.getElementById('authMsg').innerText = "";
 }
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
 
-// 2. 맵 설정 (타일 크기: 40px)
+function handleAuthSubmit() {
+    const userVal = document.getElementById('authUsername').value.trim();
+    const passVal = document.getElementById('authPassword').value.trim();
+    const msgEl = document.getElementById('authMsg');
+
+    if (!userVal || !passVal) {
+        msgEl.innerText = "아이디와 비밀번호를 입력해주세요.";
+        return;
+    }
+
+    const users = JSON.parse(localStorage.getItem('game_users') || '{}');
+
+    if (isSignUpMode) {
+        if (users[userVal]) {
+            msgEl.innerText = "이미 존재하는 아이디입니다.";
+            return;
+        }
+        users[userVal] = { password: passVal };
+        localStorage.setItem('game_users', JSON.stringify(users));
+        msgEl.style.color = "#00ffcc";
+        msgEl.innerText = "회원가입 성공! 로그인 해주세요.";
+        toggleAuthMode();
+    } else {
+        if (!users[userVal] || users[userVal].password !== passVal) {
+            msgEl.style.color = "#ff5555";
+            msgEl.innerText = "아이디 또는 비밀번호가 일치하지 않습니다.";
+            return;
+        }
+        currentUser = userVal;
+        startGame();
+    }
+}
+
+function logout() {
+    location.reload();
+}
+
+// --- 2. 게임 코어 변수 설정 ---
+let canvas, ctx, minimapCanvas, minimapCtx;
+let gameLoopRunning = false;
+
 const TILE_SIZE = 40;
 const MAP_COLS = 30;
 const MAP_ROWS = 30;
 const MAP_WIDTH = MAP_COLS * TILE_SIZE;
 const MAP_HEIGHT = MAP_ROWS * TILE_SIZE;
 
-// 맵 레이아웃 (0: 평지, 1: 벽/바위, 2: 마을A 상점, 3: 마을B 상점)
 const map = [
     [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
     [1,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
@@ -135,7 +252,6 @@ const map = [
     [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
 ];
 
-// 3. 플레이어 및 데이터
 const player = {
     x: 100,
     y: 100,
@@ -144,30 +260,54 @@ const player = {
     color: '#00ffcc'
 };
 
-// 키 입력 상태
 const keys = {};
-window.addEventListener('keydown', e => {
-    keys[e.key.toLowerCase()] = true;
-    if (e.key.toLowerCase() === 'e') checkShopInteraction();
-});
-window.addEventListener('keyup', e => {
-    keys[e.key.toLowerCase()] = false;
-});
 
-// 4. 벽 충돌 판정 함수 (AABB 기반 완벽 방지)
+// --- 3. 게임 시작 및 초기화 (검은 화면 방지 핵심) ---
+function startGame() {
+    document.getElementById('authOverlay').style.display = 'none';
+    
+    canvas = document.getElementById('gameCanvas');
+    ctx = canvas.getContext('2d');
+    minimapCanvas = document.getElementById('minimap');
+    minimapCtx = minimapCanvas.getContext('2d');
+
+    canvas.style.display = 'block';
+    document.getElementById('uiLayer').style.display = 'block';
+    document.getElementById('currentUserDisplay').innerText = `접속자: ${currentUser}님`;
+
+    // 이벤트 리스너 등록
+    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('keydown', e => {
+        keys[e.key.toLowerCase()] = true;
+        if (e.key.toLowerCase() === 'e') checkShopInteraction();
+    });
+    window.addEventListener('keyup', e => {
+        keys[e.key.toLowerCase()] = false;
+    });
+
+    resizeCanvas();
+    
+    if (!gameLoopRunning) {
+        gameLoopRunning = true;
+        requestAnimationFrame(gameLoop);
+    }
+}
+
+function resizeCanvas() {
+    if (!canvas) return;
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+
+// --- 4. 충돌 및 이동 로직 ---
 function isSolid(x, y) {
     const col = Math.floor(x / TILE_SIZE);
     const row = Math.floor(y / TILE_SIZE);
-    
-    // 맵 외곽 처리
     if (col < 0 || col >= MAP_COLS || row < 0 || row >= MAP_ROWS) return true;
-    
-    // 1(벽), 2(상점A), 3(상점B)는 이동 불가 블록 처리
     return map[row][col] >= 1;
 }
 
 function movePlayer(dx, dy) {
-    // X축 이동 및 충돌 체크
     let nextX = player.x + dx;
     if (!isSolid(nextX - player.size/2, player.y - player.size/2) &&
         !isSolid(nextX + player.size/2, player.y - player.size/2) &&
@@ -176,7 +316,6 @@ function movePlayer(dx, dy) {
         player.x = nextX;
     }
 
-    // Y축 이동 및 충돌 체크
     let nextY = player.y + dy;
     if (!isSolid(player.x - player.size/2, nextY - player.size/2) &&
         !isSolid(player.x + player.size/2, nextY - player.size/2) &&
@@ -186,12 +325,11 @@ function movePlayer(dx, dy) {
     }
 }
 
-// 5. 상점 시스템 (마을별 독립 상점)
+// --- 5. 마을별 상점 시스템 ---
 const shops = {
-    2: { name: "초보자 마을 상점", desc: "물약, 목검을 판매합니다." },
-    3: { name: "사막 마을 상점", desc: "고급 장비 및 희귀 주문서를 판매합니다." }
+    2: { name: "초보자 마을 상점", desc: "물약과 기본 장비를 판매합니다." },
+    3: { name: "사막 마을 상점", desc: "고급 장비와 희귀 주문서를 판매합니다." }
 };
-
 let currentShopType = null;
 
 function checkShopInteraction() {
@@ -200,7 +338,6 @@ function checkShopInteraction() {
         return;
     }
 
-    // 플레이어 주변 타일 탐색하여 상점 확인
     const playerCol = Math.floor(player.x / TILE_SIZE);
     const playerRow = Math.floor(player.y / TILE_SIZE);
 
@@ -229,7 +366,7 @@ function closeShop() {
     document.getElementById('shopUI').style.display = 'none';
 }
 
-// 6. 메인 업데이트 및 렌더링 루프
+// --- 6. 렌더링 및 미니맵 ---
 function update() {
     let dx = 0, dy = 0;
     if (keys['arrowup'] || keys['w']) dy -= player.speed;
@@ -237,7 +374,6 @@ function update() {
     if (keys['arrowleft'] || keys['a']) dx -= player.speed;
     if (keys['arrowright'] || keys['d']) dx += player.speed;
 
-    // 대각선 이동 속도 보정
     if (dx !== 0 && dy !== 0) {
         dx *= 0.7071;
         dy *= 0.7071;
@@ -247,40 +383,30 @@ function update() {
 }
 
 function render() {
-    // 6-1. 검은 화면 방지: 렌더링 전 Clear & 백그라운드 재설정
-    ctx.fillStyle = '#222';
+    ctx.fillStyle = '#111';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // 6-2. 카메라 중심 계산 (플레이어를 화면 중앙에 위치)
     const cameraX = player.x - canvas.width / 2;
     const cameraY = player.y - canvas.height / 2;
 
     ctx.save();
-    // 카메라 좌표만큼 캔버스 이동
     ctx.translate(-cameraX, -cameraY);
 
-    // 6-3. 맵 그리기
     for (let r = 0; r < MAP_ROWS; r++) {
         for (let c = 0; c < MAP_COLS; c++) {
             const tile = map[r][c];
             const posX = c * TILE_SIZE;
             const posY = r * TILE_SIZE;
 
-            // 시야 바깥 타일은 렌더링 스킵 (성능 최적화)
             if (posX + TILE_SIZE < cameraX || posX > cameraX + canvas.width ||
                 posY + TILE_SIZE < cameraY || posY > cameraY + canvas.height) {
                 continue;
             }
 
-            if (tile === 1) {
-                ctx.fillStyle = '#444466'; // 일반 벽
-            } else if (tile === 2) {
-                ctx.fillStyle = '#e67e22'; // 마을 A 상점
-            } else if (tile === 3) {
-                ctx.fillStyle = '#9b59b6'; // 마을 B 상점
-            } else {
-                ctx.fillStyle = '#2c3e50'; // 바닥
-            }
+            if (tile === 1) ctx.fillStyle = '#444466';
+            else if (tile === 2) ctx.fillStyle = '#e67e22';
+            else if (tile === 3) ctx.fillStyle = '#9b59b6';
+            else ctx.fillStyle = '#2c3e50';
 
             ctx.fillRect(posX, posY, TILE_SIZE, TILE_SIZE);
             ctx.strokeStyle = '#1a252f';
@@ -288,7 +414,7 @@ function render() {
         }
     }
 
-    // 6-4. 플레이어 그리기
+    // 플레이어 렌더링
     ctx.fillStyle = player.color;
     ctx.beginPath();
     ctx.arc(player.x, player.y, player.size / 2, 0, Math.PI * 2);
@@ -299,11 +425,9 @@ function render() {
 
     ctx.restore();
 
-    // 6-5. 오른쪽 상단 미니맵 렌더링
     renderMinimap();
 }
 
-// 7. 미니맵 렌더링
 function renderMinimap() {
     const scaleX = minimapCanvas.width / MAP_WIDTH;
     const scaleY = minimapCanvas.height / MAP_HEIGHT;
@@ -311,7 +435,6 @@ function renderMinimap() {
     minimapCtx.fillStyle = '#000';
     minimapCtx.fillRect(0, 0, minimapCanvas.width, minimapCanvas.height);
 
-    // 맵 타일 압축 표시
     for (let r = 0; r < MAP_ROWS; r++) {
         for (let c = 0; c < MAP_COLS; c++) {
             const tile = map[r][c];
@@ -319,21 +442,20 @@ function renderMinimap() {
                 minimapCtx.fillStyle = '#888';
                 minimapCtx.fillRect(c * TILE_SIZE * scaleX, r * TILE_SIZE * scaleY, TILE_SIZE * scaleX, TILE_SIZE * scaleY);
             } else if (tile === 2 || tile === 3) {
-                minimapCtx.fillStyle = '#ffd700'; // 미니맵상 상점 표시
+                minimapCtx.fillStyle = '#ffd700';
                 minimapCtx.fillRect(c * TILE_SIZE * scaleX, r * TILE_SIZE * scaleY, TILE_SIZE * scaleX, TILE_SIZE * scaleY);
             }
         }
     }
 
-    // 미니맵 플레이어 위치
     minimapCtx.fillStyle = '#ff0000';
     minimapCtx.beginPath();
     minimapCtx.arc(player.x * scaleX, player.y * scaleY, 3, 0, Math.PI * 2);
     minimapCtx.fill();
 }
 
-// 8. 게임 루프 (검은 화면 버그 예방 안전 처리)
 function gameLoop() {
+    if (!gameLoopRunning) return;
     try {
         update();
         render();
@@ -342,9 +464,6 @@ function gameLoop() {
     }
     requestAnimationFrame(gameLoop);
 }
-
-// 루프 시작
-requestAnimationFrame(gameLoop);
 </script>
 </body>
 </html>
