@@ -3,365 +3,585 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>웹 RPG 게임</title>
+  <title>쿼터뷰 RPG - GitHub Pages Game</title>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: #1a1a1a;
-      color: #fff;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-    }
-    .container {
-      width: 100%;
-      max-width: 500px;
-      background-color: #2d2d2d;
-      border-radius: 12px;
-      padding: 24px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-    }
-    h1, h2 {
-      text-align: center;
-      margin-bottom: 20px;
-      color: #4caf50;
-    }
-    .screen {
-      display: none;
-    }
-    .active {
-      display: block;
-    }
-    /* Form & Button Styles */
-    .form-group {
-      margin-bottom: 15px;
-    }
-    label {
-      display: block;
-      margin-bottom: 5px;
-      font-size: 14px;
-      color: #ccc;
-    }
-    input {
-      width: 100%;
-      padding: 10px;
-      border: 1px solid #444;
-      border-radius: 6px;
-      background-color: #3e3e3e;
-      color: #fff;
-      font-size: 16px;
-    }
-    button {
-      width: 100%;
-      padding: 12px;
-      background-color: #4caf50;
-      border: none;
-      border-radius: 6px;
-      color: white;
-      font-size: 16px;
-      font-weight: bold;
-      cursor: pointer;
-      margin-top: 10px;
-      transition: background 0.2s;
-    }
-    button:hover {
-      background-color: #45a049;
-    }
-    button.secondary {
-      background-color: #555;
-    }
-    button.secondary:hover {
-      background-color: #666;
-    }
-    button.danger {
-      background-color: #e53935;
-    }
-    button.danger:hover {
-      background-color: #d32f2f;
-    }
-    .switch-link {
-      text-align: center;
-      margin-top: 15px;
-      font-size: 14px;
-      color: #aaa;
-      cursor: pointer;
-      text-decoration: underline;
-    }
-    /* Game Info & Log Box */
-    .status-board {
-      background-color: #383838;
-      padding: 15px;
-      border-radius: 8px;
-      margin-bottom: 15px;
-      line-height: 1.6;
-    }
-    .log-box {
-      height: 150px;
-      background-color: #111;
-      border-radius: 6px;
-      padding: 10px;
-      overflow-y: auto;
-      font-size: 13px;
-      color: #00ff66;
-      font-family: monospace;
-      margin-bottom: 15px;
-    }
-    .button-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body { background-color: #121212; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; }
+    
+    .screen { display: none; width: 100%; height: 100vh; }
+    .active { display: flex; flex-direction: column; justify-content: center; align-items: center; }
+
+    /* Auth Screens */
+    .auth-card { background: #1e1e1e; padding: 30px; border-radius: 12px; width: 340px; box-shadow: 0 8px 20px rgba(0,0,0,0.6); text-align: center; }
+    .auth-card h2 { color: #4CAF50; margin-bottom: 20px; }
+    .auth-card input { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 6px; border: 1px solid #333; background: #2b2b2b; color: #fff; }
+    .auth-card button { width: 100%; padding: 12px; background: #4CAF50; border: none; border-radius: 6px; color: white; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
+    .auth-card button:hover { background: #45a049; }
+    .auth-card .link { font-size: 13px; color: #aaa; cursor: pointer; text-decoration: underline; }
+
+    /* Main Menu */
+    .menu-card { background: #1e1e1e; padding: 40px; border-radius: 12px; text-align: center; width: 360px; }
+    .menu-card h1 { color: #ffd700; margin-bottom: 10px; }
+    .menu-card button { width: 100%; padding: 14px; margin-top: 10px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; }
+    .btn-start { background: #2196F3; color: white; }
+    .btn-logout { background: #f44336; color: white; }
+
+    /* Game Canvas Layout */
+    #game-container { position: relative; width: 800px; height: 600px; border: 2px solid #444; border-radius: 8px; overflow: hidden; background: #000; }
+    canvas { display: block; }
+
+    /* HUD Overlay */
+    .hud { position: absolute; top: 10px; left: 10px; background: rgba(0, 0, 0, 0.7); padding: 10px 15px; border-radius: 8px; font-size: 14px; pointer-events: none; }
+    .hud-bar { width: 150px; height: 10px; background: #444; border-radius: 5px; margin-top: 3px; overflow: hidden; }
+    .hud-fill-hp { height: 100%; background: #e53935; width: 100%; transition: width 0.2s; }
+    .hud-fill-exp { height: 100%; background: #ffb300; width: 0%; transition: width 0.2s; }
+    
+    .controls-hint { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.6); padding: 6px 12px; border-radius: 6px; font-size: 12px; color: #ccc; }
+
+    /* Modal / Windows (Inventory & Shop) */
+    .modal { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #252525; border: 2px solid #555; border-radius: 8px; width: 380px; padding: 15px; box-shadow: 0 0 20px rgba(0,0,0,0.8); z-index: 10; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; padding-bottom: 8px; margin-bottom: 12px; font-weight: bold; color: #ffd700; }
+    .close-btn { cursor: pointer; color: #aaa; font-weight: bold; }
+
+    /* Equipment Slots */
+    .equip-slots { display: flex; gap: 10px; justify-content: center; margin-bottom: 15px; }
+    .equip-slot { width: 60px; height: 60px; background: #111; border: 2px dashed #666; border-radius: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 11px; color: #888; cursor: pointer; }
+    .equip-slot.active { border-style: solid; border-color: #4CAF50; color: #fff; }
+
+    /* Inventory Grid */
+    .inv-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; max-height: 180px; overflow-y: auto; }
+    .inv-item { width: 55px; height: 55px; background: #333; border: 1px solid #555; border-radius: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 11px; cursor: pointer; position: relative; }
+    .inv-item:hover { border-color: #ffd700; background: #444; }
+    .inv-item .count { position: absolute; bottom: 2px; right: 4px; font-size: 10px; color: #ffeb3b; }
   </style>
 </head>
 <body>
 
-<div class="container">
   <!-- 1. 로그인 화면 -->
   <div id="screen-login" class="screen active">
-    <h1>로그인</h1>
-    <div class="form-group">
-      <label>아이디</label>
-      <input type="text" id="login-username" placeholder="아이디를 입력하세요">
+    <div class="auth-card">
+      <h2>⚔️ QUARTER-VIEW RPG</h2>
+      <input type="text" id="login-id" placeholder="아이디">
+      <input type="password" id="login-pw" placeholder="비밀번호">
+      <button onclick="login()">로그인</button>
+      <div class="link" onclick="showScreen('screen-signup')">회원가입 하기</div>
     </div>
-    <div class="form-group">
-      <label>비밀번호</label>
-      <input type="password" id="login-password" placeholder="비밀번호를 입력하세요">
-    </div>
-    <button onclick="handleLogin()">로그인</button>
-    <div class="switch-link" onclick="showScreen('screen-signup')">계정이 없으신가요? 회원가입</div>
   </div>
 
   <!-- 2. 회원가입 화면 -->
   <div id="screen-signup" class="screen">
-    <h1>회원가입</h1>
-    <div class="form-group">
-      <label>아이디</label>
-      <input type="text" id="signup-username" placeholder="새 아이디 입력">
+    <div class="auth-card">
+      <h2>회원가입</h2>
+      <input type="text" id="signup-id" placeholder="신규 아이디">
+      <input type="password" id="signup-pw" placeholder="신규 비밀번호">
+      <button onclick="signup()">가입완료</button>
+      <div class="link" onclick="showScreen('screen-login')">로그인으로 돌아가기</div>
     </div>
-    <div class="form-group">
-      <label>비밀번호</label>
-      <input type="password" id="signup-password" placeholder="새 비밀번호 입력">
-    </div>
-    <button onclick="handleSignup()">가입하기</button>
-    <div class="switch-link" onclick="showScreen('screen-login')">로그인 화면으로 돌아가기</div>
   </div>
 
-  <!-- 3. 메인 메뉴 화면 -->
+  <!-- 3. 메인 메뉴 -->
   <div id="screen-menu" class="screen">
-    <h1 id="user-welcome">환영합니다!</h1>
-    <p style="text-align: center; margin-bottom: 20px; color: #bbb;">원하는 메뉴를 선택하세요.</p>
-    <button onclick="showScreen('screen-game')">⚔️ RPG 게임 시작</button>
-    <button class="secondary" onclick="saveGameData()">💾 데이터 저장하기</button>
-    <button class="danger" onclick="handleLogout()">로그아웃</button>
+    <div class="menu-card">
+      <h1 id="user-greeting">반갑습니다!</h1>
+      <p style="color:#aaa; font-size:14px; margin-bottom: 20px;">대각선 시점의 쿼터뷰 모험이 기다립니다.</p>
+      <button class="btn-start" onclick="startGame()">게임 시작</button>
+      <button class="btn-logout" onclick="logout()">로그아웃</button>
+    </div>
   </div>
 
-  <!-- 4. RPG 게임 화면 -->
+  <!-- 4. 게임 화면 -->
   <div id="screen-game" class="screen">
-    <h2>⚔️ 미니 RPG</h2>
-    
-    <div class="status-board">
-      <div><strong>플레이어:</strong> <span id="p-name">-</span> (Lv.<span id="p-level">1</span>)</div>
-      <div><strong>체력:</strong> <span id="p-hp">100</span> / <span id="p-max-hp">100</span></div>
-      <div><strong>공격력:</strong> <span id="p-atk">10</span></div>
-      <div><strong>경험치:</strong> <span id="p-exp">0</span> / <span id="p-max-exp">20</span></div>
-      <div><strong>골드:</strong> <span id="p-gold">0</span> G</div>
-    </div>
+    <div id="game-container">
+      <canvas id="gameCanvas" width="800" height="600"></canvas>
+      
+      <!-- HUD -->
+      <div class="hud">
+        <div><strong id="hud-name">Player</strong> (Lv.<span id="hud-level">1</span>)</div>
+        <div>HP: <span id="hud-hp-txt">100/100</span></div>
+        <div class="hud-bar"><div id="hud-hp-bar" class="hud-fill-hp"></div></div>
+        <div style="margin-top: 5px;">EXP: <span id="hud-exp-txt">0/50</span></div>
+        <div class="hud-bar"><div id="hud-exp-bar" class="hud-fill-exp"></div></div>
+        <div style="margin-top:5px; color:#ffd700;">💰 <span id="hud-gold">0</span> Gold</div>
+      </div>
 
-    <div class="log-box" id="game-log">
-      게임에 접속했습니다.<br>
-    </div>
+      <div class="controls-hint">
+        이동: 방향키 / 공격: Space / 가방: Tab / 상점: B / 저장: Auto
+      </div>
 
-    <div class="button-grid">
-      <button onclick="hunt()">👹 몬스터 사냥</button>
-      <button onclick="heal()" class="secondary">🍺 휴식하기 (10 Gold)</button>
-      <button onclick="upgradeAtk()" class="secondary">⚔️ 공격력 강화 (20 Gold)</button>
-      <button onclick="showScreen('screen-menu')" class="danger">🚪 메인 메뉴로</button>
+      <!-- 인벤토리 창 (Tab 키) -->
+      <div id="inventory-modal" class="modal">
+        <div class="modal-header">
+          <span>🎒 인벤토리 (가방)</span>
+          <span class="close-btn" onclick="toggleInventory()">X</span>
+        </div>
+        <div style="font-size:12px; color:#ccc; margin-bottom:5px;">장착 중인 장비</div>
+        <div class="equip-slots">
+          <div id="slot-weapon" class="equip-slot" onclick="unequip('weapon')">
+            <span>⚔️ 무기</span>
+            <small id="equip-weapon-name" style="color:#aaa;">없음</small>
+          </div>
+          <div id="slot-armor" class="equip-slot" onclick="unequip('armor')">
+            <span>🛡️ 갑옷</span>
+            <small id="equip-armor-name" style="color:#aaa;">없음</small>
+          </div>
+        </div>
+        <div style="font-size:12px; color:#ccc; margin-bottom:5px;">소지 아이템 (클릭하여 사용/장착)</div>
+        <div id="inv-grid" class="inv-grid"></div>
+      </div>
+
+      <!-- 상점 창 (B 키) -->
+      <div id="shop-modal" class="modal">
+        <div class="modal-header">
+          <span>🏪 잡화 상점</span>
+          <span class="close-btn" onclick="toggleShop()">X</span>
+        </div>
+        <div id="shop-grid" class="inv-grid" style="max-height:220px;"></div>
+      </div>
+
     </div>
   </div>
-</div>
 
 <script>
-  // 사용자 정보 및 게임 데이터 State
-  let users = JSON.parse(localStorage.getItem('rpg_users')) || {};
+  // --- [1. 회원가입 및 시스템 로직] ---
+  let users = JSON.parse(localStorage.getItem('isometric_rpg_users')) || {};
   let currentUser = null;
 
-  // 화면 전환 함수
-  function showScreen(screenId) {
+  function showScreen(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById(screenId).classList.add('active');
+    document.getElementById(id).classList.add('active');
   }
 
-  // 로그 출력 함수
-  function log(message) {
-    const logBox = document.getElementById('game-log');
-    logBox.innerHTML += message + '<br>';
-    logBox.scrollTop = logBox.scrollHeight;
-  }
+  function signup() {
+    const id = document.getElementById('signup-id').value.trim();
+    const pw = document.getElementById('signup-pw').value.trim();
+    if(!id || !pw) return alert("아이디와 비밀번호를 입력하세요.");
+    if(users[id]) return alert("이미 존재하는 아이디입니다.");
 
-  // 1. 회원가입
-  function handleSignup() {
-    const user = document.getElementById('signup-username').value.trim();
-    const pass = document.getElementById('signup-password').value.trim();
-
-    if (!user || !pass) {
-      alert('아이디와 비밀번호를 올바르게 입력해주세요.');
-      return;
-    }
-    if (users[user]) {
-      alert('이미 존재하는 아이디입니다.');
-      return;
-    }
-
-    // 신규 유저 생성 및 초기 RPG 데이터
-    users[user] = {
-      password: pass,
-      gameData: {
-        level: 1,
-        hp: 100,
-        maxHp: 100,
-        atk: 10,
-        exp: 0,
-        maxExp: 20,
-        gold: 0
-      }
+    users[id] = {
+      password: pw,
+      saveData: createNewSaveData()
     };
-
-    localStorage.setItem('rpg_users', JSON.stringify(users));
-    alert('회원가입이 완료되었습니다! 로그인 해주세요.');
+    localStorage.setItem('isometric_rpg_users', JSON.stringify(users));
+    alert("회원가입 완료!");
     showScreen('screen-login');
   }
 
-  // 2. 로그인
-  function handleLogin() {
-    const user = document.getElementById('login-username').value.trim();
-    const pass = document.getElementById('login-password').value.trim();
+  function login() {
+    const id = document.getElementById('login-id').value.trim();
+    const pw = document.getElementById('login-pw').value.trim();
+    if(!users[id] || users[id].password !== pw) return alert("아이디/비밀번호가 맞지 않습니다.");
 
-    if (!users[user] || users[user].password !== pass) {
-      alert('아이디 또는 비밀번호가 일치하지 않습니다.');
-      return;
-    }
-
-    currentUser = user;
-    document.getElementById('user-welcome').innerText = `${currentUser}님 환영합니다!`;
-    updateGameUI();
+    currentUser = id;
+    document.getElementById('user-greeting').innerText = `${currentUser} 님, 환영합니다!`;
     showScreen('screen-menu');
   }
 
-  // 3. 로그아웃
-  function handleLogout() {
-    saveGameData();
+  function logout() {
+    saveData();
     currentUser = null;
-    alert('로그아웃 되었습니다.');
     showScreen('screen-login');
   }
 
-  // 4. 게임 데이터 UI 업데이트
-  function updateGameUI() {
-    if (!currentUser) return;
-    const data = users[currentUser].gameData;
+  function createNewSaveData() {
+    return {
+      x: 0, y: 0,
+      level: 1, exp: 0, maxExp: 50,
+      hp: 100, maxHp: 100,
+      atk: 15, def: 0, gold: 100,
+      equip: { weapon: null, armor: null },
+      inventory: [
+        { id: 'potion', name: '🧪 포션', type: 'use', val: 40, count: 3, price: 20 },
+        { id: 'sword1', name: '🗡️ 낡은 검', type: 'weapon', atk: 10, count: 1, price: 50 },
+        { id: 'armor1', name: '🛡️ 가죽 갑옷', type: 'armor', def: 5, hp: 30, count: 1, price: 80 }
+      ]
+    };
+  }
+
+  function saveData() {
+    if(!currentUser) return;
+    users[currentUser].saveData = gameState.playerData;
+    localStorage.setItem('isometric_rpg_users', JSON.stringify(users));
+  }
+
+  // --- [2. 아이템 데이터 및 데이터베이스] ---
+  const SHOP_ITEMS = [
+    { id: 'potion', name: '🧪 포션', type: 'use', val: 40, price: 20, desc: 'HP 40 회복' },
+    { id: 'sword2', name: '⚔️ 강철 검', type: 'weapon', atk: 25, price: 150, desc: '공격력 +25' },
+    { id: 'armor2', name: '🛡️ 사슬 갑옷', type: 'armor', def: 12, hp: 70, price: 200, desc: '방어+12/HP+70' },
+    { id: 'dragon_sword', name: '🔥 용사 검', type: 'weapon', atk: 60, price: 500, desc: '공격력 +60' }
+  ];
+
+  // --- [3. 쿼터뷰 렌더링 & 게임 엔진] ---
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+
+  const TILE_WIDTH = 64;
+  const TILE_HEIGHT = 32;
+  const MAP_SIZE = 15;
+
+  let gameState = {
+    playerData: null,
+    isoPlayer: { x: 0, y: 0, targetX: 0, targetY: 0 },
+    monsters: [],
+    floatingTexts: [],
+    keys: {}
+  };
+
+  // 2D 카르테시안 좌표를 쿼터뷰(아이소메트릭) Screen 좌표로 변환
+  function toIso(x, y) {
+    return {
+      screenX: (x - y) * (TILE_WIDTH / 2) + canvas.width / 2,
+      screenY: (x + y) * (TILE_HEIGHT / 2) + 120
+    };
+  }
+
+  function startGame() {
+    gameState.playerData = users[currentUser].saveData;
+    gameState.isoPlayer.x = gameState.playerData.x || 0;
+    gameState.isoPlayer.y = gameState.playerData.y || 0;
     
-    document.getElementById('p-name').innerText = currentUser;
-    document.getElementById('p-level').innerText = data.level;
-    document.getElementById('p-hp').innerText = data.hp;
-    document.getElementById('p-max-hp').innerText = data.maxHp;
-    document.getElementById('p-atk').innerText = data.atk;
-    document.getElementById('p-exp').innerText = data.exp;
-    document.getElementById('p-max-exp').innerText = data.maxExp;
-    document.getElementById('p-gold').innerText = data.gold;
-  }
-
-  // 5. 게임 데이터 저장
-  function saveGameData() {
-    if (currentUser) {
-      localStorage.setItem('rpg_users', JSON.stringify(users));
-      log("💾 게임 데이터가 저장되었습니다.");
-    }
-  }
-
-  // --- RPG 게임 시스템 ---
-
-  // 몬스터 사냥
-  function hunt() {
-    const data = users[currentUser].gameData;
-
-    if (data.hp <= 0) {
-      log("❌ 체력이 없습니다! 휴식을 취하세요.");
-      return;
-    }
-
-    const monsterHp = Math.floor(Math.random() * 20) + 10;
-    const monsterAtk = Math.floor(Math.random() * 5) + 3;
-    const earnedExp = Math.floor(Math.random() * 5) + 5;
-    const earnedGold = Math.floor(Math.random() * 10) + 5;
-
-    // 전투 처리
-    data.hp = Math.max(0, data.hp - monsterAtk);
-    data.exp += earnedExp;
-    data.gold += earnedGold;
-
-    log(`⚔️ 몬스터를 처치했습니다! (-${monsterAtk} HP / +${earnedExp} EXP / +${earnedGold} G)`);
-
-    // 레벨업 체크
-    if (data.exp >= data.maxExp) {
-      data.level += 1;
-      data.exp -= data.maxExp;
-      data.maxExp = Math.floor(data.maxExp * 1.5);
-      data.maxHp += 20;
-      data.hp = data.maxHp; // 레벨업 시 체력 회복
-      data.atk += 3;
-      log(`🎉 **레벨업!** (Level ${data.level} 달성! 능력치가 증가합니다)`);
-    }
-
-    updateGameUI();
-    saveGameData();
-  }
-
-  // 체력 회복
-  function heal() {
-    const data = users[currentUser].gameData;
-    const cost = 10;
-
-    if (data.gold < cost) {
-      log("❌ 골드가 부족합니다! (필요: 10 Gold)");
-      return;
-    }
-    if (data.hp >= data.maxHp) {
-      log("이미 체력이 가득 차 있습니다.");
-      return;
-    }
-
-    data.gold -= cost;
-    data.hp = Math.min(data.maxHp, data.hp + 30);
-    log(`🍺 휴식을 취하여 체력을 30 회복했습니다. (-10 Gold)`);
+    spawnMonsters();
+    showScreen('screen-game');
+    updateHUD();
+    renderInventoryUI();
+    renderShopUI();
     
-    updateGameUI();
-    saveGameData();
+    requestAnimationFrame(gameLoop);
   }
 
-  // 공격력 강화
-  function upgradeAtk() {
-    const data = users[currentUser].gameData;
-    const cost = 20;
+  function spawnMonsters() {
+    gameState.monsters = [
+      { id: 1, name: '슬라임', x: 3, y: -2, hp: 40, maxHp: 40, atk: 5, exp: 20, gold: 15, color: '#4caf50' },
+      { id: 2, name: '오크', x: -4, y: 3, hp: 90, maxHp: 90, atk: 12, exp: 45, gold: 35, color: '#ff9800' },
+      { id: 3, name: '보스 드래곤', x: 5, y: 5, hp: 250, maxHp: 250, atk: 25, exp: 150, gold: 120, color: '#e91e63', isBoss: true }
+    ];
+  }
 
-    if (data.gold < cost) {
-      log("❌ 골드가 부족합니다! (필요: 20 Gold)");
-      return;
+  // Input Listeners
+  window.addEventListener('keydown', (e) => {
+    gameState.keys[e.key] = true;
+
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      toggleInventory();
+    }
+    if (e.key === 'b' || e.key === 'B') {
+      toggleShop();
+    }
+    if (e.key === ' ') {
+      e.preventDefault();
+      playerAttack();
+    }
+  });
+
+  window.addEventListener('keyup', (e) => {
+    gameState.keys[e.key] = false;
+  });
+
+  let lastMoveTime = 0;
+  function handleInput() {
+    const now = Date.now();
+    if (now - lastMoveTime < 120) return; // 이동 딜레이 컨트롤
+
+    let dx = 0, dy = 0;
+    if (gameState.keys['ArrowUp']) { dx -= 1; dy -= 1; }
+    else if (gameState.keys['ArrowDown']) { dx += 1; dy += 1; }
+    else if (gameState.keys['ArrowLeft']) { dx -= 1; dy += 1; }
+    else if (gameState.keys['ArrowRight']) { dx += 1; dy -= 1; }
+
+    if (dx !== 0 || dy !== 0) {
+      let nx = gameState.isoPlayer.x + dx * 0.5;
+      let ny = gameState.isoPlayer.y + dy * 0.5;
+      
+      // 맵 경계 제한
+      if (Math.abs(nx) < MAP_SIZE/2 && Math.abs(ny) < MAP_SIZE/2) {
+        gameState.isoPlayer.x = nx;
+        gameState.isoPlayer.y = ny;
+        gameState.playerData.x = nx;
+        gameState.playerData.y = ny;
+        lastMoveTime = now;
+      }
+    }
+  }
+
+  // 전투 및 데미지 로직
+  function playerAttack() {
+    const p = gameState.isoPlayer;
+    let totalAtk = gameState.playerData.atk;
+    
+    // 무기 데미지 추가
+    if (gameState.playerData.equip.weapon) {
+      totalAtk += gameState.playerData.equip.weapon.atk || 0;
     }
 
-    data.gold -= cost;
-    data.atk += 2;
-    log(`⚔️ 무기를 강화하여 공격력이 2 증가했습니다! (-20 Gold)`);
+    gameState.monsters.forEach(m => {
+      let dist = Math.hypot(m.x - p.x, m.y - p.y);
+      if (dist < 1.8) { // 근접 범위 내 타격
+        let dmg = totalAtk + Math.floor(Math.random() * 5);
+        m.hp -= dmg;
+        addFloatingText(`-${dmg}`, m.x, m.y, '#ff5252');
 
-    updateGameUI();
-    saveGameData();
+        if (m.hp <= 0) {
+          addFloatingText(`+${m.exp}EXP`, p.x, p.y, '#ffeb3b');
+          gameState.playerData.exp += m.exp;
+          gameState.playerData.gold += m.gold;
+          
+          // 레벨업 체크
+          if (gameState.playerData.exp >= gameState.playerData.maxExp) {
+            gameState.playerData.level++;
+            gameState.playerData.exp -= gameState.playerData.maxExp;
+            gameState.playerData.maxExp = Math.floor(gameState.playerData.maxExp * 1.5);
+            gameState.playerData.maxHp += 20;
+            gameState.playerData.hp = gameState.playerData.maxHp;
+            gameState.playerData.atk += 3;
+            addFloatingText(`LEVEL UP!`, p.x, p.y, '#00e676');
+          }
+
+          // 몬스터 리스폰 (3초 후)
+          setTimeout(() => {
+            m.hp = m.maxHp;
+          }, 4000);
+        } else {
+          // 몬스터 반격
+          let mDmg = Math.max(1, m.atk - (gameState.playerData.def + (gameState.playerData.equip.armor?.def || 0)));
+          gameState.playerData.hp = Math.max(0, gameState.playerData.hp - mDmg);
+          addFloatingText(`-${mDmg}`, p.x, p.y, '#ff1744');
+
+          if(gameState.playerData.hp <= 0) {
+            alert("사망하였습니다! 마을에서 부활합니다.");
+            gameState.playerData.hp = gameState.playerData.maxHp;
+            gameState.isoPlayer.x = 0;
+            gameState.isoPlayer.y = 0;
+          }
+        }
+        updateHUD();
+        saveData();
+      }
+    });
+  }
+
+  function addFloatingText(text, x, y, color) {
+    gameState.floatingTexts.push({ text, x, y, alpha: 1.0, color, life: 30 });
+  }
+
+  // --- [4. Drawing Functions (isometric)] ---
+  function drawTile(x, y, color) {
+    let pos = toIso(x, y);
+    ctx.beginPath();
+    ctx.moveTo(pos.screenX, pos.screenY);
+    ctx.lineTo(pos.screenX + TILE_WIDTH / 2, pos.screenY + TILE_HEIGHT / 2);
+    ctx.lineTo(pos.screenX, pos.screenY + TILE_HEIGHT);
+    ctx.lineTo(pos.screenX - TILE_WIDTH / 2, pos.screenY + TILE_HEIGHT / 2);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+    ctx.stroke();
+  }
+
+  function drawEntity(x, y, radius, color, label) {
+    let pos = toIso(x, y);
+    let drawY = pos.screenY + TILE_HEIGHT / 2;
+
+    // 그림자
+    ctx.beginPath();
+    ctx.ellipse(pos.screenX, drawY, radius, radius / 2, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+    ctx.fill();
+
+    // 본체 (3D 입체 원기둥)
+    ctx.beginPath();
+    ctx.arc(pos.screenX, drawY - 12, radius, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // 이름 표기
+    if (label) {
+      ctx.fillStyle = '#fff';
+      ctx.font = '11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(label, pos.screenX, drawY - 26);
+    }
+  }
+
+  function render() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 1. 타일맵 렌더링 (대각선 체스판 패턴)
+    let half = Math.floor(MAP_SIZE / 2);
+    for (let x = -half; x <= half; x++) {
+      for (let y = -half; y <= half; y++) {
+        let isAlt = (x + y) % 2 === 0;
+        drawTile(x, y, isAlt ? '#2e7d32' : '#388e3c');
+      }
+    }
+
+    // 2. 몬스터 렌더링
+    gameState.monsters.forEach(m => {
+      if (m.hp > 0) {
+        drawEntity(m.x, m.y, m.isBoss ? 18 : 12, m.color, `${m.name} [${m.hp}]`);
+      }
+    });
+
+    // 3. 플레이어 렌더링
+    drawEntity(gameState.isoPlayer.x, gameState.isoPlayer.y, 14, '#2196f3', currentUser);
+
+    // 4. 플로팅 텍스트 렌더링
+    for (let i = gameState.floatingTexts.length - 1; i >= 0; i--) {
+      let ft = gameState.floatingTexts[i];
+      let pos = toIso(ft.x, ft.y);
+      ctx.fillStyle = ft.color;
+      ctx.font = 'bold 14px sans-serif';
+      ctx.globalAlpha = ft.alpha;
+      ctx.fillText(ft.text, pos.screenX, pos.screenY - 20 - (30 - ft.life));
+      ctx.globalAlpha = 1.0;
+      
+      ft.life--;
+      ft.alpha -= 0.03;
+      if (ft.life <= 0) gameState.floatingTexts.splice(i, 1);
+    }
+  }
+
+  function gameLoop() {
+    if (document.getElementById('screen-game').classList.contains('active')) {
+      handleInput();
+      render();
+      requestAnimationFrame(gameLoop);
+    }
+  }
+
+  // --- [5. UI & 가방(인벤토리) / 장비 / 상점 시스템] ---
+  function updateHUD() {
+    const d = gameState.playerData;
+    let bonusHp = d.equip.armor?.hp || 0;
+    let maxHpWithEquip = d.maxHp + bonusHp;
+
+    document.getElementById('hud-name').innerText = currentUser;
+    document.getElementById('hud-level').innerText = d.level;
+    document.getElementById('hud-hp-txt').innerText = `${d.hp}/${maxHpWithEquip}`;
+    document.getElementById('hud-hp-bar').style.width = `${(d.hp / maxHpWithEquip) * 100}%`;
+    document.getElementById('hud-exp-txt').innerText = `${d.exp}/${d.maxExp}`;
+    document.getElementById('hud-exp-bar').style.width = `${(d.exp / d.maxExp) * 100}%`;
+    document.getElementById('hud-gold').innerText = d.gold;
+  }
+
+  function toggleInventory() {
+    const modal = document.getElementById('inventory-modal');
+    modal.style.display = (modal.style.display === 'block') ? 'none' : 'block';
+    if (modal.style.display === 'block') renderInventoryUI();
+  }
+
+  function toggleShop() {
+    const modal = document.getElementById('shop-modal');
+    modal.style.display = (modal.style.display === 'block') ? 'none' : 'block';
+  }
+
+  function renderInventoryUI() {
+    const invGrid = document.getElementById('inv-grid');
+    invGrid.innerHTML = '';
+
+    // 장비 슬롯 갱신
+    const eq = gameState.playerData.equip;
+    document.getElementById('equip-weapon-name').innerText = eq.weapon ? eq.weapon.name : '없음';
+    document.getElementById('equip-armor-name').innerText = eq.armor ? eq.armor.name : '없음';
+
+    // 가방 아이템 목록
+    gameState.playerData.inventory.forEach((item, index) => {
+      let div = document.createElement('div');
+      div.className = 'inv-item';
+      div.innerHTML = `<div>${item.name}</div><div class="count">x${item.count}</div>`;
+      div.onclick = () => useItem(index);
+      invGrid.appendChild(div);
+    });
+  }
+
+  function useItem(index) {
+    const item = gameState.playerData.inventory[index];
+    if (!item) return;
+
+    if (item.type === 'use') {
+      // 포션 사용
+      gameState.playerData.hp = Math.min(gameState.playerData.maxHp, gameState.playerData.hp + item.val);
+      item.count--;
+      if (item.count <= 0) gameState.playerData.inventory.splice(index, 1);
+      addFloatingText(`+${item.val} HP`, gameState.isoPlayer.x, gameState.isoPlayer.y, '#4caf50');
+    } 
+    else if (item.type === 'weapon' || item.type === 'armor') {
+      // 장비 착용
+      let currentEquip = gameState.playerData.equip[item.type];
+      if (currentEquip) {
+        // 기존 장비 해제 후 인벤토리에 넣기
+        addItemToInv(currentEquip);
+      }
+      gameState.playerData.equip[item.type] = item;
+      
+      // 착용한 아이템 가방에서 제거
+      item.count--;
+      if (item.count <= 0) gameState.playerData.inventory.splice(index, 1);
+    }
+
+    updateHUD();
+    renderInventoryUI();
+    saveData();
+  }
+
+  function unequip(type) {
+    let item = gameState.playerData.equip[type];
+    if (item) {
+      addItemToInv(item);
+      gameState.playerData.equip[type] = null;
+      updateHUD();
+      renderInventoryUI();
+      saveData();
+    }
+  }
+
+  function addItemToInv(item) {
+    let inv = gameState.playerData.inventory;
+    let found = inv.find(i => i.id === item.id);
+    if (found) {
+      found.count++;
+    } else {
+      inv.push({ ...item, count: 1 });
+    }
+  }
+
+  function renderShopUI() {
+    const shopGrid = document.getElementById('shop-grid');
+    shopGrid.innerHTML = '';
+
+    SHOP_ITEMS.forEach(item => {
+      let div = document.createElement('div');
+      div.className = 'inv-item';
+      div.style.width = '100%';
+      div.style.height = ' auto';
+      div.style.padding = '6px';
+      div.style.marginBottom = '5px';
+      div.innerHTML = `
+        <div style="font-weight:bold">${item.name}</div>
+        <div style="font-size:10px; color:#aaa;">${item.desc}</div>
+        <div style="color:#ffd700;">💰 ${item.price} G</div>
+      `;
+      div.onclick = () => buyShopItem(item);
+      shopGrid.appendChild(div);
+    });
+  }
+
+  function buyShopItem(item) {
+    if (gameState.playerData.gold >= item.price) {
+      gameState.playerData.gold -= item.price;
+      addItemToInv(item);
+      updateHUD();
+      renderInventoryUI();
+      saveData();
+      alert(`${item.name}을(를) 구매했습니다!`);
+    } else {
+      alert("골드가 부족합니다.");
+    }
   }
 </script>
-
 </body>
 </html>
