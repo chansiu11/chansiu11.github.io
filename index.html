@@ -2026,157 +2026,127 @@ function drawFogOfWar() {
 }
 
 function drawPlayer(p, isMe) {
-    if (p.isDead || p.hp <= 0) return;
+    if (!p || p.hp <= 0 || p.isDead) return;
 
     ctx.save();
     ctx.translate(p.x, p.y);
+
+    ctx.fillStyle = isMe ? '#00ffcc' : '#ff4444';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(p.name || 'Player', 0, -32);
+
+    ctx.fillStyle = '#333';
+    ctx.fillRect(-20, -25, 40, 5);
+    ctx.fillStyle = isMe ? '#00ffcc' : '#ff4444';
+    ctx.fillRect(-20, -25, (Math.max(0, p.hp) / p.maxHp) * 40, 5);
+
     ctx.rotate(p.angle);
 
-    // 총기 그리기
-    if (p.weapon) {
-        ctx.fillStyle = '#888';
-        if (p.weapon === 'ar') ctx.fillRect(10, 3, 22, 5);
-        else if (p.weapon === 'sniper') ctx.fillRect(10, 2, 32, 4);
-        else if (p.weapon === 'shotgun') ctx.fillRect(10, 1, 18, 8);
-    }
+    ctx.fillStyle = '#111';
+    ctx.beginPath();
+    ctx.arc(0, 0, 20, 0, Math.PI * 2);
+    ctx.fill();
 
-    // 캐릭터 본체
+    ctx.fillStyle = isMe ? '#00ffcc' : '#ff4444';
     ctx.beginPath();
     ctx.arc(0, 0, 18, 0, Math.PI * 2);
-    ctx.fillStyle = isMe ? '#00ffcc' : '#ff4444';
     ctx.fill();
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = '#000';
-    ctx.stroke();
 
-    // 손 그리기
+    ctx.fillStyle = '#f1c40f';
     ctx.beginPath();
-    ctx.arc(14, -10, 5, 0, Math.PI * 2);
-    ctx.arc(14, 10, 5, 0, Math.PI * 2);
-    ctx.fillStyle = '#ffccaa';
+    ctx.arc(8, -12, 6, 0, Math.PI * 2);
+    ctx.arc(8, 12, 6, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.restore();
+    if (p.weapon) {
+        ctx.fillStyle = '#555';
+        if (p.weapon === 'ar') ctx.fillRect(10, -3, 22, 6);
+        else if (p.weapon === 'sniper') ctx.fillRect(10, -2, 30, 4);
+        else if (p.weapon === 'shotgun') ctx.fillRect(10, -4, 18, 8);
+    }
 
-    // 체력바 및 닉네임
-    ctx.save();
-    ctx.font = '12px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(p.name, p.x, p.y - 28);
-
-    // HP Bar Background
-    ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    ctx.fillRect(p.x - 20, p.y - 24, 40, 5);
-    // HP Bar Fill
-    const hpRatio = Math.max(0, p.hp / p.maxHp);
-    ctx.fillStyle = hpRatio > 0.5 ? '#00ff00' : (hpRatio > 0.2 ? '#ffff00' : '#ff0000');
-    ctx.fillRect(p.x - 20, p.y - 24, 40 * hpRatio, 5);
     ctx.restore();
 }
 
-function render() {
+function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     ctx.save();
     ctx.translate(canvas.width / 2 - camera.x, canvas.height / 2 - camera.y);
 
-    // 월드 격자 배경
-    ctx.strokeStyle = '#1e293b';
-    ctx.lineWidth = 1;
+    ctx.fillStyle = '#1e272e';
+    ctx.fillRect(0, 0, WORLD_SIZE, WORLD_SIZE);
+
+    ctx.strokeStyle = '#2c3e50';
+    ctx.lineWidth = 2;
     const gridSize = 100;
-    const startX = Math.floor((camera.x - canvas.width) / gridSize) * gridSize;
-    const endX = Math.ceil((camera.x + canvas.width) / gridSize) * gridSize;
-    const startY = Math.floor((camera.y - canvas.height) / gridSize) * gridSize;
-    const endY = Math.ceil((camera.y + canvas.height) / gridSize) * gridSize;
-
-    for (let x = startX; x < endX; x += gridSize) {
-        ctx.beginPath(); ctx.moveTo(x, startY); ctx.lineTo(x, endY); ctx.stroke();
+    for (let x = 0; x <= WORLD_SIZE; x += gridSize) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, WORLD_SIZE); ctx.stroke();
     }
-    for (let y = startY; y < endY; y += gridSize) {
-        ctx.beginPath(); ctx.moveTo(startX, y); ctx.lineTo(endX, y); ctx.stroke();
+    for (let y = 0; y <= WORLD_SIZE; y += gridSize) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(WORLD_SIZE, y); ctx.stroke();
     }
 
-    // 맵 경계선
-    ctx.strokeStyle = '#ff0000';
-    ctx.lineWidth = 5;
-    ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
-
-    // 자기장 (배틀로얄 전용)
     if (selectedMode === 'br') {
+        ctx.strokeStyle = '#ff3333';
+        ctx.lineWidth = 6;
         ctx.beginPath();
         ctx.arc(zone.x, zone.y, zone.radius, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(0, 150, 255, 0.8)';
-        ctx.lineWidth = 6;
         ctx.stroke();
-        ctx.fillStyle = 'rgba(0, 100, 255, 0.08)';
-        ctx.fill();
     }
 
-    // 바닥 아이템
     droppedItems.forEach(item => {
-        ctx.beginPath();
-        ctx.arc(item.x, item.y, 10, 0, Math.PI * 2);
-        if (['ar', 'sniper', 'shotgun'].includes(item.type)) ctx.fillStyle = '#ffcc00';
-        else if (item.type.startsWith('ammo_')) ctx.fillStyle = '#00ffcc';
-        else ctx.fillStyle = '#ff00ff';
-        ctx.fill();
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-
-        ctx.font = '10px sans-serif';
-        ctx.fillStyle = '#ffffff';
-        ctx.textAlign = 'center';
-        ctx.fillText(item.type.toUpperCase(), item.x, item.y - 12);
+        ctx.save();
+        ctx.translate(item.x, item.y);
+        if (['ar', 'sniper', 'shotgun'].includes(item.type)) {
+            ctx.fillStyle = '#f1c40f';
+            ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI * 2); ctx.fill();
+        } else if (item.type.startsWith('ammo_')) {
+            ctx.fillStyle = '#e67e22';
+            ctx.fillRect(-6, -6, 12, 12);
+        } else {
+            ctx.fillStyle = '#3498db';
+            ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.restore();
     });
 
-    // 장애물
+    ctx.fillStyle = '#34495e';
+    ctx.strokeStyle = '#2c3e50';
+    ctx.lineWidth = 4;
     obstacles.forEach(obs => {
-        ctx.fillStyle = '#334155';
         ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
-        ctx.strokeStyle = '#475569';
-        ctx.lineWidth = 3;
         ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
     });
 
-    // 피격 이펙트 (핏자국 파티클)
     bloodParticles.forEach(p => {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(220, 38, 38, ${p.alpha})`;
-        ctx.fill();
+        ctx.save();
+        ctx.globalAlpha = p.alpha;
+        ctx.fillStyle = '#e74c3c';
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
     });
 
-    // 총알
-    ctx.strokeStyle = '#fde047';
-    ctx.lineWidth = 3;
     bullets.forEach(b => {
-        ctx.beginPath();
-        ctx.moveTo(b.prevX, b.prevY);
-        ctx.lineTo(b.x, b.y);
-        ctx.stroke();
+        ctx.strokeStyle = '#f1c40f';
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(b.prevX, b.prevY); ctx.lineTo(b.x, b.y); ctx.stroke();
     });
 
-    // 사운드 시각 파동 (발자국/총성)
-    const now = Date.now();
     soundEvents.forEach(snd => {
-        const elapsed = now - snd.time;
-        const duration = snd.type === 'gunshot' ? 1200 : 300;
-        const progress = elapsed / duration;
-        if (progress <= 1) {
-            ctx.beginPath();
-            ctx.arc(snd.x, snd.y, snd.radius * progress, 0, Math.PI * 2);
-            ctx.strokeStyle = snd.type === 'gunshot' 
-                ? `rgba(239, 68, 68, ${1 - progress})` 
-                : `rgba(255, 255, 255, ${0.4 * (1 - progress)})`;
-            ctx.lineWidth = snd.type === 'gunshot' ? 2 : 1;
-            ctx.stroke();
-        }
+        const elapsed = Date.now() - snd.time;
+        const maxTime = snd.type === 'gunshot' ? 1200 : 300;
+        const alpha = Math.max(0, 1 - elapsed / maxTime);
+        ctx.save();
+        ctx.globalAlpha = alpha * 0.3;
+        ctx.strokeStyle = snd.type === 'gunshot' ? '#e74c3c' : '#3498db';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(snd.x, snd.y, snd.radius * (elapsed / maxTime), 0, Math.PI * 2); ctx.stroke();
+        ctx.restore();
     });
 
-    // 플레이어 렌더링
-    if (!myPlayer.isDead) {
+    if (!myPlayer.isDead && !isSpectating && !isRespawning) {
         drawPlayer(myPlayer, true);
     }
     Object.values(remotePlayers).forEach(p => drawPlayer(p, false));
@@ -2184,90 +2154,77 @@ function render() {
 
     ctx.restore();
 
-    // 시야각 안개(Fog of War) 마스킹
     drawFogOfWar();
-
-    // 미니맵 및 전체지도 렌더링
-    renderMinimap();
-    if (document.getElementById('fullMapOverlay').style.display === 'flex') {
-        renderFullMap();
-    }
+    drawMinimap();
+    drawFullMap();
 }
 
-function renderMinimap() {
+function drawMinimap() {
     mCtx.clearRect(0, 0, minimapCanvas.width, minimapCanvas.height);
-    const mapScale = minimapCanvas.width / WORLD_SIZE;
+    mCtx.save();
+    
+    mCtx.beginPath();
+    mCtx.arc(100, 100, 100, 0, Math.PI * 2);
+    mCtx.clip();
 
-    // 자기장
+    const scale = 200 / WORLD_SIZE;
+
+    mCtx.fillStyle = '#111';
+    mCtx.fillRect(0, 0, 200, 200);
+
+    mCtx.fillStyle = '#444';
+    obstacles.forEach(obs => {
+        mCtx.fillRect(obs.x * scale, obs.y * scale, obs.w * scale, obs.h * scale);
+    });
+
     if (selectedMode === 'br') {
+        mCtx.strokeStyle = '#ff3333';
+        mCtx.lineWidth = 2;
         mCtx.beginPath();
-        mCtx.arc(zone.x * mapScale, zone.y * mapScale, zone.radius * mapScale, 0, Math.PI * 2);
-        mCtx.strokeStyle = '#0099ff';
-        mCtx.lineWidth = 1.5;
+        mCtx.arc(zone.x * scale, zone.y * scale, zone.radius * scale, 0, Math.PI * 2);
         mCtx.stroke();
     }
 
-    // 장애물
-    mCtx.fillStyle = '#555';
-    obstacles.forEach(obs => {
-        mCtx.fillRect(obs.x * mapScale, obs.y * mapScale, obs.w * mapScale, obs.h * mapScale);
-    });
-
-    // 타 플레이어 & AI (사운드 이벤트 기반 표시 또는 생존 관전)
-    mCtx.fillStyle = '#ff4444';
-    const allEnemies = [...Object.values(remotePlayers), ...aiBots];
-    allEnemies.forEach(e => {
-        if (!e.isDead && e.hp > 0) {
-            mCtx.beginPath();
-            mCtx.arc(e.x * mapScale, e.y * mapScale, 2, 0, Math.PI * 2);
-            mCtx.fill();
-        }
-    });
-
-    // 내 위치
     if (!myPlayer.isDead) {
         mCtx.fillStyle = '#00ffcc';
-        mCtx.beginPath();
-        mCtx.arc(myPlayer.x * mapScale, myPlayer.y * mapScale, 3.5, 0, Math.PI * 2);
-        mCtx.fill();
+        mCtx.beginPath(); mCtx.arc(myPlayer.x * scale, myPlayer.y * scale, 4, 0, Math.PI * 2); mCtx.fill();
     }
+
+    mCtx.restore();
 }
 
-function renderFullMap() {
+function drawFullMap() {
+    const fMap = document.getElementById('fullMapOverlay');
+    if (fMap.style.display !== 'flex') return;
+
     fCtx.clearRect(0, 0, fullMapCanvas.width, fullMapCanvas.height);
-    const scale = fullMapCanvas.width / WORLD_SIZE;
+    const scale = 500 / WORLD_SIZE;
 
-    // 배경
     fCtx.fillStyle = '#111';
-    fCtx.fillRect(0, 0, fullMapCanvas.width, fullMapCanvas.height);
+    fCtx.fillRect(0, 0, 500, 500);
 
-    // 장애물
-    fCtx.fillStyle = '#334155';
+    fCtx.fillStyle = '#444';
     obstacles.forEach(obs => {
         fCtx.fillRect(obs.x * scale, obs.y * scale, obs.w * scale, obs.h * scale);
     });
 
-    // 자기장
     if (selectedMode === 'br') {
+        fCtx.strokeStyle = '#ff3333';
+        fCtx.lineWidth = 2;
         fCtx.beginPath();
         fCtx.arc(zone.x * scale, zone.y * scale, zone.radius * scale, 0, Math.PI * 2);
-        fCtx.strokeStyle = '#0099ff';
-        fCtx.lineWidth = 3;
         fCtx.stroke();
     }
 
-    // 내 위치 표시
     if (!myPlayer.isDead) {
         fCtx.fillStyle = '#00ffcc';
-        fCtx.beginPath();
-        fCtx.arc(myPlayer.x * scale, myPlayer.y * scale, 6, 0, Math.PI * 2);
-        fCtx.fill();
+        fCtx.beginPath(); fCtx.arc(myPlayer.x * scale, myPlayer.y * scale, 5, 0, Math.PI * 2); fCtx.fill();
     }
 }
 
 function gameLoop() {
     update();
-    render();
+    draw();
     requestAnimationFrame(gameLoop);
 }
 </script>
