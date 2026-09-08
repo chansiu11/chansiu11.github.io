@@ -421,7 +421,7 @@ let mobileAimVec = { x: 0, y: 0 };
 
 let bullets = [];
 const aiBots = [];
-const soundEvents = [];
+const gunshotEvents = [];
 const bloodParticles = [];
 
 let isEditingKeys = false;
@@ -787,7 +787,7 @@ function handleNetworkData(data) {
         }
     } else if(data.type === 'SHOOT_EVENT') {
         if (!isHost && data.player.id !== myPlayer.id) {
-            emitSoundEvent(data.player.x, data.player.y, 2500, 'gunshot');
+            addGunshotEvent(data.player.x, data.player.y, data.player.id);
         }
     } else if(data.type === 'DAMAGE' && data.targetId === myPlayer.id) {
         myPlayer.hp = data.newHp;
@@ -1464,8 +1464,8 @@ function hasLineOfSight(p1, p2) {
     return true;
 }
 
-function emitSoundEvent(x, y, radius, type = 'gunshot') {
-    soundEvents.push({ x: x, y: y, radius: radius, type: type, time: Date.now() });
+function addGunshotEvent(x, y, shooterId) {
+    gunshotEvents.push({ x: x, y: y, shooterId: shooterId, time: Date.now() });
 }
 
 function shoot(shooter, extraSpread = 0) {
@@ -1479,7 +1479,7 @@ function shoot(shooter, extraSpread = 0) {
     if(shooter.id === myPlayer.id) updateHUD();
 
     const w = WEAPONS[shooter.weapon];
-    emitSoundEvent(shooter.x, shooter.y, 2500, 'gunshot');
+    addGunshotEvent(shooter.x, shooter.y, shooter.id);
 
     const isRunning = shooter.movementMode === 'sprint';
     const baseSpread = isRunning ? w.spread * 3.0 : w.spread;
@@ -1576,7 +1576,6 @@ function updateAI() {
                 moveAIBot(bot, Math.cos(bot.angle) * 2.5 * diff.speedMult, Math.sin(bot.angle) * 2.5 * diff.speedMult);
                 bot.firstSeenTime = null;
                 bot.movementMode = 'sprint';
-                emitSoundEvent(bot.x, bot.y, 600, 'footstep');
                 continue;
             }
         }
@@ -1608,7 +1607,6 @@ function updateAI() {
                 bot.angle = Math.atan2(bot.targetItem.y - bot.y, bot.targetItem.x - bot.x);
                 bot.movementMode = 'sprint';
                 moveAIBot(bot, Math.cos(bot.angle) * 2.5 * diff.speedMult, Math.sin(bot.angle) * 2.5 * diff.speedMult);
-                emitSoundEvent(bot.x, bot.y, 600, 'footstep');
 
                 if (Math.hypot(bot.targetItem.x - bot.x, bot.targetItem.y - bot.y) < 35) {
                     const item = bot.targetItem;
@@ -1633,9 +1631,9 @@ function updateAI() {
             continue;
         }
 
-        soundEvents.forEach(snd => {
+        gunshotEvents.forEach(snd => {
             const dst = Math.hypot(bot.x - snd.x, bot.y - snd.y);
-            if (dst <= snd.radius && dst > 50) {
+            if (dst <= 2500 && dst > 50) {
                 if (!bot.investigateTarget || now - bot.investigateTarget.time > 3000) {
                     bot.investigateTarget = { x: snd.x, y: snd.y, time: now };
                 }
@@ -1669,7 +1667,6 @@ function updateAI() {
                 if(minDst > 200) {
                     bot.movementMode = 'sprint';
                     moveAIBot(bot, Math.cos(bot.angle) * 2.5 * diff.speedMult, Math.sin(bot.angle) * 2.5 * diff.speedMult);
-                    emitSoundEvent(bot.x, bot.y, 600, 'footstep');
                 }
                 if (now - bot.lastShootTime >= WEAPONS[bot.weapon].cooldown) {
                     shoot(bot, diff.spread); 
@@ -1681,7 +1678,6 @@ function updateAI() {
             bot.angle = Math.atan2(bot.investigateTarget.y - bot.y, bot.investigateTarget.x - bot.x);
             bot.movementMode = 'sprint';
             moveAIBot(bot, Math.cos(bot.angle) * 2.3 * diff.speedMult, Math.sin(bot.angle) * 2.3 * diff.speedMult);
-            emitSoundEvent(bot.x, bot.y, 600, 'footstep');
 
             if (Math.hypot(bot.investigateTarget.x - bot.x, bot.investigateTarget.y - bot.y) < 50) {
                 bot.investigateTarget = null;
@@ -1710,7 +1706,6 @@ function updateAI() {
                     bot.angle = Math.atan2(bot.targetItem.y - bot.y, bot.targetItem.x - bot.x);
                     bot.movementMode = 'walk';
                     moveAIBot(bot, Math.cos(bot.angle) * 2.0 * diff.speedMult, Math.sin(bot.angle) * 2.0 * diff.speedMult);
-                    emitSoundEvent(bot.x, bot.y, 250, 'footstep');
 
                     if(Math.hypot(bot.targetItem.x - bot.x, bot.targetItem.y - bot.y) < 30) {
                         const item = bot.targetItem;
@@ -1738,7 +1733,6 @@ function updateAI() {
                     bot.angle = Math.atan2(targetY - bot.y, targetX - bot.x);
                     bot.movementMode = 'walk';
                     moveAIBot(bot, Math.cos(bot.angle) * 1.8 * diff.speedMult, Math.sin(bot.angle) * 1.8 * diff.speedMult);
-                    emitSoundEvent(bot.x, bot.y, 250, 'footstep');
                 } else {
                     if(Math.random() < 0.03) bot.angle += (Math.random() - 0.5) * 1.5;
                 }
@@ -1786,20 +1780,16 @@ function update() {
     }
 
     let currentSpeed = 3.0;
-    let footstepRadius = 0;
 
     if (keys['shift']) {
         currentSpeed = 5.0;
         myPlayer.movementMode = 'sprint';
-        footstepRadius = 600;
     } else if (keys['control']) {
         currentSpeed = 1.5;
         myPlayer.movementMode = 'stealth';
-        footstepRadius = 0;
     } else {
         currentSpeed = 3.0;
         myPlayer.movementMode = 'walk';
-        footstepRadius = 250;
     }
 
     let dx = 0, dy = 0;
@@ -1823,10 +1813,6 @@ function update() {
 
         if(!checkObstacleCollision(nextX, myPlayer.y, 15)) myPlayer.x = nextX;
         if(!checkObstacleCollision(myPlayer.x, nextY, 15)) myPlayer.y = nextY;
-
-        if (myPlayer.isMoving && footstepRadius > 0) {
-            emitSoundEvent(myPlayer.x, myPlayer.y, footstepRadius, 'footstep');
-        }
 
         if (myPlayer.isShooting) {
             const now = Date.now();
@@ -1896,9 +1882,9 @@ function update() {
     }
 
     const now = Date.now();
-    for(let i = soundEvents.length - 1; i >= 0; i--) {
-        const duration = 300;
-        if(now - soundEvents[i].time > duration) soundEvents.splice(i, 1);
+    for(let i = gunshotEvents.length - 1; i >= 0; i--) {
+        const duration = 800; // 총소리 표시 시간 (0.8초)
+        if(now - gunshotEvents[i].time > duration) gunshotEvents.splice(i, 1);
     }
 
     if(isHost) {
@@ -2161,6 +2147,44 @@ function drawPlayer(p) {
     ctx.fillText(p.name, p.x, p.y - 42);
 }
 
+// 거리 내 총소리 발생 시 캐릭터 주위에 방향 표시기(화살표) 그리기
+function drawGunshotIndicators() {
+    if (myPlayer.isDead || myPlayer.hp <= 0 || isSpectating || isRespawning) return;
+
+    const maxDist = 2500; // 감지할 최대 거리
+    const now = Date.now();
+
+    gunshotEvents.forEach(snd => {
+        // 자신이 쏜 총소리는 제외
+        if (snd.shooterId === myPlayer.id) return;
+
+        const dst = Math.hypot(snd.x - myPlayer.x, snd.y - myPlayer.y);
+        if (dst <= maxDist && dst > 30) {
+            const angle = Math.atan2(snd.y - myPlayer.y, snd.x - myPlayer.x);
+            const duration = 800;
+            const elapsed = now - snd.time;
+            const alpha = Math.max(0, 1 - elapsed / duration);
+
+            ctx.save();
+            ctx.translate(myPlayer.x, myPlayer.y);
+            ctx.rotate(angle);
+
+            // 캐릭터 반지름(20) 바깥쪽(약 60px 떨어진 곳)에 빨간 화살표 표시
+            const distFromPlayer = 60;
+            ctx.fillStyle = `rgba(255, 50, 50, ${alpha})`;
+            ctx.beginPath();
+            ctx.moveTo(distFromPlayer + 15, 0);
+            ctx.lineTo(distFromPlayer, -10);
+            ctx.lineTo(distFromPlayer + 4, 0);
+            ctx.lineTo(distFromPlayer, 10);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.restore();
+        }
+    });
+}
+
 function render() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -2254,6 +2278,7 @@ function render() {
 
     if (myPlayer.hp > 0 && !myPlayer.isDead) {
         drawPlayer(myPlayer);
+        drawGunshotIndicators();
 
         if (isMobile && (mobileAimVec.x !== 0 || mobileAimVec.y !== 0)) {
             const crosshairDist = 120;
@@ -2308,7 +2333,7 @@ function renderMinimap() {
         mCtx.stroke();
     }
 
-    soundEvents.forEach(snd => {
+    gunshotEvents.forEach(snd => {
         const dx = snd.x - myPlayer.x;
         const dy = snd.y - myPlayer.y;
         const angle = Math.atan2(dy, dx);
@@ -2339,25 +2364,31 @@ function renderFullMap() {
     fCtx.fillStyle = '#111';
     fCtx.fillRect(0, 0, fullMapCanvas.width, fullMapCanvas.height);
 
-    fCtx.strokeStyle = '#333';
-    fCtx.lineWidth = 1;
+    fCtx.fillStyle = '#333344';
     obstacles.forEach(obs => {
         fCtx.fillRect(obs.x * scale, obs.y * scale, obs.w * scale, obs.h * scale);
     });
 
     if (selectedMode === 'br') {
-        fCtx.strokeStyle = '#00ffcc';
+        fCtx.strokeStyle = 'rgba(0, 255, 204, 0.8)';
         fCtx.lineWidth = 2;
         fCtx.beginPath();
         fCtx.arc(zone.x * scale, zone.y * scale, zone.radius * scale, 0, Math.PI * 2);
         fCtx.stroke();
+    }
+
+    if (myPlayer.hp > 0 && !myPlayer.isDead) {
+        fCtx.fillStyle = '#00ffcc';
+        fCtx.beginPath();
+        fCtx.arc(myPlayer.x * scale, myPlayer.y * scale, 5, 0, Math.PI * 2);
+        fCtx.fill();
     }
 }
 
 function gameLoop() {
     update();
     render();
-    requestAnimationFrame(gameLoop);
+    if (gameStarted) requestAnimationFrame(gameLoop);
 }
 </script>
 </body>
