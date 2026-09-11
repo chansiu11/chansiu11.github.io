@@ -1081,87 +1081,53 @@ function generateMapData(mode, seed = currentMapSeed || 1) {
         const arenaSize = 2200;
         const arenaObstacles = [];
         const arenaItems = [];
-        const wallT = 34;
 
-        const addWall = (x,y,w,h) => {
+        // 작은 아레나의 외곽 경계와 중앙 엄폐물만 사용한다.
+        const wallT = 36;
+        arenaObstacles.push(
+            {type:'wall', x:0, y:0, w:arenaSize, h:wallT},
+            {type:'wall', x:0, y:arenaSize-wallT, w:arenaSize, h:wallT},
+            {type:'wall', x:0, y:0, w:wallT, h:arenaSize},
+            {type:'wall', x:arenaSize-wallT, y:0, w:wallT, h:arenaSize}
+        );
+
+        // 중앙/측면에 단순 사각 엄폐물 배치. 집과 나무는 생성하지 않는다.
+        const cover = [
+            [arenaSize/2-90, arenaSize/2-260, 180, 90],
+            [arenaSize/2-90, arenaSize/2+170, 180, 90],
+            [arenaSize/2-330, arenaSize/2-45, 120, 90],
+            [arenaSize/2+210, arenaSize/2-45, 120, 90],
+            [420, 420, 150, 70],
+            [arenaSize-570, 420, 150, 70],
+            [420, arenaSize-490, 150, 70],
+            [arenaSize-570, arenaSize-490, 150, 70]
+        ];
+        for (const [x,y,w,h] of cover) {
             arenaObstacles.push({type:'wall', x, y, w, h});
-        };
+        }
 
-        // 외곽 경계
-        addWall(0,0,arenaSize,wallT);
-        addWall(0,arenaSize-wallT,arenaSize,wallT);
-        addWall(0,0,wallT,arenaSize);
-        addWall(arenaSize-wallT,0,wallT,arenaSize);
-
-        // ── 골목형 구조 ──
-        // 좌측 세로 골목
-        addWall(300,220,70,700);
-        addWall(300,1080,70,900);
-        addWall(560,120,70,640);
-        addWall(560,920,70,900);
-
-        // 우측 세로 골목
-        addWall(1570,220,70,700);
-        addWall(1570,1080,70,900);
-        addWall(1830,120,70,640);
-        addWall(1830,920,70,900);
-
-        // 중앙 가로 골목
-        addWall(720,520,760,70);
-        addWall(720,780,500,70);
-        addWall(1320,780,160,70);
-        addWall(720,1350,520,70);
-        addWall(1340,1350,140,70);
-        addWall(720,1610,760,70);
-
-        // ㄱ자 모서리
-        addWall(780,970,250,55);
-        addWall(780,970,55,240);
-
-        addWall(1370,960,250,55);
-        addWall(1565,960,55,240);
-
-        // 중앙 작은 ㅁ자 구역 - 출입구 2개 남김
-        addWall(980,1040,180,45);
-        addWall(1240,1040,180,45);
-        addWall(980,1040,45,220);
-        addWall(1375,1040,45,220);
-        addWall(980,1215,180,45);
-        addWall(1240,1215,180,45);
-
-        // 골목 중간 짧은 차단벽
-        addWall(150,1020,120,45);
-        addWall(1930,1020,120,45);
-        addWall(430,1450,100,45);
-        addWall(1670,1450,100,45);
-
-        // 데스매치 아이템 배치
+        // 데스매치용 아이템을 아레나 곳곳에 배치
         const itemTypes = [
             'ar','shotgun','sniper',
             'ammo_ar','ammo_shotgun','ammo_sniper',
-            'bandage','medkit','1x','2x','3x','4x'
+            'bandage','medkit',
+            '1x','2x','3x','4x'
         ];
         const positions = [
-            [1100,1100],
-            [430,420],
-            [1770,420],
-            [430,1770],
-            [1770,1770],
-            [1100,690],
-            [1100,1510],
-            [700,1100],
-            [1500,1100],
-            [170,170],
-            [2030,170],
-            [170,2030],
-            [2030,2030]
+            [arenaSize/2, arenaSize/2],
+            [arenaSize/2-420, arenaSize/2],
+            [arenaSize/2+420, arenaSize/2],
+            [arenaSize/2, arenaSize/2-420],
+            [arenaSize/2, arenaSize/2+420],
+            [330,330],[arenaSize-330,330],
+            [330,arenaSize-330],[arenaSize-330,arenaSize-330]
         ];
         for (let i=0;i<positions.length;i++) {
-            const [x,y] = positions[i];
+            const p = positions[i];
             arenaItems.push({
                 id:'dm_item_'+i,
                 type:itemTypes[i % itemTypes.length],
-                x,y
+                x:p[0], y:p[1]
             });
         }
 
@@ -1923,7 +1889,11 @@ function spawnAIBots(count) {
 }
 
 function startGame() {
-    if (typeof drawFogOfWar === 'function') drawFogOfWar._lastBuild = 0;
+    if (typeof drawFogOfWar === 'function') {
+        drawFogOfWar._lastBuild = 0;
+        drawFogOfWar._buildCameraX = camera ? camera.x : 0;
+        drawFogOfWar._buildCameraY = camera ? camera.y : 0;
+    }
     drawFogOfWar._startAt=performance.now(); drawFogOfWar._lastAt=0;
     document.getElementById('ui').style.display = 'none';
     document.getElementById('waitingRoom').style.display = 'none';
@@ -4095,10 +4065,19 @@ function drawFogOfWar() {
         drawFogOfWar._lastBuild &&
         nowFog - drawFogOfWar._lastBuild < fogInterval
     ) {
-        ctx.drawImage(maskCanvas, 0, 0);
+        const dx = (drawFogOfWar._buildCameraX ?? camera.x) - camera.x;
+        const dy = (drawFogOfWar._buildCameraY ?? camera.y) - camera.y;
+        ctx.save();
+        ctx.setTransform(1,0,0,1,0,0);
+        ctx.drawImage(maskCanvas, dx, dy);
+        ctx.restore();
         return;
     }
     drawFogOfWar._lastBuild = nowFog;
+    drawFogOfWar._buildCameraX = camera.x;
+    drawFogOfWar._buildCameraY = camera.y;
+    drawFogOfWar._buildPlayerX = myPlayer.x;
+    drawFogOfWar._buildPlayerY = myPlayer.y;
 
     const px = myPlayer.x;
     const py = myPlayer.y;
@@ -4239,7 +4218,10 @@ function drawFogOfWar() {
     mCtxMask.restore();
     mCtxMask.globalCompositeOperation = 'source-over';
 
+    ctx.save();
+    ctx.setTransform(1,0,0,1,0,0);
     ctx.drawImage(maskCanvas, 0, 0);
+    ctx.restore();
 }
 
 function drawPlayer(p) {
