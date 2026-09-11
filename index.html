@@ -992,25 +992,31 @@ function createRoom() {
         refreshTeamRoster();
     },0);
 
-    const code = generateShortId();
-    currentRoomCode = code;
-    document.getElementById('roomCodeDisplay').innerText = code;
-    document.getElementById('displayRoomCode').innerText = code;
-    
+    // 이전 Peer 객체가 남아 있으면 새 방 생성/참가가 실패할 수 있으므로 정리한다.
+    try { if (peer && !peer.destroyed) peer.destroy(); } catch(e) {}
+    peer = null;
+    hostConn = null;
+    connections = {};
+
     document.getElementById('ui').style.display = 'none';
     document.getElementById('waitingRoom').style.display = 'flex';
-    document.getElementById('waitingTitle').innerText = "대기실 (방장 설정)";
+    document.getElementById('waitingTitle').innerText = "대기실 (방 생성 중...)";
     document.getElementById('hostSettingsControls').style.display = 'block';
     document.getElementById('guestSettingsDisplay').style.display = 'none';
-    document.getElementById('startButton').style.display = 'block';
-    document.getElementById('guestWaitText').style.display = 'none';
+    document.getElementById('startButton').style.display = 'none';
+    document.getElementById('guestWaitText').style.display = 'block';
+    document.getElementById('guestWaitText').innerText = '방 코드를 만드는 중...';
 
-    peer = new Peer('gungame-room-' + code);
-    
-    peer.on('connection', c => { 
+    let createAttempts = 0;
+    const maxCreateAttempts = 20;
+
+    function registerIncomingConnection(c) {
+        // incoming connection은 open 이벤트 전에라도 보관해서 TEAM_JOIN을 놓치지 않는다.
+        connections[c.peer] = c;
+
         c.on('open', () => {
             connections[c.peer] = c;
-            c.send({
+            safeSend(c, {
                 type: 'ROOM_SETTINGS',
                 mode: selectedMode,
                 aiToggle: document.getElementById('aiToggle').value === 'true',
@@ -1018,12 +1024,12 @@ function createRoom() {
                 aiCount: document.getElementById('aiCountInput').value,
                 deathmatchKillLimit: deathmatchKillLimit
             });
-            c.send({type:'TEAM_SETTINGS', teamMode:deathmatchTeamMode, teamCount:deathmatchTeamCount, brTeamSize:brTeamSize, deathmatchKillLimit:deathmatchKillLimit, teams:deathmatchTeams});
+            safeSend(c, {type:'TEAM_SETTINGS', teamMode:deathmatchTeamMode, teamCount:deathmatchTeamCount, brTeamSize:brTeamSize, deathmatchKillLimit:deathmatchKillLimit, teams:deathmatchTeams});
             refreshTeamRoster();
         });
 
         c.on('data', data => {
-            if(data.player && data.player.id) {
+            if(data && data.player && data.player.id) {
                 c.playerId = data.player.id;
                 c.playerName = data.player.name || '플레이어';
             }
@@ -1031,53 +1037,141 @@ function createRoom() {
         });
 
         const handleDisconnect = () => {
-            if (c.playerId) {
-                delete remotePlayers[c.playerId];
-            }
-            delete connections[c.peer];
+            if (c.playerId) delete remotePlayers[c.playerId];
+            if (connections[c.peer] === c) delete connections[c.peer];
             updateHUD();
+            if (isHost) refreshTeamRoster();
         };
-
         c.on('close', handleDisconnect);
         c.on('error', handleDisconnect);
-    });
+    }
+
+    function tryCreateRoom() {
+        if (createAttempts++ >= maxCreateAttempts) {
+            alert('사용 가능한 방 코드를 만들지 못했습니다. 다시 시도해주세요.');
+            document.getElementById('waitingRoom').style.display = 'none';
+            document.getElementById('ui').style.display = 'flex';
+            return;
+        }
+
+        const code = generateShortId();
+        const candidate = new Peer('gungame-room-' + code);
+        let opened = false;
+
+        candidate.on('open', () => {
+            opened = true;
+            peer = candidate;
+            currentRoomCode = code;
+            document.getElementById('roomCodeDisplay').innerText = code;
+            document.getElementById('displayRoomCode').innerText = code;
+            document.getElementById('waitingTitle').innerText = "대기실 (방장 설정)";
+            document.getElementById('startButton').style.display = 'block';
+            document.getElementById('guestWaitText').style.display = 'none';
+        });
+
+        candidate.on('connection', registerIncomingConnection);
+
+        candidate.on('error', err => {
+            // 4자리 Peer ID가 이미 사용 중이면 새 코드를 자동으로 만든다.
+            const type = err && err.type ? err.type : '';
+            if (!opened && (type === 'unavailable-id' || type === 'network' || type === 'server-error')) {
+                try { candidate.destroy(); } catch(e) {}
+                setTimeout(tryCreateRoom, 120);
+                return;
+            }
+            console.error('Peer host error:', err);
+            if (!opened) {
+                try { candidate.destroy(); } catch(e) {}
+                setTimeout(tryCreateRoom, 250);
+            }
+        });
+    }
+
+    tryCreateRoom();
 }
 
 function joinRoom() {
-    const input = document.getElementById('joinIdInput').value.trim().toLowerCase();
+    // 방 코드는 숫자 4자리만 허용한다.
+    const input = document.getElementById('joinIdInput').value.trim().replace(/\D/g, '').slice(0, 4);
     const nick = document.getElementById('nicknameInput').value.trim();
     if(nick) myPlayer.name = nick;
     applyPlatformSetting();
 
-    if(!input) { alert("방 코드를 입력해주세요."); return; }
+    if(input.length !== 4) { alert("4자리 방 코드를 입력해주세요."); return; }
 
+    try { if (peer && !peer.destroyed) peer.destroy(); } catch(e) {}
+    peer = null;
+    hostConn = null;
+    isHost = false;
     currentRoomCode = input;
     document.getElementById('roomCodeDisplay').innerText = input;
-    isHost = false;
-    peer = new Peer();
-    peer.on('open', () => {
-        hostConn = peer.connect('gungame-room-' + input);
-        hostConn.on('open', () => {
-            document.getElementById('ui').style.display = 'none';
-            document.getElementById('waitingRoom').style.display = 'flex';
-            currentRoomCode = input;
-            document.getElementById('roomCodeDisplay').innerText = input;
-            document.getElementById('displayRoomCode').innerText = input;
-            
-            document.getElementById('waitingTitle').innerText = "대기실";
-            document.getElementById('hostSettingsControls').style.display = 'none';
-            document.getElementById('guestSettingsDisplay').style.display = 'block';
-            document.getElementById('startButton').style.display = 'none'; 
-            document.getElementById('guestWaitText').style.display = 'block';
-            // 추가: 방장에게 참가자 이름을 즉시 알려 대기실 명단에 표시
-            hostConn.send({ type:'TEAM_JOIN', player:{ id:myPlayer.id, name:myPlayer.name } });
+
+    const joinPeer = new Peer();
+    peer = joinPeer;
+    let connected = false;
+    let connectTimer = null;
+
+    function showJoinedLobby() {
+        document.getElementById('ui').style.display = 'none';
+        document.getElementById('waitingRoom').style.display = 'flex';
+        currentRoomCode = input;
+        document.getElementById('roomCodeDisplay').innerText = input;
+        document.getElementById('displayRoomCode').innerText = input;
+        document.getElementById('waitingTitle').innerText = "대기실";
+        document.getElementById('hostSettingsControls').style.display = 'none';
+        document.getElementById('guestSettingsDisplay').style.display = 'block';
+        document.getElementById('startButton').style.display = 'none';
+        document.getElementById('guestWaitText').style.display = 'block';
+        document.getElementById('guestWaitText').innerText = '방장이 게임을 시작하기를 기다리는 중...';
+    }
+
+    joinPeer.on('open', () => {
+        const conn = joinPeer.connect('gungame-room-' + input, { reliable: true });
+        hostConn = conn;
+
+        connectTimer = setTimeout(() => {
+            if (!connected) {
+                try { conn.close(); } catch(e) {}
+                alert('방에 연결하지 못했습니다. 방 코드와 방장이 접속 중인지 확인해주세요.');
+            }
+        }, 10000);
+
+        conn.on('open', () => {
+            connected = true;
+            if (connectTimer) clearTimeout(connectTimer);
+            showJoinedLobby();
+
+            // 첫 패킷을 즉시 보내 호스트가 이 연결의 플레이어를 확실히 등록하게 한다.
+            const joinPacket = { type:'TEAM_JOIN', player:{ id:myPlayer.id, name:myPlayer.name } };
+            safeSend(conn, joinPacket);
+            // WebRTC 연결 직후 첫 데이터가 늦게 처리되는 경우를 대비해 한 번 더 보낸다.
+            setTimeout(() => { if (conn.open) safeSend(conn, joinPacket); }, 350);
         });
-        hostConn.on('data', data => handleNetworkData(data));
-        hostConn.on('error', () => alert('방 접속 실패!'));
-        hostConn.on('close', () => {
-            alert('방장과의 연결이 끊어졌습니다.');
-            location.reload();
+
+        conn.on('data', data => handleNetworkData(data));
+        conn.on('error', err => {
+            console.error('Host connection error:', err);
+            if (!connected) alert('방 접속에 실패했습니다. 방 코드를 다시 확인해주세요.');
         });
+        conn.on('close', () => {
+            if (connectTimer) clearTimeout(connectTimer);
+            if (gameStarted) {
+                alert('방장과의 연결이 끊어졌습니다.');
+                returnToWaitingRoom();
+            } else if (connected) {
+                alert('방장과의 연결이 끊어졌습니다.');
+                document.getElementById('waitingRoom').style.display = 'none';
+                document.getElementById('ui').style.display = 'flex';
+            }
+        });
+    });
+
+    joinPeer.on('error', err => {
+        console.error('Peer join error:', err);
+        if (!connected) {
+            if (connectTimer) clearTimeout(connectTimer);
+            alert('네트워크 연결을 만들지 못했습니다. 잠시 후 다시 시도해주세요.');
+        }
     });
 }
 
