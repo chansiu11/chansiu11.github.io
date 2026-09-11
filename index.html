@@ -1076,6 +1076,7 @@ function applyMapWorldSize(mapData) {
 }
 
 function generateMapData(mode, seed = currentMapSeed || 1) {
+    const rand = createSeededRandom(seed);
     // 데스매치 전용: 집/나무가 없는 작은 아레나
     if (mode === 'deathmatch' || mode === 'dm' || mode === 'normal') {
         const size = 2400;
@@ -1118,7 +1119,6 @@ function generateMapData(mode, seed = currentMapSeed || 1) {
     }
 
 
-    const rand = createSeededRandom(seed);
     const size = mode === 'normal' ? 2400 : 12000;
     const itemCount = mode === 'normal' ? 70 : 500;
     const newObstacles = [];
@@ -1622,7 +1622,8 @@ function handleMyDeath(killerId) {
             }
         }
     }
-    if (selectedMode === 'normal') {
+    if (selectedMode === 'normal' || selectedMode === 'deathmatch' || selectedMode === 'dm') {
+        openDeathmatchWeaponModal(true);
         startRespawnTimer(killerId);
     } else {
         startSpectating(killerId);
@@ -1641,7 +1642,7 @@ function giveDeathmatchKillAmmo(p) {
 function startRespawnTimer(killerId) {
     isRespawning = true;
     respawnTimerVal = 5;
-    
+
     document.getElementById('statusHUD').style.display = 'none';
     if (isMobile) document.getElementById('mobileControls').style.display = 'none';
     document.getElementById('spectateHUD').style.display = 'block';
@@ -1653,10 +1654,11 @@ function startRespawnTimer(killerId) {
     if (respawnInterval) clearInterval(respawnInterval);
     respawnInterval = setInterval(() => {
         respawnTimerVal--;
-        document.getElementById('respawnTimer').innerText = respawnTimerVal;
+        document.getElementById('respawnTimer').innerText = Math.max(0, respawnTimerVal);
+
         if (respawnTimerVal <= 0) {
             clearInterval(respawnInterval);
-            document.getElementById('respawnHUD').style.display = 'none';
+            respawnInterval = null;
             respawnPlayer();
         }
     }, 1000);
@@ -1688,22 +1690,35 @@ function respawnPlayer() {
     isRespawning = false;
     isSpectating = false;
     spectateTarget = null;
-    
+
+    // 선택하지 않았으면 AR을 기본 지급
+    if ((selectedMode === 'normal' || selectedMode === 'deathmatch' || selectedMode === 'dm') && !myPlayer.weapon) {
+        myPlayer.weapon = 'ar';
+        myPlayer.clipAmmo = WEAPONS.ar.maxClip;
+        myPlayer.reserveAmmo = WEAPONS.ar.maxClip * 4;
+    }
+
+    if (weaponSelectInterval) {
+        clearInterval(weaponSelectInterval);
+        weaponSelectInterval = null;
+    }
+    const modal = document.getElementById('weaponSelectModal');
+    if (modal) {
+        modal.style.display = 'none';
+        modal.dataset.respawnSelect = '0';
+    }
+
     document.getElementById('statusHUD').style.display = 'block';
     document.getElementById('spectateHUD').style.display = 'none';
+    const respawnHUD = document.getElementById('respawnHUD');
+    if (respawnHUD) respawnHUD.style.display = 'none';
     if (isMobile) document.getElementById('mobileControls').style.display = 'block';
 
-    if (!isHost) {
-        if (hostConn && hostConn.open) {
-            hostConn.send({ type: 'RESPAWN_REMOTE', playerId: myPlayer.id, peerId: peer.id });
-        }
+    if (!isHost && hostConn && hostConn.open) {
+        hostConn.send({ type: 'RESPAWN_REMOTE', playerId: myPlayer.id, peerId: peer.id });
     }
 
     updateHUD();
-
-    if(selectedMode === 'normal') {
-        openDeathmatchWeaponModal();
-    }
 }
 
 function startSpectating(killerId) {
@@ -1740,42 +1755,74 @@ function findNextSpectateTarget() {
 }
 
 function hostStartGame() {
-    const includeAi = document.getElementById('aiToggle').value === 'true';
-    let aiCount = parseInt(document.getElementById('aiCountInput').value) || 0;
-    aiDifficulty = document.getElementById('aiDifficultySelect').value;
+    if (!isHost) return;
 
-    if (selectedMode === 'normal') {
-        WORLD_SIZE = 2400; 
-        if(aiCount > 20) aiCount = 20;
-    } else {
-        WORLD_SIZE = 12000;
-        if(aiCount > 100) aiCount = 100;
+    const startBtn = document.getElementById('startButton');
+    if (startBtn) startBtn.disabled = true;
+
+    try {
+        const modeSelect = document.getElementById('gameModeSelect');
+        if (modeSelect && modeSelect.value) selectedMode = modeSelect.value;
+
+        const aiToggleEl = document.getElementById('aiToggle');
+        const aiCountEl = document.getElementById('aiCountInput');
+        const aiDiffEl = document.getElementById('aiDifficultySelect');
+
+        const includeAi = aiToggleEl ? aiToggleEl.value === 'true' : false;
+        let aiCount = aiCountEl ? (parseInt(aiCountEl.value) || 0) : 0;
+        aiDifficulty = aiDiffEl ? aiDiffEl.value : (aiDifficulty || 'easy');
+
+        if (selectedMode === 'normal' || selectedMode === 'deathmatch' || selectedMode === 'dm') {
+            WORLD_SIZE = 2400;
+            if (aiCount > 20) aiCount = 20;
+        } else {
+            WORLD_SIZE = 12000;
+            if (aiCount > 100) aiCount = 100;
+        }
+
+        zone.x = WORLD_SIZE / 2;
+        zone.y = WORLD_SIZE / 2;
+        zone.radius = WORLD_SIZE * 0.7;
+
+        currentMapSeed = (Math.floor(Math.random() * 0xffffffff) >>> 0) || 1;
+
+        let mapData;
+        try {
+            mapData = generateMapData(selectedMode, currentMapSeed);
+        } catch (mapErr) {
+            console.error('map generation failed', mapErr);
+            // 데스매치 최소 안전 맵 fallback
+            if (selectedMode === 'normal' || selectedMode === 'deathmatch' || selectedMode === 'dm') {
+                mapData = { seed: currentMapSeed, worldSize: 2400, obstacles: [], items: [] };
+            } else {
+                throw mapErr;
+            }
+        }
+
+        if (typeof applyMapWorldSize === 'function') applyMapWorldSize(mapData);
+        obstacles = Array.isArray(mapData.obstacles) ? mapData.obstacles : [];
+        droppedItems = Array.isArray(mapData.items) ? mapData.items : [];
+
+        if (includeAi && aiCount > 0) {
+            spawnAIBots(aiCount);
+        } else {
+            aiBots.length = 0;
+        }
+
+        broadcastData({
+            type: 'START',
+            mode: selectedMode,
+            aiDiff: aiDifficulty,
+            mapSeed: currentMapSeed,
+            mapData
+        });
+
+        startGame();
+    } catch (err) {
+        console.error('hostStartGame error', err);
+        if (startBtn) startBtn.disabled = false;
+        alert('게임 시작 중 오류가 발생했습니다. 다시 시도해 주세요.');
     }
-    zone.x = WORLD_SIZE / 2;
-    zone.y = WORLD_SIZE / 2;
-    zone.radius = WORLD_SIZE * 0.7;
-
-    currentMapSeed = (Math.floor(Math.random() * 0xffffffff) >>> 0) || 1;
-    const mapData = generateMapData(selectedMode, currentMapSeed);
-    applyMapWorldSize(mapData);
-    obstacles = mapData.obstacles;
-    droppedItems = mapData.items;
-
-    if (includeAi && aiCount > 0) {
-        spawnAIBots(aiCount);
-    } else {
-        aiBots.length = 0;
-    }
-
-    broadcastData({ 
-        type: 'START', 
-        mode: selectedMode, 
-        aiDiff: aiDifficulty,
-        mapSeed: currentMapSeed,
-        mapData: mapData
-    });
-
-    startGame();
 }
 
 
@@ -2038,29 +2085,56 @@ function setupNextZoneTarget() {
 }
 
 // 2. 데스매치 총기 선택 모달 (10초)
-function openDeathmatchWeaponModal() {
-    weaponSelectTimerVal = 10;
+function openDeathmatchWeaponModal(duringRespawn = false) {
+    weaponSelectTimerVal = duringRespawn ? 5 : 10;
     const modal = document.getElementById('weaponSelectModal');
+    if (!modal) return;
+
+    modal.dataset.respawnSelect = duringRespawn ? '1' : '0';
     modal.style.display = 'flex';
-    document.getElementById('weaponSelectTimer').innerText = weaponSelectTimerVal;
+
+    const timerEl = document.getElementById('weaponSelectTimer');
+    if (timerEl) timerEl.innerText = weaponSelectTimerVal;
 
     if (weaponSelectInterval) clearInterval(weaponSelectInterval);
     weaponSelectInterval = setInterval(() => {
         weaponSelectTimerVal--;
-        document.getElementById('weaponSelectTimer').innerText = weaponSelectTimerVal;
-        if(weaponSelectTimerVal <= 0) {
-            selectDeathmatchWeapon('ar'); 
+        if (timerEl) timerEl.innerText = Math.max(0, weaponSelectTimerVal);
+
+        if (weaponSelectTimerVal <= 0) {
+            clearInterval(weaponSelectInterval);
+            weaponSelectInterval = null;
+
+            // 처음 시작 선택창은 시간 종료 시 AR 자동 선택.
+            // 사망 후 선택창은 리스폰 시점에서 자동으로 닫는다.
+            if (!duringRespawn && !myPlayer.weapon) {
+                selectDeathmatchWeapon('ar');
+            }
         }
     }, 1000);
 }
 
 function selectDeathmatchWeapon(type) {
-    if(weaponSelectInterval) clearInterval(weaponSelectInterval);
-    document.getElementById('weaponSelectModal').style.display = 'none';
+    if (!WEAPONS[type]) return;
 
     myPlayer.weapon = type;
     myPlayer.clipAmmo = WEAPONS[type].maxClip;
     myPlayer.reserveAmmo = WEAPONS[type].maxClip * 4;
+
+    const modal = document.getElementById('weaponSelectModal');
+    const choosingForRespawn = !!(modal && modal.dataset.respawnSelect === '1' && isRespawning);
+
+    if (!choosingForRespawn) {
+        if (weaponSelectInterval) {
+            clearInterval(weaponSelectInterval);
+            weaponSelectInterval = null;
+        }
+        if (modal) {
+            modal.style.display = 'none';
+            modal.dataset.respawnSelect = '0';
+        }
+    }
+
     updateHUD();
 }
 
