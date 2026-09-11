@@ -902,6 +902,11 @@ function onRoomGameModeChange() {
     if(sel) selectedMode = sel.value;
     const killLimitGroup = document.getElementById('deathmatchKillLimitGroup');
     if (killLimitGroup) killLimitGroup.style.display = selectedMode === 'normal' ? 'block' : 'none';
+    const killInput = document.getElementById('deathmatchKillLimitInput');
+    if (killInput) {
+        killInput.value = deathmatchKillLimit;
+        killInput.disabled = !isHost;
+    }
     updateModeSettingsUI();
     const hostModeLabel = document.getElementById('guestModeVal');
     if(hostModeLabel) hostModeLabel.innerText = selectedMode === 'br' ? '배틀로얄' : '데스매치';
@@ -959,13 +964,44 @@ function updateModeSettingsUI() {
 }
 document.getElementById('gameModeSelect').addEventListener('change', updateModeSettingsUI);
 
+let mobileControlsInitialized = false;
 function applyPlatformSetting() {
     const sel = document.getElementById('platformSelect');
-    if (sel) isMobile = sel.value === 'mobile';
+    const nextIsMobile = sel ? sel.value === 'mobile' : isMobile;
+    const changed = nextIsMobile !== isMobile;
+    isMobile = nextIsMobile;
+
+    const editBtn = document.getElementById('editKeysBtn');
+    const mobileControls = document.getElementById('mobileControls');
+    const hint = document.getElementById('hudControlsHint');
+
     if (isMobile) {
-        document.getElementById('editKeysBtn').style.display = 'block';
+        if (editBtn) editBtn.style.display = 'block';
+        if (!mobileControlsInitialized) initMobileControls();
+        if (gameStarted && !isSpectating && !isRespawning) {
+            if (mobileControls) mobileControls.style.display = 'block';
+            if (hint) hint.style.display = 'none';
+        }
+        // PC 입력이 눌린 상태에서 모바일로 바뀌는 경우 잔류 입력 제거
+        keys['w'] = keys['a'] = keys['s'] = keys['d'] = false;
+        keys['shift'] = keys['control'] = false;
     } else {
-        document.getElementById('editKeysBtn').style.display = 'none';
+        if (editBtn) editBtn.style.display = 'none';
+        if (mobileControls && !isEditingKeys) mobileControls.style.display = 'none';
+        if (gameStarted && hint) hint.style.display = 'block';
+        // 터치 입력이 남아 캐릭터가 계속 움직이거나 사격하는 현상 방지
+        mobileMoveVec = { x: 0, y: 0 };
+        mobileAimVec = { x: 0, y: 0 };
+        mobileSprintHeld = false;
+        myPlayer.isShooting = false;
+        myPlayer.isAiming = false;
+        const sprintBtn = document.getElementById('btnSprint');
+        if (sprintBtn) sprintBtn.classList.remove('active');
+    }
+
+    if (changed && gameStarted) {
+        // 전환 때문에 캔버스/터치 좌표가 어긋나지 않게 즉시 재계산
+        resizeCanvas();
     }
 }
 
@@ -1843,6 +1879,14 @@ function spawnAIBots(count) {
 }
 
 function startGame() {
+    // 데스매치 최대 킬 수는 항상 방장의 현재 설정값을 사용
+    if (isHost && selectedMode === 'normal') {
+        const killInput = document.getElementById('deathmatchKillLimitInput');
+        if (killInput) {
+            deathmatchKillLimit = Math.max(1, Math.min(999, parseInt(killInput.value) || 20));
+            killInput.value = deathmatchKillLimit;
+        }
+    }
     document.getElementById('ui').style.display = 'none';
     document.getElementById('waitingRoom').style.display = 'none';
     document.getElementById('statusHUD').style.display = 'block';
@@ -2146,6 +2190,8 @@ function initEvents() {
 }
 
 function initMobileControls() {
+    if (mobileControlsInitialized) return;
+    mobileControlsInitialized = true;
     const moveArea = document.getElementById('moveTouchArea');
     const joyContainer = document.getElementById('joystickContainer');
     const joyKnob = document.getElementById('joystickKnob');
