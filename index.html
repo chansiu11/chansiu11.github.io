@@ -1078,64 +1078,42 @@ function applyMapWorldSize(mapData) {
 function generateMapData(mode, seed = currentMapSeed || 1) {
     // 데스매치 전용: 집/나무가 없는 작은 아레나
     if (mode === 'deathmatch' || mode === 'dm' || mode === 'normal') {
-        const arenaSize = 2200;
-        const arenaObstacles = [];
-        const arenaItems = [];
+        const size = 2400;
+        const obsCount = 25;
+        const itemCount = 80;
 
-        // 작은 아레나의 외곽 경계와 중앙 엄폐물만 사용한다.
-        const wallT = 36;
-        arenaObstacles.push(
-            {type:'wall', x:0, y:0, w:arenaSize, h:wallT},
-            {type:'wall', x:0, y:arenaSize-wallT, w:arenaSize, h:wallT},
-            {type:'wall', x:0, y:0, w:wallT, h:arenaSize},
-            {type:'wall', x:arenaSize-wallT, y:0, w:wallT, h:arenaSize}
-        );
-
-        // 중앙/측면에 단순 사각 엄폐물 배치. 집과 나무는 생성하지 않는다.
-        const cover = [
-            [arenaSize/2-90, arenaSize/2-260, 180, 90],
-            [arenaSize/2-90, arenaSize/2+170, 180, 90],
-            [arenaSize/2-330, arenaSize/2-45, 120, 90],
-            [arenaSize/2+210, arenaSize/2-45, 120, 90],
-            [420, 420, 150, 70],
-            [arenaSize-570, 420, 150, 70],
-            [420, arenaSize-490, 150, 70],
-            [arenaSize-570, arenaSize-490, 150, 70]
-        ];
-        for (const [x,y,w,h] of cover) {
-            arenaObstacles.push({type:'wall', x, y, w, h});
+        const newObstacles = [];
+        for (let i = 0; i < obsCount; i++) {
+            const w = rand() * 150 + 50;
+            const h = rand() * 150 + 50;
+            const x = rand() * (size - w - 200) + 100;
+            const y = rand() * (size - h - 200) + 100;
+            newObstacles.push({ x, y, w, h });
         }
 
-        // 데스매치용 아이템을 아레나 곳곳에 배치
-        const itemTypes = [
-            'ar','shotgun','sniper',
-            'ammo_ar','ammo_shotgun','ammo_sniper',
-            'bandage','medkit',
-            '1x','2x','3x','4x'
+        const types = [
+            'ar', 'sniper', 'shotgun',
+            '1x', '2x', '3x', '4x', '8x',
+            'ammo_ar', 'ammo_sniper', 'ammo_shotgun',
+            'helmet_1', 'helmet_2', 'helmet_3',
+            'body_1', 'body_2', 'body_3'
         ];
-        const positions = [
-            [arenaSize/2, arenaSize/2],
-            [arenaSize/2-420, arenaSize/2],
-            [arenaSize/2+420, arenaSize/2],
-            [arenaSize/2, arenaSize/2-420],
-            [arenaSize/2, arenaSize/2+420],
-            [330,330],[arenaSize-330,330],
-            [330,arenaSize-330],[arenaSize-330,arenaSize-330]
-        ];
-        for (let i=0;i<positions.length;i++) {
-            const p = positions[i];
-            arenaItems.push({
-                id:'dm_item_'+i,
-                type:itemTypes[i % itemTypes.length],
-                x:p[0], y:p[1]
+
+        const newItems = [];
+        for (let i = 0; i < itemCount; i++) {
+            newItems.push({
+                id: 'item_' + Math.floor(rand() * 0x7fffffff).toString(36),
+                x: rand() * (size - 400) + 200,
+                y: rand() * (size - 400) + 200,
+                type: types[Math.floor(rand() * types.length)]
             });
         }
 
         return {
-            seed: Number(seed)||1,
-            worldSize: arenaSize,
-            obstacles: arenaObstacles,
-            items: arenaItems
+            seed: Number(seed) || 1,
+            worldSize: size,
+            obstacles: newObstacles,
+            items: newItems
         };
     }
 
