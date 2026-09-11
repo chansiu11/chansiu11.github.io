@@ -1923,6 +1923,7 @@ function spawnAIBots(count) {
 }
 
 function startGame() {
+    if (typeof drawFogOfWar === 'function') drawFogOfWar._lastBuild = 0;
     drawFogOfWar._startAt=performance.now(); drawFogOfWar._lastAt=0;
     document.getElementById('ui').style.display = 'none';
     document.getElementById('waitingRoom').style.display = 'none';
@@ -4077,110 +4078,168 @@ let prevFogCameraX = 0, prevFogCameraY = 0, fogBlendStartedAt = 0;
 const FOG_BLEND_MS = 95;
 
 
-function drawShadowFromRect(r, strength, maxLength=220){
-    if(!gameStarted || !ctx || !myPlayer || !r) return;
-    if(!Number.isFinite(myPlayer.x) || !Number.isFinite(myPlayer.y)) return;
-    if(!Number.isFinite(r.x) || !Number.isFinite(r.y) ||
-       !Number.isFinite(r.w) || !Number.isFinite(r.h)) return;
 
-    const px=myPlayer.x, py=myPlayer.y;
-    const cx=r.x+r.w/2, cy=r.y+r.h/2;
-    const dx=cx-px, dy=cy-py;
-    const dist=Math.hypot(dx,dy);
-    if(!Number.isFinite(dist) || dist<2) return;
-
-    const ux=dx/dist, uy=dy/dist;
-    const len=Math.min(maxLength,Math.max(65,55+dist*.16));
-
-    const corners=[
-        {x:r.x,y:r.y},
-        {x:r.x+r.w,y:r.y},
-        {x:r.x+r.w,y:r.y+r.h},
-        {x:r.x,y:r.y+r.h}
-    ];
-
-    corners.sort((a,b)=>{
-        const da=(a.x-px)*ux+(a.y-py)*uy;
-        const db=(b.x-px)*ux+(b.y-py)*uy;
-        return db-da;
-    });
-
-    let a=corners[0], b=corners[1];
-    const sideX=-uy, sideY=ux;
-    const spread=Math.min(16,Math.max(4,Math.min(r.w,r.h)*.16));
-
-    const a2={x:a.x+ux*len-sideX*spread,y:a.y+uy*len-sideY*spread};
-    const b2={x:b.x+ux*len+sideX*spread,y:b.y+uy*len+sideY*spread};
-
-    const s=Math.max(0,Math.min(.30,Number(strength)||0));
-    const grad=ctx.createLinearGradient(
-        (a.x+b.x)/2,(a.y+b.y)/2,
-        (a2.x+b2.x)/2,(a2.y+b2.y)/2
-    );
-    grad.addColorStop(0,`rgba(0,0,0,${s})`);
-    grad.addColorStop(.45,`rgba(0,0,0,${s*.52})`);
-    grad.addColorStop(1,'rgba(0,0,0,0)');
-
-    ctx.fillStyle=grad;
-    ctx.beginPath();
-    ctx.moveTo(a.x,a.y);
-    ctx.lineTo(b.x,b.y);
-    ctx.lineTo(b2.x,b2.y);
-    ctx.lineTo(a2.x,a2.y);
-    ctx.closePath();
-    ctx.fill();
-}
 
 function drawFogOfWar() {
-    if(!gameStarted || !myPlayer || myPlayer.isDead || isSpectating) return;
-    if(!Array.isArray(obstacles) || !obstacles.length) return;
-    const now=performance.now();
-    if(!drawFogOfWar._startAt) drawFogOfWar._startAt=now;
-    const startup=(now-drawFogOfWar._startAt)<1500;
-    if(startup && drawFogOfWar._lastAt && now-drawFogOfWar._lastAt<100) return;
-    drawFogOfWar._lastAt=now;
+    if (!gameStarted || !myPlayer || isSpectating || isRespawning || myPlayer.isDead) return;
+    if (!Array.isArray(obstacles) || !obstacles.length) return;
+    if (!camera || !Number.isFinite(camera.x) || !Number.isFinite(camera.y)) return;
 
-    ctx.save();
+    const nowFog = performance.now();
 
-    let count=0;
-    const maxPieces=startup ? 10 : 28;
+    // 원본 방식은 유지하되 큰 맵에서 시작 직후 멈추지 않도록 약간만 캐시한다.
+    const fogInterval = 55;
+    if (
+        maskCanvas.width === canvas.width &&
+        maskCanvas.height === canvas.height &&
+        drawFogOfWar._lastBuild &&
+        nowFog - drawFogOfWar._lastBuild < fogInterval
+    ) {
+        ctx.drawImage(maskCanvas, 0, 0);
+        return;
+    }
+    drawFogOfWar._lastBuild = nowFog;
 
-    for(const obs of obstacles){
-        if(count>=maxPieces) break;
+    const px = myPlayer.x;
+    const py = myPlayer.y;
 
-        const cx=obs.x+obs.w/2, cy=obs.y+obs.h/2;
-        if(Math.abs(cx-camera.x)>900 || Math.abs(cy-camera.y)>900) continue;
-        if(Math.hypot(cx-myPlayer.x,cy-myPlayer.y)>1150) continue;
+    // 가장 처음 파일과 동일한 넓은 시야 여유 영역
+    const viewMargin = 1200;
+    const screenLeft = camera.x - canvas.width / 2 - viewMargin;
+    const screenRight = camera.x + canvas.width / 2 + viewMargin;
+    const screenTop = camera.y - canvas.height / 2 - viewMargin;
+    const screenBottom = camera.y + canvas.height / 2 + viewMargin;
 
-        if(obs.type==='house'){
-            const rects=getHouseBallisticWallRects(obs);
+    const segments = [
+        { a: { x: screenLeft, y: screenTop }, b: { x: screenRight, y: screenTop } },
+        { a: { x: screenRight, y: screenTop }, b: { x: screenRight, y: screenBottom } },
+        { a: { x: screenRight, y: screenBottom }, b: { x: screenLeft, y: screenBottom } },
+        { a: { x: screenLeft, y: screenBottom }, b: { x: screenLeft, y: screenTop } }
+    ];
 
-            // 같은 집 벽 조각을 전부 진하게 겹치지 않도록, 길이가 충분한 조각만 사용
-            for(const r of rects){
-                if(count>=maxPieces) break;
-                if(r.w<10 || r.h<10) continue;
+    const angles = [];
+    let rectCount = 0;
+    const maxRects = 72;
 
-                drawShadowFromRect(r,.30,240);
-                count++;
+    for (const obs of obstacles) {
+        if (rectCount >= maxRects) break;
+        if (!obs || !Number.isFinite(obs.x) || !Number.isFinite(obs.y) ||
+            !Number.isFinite(obs.w) || !Number.isFinite(obs.h)) continue;
+
+        if (obs.x + obs.w < screenLeft || obs.x > screenRight ||
+            obs.y + obs.h < screenTop || obs.y > screenBottom) continue;
+
+        let rects;
+
+        // 현재 집의 문/창문은 그대로 보이도록 실제 탄도 벽 조각을 사용한다.
+        if (obs.type === 'house' && typeof getHouseBallisticWallRects === 'function') {
+            try {
+                rects = getHouseBallisticWallRects(obs);
+            } catch (e) {
+                rects = [obs];
             }
-        }else if(obs.type==='tree'){
-            const pad=TREE_HITBOX_PADDING;
-            drawShadowFromRect(
-                {x:obs.x-pad,y:obs.y-pad,w:obs.w+pad*2,h:obs.h+pad*2},
-                .16,
-                170
-            );
-            count++;
-        }else if(obs.type==='wall'){
-            drawShadowFromRect(obs,.30,220);
-            count++;
-        }else{
-            drawShadowFromRect(obs,.20,200);
-            count++;
+        } else {
+            const pad = obs.type === 'tree' && typeof TREE_HITBOX_PADDING === 'number'
+                ? TREE_HITBOX_PADDING : 0;
+            rects = [{
+                x: obs.x - pad,
+                y: obs.y - pad,
+                w: obs.w + pad * 2,
+                h: obs.h + pad * 2
+            }];
+        }
+
+        if (!Array.isArray(rects)) rects = [obs];
+
+        for (const r of rects) {
+            if (rectCount >= maxRects) break;
+            if (!r || r.w <= 0 || r.h <= 0) continue;
+
+            const corners = [
+                { x: r.x, y: r.y },
+                { x: r.x + r.w, y: r.y },
+                { x: r.x + r.w, y: r.y + r.h },
+                { x: r.x, y: r.y + r.h }
+            ];
+
+            for (let i = 0; i < 4; i++) {
+                segments.push({ a: corners[i], b: corners[(i + 1) % 4] });
+            }
+
+            for (const c of corners) {
+                const angle = Math.atan2(c.y - py, c.x - px);
+                angles.push(angle - 0.0001, angle, angle + 0.0001);
+            }
+
+            rectCount++;
         }
     }
 
-    ctx.restore();
+    angles.push(
+        Math.atan2(screenTop - py, screenLeft - px),
+        Math.atan2(screenTop - py, screenRight - px),
+        Math.atan2(screenBottom - py, screenRight - px),
+        Math.atan2(screenBottom - py, screenLeft - px)
+    );
+
+    angles.sort((a, b) => a - b);
+
+    const maxRayDistance =
+        Math.hypot(camera.x - px, camera.y - py) +
+        Math.max(canvas.width, canvas.height) + 1000;
+
+    const intersects = [];
+
+    for (const angle of angles) {
+        const ray = {
+            a: { x: px, y: py },
+            b: {
+                x: px + Math.cos(angle) * maxRayDistance,
+                y: py + Math.sin(angle) * maxRayDistance
+            }
+        };
+
+        let closest = null;
+
+        for (const seg of segments) {
+            const intersect = getIntersection(ray, seg);
+            if (!intersect) continue;
+            if (!closest || intersect.param < closest.param) {
+                closest = intersect;
+            }
+        }
+
+        if (closest) intersects.push(closest);
+    }
+
+    maskCanvas.width = canvas.width;
+    maskCanvas.height = canvas.height;
+
+    // 기존 사용자 요청대로 그림자 농도 30% 유지
+    mCtxMask.globalCompositeOperation = 'source-over';
+    mCtxMask.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+    mCtxMask.fillStyle = 'rgba(0,0,0,0.30)';
+    mCtxMask.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
+
+    // 플레이어에게 실제로 보이는 영역만 그림자에서 제거
+    mCtxMask.globalCompositeOperation = 'destination-out';
+    mCtxMask.save();
+    mCtxMask.translate(canvas.width / 2 - camera.x, canvas.height / 2 - camera.y);
+
+    if (intersects.length > 0) {
+        mCtxMask.beginPath();
+        mCtxMask.moveTo(intersects[0].x, intersects[0].y);
+        for (let i = 1; i < intersects.length; i++) {
+            mCtxMask.lineTo(intersects[i].x, intersects[i].y);
+        }
+        mCtxMask.closePath();
+        mCtxMask.fill();
+    }
+
+    mCtxMask.restore();
+    mCtxMask.globalCompositeOperation = 'source-over';
+
+    ctx.drawImage(maskCanvas, 0, 0);
 }
 
 function drawPlayer(p) {
