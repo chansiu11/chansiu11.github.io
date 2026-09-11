@@ -1923,6 +1923,7 @@ function spawnAIBots(count) {
 }
 
 function startGame() {
+    drawFogOfWar._startAt=performance.now(); drawFogOfWar._lastAt=0;
     document.getElementById('ui').style.display = 'none';
     document.getElementById('waitingRoom').style.display = 'none';
     document.getElementById('statusHUD').style.display = 'block';
@@ -4075,13 +4076,74 @@ const prevFogCtx = prevFogCanvas.getContext('2d');
 let prevFogCameraX = 0, prevFogCameraY = 0, fogBlendStartedAt = 0;
 const FOG_BLEND_MS = 95;
 
+
+function drawShadowFromRect(r, strength, maxLength=220){
+    if(!gameStarted || !ctx || !myPlayer || !r) return;
+    if(!Number.isFinite(myPlayer.x) || !Number.isFinite(myPlayer.y)) return;
+    if(!Number.isFinite(r.x) || !Number.isFinite(r.y) ||
+       !Number.isFinite(r.w) || !Number.isFinite(r.h)) return;
+
+    const px=myPlayer.x, py=myPlayer.y;
+    const cx=r.x+r.w/2, cy=r.y+r.h/2;
+    const dx=cx-px, dy=cy-py;
+    const dist=Math.hypot(dx,dy);
+    if(!Number.isFinite(dist) || dist<2) return;
+
+    const ux=dx/dist, uy=dy/dist;
+    const len=Math.min(maxLength,Math.max(65,55+dist*.16));
+
+    const corners=[
+        {x:r.x,y:r.y},
+        {x:r.x+r.w,y:r.y},
+        {x:r.x+r.w,y:r.y+r.h},
+        {x:r.x,y:r.y+r.h}
+    ];
+
+    corners.sort((a,b)=>{
+        const da=(a.x-px)*ux+(a.y-py)*uy;
+        const db=(b.x-px)*ux+(b.y-py)*uy;
+        return db-da;
+    });
+
+    let a=corners[0], b=corners[1];
+    const sideX=-uy, sideY=ux;
+    const spread=Math.min(16,Math.max(4,Math.min(r.w,r.h)*.16));
+
+    const a2={x:a.x+ux*len-sideX*spread,y:a.y+uy*len-sideY*spread};
+    const b2={x:b.x+ux*len+sideX*spread,y:b.y+uy*len+sideY*spread};
+
+    const s=Math.max(0,Math.min(.30,Number(strength)||0));
+    const grad=ctx.createLinearGradient(
+        (a.x+b.x)/2,(a.y+b.y)/2,
+        (a2.x+b2.x)/2,(a2.y+b2.y)/2
+    );
+    grad.addColorStop(0,`rgba(0,0,0,${s})`);
+    grad.addColorStop(.45,`rgba(0,0,0,${s*.52})`);
+    grad.addColorStop(1,'rgba(0,0,0,0)');
+
+    ctx.fillStyle=grad;
+    ctx.beginPath();
+    ctx.moveTo(a.x,a.y);
+    ctx.lineTo(b.x,b.y);
+    ctx.lineTo(b2.x,b2.y);
+    ctx.lineTo(a2.x,a2.y);
+    ctx.closePath();
+    ctx.fill();
+}
+
 function drawFogOfWar() {
-    if(!myPlayer || myPlayer.isDead || isSpectating) return;
+    if(!gameStarted || !myPlayer || myPlayer.isDead || isSpectating) return;
+    if(!Array.isArray(obstacles) || !obstacles.length) return;
+    const now=performance.now();
+    if(!drawFogOfWar._startAt) drawFogOfWar._startAt=now;
+    const startup=(now-drawFogOfWar._startAt)<1500;
+    if(startup && drawFogOfWar._lastAt && now-drawFogOfWar._lastAt<100) return;
+    drawFogOfWar._lastAt=now;
 
     ctx.save();
 
     let count=0;
-    const maxPieces=34;
+    const maxPieces=startup ? 10 : 28;
 
     for(const obs of obstacles){
         if(count>=maxPieces) break;
