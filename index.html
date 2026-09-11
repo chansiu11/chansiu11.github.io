@@ -183,6 +183,8 @@
         #btnReload { bottom: 35px; right: 190px; }
         #btnSprint { bottom: 110px; right: 190px; border-color:#66ddff; color:#66ddff; }
         #btnSprint.active { background:rgba(0,170,255,.45); transform:scale(.94); }
+        #btnRevive {bottom:260px;right:200px;border-color:#66ffaa;color:#66ffaa;}
+        #btnDoor { bottom:185px;right:200px;border-color:#d7a46a;color:#ffd4a0; }
         #btnPickup { bottom: 185px; right: 40px; }
         #btnBag { bottom: 185px; right: 120px; }
         #btnMap { top: 20px; right: 20px; width: 55px; height: 55px; border-color: #ffcc00; color: #ffcc00; }
@@ -255,7 +257,7 @@
         <button onclick="closeSettings()" class="btn-secondary">닫기</button>
     </div>
 
-    <div id="waitingRoom">
+    <div id="waitingRoom" style="max-height:95%;overflow-y:auto">
         <h2 id="waitingTitle">대기실 (방장 설정)</h2>
         <p>방 코드: <span id="displayRoomCode" style="color:#00ffcc; font-size:20px; font-weight:bold;">-</span></p>
         
@@ -291,6 +293,7 @@
         </div>
 
         <button id="startButton" onclick="hostStartGame()" style="background-color: #00ffcc; margin-top: 10px;">게임 시작</button>
+        <div id="roomRoles" style="width:100%;max-height:160px;overflow-y:auto;text-align:left"></div>
         <p id="guestWaitText" style="color:#00ffcc; display:none; margin-top:15px;">방장이 게임을 시작하기를 기다리는 중...</p>
     </div>
 
@@ -323,11 +326,16 @@
         [무기]: <span id="hudWeapon" style="color:#00ffcc;">맨손</span> | [탄약]: <span id="hudAmmo" style="color:#ffcc00;">- / -</span> <br>
         [머리 갑바]: <span id="hudHelmet" style="color:#00ffcc;">없음</span> | [몸 갑바]: <span id="hudArmor" style="color:#00ffcc;">없음</span> <br>
         [장착 스코프]: <span id="hudScope" style="color:#ffcc00;">없음</span> <br>
-        <span id="hudControlsHint">[조작법]: Shift(달리기) / Ctrl(은신) / E(줍기) / R(장전) / Tab(가방)</span>
+        <span id="hudControlsHint">[조작법]: Shift(달리기) / Ctrl(은신) / F(팀원 소생 누르기 / 문 조작) / E(줍기) / R(장전) / Tab(가방)</span>
     </div>
 
+    <div id="spectatorSwitch" style="display:none;position:absolute;inset:0;z-index:24;pointer-events:auto">
+        <button onclick="findNextSpectateTarget(-1)" aria-label="이전 관전 대상" style="position:absolute;inset:0 50% 0 0;width:50%;background:transparent;color:white;border-radius:0;border-right:1px solid #ffffff33;display:flex;align-items:flex-end;justify-content:center;padding-bottom:28px">◀ 이전 대상</button>
+        <button onclick="findNextSpectateTarget(1)" aria-label="다음 관전 대상" style="position:absolute;inset:0 0 0 50%;width:50%;background:transparent;color:white;border-radius:0;display:flex;align-items:flex-end;justify-content:center;padding-bottom:28px">다음 대상 ▶</button>
+    </div>
+    <div id="reviveHUD" style="display:none;position:absolute;bottom:25px;left:50%;transform:translateX(-50%);z-index:36;background:#111d;padding:12px;color:#88ffbb;pointer-events:none"></div>
     <div id="spectateHUD">
-        👁️ [관전 모드]<br>관전 대상: <span id="spectateTargetName" style="color:#00ffcc;">-</span>
+        👁️ [관전 모드] · 남은 생존자: <span id="spectateAliveCount" style="color:#ffcc00;">0</span>명<br>관전 대상: <span id="spectateTargetName" style="color:#00ffcc;">-</span>
     </div>
 
     <div id="respawnHUD">
@@ -347,6 +355,8 @@
         </div>
         <div id="btnReload" class="mobile-btn touch-zone">장전</div>
         <div id="btnSprint" class="mobile-btn touch-zone">달리기</div>
+        <div id="btnRevive" class="mobile-btn touch-zone">팀원 소생<br>(누르고 있기)</div>
+        <div id="btnDoor" class="mobile-btn touch-zone">문 열기/닫기</div>
         <div id="btnPickup" class="mobile-btn touch-zone">줍기</div>
         <div id="btnBag" class="mobile-btn touch-zone">가방</div>
         <div id="btnMap" class="mobile-btn touch-zone">지도</div>
@@ -375,6 +385,7 @@
             <strong>보유 중인 스코프:</strong>
             <div id="scopeList" class="inv-grid"></div>
         </div>
+        <div class="inv-section"><strong>회복 아이템</strong><div id="healingList" class="inv-grid"></div></div>
         <button onclick="toggleInventory()" style="margin-top:auto;">닫기 (Tab)</button>
     </div>
 
@@ -391,11 +402,11 @@
 let WORLD_SIZE = 12000; // 배틀로얄 맵 확장을 위해 기존 8000에서 12000으로 증대
 
 const SCOPES = {
-    '1x': { name: "1배율 (레드닷)", viewOffset: 300 },
-    '2x': { name: "2배율", viewOffset: 550 },
-    '3x': { name: "3배율", viewOffset: 850 },
-    '4x': { name: "4배율", viewOffset: 1200 },
-    '8x': { name: "8배율", viewOffset: 1800 }
+    '1x': { name: "1배율 (레드닷)", viewOffset: 400 },
+    '2x': { name: "2배율", viewOffset: 750 },
+    '3x': { name: "3배율", viewOffset: 1150 },
+    '4x': { name: "4배율", viewOffset: 1600 },
+    '8x': { name: "8배율", viewOffset: 2400 }
 };
 
 const ARMORS = {
@@ -414,9 +425,9 @@ const WEAPONS = {
 };
 
 const AI_DIFFICULTY = {
-    very_easy: { delay: 3500, spread: 0.5, speedMult: 0.8 },
-    easy: { delay: 900, spread: 0.15, speedMult: 0.95 },
-    hard: { delay: 300, spread: 0.08, speedMult: 1.1 }
+    very_easy: { delay: 3500, spread: 0.5, speedMult: 0.8, turnMult: 0.65 },
+    easy: { delay: 900, spread: 0.15, speedMult: 0.95, turnMult: 1.0 },
+    hard: { delay: 300, spread: 0.08, speedMult: 1.1, turnMult: 1.6 }
 };
 // AI는 약 30Hz로 갱신되므로 플레이어(매 프레임 이동)보다 느려지지 않도록 이동량을 보정한다.
 const BOT_MOVEMENT_SCALE = 2.0;
@@ -433,6 +444,14 @@ let gameStarted = false;
 let gameEnded = false;
 let initialPlayerCount = 1;
 
+let teamMaxSize=2;
+let teamAssignments={};
+let initialTeamCount=0;
+let winningTeam=null;
+const matchHumans=new Map();
+const matchTeamRanks=new Map();
+let spectatorIds = new Set();
+let roomRoster = [];
 let isSpectating = false;
 let spectateTarget = null;
 let isRespawning = false;
@@ -495,7 +514,7 @@ const myPlayer = {
     equippedScope: null,
     equippedHelmet: null,
     equippedBodyArmor: null,
-    inventory: { scopes: [], armors: [] },
+    inventory: { scopes: [], armors: [], healing: {bandage:0,medkit:0} },
     isAiming: false, isShooting: false, lastShootTime: 0,
     isMoving: false, movementMode: 'walk'
 };
@@ -512,6 +531,72 @@ let mobileSprintHeld = false;
 let bullets = [];
 const aiBots = [];
 const gunshotEvents = [];
+const footstepEvents=[];
+const footstepTracks=new Map();
+let footstepSequence=0,footstepCheckAt=0,stepAudio=null,lastStepAudioAt=0;
+document.addEventListener('pointerdown',()=>{
+    const Audio=window.AudioContext||window.webkitAudioContext;
+    if(Audio && !stepAudio)stepAudio=new Audio();
+    if(stepAudio?.state==='suspended')stepAudio.resume().catch(()=>{});
+},{passive:true});
+
+function playNearbyStep(distance,range){
+    if(!stepAudio || stepAudio.state!=='running' || performance.now()-lastStepAudioAt<120)return;
+    lastStepAudioAt=performance.now();
+    const oscillator=stepAudio.createOscillator(),gain=stepAudio.createGain(),t=stepAudio.currentTime;
+    oscillator.type='triangle';oscillator.frequency.setValueAtTime(110,t);oscillator.frequency.exponentialRampToValueAtTime(45,t+.07);
+    gain.gain.setValueAtTime(Math.max(.001,.045*(1-distance/range)),t);gain.gain.exponentialRampToValueAtTime(.001,t+.08);
+    oscillator.connect(gain);gain.connect(stepAudio.destination);oscillator.start(t);oscillator.stop(t+.09);
+    oscillator.onended=()=>{oscillator.disconnect();gain.disconnect();};
+}
+function footstepRange(entity){return entity.movementMode==='stealth'?70:entity.movementMode==='sprint'?320:220;}
+function updateFootsteps(){
+    const now=Date.now();if(now-footstepCheckAt<80)return;footstepCheckAt=now;
+    while(footstepEvents.length && now-footstepEvents[0].time>850)footstepEvents.shift();
+    const alive=new Set();
+    for(const p of [myPlayer,...Object.values(remotePlayers),...aiBots]){
+        if(p.isDead||p.hp<=0||isAssignedSpectator(p.id))continue;
+        alive.add(p.id);let track=footstepTracks.get(p.id);
+        if(!track){footstepTracks.set(p.id,{x:p.x,y:p.y,distance:0,at:now});continue;}
+        const moved=Math.hypot(p.x-track.x,p.y-track.y);track.x=p.x;track.y=p.y;
+        if(moved>100){track.distance=0;continue;}
+        if(moved<.2){track.distance=0;continue;}
+        track.distance+=moved;
+        if(track.distance<20 || now-track.at<260)continue;
+        track.distance=0;track.at=now;
+        const event={id:++footstepSequence,entityId:p.id,x:p.x,y:p.y,range:footstepRange(p),time:now};
+        footstepEvents.push(event);
+        const listener=isSpectating?spectateTarget:myPlayer;
+        if(listener && !areAllies(listener,p)){const distance=Math.hypot(listener.x-p.x,listener.y-p.y);if(distance<event.range)playNearbyStep(distance,event.range);}
+    }
+    for(const id of footstepTracks.keys())if(!alive.has(id))footstepTracks.delete(id);
+}
+function listenForBotFootsteps(bot,brain,now){
+    if(now-brain.lastSeenAt<900 || (bot.investigateTarget && now-bot.investigateTarget.time<700))return;
+    for(let i=footstepEvents.length-1;i>=0;i--){
+        const event=footstepEvents[i];if(event.id<=(brain.lastFootstepId||0)||now-event.time>850||event.entityId===bot.id)continue;
+        const owner=getCombatEntityById(event.entityId);if(owner&&areAllies(bot,owner))continue;
+        if(Math.hypot(bot.x-event.x,bot.y-event.y)>event.range)continue;
+        brain.lastFootstepId=event.id;
+        bot.investigateTarget={x:event.x,y:event.y,time:now};return;
+    }
+}
+function drawFootstepIndicators(){
+    const listener=isSpectating?spectateTarget:myPlayer;
+    if(!listener||listener.isDead)return;
+    const now=Date.now(),seen=new Set();
+    for(let i=footstepEvents.length-1;i>=0;i--){
+        const event=footstepEvents[i];if(seen.has(event.entityId)||event.entityId===listener.id||now-event.time>850)continue;
+        seen.add(event.entityId);
+        const owner=getCombatEntityById(event.entityId);
+        if(owner && areAllies(listener,owner))continue;
+        if(Math.hypot(listener.x-event.x,listener.y-event.y)>event.range)continue;
+        const angle=Math.atan2(event.y-listener.y,event.x-listener.x);
+        ctx.save();ctx.translate(listener.x,listener.y);ctx.rotate(angle);
+        ctx.globalAlpha=Math.max(0,1-(now-event.time)/850);ctx.fillStyle='#ff9a32';
+        ctx.beginPath();ctx.moveTo(86,0);ctx.lineTo(73,-7);ctx.lineTo(77,0);ctx.lineTo(73,7);ctx.closePath();ctx.fill();ctx.restore();
+    }
+}
 const bloodParticles = [];
 
 let isEditingKeys = false;
@@ -570,7 +655,7 @@ function applyPlatformSetting(value) {
         // canvas 크기 변경은 현재 프레임이 끝난 뒤 한 번만 수행한다.
         if (changed) requestAnimationFrame(() => {
             resizeCanvas();
-            lastFogBuildAt = 0;
+            // 벽 뒤 그림자 캐시를 더 이상 생성하지 않는다.
         });
     } finally {
         platformSwitching = false;
@@ -662,6 +747,71 @@ function rectCircleHit(cx, cy, radius, rx, ry, rw, rh) {
     return dx * dx + dy * dy < radius * radius;
 }
 
+const DOOR_INTERACTION_RANGE=120; // 열린 문짝이 아닌 고정된 출입구 중심 기준
+function doorClosed(h){return h.doorHp>0&&!h.doorOpen;}
+function houseDoorRect(h){
+    const side=h.doorSide||'bottom',t=h.wallThickness||18,w=h.doorWidth||64,c=h.doorPos??.5;
+    if(side==='top'||side==='bottom')return {x:h.x+h.w*c-w/2,y:side==='top'?h.y:h.y+h.h-t,w,h:t};
+    return {x:side==='left'?h.x:h.x+h.w-t,y:h.y+h.h*c-w/2,w:t,h:w};
+}
+function invalidateDoorGeometry(h){
+    delete h._wallRectsCache;delete h._ballisticRectsCache;delete h._roofVisionCache;
+    drawFogOfWar._lastBuild=0;
+}
+function sendDoorState(h){broadcastData({type:'DOOR_STATE',doorId:h.doorId,hp:h.doorHp,open:h.doorOpen});}
+function setHouseDoor(h,open){
+    if(!isHost||!h||h.doorHp<=0)return false;
+    if(!open){const r=houseDoorRect(h);if([...roomHumans(),...aiBots].some(p=>p.hp>0&&!p.isDead&&rectCircleHit(p.x,p.y,16,r.x,r.y,r.w,r.h)))return false;}
+    if(h.doorOpen===open)return true;
+    h.doorOpen=open;invalidateDoorGeometry(h);sendDoorState(h);return true;
+}
+function toggleDoorForPlayer(p,h){
+    if(!isHost||!gameStarted||gameEnded||selectedMode!=='br'||!p||p.hp<=0||p.isDead||p.isDowned||isAssignedSpectator(p.id)||!h||h.doorHp<=0)return false;
+    const c=getHouseDoorCenterPoint(h);
+    if(Math.hypot(c.x-p.x,c.y-p.y)>DOOR_INTERACTION_RANGE)return false;
+    if(Date.now()-(p._lastDoorUse||0)<250)return false;
+    p._lastDoorUse=Date.now();return setHouseDoor(h,!h.doorOpen);
+}
+function interactDoor(){
+    if(!gameStarted||gameEnded||isSpectating||isRespawning||isSpawnSelecting||myPlayer.hp<=0||selectedMode!=='br')return;
+    let best=null,distance=DOOR_INTERACTION_RANGE;
+    for(const h of nearbyObstacles(myPlayer.x-DOOR_INTERACTION_RANGE,myPlayer.y-DOOR_INTERACTION_RANGE,myPlayer.x+DOOR_INTERACTION_RANGE,myPlayer.y+DOOR_INTERACTION_RANGE)){
+        if(h.type!=='house'||!(h.doorHp>0))continue;
+        const c=getHouseDoorCenterPoint(h),d=Math.hypot(c.x-myPlayer.x,c.y-myPlayer.y);
+        if(d<=distance){distance=d;best=h;}
+    }
+    if(!best)return;
+    if(isHost)toggleDoorForPlayer(myPlayer,best);
+    else broadcastData({type:'DOOR_USE',doorId:best.doorId,player:myPlayer});
+}
+function applyDoorState(state){
+    const h=obstacles.find(o=>o.doorId===state.doorId);if(!h||!Number.isFinite(state.hp))return;
+    const hp=Math.max(0,Math.min(4,state.hp)),open=hp===0||!!state.open;
+    if(h.doorHp!==hp||h.doorOpen!==open){h.doorHp=hp;h.doorOpen=open;invalidateDoorGeometry(h);}
+}
+function damageHouseDoor(h,shotId){
+    if(!isHost||!doorClosed(h))return;
+    if(!h._doorHits)h._doorHits=new Set();
+    if(shotId && h._doorHits.has(shotId))return;
+    if(shotId)h._doorHits.add(shotId);
+    h.doorHp--;if(h.doorHp<=0)h.doorOpen=true;
+    invalidateDoorGeometry(h);sendDoorState(h);
+}
+function drawHouseDoor(h){
+    if(!(h.doorHp>0))return;
+    const r=houseDoorRect(h),side=h.doorSide||'bottom';
+    const horizontal=side==='top'||side==='bottom';
+    const x=horizontal?0:-r.w/2,y=horizontal?-r.h/2:0;
+    ctx.save();
+    ctx.translate(horizontal?r.x:r.x+r.w/2,horizontal?r.y+r.h/2:r.y);
+    if(h.doorOpen)ctx.rotate((side==='top'||side==='right'?-1:1)*Math.PI/2);
+    // 열림과 닫힘 모두 같은 문짝을 사용하고 경첩을 기준으로 방향만 바꾼다.
+    ctx.fillStyle='#88552e';ctx.fillRect(x,y,r.w,r.h);
+    ctx.strokeStyle='#dfb880';ctx.lineWidth=2;ctx.strokeRect(x+2,y+2,r.w-4,r.h-4);
+    ctx.fillStyle='#ffd77a';ctx.beginPath();
+    ctx.arc(x+r.w*(horizontal?.75:.5),y+r.h*(horizontal?.5:.75),3,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+}
 function getHouseWallRects(obs) {
     if (obs && obs._wallRectsCache) return obs._wallRectsCache;
     const t = obs.wallThickness || 18;
@@ -696,6 +846,7 @@ function getHouseWallRects(obs) {
         rects.push({x:d1,y:obs.y+obs.h-t,w:Math.max(0,obs.x+obs.w-d1),h:t});
     } else rects.push({x:obs.x,y:obs.y+obs.h-t,w:obs.w,h:t});
 
+    if(doorClosed(obs))rects.push(houseDoorRect(obs));
     const out = rects.filter(r => r.w > 0 && r.h > 0);
     if (obs) obs._wallRectsCache = out;
     return out;
@@ -804,7 +955,7 @@ function getHouseDoorOpening(obs){
 }
 
 function getRoofVisionOpenings(obs){
-    return [getHouseDoorOpening(obs), ...getHouseWindowOpenings(obs)];
+    return [...(doorClosed(obs)?[]:[getHouseDoorOpening(obs)]), ...getHouseWindowOpenings(obs)];
 }
 
 function isSightSampleClearToOpening(obs, viewer, tx, ty) {
@@ -922,6 +1073,7 @@ function getHouseBallisticWallRects(obs) {
             else rects.push({x:obs.x+obs.w-t,y:obs.y+a,w:t,h:b-a});
         });
     });
+    if(doorClosed(obs))rects.push(houseDoorRect(obs));
     if (obs) obs._ballisticRectsCache = rects;
     return rects;
 }
@@ -933,7 +1085,7 @@ function isPointInsideHouse(x, y, obs, padding = 0) {
 }
 
 function getHouseContainingPoint(x, y) {
-    return obstacles.find(o => isPointInsideHouse(x, y, o, (o.wallThickness || 18) + 2)) || null;
+    return nearbyObstacles(x,y,x,y).find(o => isPointInsideHouse(x, y, o, (o.wallThickness || 18) + 2)) || null;
 }
 
 const TREE_HITBOX_PADDING = 14;
@@ -1016,7 +1168,6 @@ function isBotEntity(entity) {
 
 function botBulletCanDamage(ownerId, target) {
     const owner = getCombatEntityById(ownerId);
-    if (!isBotEntity(owner)) return true;
     return !areAllies(owner, target);
 }
 
@@ -1120,7 +1271,7 @@ function generateMapData(mode, seed = currentMapSeed || 1) {
 
 
     const size = mode === 'normal' ? 2400 : 12000;
-    const itemCount = mode === 'normal' ? 70 : 500;
+    const itemCount = mode === 'normal' ? 40 : 280;
     const newObstacles = [];
     const houses = [];
 
@@ -1163,6 +1314,7 @@ function generateMapData(mode, seed = currentMapSeed || 1) {
                     const side = ['bottom','top','left','right'][Math.floor(rand()*4)];
                     const house = {
                         x,y,w,h,type:'house',
+                        ...(mode==='br'?{doorId:'door_'+newObstacles.length,doorHp:4,doorOpen:false}:{}),
                         style: wallPalettes[Math.floor(rand()*wallPalettes.length)],
                         roofKind: roofKinds[Math.floor(rand()*roofKinds.length)],
                         seed: rand(),
@@ -1208,6 +1360,8 @@ function generateMapData(mode, seed = currentMapSeed || 1) {
     }
 
     const types = [
+        // 아이템 총량은 유지하고 총의 추첨 비중을 약 36%로 높인다.
+        'ar','sniper','shotgun','ar','sniper','shotgun',
         'ar','sniper','shotgun','1x','2x','3x','4x','8x',
         'ammo_ar','ammo_sniper','ammo_shotgun',
         'helmet_1','helmet_2','helmet_3','body_1','body_2','body_3',
@@ -1247,6 +1401,174 @@ function checkObstacleCollisionForList(x, y, radius, list) {
     return false;
 }
 
+function isAssignedSpectator(id){return !String(id).startsWith('bot_') && spectatorIds.has(id);}
+function roomHumans(){return [myPlayer,...Object.values(remotePlayers)];}
+function roomTeamRoster(){
+    if(!isHost)return roomRoster;
+    const enabled=document.getElementById('aiToggle').value==='true';
+    const count=enabled?Math.max(0,Math.min(selectedMode==='br'?100:20,parseInt(document.getElementById('aiCountInput').value)||0)):0;
+    return [...roomHumans(),...Array.from({length:count},(_,i)=>({id:'bot_'+i,name:'AI 봇_'+(i+1),isBot:true}))];
+}
+function roomTeamCount(roster=roomTeamRoster()){return Math.ceil(roster.filter(p=>!isAssignedSpectator(p.id)).length/teamMaxSize);}
+function teamOccupancy(team,exceptId=null){return roomTeamRoster().filter(p=>p.id!==exceptId&&!isAssignedSpectator(p.id)&&teamAssignments[p.id]===team).length;}
+function firstFreeTeam(id){let team=1;while(teamOccupancy(team,id)>=teamMaxSize)team++;return team;}
+function applyEntityTeam(p){
+    p.teamId=selectedMode==='br'&&!isAssignedSpectator(p.id)&&teamAssignments[p.id]?'team_'+teamAssignments[p.id]:null;
+    p.team=null;return p;
+}
+function normalizeRoomTeams(roster=roomTeamRoster()){
+    const used=new Map(),count=roomTeamCount(roster),ids=new Set(roster.map(p=>p.id));
+    for(const id of Object.keys(teamAssignments))if(!ids.has(id))delete teamAssignments[id];
+    for(const p of roster){
+        if(isAssignedSpectator(p.id)){applyEntityTeam(p);continue;}
+        let team=teamAssignments[p.id];
+        if(!Number.isInteger(team)||team<1||team>count||(used.get(team)||0)>=teamMaxSize){team=1;while((used.get(team)||0)>=teamMaxSize)team++;}
+        teamAssignments[p.id]=team;used.set(team,(used.get(team)||0)+1);applyEntityTeam(p);
+    }
+}
+function setRoomTeam(id,value){
+    if(!isHost||gameStarted||selectedMode!=='br'||isAssignedSpectator(id))return false;
+    const team=Number(value);
+    if(!Number.isInteger(team)||team<1||team>roomTeamCount()||!roomTeamRoster().some(p=>p.id===id))return false;
+    if(teamOccupancy(team,id)>=teamMaxSize){
+        const previous=teamAssignments[id];
+        if(!previous||previous===team)return false;
+        const occupants=roomTeamRoster().filter(p=>p.id!==id&&!isAssignedSpectator(p.id)&&teamAssignments[p.id]===team);
+        const swap=occupants.find(p=>p.id.startsWith('bot_'))||occupants[occupants.length-1];
+        if(!swap)return false;teamAssignments[swap.id]=previous;
+    }
+    teamAssignments[id]=team;publishRoomRoles();return true;
+}
+function setRoomSpectator(id,checked){
+    if(!isHost||gameStarted||!roomHumans().some(p=>p.id===id))return false;
+    if(checked)spectatorIds.add(id);else {spectatorIds.delete(id);teamAssignments[id]=firstFreeTeam(id);}
+    publishRoomRoles();return true;
+}
+function setTeamMaxSize(value){
+    if(!isHost||gameStarted)return;
+    teamMaxSize=Math.max(1,Math.min(16,Math.floor(Number(value)||1)));normalizeRoomTeams();publishRoomRoles();
+}
+function placeBotSquads(){
+    if(selectedMode!=='br')return;
+    const groups=new Map();
+    for(const bot of aiBots){if(!bot.teamId)continue;if(!groups.has(bot.teamId))groups.set(bot.teamId,[]);groups.get(bot.teamId).push(bot);}
+    const placed=[];
+    for(const group of groups.values()){
+        const anchor={x:group[0].x,y:group[0].y};
+        for(let i=0;i<group.length;i++){
+            const bot=group[i];let point=null;
+            for(let ring=0;ring<10&&!point;ring++)for(let k=0;k<24;k++){
+                const a=(k+i*7)*Math.PI/12,r=ring===0?0:36+ring*24;
+                const x=anchor.x+Math.cos(a)*r,y=anchor.y+Math.sin(a)*r;
+                if(checkBotNavigationCollision(x,y,18)||placed.some(p=>Math.hypot(p.x-x,p.y-y)<42))continue;
+                point={x,y};break;
+            }
+            if(point){bot.x=point.x;bot.y=point.y;}
+            placed.push({x:bot.x,y:bot.y});bot._brain=null;bot._route=null;bot._doorTransit=null;bot._cornerEscape=null;
+        }
+    }
+}
+function botSquadLeader(bot){
+    if(selectedMode!=='br'||!bot.teamId)return null;
+    const humans=roomHumans().filter(p=>p.hp>0&&!p.isDead&&!isAssignedSpectator(p.id)&&areAllies(bot,p)).sort((a,b)=>a.id.localeCompare(b.id));
+    if(humans.length)return humans[0];
+    return aiBots.filter(p=>p.hp>0&&!p.isDead&&areAllies(bot,p)).sort((a,b)=>a.id.localeCompare(b.id))[0]||null;
+}
+function followBotSquad(bot,brain,diff,now,onlyRegroup=false){
+    const leader=botSquadLeader(bot);if(!leader||leader===bot)return false;
+    const distance=Math.hypot(leader.x-bot.x,leader.y-bot.y);
+    if(onlyRegroup && (distance<420 || !botHasUsableAmmo(bot)))return false;
+    if(!brain.squadPoint || now>(brain.squadUpdateAt||0)||brain.squadLeader!==leader.id){
+        brain.squadLeader=leader.id;brain.squadUpdateAt=now+600+Math.random()*350;
+        const index=parseInt(bot.id.split('_')[1])||0;
+        const base=(leader.moveAngle??leader.angle??0)+Math.PI+(index%7-3)*.42;
+        const radius=75+(index%3)*25;
+        brain.squadPoint=null;
+        for(const offset of [0,.5,-.5,1,-1,Math.PI]){
+            const point={x:leader.x+Math.cos(base+offset)*radius,y:leader.y+Math.sin(base+offset)*radius};
+            if(checkBotNavigationCollision(point.x,point.y,18))continue;
+            if(selectedMode==='br'&&Math.hypot(point.x-zone.x,point.y-zone.y)>zone.radius-30)continue;
+            brain.squadPoint=point;break;
+        }
+    }
+    if(!brain.squadPoint)return false;
+    brain.state='squad';
+    const gap=Math.hypot(bot.x-brain.squadPoint.x,bot.y-brain.squadPoint.y);
+    if(gap>45){
+        moveBotToward(bot,brain.squadPoint,(distance>280?2.7:1.8)*diff.speedMult,distance>280?'sprint':'walk');
+    }else{bot.isMoving=false;brain.movementRequested=false;bot.movementMode='walk';}
+    return true;
+}
+
+function prepareMatchTeams(){
+    const participants=[...roomHumans(),...aiBots];
+    normalizeRoomTeams(participants);participants.forEach(applyEntityTeam);
+    placeBotSquads();
+    initialTeamCount=roomTeamCount(participants);
+    initializeMatchRanks(participants);
+}
+function renderRoomRoles(){
+    const panel=document.getElementById('roomRoles');if(!panel)return;panel.replaceChildren();
+    const title=document.createElement('div');title.textContent=isHost?'참가자 팀 / 관전 설정 (시작 전)':'참가자 팀 / 관전';panel.appendChild(title);
+    if(selectedMode==='br'){
+        const label=document.createElement('label');label.textContent='팀당 최대 인원 (1~16명) ';
+        const input=document.createElement('input');input.type='number';input.min='1';input.max='16';input.value=teamMaxSize;input.disabled=!isHost||gameStarted;
+        input.onchange=()=>setTeamMaxSize(input.value);label.appendChild(input);panel.appendChild(label);
+        const note=document.createElement('small');note.textContent='플레이어와 봇을 같은 팀에 배정할 수 있습니다. 가득 찬 팀을 선택하면 그 팀의 봇 또는 마지막 참가자와 자리를 교환합니다.';panel.appendChild(note);
+    }
+    const roster=roomTeamRoster();
+    if(selectedMode==='br'){
+        const summary=document.createElement('div');
+        const humans=roster.filter(p=>!p.id.startsWith('bot_')&&!isAssignedSpectator(p.id)).length,bots=roster.filter(p=>p.id.startsWith('bot_')).length;
+        summary.textContent='플레이어 '+humans+'명 + 봇 '+bots+'명 ÷ 최대 '+teamMaxSize+'명 → '+roomTeamCount(roster)+'팀 (올림, 관전자 제외)';panel.appendChild(summary);
+    }
+    for(const p of roster){
+        const row=document.createElement('div');row.style.cssText='display:flex;gap:6px;align-items:center;margin:8px 0';
+        const name=document.createElement('span');name.textContent=p.name;name.style.flex='1';row.appendChild(name);
+        if(selectedMode==='br'){
+            const select=document.createElement('select');select.style.width='110px';select.disabled=!isHost||gameStarted||isAssignedSpectator(p.id);
+            for(let t=1;t<=roomTeamCount(roster);t++){
+                const option=document.createElement('option');option.value=t;option.textContent='팀 '+t;select.appendChild(option);
+            }
+            select.value=teamAssignments[p.id]||1;select.onchange=()=>setRoomTeam(p.id,select.value);row.appendChild(select);
+        }
+        if(!p.id.startsWith('bot_')){
+        const label=document.createElement('label');label.style.whiteSpace='nowrap';
+        const box=document.createElement('input');box.type='checkbox';box.checked=isAssignedSpectator(p.id);box.disabled=!isHost||gameStarted||p.id.startsWith('bot_');
+        box.onchange=()=>setRoomSpectator(p.id,box.checked);label.appendChild(box);
+        const text=document.createElement('span');text.textContent='관전';label.appendChild(text);row.appendChild(label);
+        }
+        panel.appendChild(row);
+    }
+}
+function publishRoomRoles(){
+    if(!isHost)return;normalizeRoomTeams();
+    roomRoster=roomTeamRoster().map(p=>({id:p.id,name:p.name,isBot:p.id.startsWith('bot_')}));
+    broadcastData({type:'ROOM_ROLES',mode:selectedMode,teamMaxSize,teamAssignments,spectatorIds:[...spectatorIds],roster:roomRoster});renderRoomRoles();
+}
+function receiveRoomTeams(data){
+    if(data.mode)selectedMode=data.mode;
+    if(data.teamMaxSize)teamMaxSize=data.teamMaxSize;
+    if(data.teamAssignments)teamAssignments={...data.teamAssignments};
+    roomHumans().forEach(applyEntityTeam);
+}
+
+function enforceObserver(p){if(p && isAssignedSpectator(p.id)){p.hp=0;p.isDead=true;p.isShooting=false;p.isAiming=false;p.isMoving=false;p.weapon=null;}return p;}
+function countAliveCombatants(){
+    return [myPlayer,...Object.values(remotePlayers),...aiBots].filter(p=>p.hp>0&&!p.isDead&&!isAssignedSpectator(p.id)).length;
+}
+function updateSpectatorAliveCount(){
+    const label=document.getElementById('spectateAliveCount');
+    if(!label)return;
+    const count=String(countAliveCombatants());
+    if(label.textContent!==count)label.textContent=count;
+}
+function refreshSpectatorControls(){
+    const active=gameStarted&&!gameEnded&&(isSpectating||isRespawning);
+    document.getElementById('spectatorSwitch').style.display=active?'block':'none';
+    if(active)updateSpectatorAliveCount();
+}
+
 function generateShortId() { return Math.random().toString(36).substring(2, 7).toLowerCase(); }
 
 function onHostSettingsChange() {
@@ -1254,6 +1576,7 @@ function onHostSettingsChange() {
     const enabled = document.getElementById('aiToggle').value === 'true';
     document.getElementById('aiCountGroup').style.display = enabled ? 'block' : 'none';
     document.getElementById('aiDifficultyGroup').style.display = enabled ? 'block' : 'none';
+    if(!gameStarted)publishRoomRoles();
 
     broadcastData({
         type: 'ROOM_SETTINGS',
@@ -1267,6 +1590,8 @@ function onHostSettingsChange() {
 
 function updateModeSettingsUI() {
     const mode = document.getElementById('gameModeSelect').value;
+    selectedMode=mode;
+    if(isHost&&!gameStarted)publishRoomRoles();
     const aiInput = document.getElementById('aiCountInput');
     const maxText = document.getElementById('maxAiText');
     if(mode === 'normal') {
@@ -1286,6 +1611,7 @@ function createRoom() {
     selectedMode = document.getElementById('gameModeSelect').value;
     applyPlatformSetting(document.getElementById('platformSelect').value);
     isHost = true;
+    spectatorIds.clear();teamAssignments={};normalizeRoomTeams();renderRoomRoles();
 
     updateModeSettingsUI();
 
@@ -1317,8 +1643,17 @@ function createRoom() {
 
         c.on('data', data => {
             if(data.player && data.player.id) {
-                c.playerId = data.player.id;
+                if(!c.playerId)c.playerId = data.player.id;
+                data.player.id=c.playerId;
             }
+            if(data.type==='LOBBY_HELLO' && data.player){
+                remotePlayers[data.player.id]=data.player;publishRoomRoles();return;
+            }
+            if(c.playerId && isAssignedSpectator(c.playerId)){
+                if(data.type!=='SYNC')return;
+                if(data.player){data.player.id=c.playerId;enforceObserver(data.player);}
+            }
+            if(data.player)applyEntityTeam(data.player);
             handleNetworkData(data);
         });
 
@@ -1327,6 +1662,7 @@ function createRoom() {
                 delete remotePlayers[c.playerId];
             }
             delete connections[c.peer];
+            if(c.playerId){spectatorIds.delete(c.playerId);delete teamAssignments[c.playerId];}publishRoomRoles();
             updateHUD();
         };
 
@@ -1357,6 +1693,7 @@ function joinRoom() {
             document.getElementById('guestSettingsDisplay').style.display = 'block';
             document.getElementById('startButton').style.display = 'none'; 
             document.getElementById('guestWaitText').style.display = 'block';
+            hostConn.send({type:'LOBBY_HELLO',player:myPlayer});
         });
         hostConn.on('data', data => handleNetworkData(data));
         hostConn.on('error', () => alert('방 접속 실패!'));
@@ -1453,6 +1790,12 @@ function checkDeathmatchVictory() {
 }
 
 function handleNetworkData(data) {
+    if(data.type==='LIFE_STATE'){if(!isHost && data.player?.id===myPlayer.id)applyLocalLife(data.player);return;}
+    if(data.type==='DOOR_STATE'){if(!isHost)applyDoorState(data);return;}
+    if(data.type==='DOOR_USE'){if(isHost){const p=getCombatEntityById(data.player?.id),h=obstacles.find(o=>o.doorId===data.doorId);toggleDoorForPlayer(p,h);}return;}
+    if(data.type==='ROOM_ROLES'){
+        if(!isHost){spectatorIds=new Set(data.spectatorIds||[]);roomRoster=data.roster||[];receiveRoomTeams(data);renderRoomRoles();}return;
+    }
     if(data.type === 'ROOM_SETTINGS') {
         if(!isHost) {
             const diffMap = { very_easy: '매우 쉬움', easy: '쉬움', hard: '어려움' };
@@ -1466,6 +1809,8 @@ function handleNetworkData(data) {
             return;
         }
         if(data.type === 'START') {
+        spectatorIds=new Set(data.spectatorIds||[]);
+        receiveRoomTeams(data);initialTeamCount=data.initialTeamCount||0;
         selectedMode = data.mode;
         aiDifficulty = data.aiDiff;
         currentMapSeed = (Number(data.mapSeed ?? data.mapData?.seed) >>> 0) || 1;
@@ -1484,6 +1829,7 @@ function handleNetworkData(data) {
     obstacles = canonicalMap.obstacles;
                 // 아이템은 SYNC의 현재 상태가 권위 있으므로 아래에서 data.items로 덮어쓴다.
             }
+            if(data.doors) data.doors.forEach(applyDoorState);
             bullets = data.bullets || [];
             zone.radius = data.zoneRadius;
             zone.x = data.zoneX;
@@ -1498,6 +1844,7 @@ function handleNetworkData(data) {
                         remotePlayers[p.id] = p;
                         activeIds[p.id] = true;
                     } else {
+                        if(selectedMode==='br' && typeof p.isDowned==='boolean')applyLocalLife(p);
                         if (!p.isDead && myPlayer.isDead && !isRespawning) {
                             myPlayer.isDead = false;
                             myPlayer.hp = p.hp;
@@ -1519,6 +1866,15 @@ function handleNetworkData(data) {
             checkDeathmatchVictory();
         } else {
             if(data.player) {
+                const previous=remotePlayers[data.player.id];
+                if(selectedMode==='br' && previous){
+                    const locked=previous.isDowned||previous.isDead||Date.now()<(previous._lifeLockUntil||0);
+                    if(locked){
+                        Object.assign(data.player,{hp:previous.hp,isDead:previous.isDead,isDowned:!!previous.isDowned,downedUntil:previous.downedUntil,deaths:previous.deaths,kills:previous.kills,_lifeLockUntil:previous._lifeLockUntil,_downedBy:previous._downedBy,_downedHits:previous._downedHits});
+                        if(previous.isDowned||previous.isDead){data.player.x=previous.x;data.player.y=previous.y;}
+                    }
+                }
+                data.player._inputAt=Date.now();
                 remotePlayers[data.player.id] = data.player;
             }
         }
@@ -1538,7 +1894,9 @@ function handleNetworkData(data) {
             handleMyDeath(data.attackerId);
         }
     } else if(data.type === 'GAME_OVER') {
-        displayRankings(data.rankings);
+        winningTeam=data.winningTeam||null;
+        if(data.teamMaxSize)teamMaxSize=data.teamMaxSize;
+        displayRankings(data.rankings,data.totalTeams);
     } else if(data.type === 'KILL_EVENT') {
         if (data.killerId === myPlayer.id) {
             myPlayer.kills++;
@@ -1603,6 +1961,7 @@ function handleNetworkData(data) {
 }
 
 function handleMyDeath(killerId) {
+    myPlayer.isDowned=false;myPlayer.reviveHeld=false;
     if (myPlayer.isDead) return;
     myPlayer.hp = 0;
     myPlayer.isDead = true;
@@ -1640,6 +1999,7 @@ function giveDeathmatchKillAmmo(p) {
 }
 
 function startRespawnTimer(killerId) {
+    if(isAssignedSpectator(myPlayer.id)){startSpectating();return;}
     isRespawning = true;
     respawnTimerVal = 5;
 
@@ -1670,8 +2030,7 @@ function setSpectateTargetById(targetId) {
         return;
     }
     
-    let target = Object.values(remotePlayers).find(p => p.id === targetId && p.hp > 0 && !p.isDead);
-    if (!target) target = aiBots.find(b => b.id === targetId && b.hp > 0 && !b.isDead);
+    const target = spectateCandidates().find(p=>p.id===targetId);
 
     if (target) {
         spectateTarget = target;
@@ -1734,28 +2093,22 @@ function startSpectating(killerId) {
     }
 }
 
-function findNextSpectateTarget() {
-    const aliveRemotes = Object.values(remotePlayers).filter(p => p.hp > 0 && !p.isDead);
-    if (aliveRemotes.length > 0) {
-        spectateTarget = aliveRemotes[0];
-    } else {
-        const aliveBots = aiBots.filter(b => b.hp > 0 && !b.isDead);
-        if (aliveBots.length > 0) {
-            spectateTarget = aliveBots[0];
-        } else {
-            spectateTarget = null;
-        }
+function spectateCandidates(){
+    const alive=[...Object.values(remotePlayers),...aiBots].filter(p=>p.id!==myPlayer.id&&p.hp>0&&!p.isDead&&!isAssignedSpectator(p.id)).sort((a,b)=>a.id.localeCompare(b.id));
+    if(selectedMode==='br' && !isAssignedSpectator(myPlayer.id) && (myPlayer.isDead||myPlayer.hp<=0)){
+        const teammates=alive.filter(p=>areAllies(myPlayer,p));
+        if(teammates.length)return teammates;
     }
-
-    if (spectateTarget) {
-        document.getElementById('spectateTargetName').innerText = spectateTarget.name;
-    } else {
-        document.getElementById('spectateTargetName').innerText = "없음";
-    }
+    return alive;
+}
+function findNextSpectateTarget(direction=1) {
+    const list=spectateCandidates(),index=list.findIndex(p=>p.id===spectateTarget?.id);
+    spectateTarget=list.length?list[index<0?(direction<0?list.length-1:0):(index+(direction<0?-1:1)+list.length)%list.length]:null;
+    document.getElementById('spectateTargetName').innerText=spectateTarget?spectateTarget.name:'없음';
 }
 
 function hostStartGame() {
-    if (!isHost) return;
+    if (!isHost || gameStarted) return;
 
     const startBtn = document.getElementById('startButton');
     if (startBtn) startBtn.disabled = true;
@@ -1809,14 +2162,19 @@ function hostStartGame() {
             aiBots.length = 0;
         }
 
+        roomHumans().forEach(p=>{p.kills=0;p.deaths=0;resetDownedState(p);if(!isAssignedSpectator(p.id)){p.hp=p.maxHp||200;p.isDead=false;}});
+        prepareMatchTeams();
         broadcastData({
             type: 'START',
+            spectatorIds:[...spectatorIds],
+            teamMaxSize,teamAssignments,initialTeamCount,
             mode: selectedMode,
             aiDiff: aiDifficulty,
             mapSeed: currentMapSeed,
             mapData
         });
 
+        Object.values(remotePlayers).forEach(enforceObserver);
         startGame();
     } catch (err) {
         console.error('hostStartGame error', err);
@@ -1914,6 +2272,7 @@ function spawnAIBots(count) {
 }
 
 function startGame() {
+    if(window._returnMenuTimer){clearTimeout(window._returnMenuTimer);window._returnMenuTimer=null;}
     if (typeof drawFogOfWar === 'function') {
         drawFogOfWar._lastBuild = 0;
         drawFogOfWar._buildCameraX = camera ? camera.x : 0;
@@ -1933,6 +2292,9 @@ function startGame() {
     zone.y = WORLD_SIZE / 2;
     zone.radius = WORLD_SIZE * 0.7;
 
+    document.getElementById('victoryOverlay').style.display='none';
+    footstepEvents.length=0;footstepTracks.clear();
+    resetDownedState(myPlayer);reviveSessions.clear();
     myPlayer.hp = myPlayer.maxHp;
     myPlayer.isDead = false;
     myPlayer.kills = 0;
@@ -1940,10 +2302,11 @@ function startGame() {
     myPlayer.weapon = null;
     myPlayer.equippedHelmet = null;
     myPlayer.equippedBodyArmor = null;
-    myPlayer.inventory = { scopes: [], armors: [] };
+    myPlayer.inventory = { scopes: [], armors: [], healing: {bandage:0,medkit:0} };
     isSpectating = false;
     isRespawning = false;
     gameEnded = false;
+    winningTeam=null;applyEntityTeam(myPlayer);
 
     if (isMobile) {
         document.getElementById('mobileControls').style.display = 'block';
@@ -1958,7 +2321,7 @@ function startGame() {
         document.getElementById('hudZoneContainer').style.display = 'inline';
     }
 
-    initialPlayerCount = aiBots.length + 1 + Object.keys(connections).length;
+    initialPlayerCount = aiBots.length + [myPlayer,...Object.values(remotePlayers)].filter(p=>!isAssignedSpectator(p.id)).length;
 
     canvas.style.display = 'block';
     minimapCanvas.style.display = 'block';
@@ -1974,9 +2337,16 @@ function startGame() {
         myPlayer.y = safePos.y;
         camera.x = myPlayer.x;
         camera.y = myPlayer.y;
-        openDeathmatchWeaponModal();
+        if(!isAssignedSpectator(myPlayer.id))openDeathmatchWeaponModal();
     }
 
+    if(isAssignedSpectator(myPlayer.id)){
+        enforceObserver(myPlayer);
+        startSpectating();
+        document.getElementById('fullMapOverlay').style.display='none';
+        document.getElementById('spawnSelectHUD').style.display='none';
+    }
+    refreshSpectatorControls();
     updateHUD();
     resizeCanvas();
     initEvents();
@@ -2086,6 +2456,7 @@ function setupNextZoneTarget() {
 
 // 2. 데스매치 총기 선택 모달 (10초)
 function openDeathmatchWeaponModal(duringRespawn = false) {
+    if(isAssignedSpectator(myPlayer.id))return;
     weaponSelectTimerVal = duringRespawn ? 5 : 10;
     const modal = document.getElementById('weaponSelectModal');
     if (!modal) return;
@@ -2138,7 +2509,9 @@ function selectDeathmatchWeapon(type) {
     updateHUD();
 }
 
+let gameEventsBound=false;
 function initEvents() {
+    if(gameEventsBound)return;gameEventsBound=true;
     window.addEventListener('keydown', e => {
         if (isSpectating || isRespawning) return;
         keys[e.key.toLowerCase()] = true;
@@ -2146,7 +2519,8 @@ function initEvents() {
         if(e.key === 'Control') keys['control'] = true;
         if(e.key === 'Tab') { e.preventDefault(); toggleInventory(); }
         if(e.key.toLowerCase() === 'm') toggleFullMap();
-        if(e.key.toLowerCase() === 'e') pickupItem();
+        if(e.key.toLowerCase() === 'f' && !e.repeat){if(nearestDownedAlly(myPlayer))myPlayer.reviveHeld=true;else interactDoor();}
+        if(e.key.toLowerCase() === 'e' && !e.repeat) pickupItem();
         if(e.key.toLowerCase() === 'r') reloadWeapon(myPlayer);
     });
     window.addEventListener('keyup', e => {
@@ -2154,11 +2528,12 @@ function initEvents() {
         keys[e.key.toLowerCase()] = false;
         if(e.key === 'Shift') keys['shift'] = false;
         if(e.key === 'Control') keys['control'] = false;
+        if(e.key.toLowerCase()==='f')myPlayer.reviveHeld=false;
     });
     canvas.addEventListener('mousemove', e => { 
         const rect = canvas.getBoundingClientRect();
-        mouse.x = e.clientX - rect.left; 
-        mouse.y = e.clientY - rect.top; 
+        mouse.x = (e.clientX - rect.left)*canvas.width/rect.width; 
+        mouse.y = (e.clientY - rect.top)*canvas.height/rect.height; 
     });
     canvas.addEventListener('contextmenu', e => e.preventDefault());
     canvas.addEventListener('mousedown', e => {
@@ -2176,6 +2551,7 @@ function initEvents() {
     });
 }
 
+window.addEventListener('blur',()=>{myPlayer.reviveHeld=false;});
 function initMobileControls() {
     if (mobileControlsInitialized) return;
     mobileControlsInitialized = true;
@@ -2306,6 +2682,10 @@ function initMobileControls() {
     }
 
     document.getElementById('btnReload').addEventListener('touchstart', (e) => { if(!isEditingKeys && !isSpectating && !isRespawning){ e.preventDefault(); reloadWeapon(myPlayer); } });
+    const reviveButton=document.getElementById('btnRevive');
+    reviveButton.addEventListener('touchstart',e=>{if(!isEditingKeys){e.preventDefault();myPlayer.reviveHeld=!!nearestDownedAlly(myPlayer);}},{passive:false});
+    for(const event of ['touchend','touchcancel'])reviveButton.addEventListener(event,()=>{myPlayer.reviveHeld=false;});
+    document.getElementById('btnDoor').addEventListener('touchstart',e=>{if(!isEditingKeys){e.preventDefault();interactDoor();}},{passive:false});
     document.getElementById('btnPickup').addEventListener('touchstart', (e) => { if(!isEditingKeys && !isSpectating && !isRespawning){ e.preventDefault(); pickupItem(); } });
     document.getElementById('btnBag').addEventListener('touchstart', (e) => { if(!isEditingKeys && !isSpectating && !isRespawning){ e.preventDefault(); toggleInventory(); } });
     document.getElementById('btnMap').addEventListener('touchstart', (e) => { if(!isEditingKeys && !isSpectating && !isRespawning){ e.preventDefault(); toggleFullMap(); } });
@@ -2352,7 +2732,32 @@ function isMedkitItemType(type) {
     return type === 'medkit' || type === 'firstaid' || type === 'first_aid' || type === 'med_kit';
 }
 
+function healingInventory() {
+    const inv=myPlayer.inventory;
+    if(!inv.healing)inv.healing={bandage:0,medkit:0};
+    // 이전 버전에서 배율 목록에 잘못 들어간 회복 아이템도 복구한다.
+    inv.scopes=(inv.scopes||[]).filter(type=>{
+        if(type==='bandage'||isMedkitItemType(type)){const key=type==='bandage'?'bandage':'medkit';inv.healing[key]=(inv.healing[key]||0)+1;return false;}
+        return !!SCOPES[type];
+    });
+    return inv.healing;
+}
+function useHealingItem(type){
+    if(myPlayer.isDowned)return;
+    if(!['bandage','medkit'].includes(type) || myPlayer.hp<=0 || myPlayer.isDead || isSpectating || gameEnded)return;
+    const bag=healingInventory();if(!bag[type] || myPlayer.hp>=myPlayer.maxHp)return;
+    bag[type]--;myPlayer.hp=Math.min(myPlayer.maxHp,myPlayer.hp+(type==='bandage'?20:60));
+    updateHUD();renderInventory();
+}
 function renderInventory() {
+    const healing=healingInventory(),list=document.getElementById('healingList');
+    list.replaceChildren();
+    for(const type of ['bandage','medkit']){
+        const button=document.createElement('button');
+        button.textContent=(type==='bandage'?'붕대':'구급상자')+' × '+(healing[type]||0)+' · 사용';
+        button.disabled=!healing[type]||myPlayer.hp>=myPlayer.maxHp;
+        button.onclick=()=>useHealingItem(type);list.appendChild(button);
+    }
     const inventoryDisplayName = (type) => {
         if (isMedkitItemType(type)) return '구급상자';
         return type;
@@ -2465,6 +2870,7 @@ function reloadWeapon(p) {
 }
 
 function pickupItem() {
+    if(myPlayer.isDowned)return;
     if (myPlayer.hp <= 0) return;
     for(let i = droppedItems.length - 1; i >= 0; i--) {
         const item = droppedItems[i];
@@ -2486,20 +2892,50 @@ function pickupItem() {
             } else if(ARMORS[item.type]) {
                 if(!myPlayer.inventory.armors) myPlayer.inventory.armors = [];
                 myPlayer.inventory.armors.push(item.type);
-            } else {
+            } else if(item.type==='bandage'||isMedkitItemType(item.type)){
+                const bag=healingInventory(),key=item.type==='bandage'?'bandage':'medkit';bag[key]=(bag[key]||0)+1;
+            } else if(SCOPES[item.type]) {
                 myPlayer.inventory.scopes.push(item.type);
             }
             
             broadcastData({ type: 'PICKUP_ITEM', itemId: item.id });
             droppedItems.splice(i, 1);
-            updateHUD();
+            updateHUD();renderInventory();
             break;
         }
     }
 }
 
+function initializeMatchRanks(participants){
+    matchHumans.clear();matchTeamRanks.clear();
+    for(const p of participants){
+        if(isAssignedSpectator(p.id))continue;
+        const team=p.teamId||p.id;
+        matchTeamRanks.set(team,null);
+        if(!isBotEntity(p))matchHumans.set(p.id,{id:p.id,name:p.name,teamId:team,kills:0,deaths:0});
+    }
+}
+function recordMatchRanks(){
+    if(!isHost || !gameStarted || isSpawnSelecting || gameEnded)return;
+    for(const p of roomHumans()){
+        const saved=matchHumans.get(p.id);
+        if(saved){saved.name=p.name;saved.kills=p.kills||0;saved.deaths=p.deaths||0;}
+    }
+    if(selectedMode!=='br')return;
+    const alive=new Set(aliveTeamKeys());
+    const remaining=[...matchTeamRanks].filter(([,rank])=>rank===null);
+    for(const [team] of remaining)if(!alive.has(team))matchTeamRanks.set(team,remaining.length);
+}
+function buildHumanRankings(){
+    const rows=[...matchHumans.values()].map(p=>({...p,rank:selectedMode==='br'?(matchTeamRanks.get(p.teamId)||1):0}));
+    rows.sort((a,b)=>(selectedMode==='br'?a.rank-b.rank:0)||b.kills-a.kills||a.deaths-b.deaths||a.id.localeCompare(b.id));
+    if(selectedMode!=='br')rows.forEach((p,i)=>{p.rank=i&&p.kills===rows[i-1].kills&&p.deaths===rows[i-1].deaths?rows[i-1].rank:i+1;});
+    return rows;
+}
 function updateHUD() {
-    const alive = aiBots.filter(b => b.hp > 0 && !b.isDead).length + (myPlayer.hp > 0 && !myPlayer.isDead ? 1 : 0) + Object.values(remotePlayers).filter(p => p.hp > 0 && !p.isDead).length;
+    recordMatchRanks();
+    const alive = countAliveCombatants();
+    updateSpectatorAliveCount();
     document.getElementById('hudAliveCount').innerText = alive;
     document.getElementById('hudKills').innerText = myPlayer.kills;
     document.getElementById('hudDeaths').innerText = myPlayer.deaths;
@@ -2512,53 +2948,44 @@ function updateHUD() {
     document.getElementById('hudArmor').innerText = myPlayer.equippedBodyArmor ? ARMORS[myPlayer.equippedBodyArmor].name : "없음";
     document.getElementById('hudZoneStage').innerText = zoneStage + "단계";
 
-    if (selectedMode === 'br' && alive === 1 && myPlayer.hp > 0 && !myPlayer.isDead && gameStarted && !gameEnded && initialPlayerCount > 1) {
+    if (selectedMode === 'br' && isHost && gameStarted && !gameEnded && !isSpawnSelecting && initialTeamCount>1 && aliveTeamKeys().length<=1) {
         triggerEndGame();
     }
 }
 
+function aliveTeamKeys(){return [...new Set([...roomHumans(),...aiBots].filter(p=>p.hp>0&&!p.isDead&&!isAssignedSpectator(p.id)).map(p=>p.teamId||p.id))];}
 function triggerEndGame() {
-    if (gameEnded) return;
-    gameEnded = true;
-
-    let participants = [
-        { name: myPlayer.name, kills: myPlayer.kills, deaths: myPlayer.deaths, isMe: true },
-        ...Object.values(remotePlayers).map(p => ({ name: p.name, kills: p.kills || 0, deaths: p.deaths || 0, isMe: false })),
-        ...aiBots.map(b => ({ name: b.name, kills: b.kills || 0, deaths: b.deaths || 0, isMe: false }))
-    ];
-
-    participants.sort((a, b) => b.kills - a.kills || a.deaths - b.deaths);
-
-    if (isHost) {
-        broadcastData({ type: 'GAME_OVER', rankings: participants });
+    if(gameEnded)return;
+    recordMatchRanks();
+    if(selectedMode==='br'){
+        winningTeam=aliveTeamKeys()[0]||null;
+        if(winningTeam)matchTeamRanks.set(winningTeam,1);
     }
-
-    displayRankings(participants);
+    const rankings=buildHumanRankings();
+    gameEnded=true;
+    if(isHost)broadcastData({type:'GAME_OVER',rankings,winningTeam,totalTeams:matchTeamRanks.size,teamMaxSize});
+    displayRankings(rankings,matchTeamRanks.size);
 }
 
-function displayRankings(rankings) {
-    gameEnded = true;
-    const title = document.getElementById('victoryTitle');
-    const rankList = document.getElementById('rankList');
-
-    if (selectedMode === 'br') {
-        title.innerText = "🏆 승리! 게임 종료! 🏆";
-    } else {
-        title.innerText = "🎯 데스매치 종료 🎯";
+function displayRankings(rankings,totalTeams=initialTeamCount) {
+    gameEnded=true;
+    const title=document.getElementById('victoryTitle'),rankList=document.getElementById('rankList');
+    // 각 접속자의 ID로 내 순위를 찾는다. 방장의 isMe 표시는 공유하지 않는다.
+    const humans=rankings.filter(p=>p.id&&!p.id.startsWith('bot_')&&!isAssignedSpectator(p.id));
+    const mine=humans.find(p=>p.id===myPlayer.id);
+    if(mine)title.innerText=selectedMode==='br'?(teamMaxSize>1?'내 팀':'내 순위')+' · '+mine.rank+'위 / '+totalTeams+'팀':'내 순위 · '+mine.rank+'위 / '+humans.length+'명';
+    else title.innerText='게임 종료 · 관전 결과';
+    rankList.replaceChildren();
+    const heading=document.createElement('div');heading.textContent=selectedMode==='br'?'전체 플레이어 · 팀 생존 순위 (봇 제외)':'전체 플레이어 순위 (봇 제외)';rankList.appendChild(heading);
+    for(const p of humans){
+        const row=document.createElement('div');row.style.color=p.id===myPlayer.id?'#00ffcc':'#ffffff';
+        const team=selectedMode==='br'?' · '+p.teamId.replace('team_','팀 '):'';
+        row.textContent='['+p.rank+'위] '+p.name+team+' · '+p.kills+'킬 / '+p.deaths+'데스';rankList.appendChild(row);
     }
-
-    let html = "";
-    rankings.forEach((p, index) => {
-        const color = p.isMe ? "#00ffcc" : "#ffffff";
-        html += `<div style="color:${color};">[${index + 1}등] ${p.name} - ${p.kills} 킬 / ${p.deaths} 데스</div>`;
-    });
-    rankList.innerHTML = html;
-
-    document.getElementById('victoryOverlay').style.display = 'block';
-    // 페이지 전체 새로고침은 일부 모바일/브라우저에서 흰 화면으로 멈추는 원인이 되므로
-    // 게임 상태만 안전하게 정리한 뒤 메인 메뉴로 직접 복귀한다.
-    if (window._returnMenuTimer) clearTimeout(window._returnMenuTimer);
-    window._returnMenuTimer = setTimeout(returnToRoomAfterGame, 5000);
+    if(!humans.length){const row=document.createElement('div');row.textContent='참가한 플레이어가 없습니다.';rankList.appendChild(row);}
+    document.getElementById('victoryOverlay').style.display='block';
+    if(window._returnMenuTimer)clearTimeout(window._returnMenuTimer);
+    window._returnMenuTimer=setTimeout(returnToRoomAfterGame,5000);
 }
 
 function returnToMainMenuAfterGame() {
@@ -2590,7 +3017,7 @@ function hasLineOfSight(p1, p2) {
     // 샘플링 대신 선분-사각형 직접 판정: 더 정확하고 봇이 많아도 훨씬 가볍다.
     const minX=Math.min(p1.x,p2.x), maxX=Math.max(p1.x,p2.x);
     const minY=Math.min(p1.y,p2.y), maxY=Math.max(p1.y,p2.y);
-    for(const obs of obstacles) {
+    for(const obs of nearbyObstacles(minX,minY,maxX,maxY)) {
         const pad=obs.type==='tree'?TREE_HITBOX_PADDING:0;
         if(maxX<obs.x-pad || minX>obs.x+obs.w+pad || maxY<obs.y-pad || minY>obs.y+obs.h+pad) continue;
         if(obs.type==='house') {
@@ -2608,6 +3035,10 @@ function addGunshotEvent(x, y, shooterId) {
 }
 
 function shoot(shooter, extraSpread = 0) {
+    const authority=isHost&&selectedMode==='br'?getCombatEntityById(shooter.id):null;
+    if(authority&&(authority.isDead||authority.isDowned||authority.reviveHeld))return;
+    if(shooter.isDowned||shooter.reviveHeld)return;
+    if(isAssignedSpectator(shooter.id))return;
     if(!shooter.weapon || shooter.clipAmmo <= 0 || shooter.isReloading) return;
     
     if(!isHost && shooter.id === myPlayer.id) {
@@ -2623,6 +3054,7 @@ function shoot(shooter, extraSpread = 0) {
     const isRunning = shooter.movementMode === 'sprint';
     const baseSpread = isRunning ? w.spread * 3.0 : w.spread;
 
+    const shotId=shooter.id+'_'+Date.now()+'_'+Math.random().toString(36).slice(2);
     for(let i=0; i < w.pellets; i++) {
         const spread = (Math.random() - 0.5) * (baseSpread + extraSpread);
         const angle = shooter.angle + spread;
@@ -2632,7 +3064,7 @@ function shoot(shooter, extraSpread = 0) {
             dx: Math.cos(angle) * w.bulletSpeed,
             dy: Math.sin(angle) * w.bulletSpeed,
             damage: w.damage,
-            ownerId: shooter.id
+            shotId,ownerId: shooter.id
         });
     }
 
@@ -2658,6 +3090,10 @@ function respawnBot(bot) {
         bot.isDead = false;
         bot.targetItem = null;
         bot.investigateTarget = null;
+        bot._brain = null;
+        bot._route = null;
+        bot._cornerEscape = null;
+        bot._avoidUntil = 0;
         bot.firstSeenTime = null;
         bot.stuckFrames = 0;
         bot.isMoving = false;
@@ -2736,17 +3172,129 @@ function isPointInDoorCorridor(house, x, y, extra = 0) {
     return Math.abs(y-cy) <= half && Math.abs(x-wx) <= depth;
 }
 
-function checkBotNavigationCollision(x, y, radius = 15, transitHouse = null) {
-    for (const obs of obstacles) {
-        const pad = obs.type === 'tree' ? TREE_HITBOX_PADDING : 0;
-        if (x + radius < obs.x-pad || x - radius > obs.x + obs.w+pad || y + radius < obs.y-pad || y - radius > obs.y + obs.h+pad) continue;
-        if (obs === transitHouse && obs.type === 'house' && isPointInDoorCorridor(obs, x, y, 5)) {
-            // 문 통과 중에는 해당 집의 문틀 모서리와 봇 원이 살짝 겹치는 정도만 허용한다.
-            continue;
+// 맵은 고정이므로 장애물의 위치만 구역별로 저장한다. 문/창문 상태는 원본 객체에서 읽는다.
+let obstacleIndexSource=null, obstacleIndexCount=-1;
+const obstacleBuckets=new Map();
+const OBSTACLE_CELL=256;
+function nearbyObstacles(minX,minY,maxX,maxY) {
+    if(obstacleIndexSource!==obstacles || obstacleIndexCount!==obstacles.length){
+        obstacleIndexSource=obstacles;obstacleIndexCount=obstacles.length;obstacleBuckets.clear();
+        for(let i=0;i<obstacles.length;i++){
+            const o=obstacles[i],pad=o.type==='tree'?TREE_HITBOX_PADDING:0;
+            for(let x=Math.floor((o.x-pad)/OBSTACLE_CELL);x<=Math.floor((o.x+o.w+pad)/OBSTACLE_CELL);x++)
+            for(let y=Math.floor((o.y-pad)/OBSTACLE_CELL);y<=Math.floor((o.y+o.h+pad)/OBSTACLE_CELL);y++){
+                const key=x+','+y;let bucket=obstacleBuckets.get(key);
+                if(!bucket)obstacleBuckets.set(key,bucket=[]);bucket.push(i);
+            }
         }
-        if (obstacleHitsCircle(obs, x, y, radius)) return true;
+    }
+    const ids=new Set();
+    for(let x=Math.floor(minX/OBSTACLE_CELL);x<=Math.floor(maxX/OBSTACLE_CELL);x++)
+    for(let y=Math.floor(minY/OBSTACLE_CELL);y<=Math.floor(maxY/OBSTACLE_CELL);y++){
+        const bucket=obstacleBuckets.get(x+','+y);if(bucket)for(const id of bucket)ids.add(id);
+    }
+    return Array.from(ids).sort((a,b)=>a-b).map(i=>obstacles[i]);
+}
+
+function checkBotNavigationCollision(x,y,radius=15) {
+    if(x<radius || y<radius || x>WORLD_SIZE-radius || y>WORLD_SIZE-radius) return true;
+    for(const obs of nearbyObstacles(x-radius,y-radius,x+radius,y+radius)){
+        const pad=obs.type==='tree'?TREE_HITBOX_PADDING:0;
+        if(x+radius<obs.x-pad || x-radius>obs.x+obs.w+pad || y+radius<obs.y-pad || y-radius>obs.y+obs.h+pad)continue;
+        if(obstacleHitsCircle(obs,x,y,radius))return true;
     }
     return false;
+}
+
+function botSegmentClear(a,b) {
+    const radius=15-1e-6;
+    if(Math.min(a.x,b.x)<15 || Math.min(a.y,b.y)<15 || Math.max(a.x,b.x)>WORLD_SIZE-15 || Math.max(a.y,b.y)>WORLD_SIZE-15)return false;
+    const candidates=nearbyObstacles(Math.min(a.x,b.x)-15,Math.min(a.y,b.y)-15,Math.max(a.x,b.x)+15,Math.max(a.y,b.y)+15);
+    // 원형 몸체가 지나가는 전체 구간을 검사한다. 표본 사이의 모서리도 놓치지 않는다.
+    for(const obs of candidates){
+        const pad=obs.type==='tree'?TREE_HITBOX_PADDING:0;
+        const rects=obs.type==='house'?getHouseWallRects(obs):[{x:obs.x-pad,y:obs.y-pad,w:obs.w+pad*2,h:obs.h+pad*2}];
+        for(const q of rects){
+            if(segmentIntersectsRect(a.x,a.y,b.x,b.y,{x:q.x-radius,y:q.y,w:q.w+radius*2,h:q.h}) ||
+               segmentIntersectsRect(a.x,a.y,b.x,b.y,{x:q.x,y:q.y-radius,w:q.w,h:q.h+radius*2}))return false;
+            for(const x of [q.x,q.x+q.w])for(const y of [q.y,q.y+q.h])
+                if(distToSegmentSquared({x,y},a,b)<radius*radius)return false;
+        }
+    }
+    return true;
+}
+
+// 문 앞까지의 경로를 먼저 구한다. 막힌 벽의 양쪽을 번갈아 고르지 않는다.
+function planBotRoute(start,goal,cell=20) {
+    const margin=500;
+    const minX=Math.max(16,Math.min(start.x,goal.x)-margin),maxX=Math.min(WORLD_SIZE-16,Math.max(start.x,goal.x)+margin);
+    const minY=Math.max(16,Math.min(start.y,goal.y)-margin),maxY=Math.min(WORLD_SIZE-16,Math.max(start.y,goal.y)+margin);
+    const heap=[], nodes=new Map();
+    function push(n){heap.push(n);let i=heap.length-1;while(i){const p=(i-1)>>1;if(heap[p].f<=n.f)break;heap[i]=heap[p];i=p;}heap[i]=n;}
+    function pop(){const n=heap[0],last=heap.pop();if(heap.length){let i=0;while(i*2+1<heap.length){let c=i*2+1;if(c+1<heap.length&&heap[c+1].f<heap[c].f)c++;if(heap[c].f>=last.f)break;heap[i]=heap[c];i=c;}heap[i]=last;}return n;}
+    const first={x:start.x,y:start.y,ix:0,iy:0,g:0,f:Math.hypot(goal.x-start.x,goal.y-start.y),parent:null};
+    nodes.set('0,0',first);push(first);
+    let count=0;
+    while(heap.length && count++<6000){
+        const n=pop();if(n.closed)continue;n.closed=true;
+        const remaining=Math.hypot(n.x-goal.x,n.y-goal.y);
+        if(remaining<cell*2 && botSegmentClear(n,goal)){
+            const path=[{x:goal.x,y:goal.y}];let p=n;
+            while(p.parent){path.push({x:p.x,y:p.y});p=p.parent;}
+            path.reverse();return path;
+        }
+        for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++){
+            if(!dx&&!dy)continue;
+            const ix=n.ix+dx,iy=n.iy+dy,key=ix+','+iy;
+            const x=start.x+ix*cell,y=start.y+iy*cell;
+            if(x<minX||x>maxX||y<minY||y>maxY)continue;
+            const prev=nodes.get(key);if(prev?.closed)continue;
+            const g=n.g+Math.hypot(dx,dy)*cell;
+            if(prev && prev.g<=g)continue;
+            if(!botSegmentClear(n,{x,y}))continue;
+            const next={ix,iy,x,y,g,f:g+Math.hypot(goal.x-x,goal.y-y),parent:n};
+            if(prev)prev.closed=true;
+            nodes.set(key,next);push(next);
+        }
+    }
+    return cell===20?planBotRoute(start,goal,10):null;
+}
+
+function walkBotRoute(bot,goal,speed) {
+    const brain=ensureBotBrain(bot);brain.movementRequested=true;
+    bot._lastNavGoal={x:goal.x,y:goal.y};
+    const now=performance.now();
+    if(bot._cornerEscape){
+        if(Math.hypot(bot.x-bot._cornerEscape.x,bot.y-bot._cornerEscape.y)<3 || now>bot._cornerEscape.until || !botSegmentClear(bot,bot._cornerEscape))bot._cornerEscape=null;
+        else goal=bot._cornerEscape;
+    }
+    if(Math.hypot(goal.x-bot.x,goal.y-bot.y)<2){bot.isMoving=false;brain.movementRequested=false;return;}
+    let next=goal;
+    if(!botSegmentClear(bot,goal)) {
+        let route=bot._route;
+        if(!route || Math.hypot(route.goal.x-goal.x,route.goal.y-goal.y)>30 ||
+            (route.points.length && !botSegmentClear(bot,route.points[0])) ||
+            (!route.points.length && now>route.retryAt)) {
+            route=bot._route={goal:{x:goal.x,y:goal.y},points:planBotRoute(bot,goal)||[],retryAt:now+1200};
+        }
+        while(route.points.length && Math.hypot(route.points[0].x-bot.x,route.points[0].y-bot.y)<2)route.points.shift();
+        if(!route.points.length){bot.isMoving=false;return;}
+        // 모서리를 가로지르지 않을 때만 가까운 경유점을 생략한다.
+        for(let i=Math.min(8,route.points.length-1);i>0;i--)if(botSegmentClear(bot,route.points[i])){route.points.splice(0,i);break;}
+        next=route.points[0];
+    } else bot._route=null;
+    const dx=next.x-bot.x,dy=next.y-bot.y,dist=Math.hypot(dx,dy);
+    const total=Math.min(speed*BOT_MOVEMENT_SCALE,dist,9.5);
+    if(dist<.001)return;
+    const n=Math.max(1,Math.ceil(total/2)),step=total/n;
+    const ox=bot.x,oy=bot.y;
+    for(let i=0;i<n;i++){
+        const x=bot.x+dx/dist*step,y=bot.y+dy/dist*step;
+        if(checkBotNavigationCollision(x,y,15)){bot._route=null;break;}
+        bot.x=x;bot.y=y;
+    }
+    bot.isMoving=Math.hypot(bot.x-ox,bot.y-oy)>.01;
+    if(bot.isMoving)bot.moveAngle=Math.atan2(bot.y-oy,bot.x-ox);
 }
 
 function beginDoorTransit(bot, house, mode) {
@@ -2763,13 +3311,17 @@ function clearDoorTransit(bot) {
 
 function getDoorTransitTarget(bot, transit) {
     const house = transit.house;
+    if(doorClosed(house)){
+        const c=getHouseDoorCenterPoint(house);
+        if(Math.hypot(bot.x-c.x,bot.y-c.y)<=80)setHouseDoor(house,true);
+    }
     const outer = getHouseDoorApproachPoint(house, true);
     const center = getHouseDoorCenterPoint(house);
     const inner = getHouseDoorApproachPoint(house, false);
     const points = transit.mode === 'enter' ? [outer, center, inner] : [inner, center, outer];
     let p = points[Math.min(transit.stage, 2)];
     let d = Math.hypot(bot.x-p.x, bot.y-p.y);
-    const threshold = transit.stage === 1 ? 13 : 20;
+    const threshold = 4;
     while (d <= threshold && transit.stage < 2) {
         transit.stage++;
         p = points[transit.stage];
@@ -2783,16 +3335,20 @@ function getAINavigationTarget(bot, target) {
     const targetHouse = getHouseContainingPoint(target.x, target.y);
     const botHouse = getHouseContainingPoint(bot.x, bot.y);
 
-    // 이미 문 통과를 시작했다면 집 판정이 문턱에서 바뀌어도 끝까지 상태를 유지한다.
-    if (bot._doorTransit) {
-        const t = bot._doorTransit;
-        const elapsed = performance.now() - (t.startedAt || 0);
-        const nowHouse = getHouseContainingPoint(bot.x, bot.y);
-        if (t.mode === 'enter' && nowHouse === t.house && t.stage >= 2) clearDoorTransit(bot);
-        else if (t.mode === 'exit' && nowHouse !== t.house && t.stage >= 2 && !isPointInDoorCorridor(t.house, bot.x, bot.y, 8)) clearDoorTransit(bot);
-        else if (elapsed < 5000) return getDoorTransitTarget(bot, t);
-        else clearDoorTransit(bot);
+    // 도착 여부는 집 내부 판정 대신 마지막 경유점으로 확인한다.
+    if(bot._doorTransit){
+        const t=bot._doorTransit;
+        const end=getHouseDoorApproachPoint(t.house,t.mode==='exit');
+        // 실내에서 목표가 바뀌면 오래된 퇴장 명령을 먼저 완료하지 않는다.
+        if(t.stage===0 && ((t.mode==='exit' && botHouse===t.house && targetHouse===t.house) ||
+            (t.mode==='enter' && botHouse!==t.house && targetHouse!==t.house))) {
+            clearDoorTransit(bot);bot._route=null;
+        }
+        else if(t.stage===2 && Math.hypot(bot.x-end.x,bot.y-end.y)<5) clearDoorTransit(bot);
+        else return getDoorTransitTarget(bot,t);
     }
+
+
 
     if (botHouse && botHouse !== targetHouse) {
         return getDoorTransitTarget(bot, beginDoorTransit(bot, botHouse, 'exit'));
@@ -2804,45 +3360,10 @@ function getAINavigationTarget(bot, target) {
     return {x:target.x, y:target.y};
 }
 
-function moveBotThroughDoor(bot, target, speed) {
-    if (!target || !target.doorTransit) return false;
-    const dx = target.x - bot.x, dy = target.y - bot.y;
-    const dist = Math.hypot(dx,dy);
-    if (dist < .35) return true;
-    const ux = dx/dist, uy = dy/dist;
-    const total = Math.min(speed * BOT_MOVEMENT_SCALE, dist);
-    // 문에서는 속도가 빨라도 2.5px 단위로 검사하여 문틀을 건너뛰지 않는다.
-    const steps = Math.max(1, Math.ceil(total / 2.5));
-    const step = total / steps;
-    let moved = false;
-    for (let i=0;i<steps;i++) {
-        const nx = bot.x + ux*step, ny = bot.y + uy*step;
-        if (!checkBotNavigationCollision(nx, ny, 11, target.house)) {
-            bot.x = nx; bot.y = ny; moved = true;
-        } else {
-            // 문 중심선에서 약간 벗어났다면 중심선 쪽으로 보정한 뒤 다시 시도한다.
-            const center = getHouseDoorCenterPoint(target.house);
-            const side = target.house.doorSide || 'bottom';
-            let cx = nx, cy = ny;
-            if (side === 'top' || side === 'bottom') cx += Math.max(-2.5, Math.min(2.5, center.x - cx));
-            else cy += Math.max(-2.5, Math.min(2.5, center.y - cy));
-            if (!checkBotNavigationCollision(cx, cy, 10, target.house)) {
-                bot.x = cx; bot.y = cy; moved = true;
-            } else break;
-        }
-    }
-    bot.angle = Math.atan2(dy,dx);
-    bot.isMoving = moved;
-    if (moved) bot.stuckFrames = 0;
-    else {
-        bot.stuckFrames = (bot.stuckFrames||0)+1;
-        // 문턱에서 오래 막히면 전이 단계를 다시 잡아 재시도한다.
-        if (bot.stuckFrames > 10 && bot._doorTransit) {
-            bot._doorTransit.stage = Math.max(0, bot._doorTransit.stage-1);
-            bot._doorTransit.startedAt = performance.now();
-            bot.stuckFrames = 0;
-        }
-    }
+function moveBotThroughDoor(bot,target,speed) {
+    if(!target?.doorTransit)return false;
+    // 0단계는 집 모서리를 돌아 문 정면에 정렬한다. 벽을 무시하지 않는다.
+    walkBotRoute(bot,target,speed);
     return true;
 }
 
@@ -2895,73 +3416,22 @@ function findBotDetourPoint(bot, goalX, goalY) {
 }
 
 function recoverStuckBot(bot) {
-    const house = getHouseContainingPoint(bot.x, bot.y);
-    if (house) {
-        const t = beginDoorTransit(bot, house, 'exit');
-        t.stage = 0;
-        t.startedAt = performance.now();
-        bot.stuckFrames = 0;
-        bot._detour = null;
-        bot._avoidUntil = 0;
-        return true;
+    bot._route=null;bot._detour=null;bot._avoidUntil=0;bot.stuckFrames=0;
+    if(bot._brain)bot._brain.zoneGoal=null;
+    if(bot._cornerEscape && performance.now()<bot._cornerEscape.until)return true;
+    const goal=bot._lastNavGoal||bot;
+    let best=null,score=-Infinity;
+    // 뒤쪽을 포함한 모든 방향에서 실제로 걸어 나갈 공간을 찾는다.
+    for(const distance of [24,40,64])for(let i=0;i<24;i++){
+        const angle=i*Math.PI/12,x=bot.x+Math.cos(angle)*distance,y=bot.y+Math.sin(angle)*distance;
+        if(!botSegmentClear(bot,{x,y}))continue;
+        const clearance=Math.min(50,getBotObstacleClearance(x,y,15));
+        const value=clearance*3-Math.hypot(goal.x-x,goal.y-y)*.05;
+        if(value>score){score=value;best={x,y,until:performance.now()+1600};}
     }
-
-    const goal = bot._lastNavGoal || {
-        x: bot.x + Math.cos(bot.angle || 0) * 220,
-        y: bot.y + Math.sin(bot.angle || 0) * 220
-    };
-
-    let detour = findBotDetourPoint(bot, goal.x, goal.y);
-    if (detour) {
-        bot._detour = detour;
-        bot._avoidUntil = 0;
-        bot.stuckFrames = 0;
-        return true;
-    }
-
-    // 16방향을 검사해서 가장 멀리 열린 쪽으로 빠진다.
-    let bestAngle = null, bestClear = 0;
-    for (let i = 0; i < 16; i++) {
-        const a = i * Math.PI / 8;
-        let clear = 0;
-        for (let d = 12; d <= 132; d += 12) {
-            const x = bot.x + Math.cos(a) * d;
-            const y = bot.y + Math.sin(a) * d;
-            if (checkBotNavigationCollision(x, y, 14, null)) break;
-            clear = d;
-        }
-        if (clear > bestClear) {
-            bestClear = clear;
-            bestAngle = a;
-        }
-    }
-
-    if (bestAngle !== null && bestClear >= 24) {
-        // 단순히 각도만 바꾸지 않고 실제 안전한 방향으로 작은 한 걸음 이동.
-        const push = Math.min(12, bestClear * .25);
-        const nx = bot.x + Math.cos(bestAngle) * push;
-        const ny = bot.y + Math.sin(bestAngle) * push;
-        if (!checkBotNavigationCollision(nx, ny, 14, null)) {
-            bot.x = nx;
-            bot.y = ny;
-        }
-        bot._detour = {
-            x: bot.x + Math.cos(bestAngle) * Math.min(bestClear, 96),
-            y: bot.y + Math.sin(bestAngle) * Math.min(bestClear, 96),
-            until: performance.now() + 1200
-        };
-        bot._avoidAngle = bestAngle;
-        bot._avoidUntil = performance.now() + 650;
-        bot.stuckFrames = 0;
-        return true;
-    }
-
-    bot.angle += Math.PI * (.55 + Math.random() * .9);
-    bot._avoidUntil = 0;
-    bot.stuckFrames = 0;
-    return false;
+    bot._cornerEscape=best;
+    return !!best;
 }
-
 
 function getBotObstacleClearance(x, y, radius = 15) {
     let minClear = Infinity;
@@ -3146,132 +3616,31 @@ function isCardinalPathClear(bot, dx, dy, distance, radius = 14) {
     return true;
 }
 
+// 기존 우회/문 통과 처리를 유지하면서 자유로운 방향으로 이동한다.
 function chooseCardinalBotDirection(bot, vx, vy) {
-    const primary = getCardinalBotDirection(vx,vy);
-    const candidates = [
-        primary,
-        {x: primary.y, y: primary.x},
-        {x:-primary.y, y:-primary.x},
-        {x:-primary.x, y:-primary.y}
-    ];
-
-    let best=null, bestScore=-Infinity;
-    const goalAngle=Math.atan2(vy,vx);
-
-    for (const c of candidates) {
-        if (c.x===0 && c.y===0) continue;
-        if (!isCardinalPathClear(bot,c.x,c.y,44,14)) continue;
-
-        const px=bot.x+c.x*18, py=bot.y+c.y*18;
-        const clearance=getBotObstacleClearance(px,py,14);
-        const a=Math.atan2(c.y,c.x);
-        let diff=a-goalAngle;
-        while(diff>Math.PI) diff-=Math.PI*2;
-        while(diff<-Math.PI) diff+=Math.PI*2;
-
-        const score=Math.cos(diff)*40 + Math.min(clearance,30)*1.8;
-        if(score>bestScore){bestScore=score;best=c;}
+    const desired = Math.atan2(vy, vx);
+    if (isBotMovePathClear(bot, desired, 32, 14)) {
+        bot._avoidUntil = 0;
+        return {x:Math.cos(desired), y:Math.sin(desired)};
     }
-    return best;
+    const angle = chooseStableBotMoveAngle(bot, desired, Math.hypot(vx,vy));
+    return angle === null ? null : {x:Math.cos(angle), y:Math.sin(angle)};
 }
 
-function moveAIBot(bot, vx, vy) {
-    const oldX=bot.x, oldY=bot.y;
-    vx*=BOT_MOVEMENT_SCALE;
-    vy*=BOT_MOVEMENT_SCALE;
+function moveAIBot(bot,vx,vy) {
     const speed=Math.hypot(vx,vy);
     if(speed<.001){bot.isMoving=false;return;}
-
-    const nowPerf=performance.now();
-    bot._lastNavGoal={x:bot.x+vx*20,y:bot.y+vy*20};
-
-    // 문 통과 중에는 기존 문 전용 이동 사용
-    if(bot._doorTransit){
-        const t=getDoorTransitTarget(bot,bot._doorTransit);
-        if(t && t.doorTransit){
-            moveBotThroughDoor(bot,t,Math.min(speed/Math.max(BOT_MOVEMENT_SCALE,.001),3.0));
-            return;
-        }
+    ensureBotBrain(bot).movementRequested=true;
+    if(bot._cornerEscape){walkBotRoute(bot,bot._lastNavGoal||bot._cornerEscape,speed);return;}
+    if(bot._doorTransit){moveBotThroughDoor(bot,getDoorTransitTarget(bot,bot._doorTransit),speed);return;}
+    // 전투 중 옆걸음도 실제로 열려 있는 방향을 사용한다.
+    let angle=Math.atan2(vy,vx);
+    if(!isBotMovePathClear(bot,angle,32,15)){
+        const candidate=chooseStableBotMoveAngle(bot,angle,speed);
+        if(candidate===null){bot.isMoving=false;recoverStuckBot(bot);if(bot._cornerEscape)walkBotRoute(bot,bot._cornerEscape,speed);return;}
+        angle=candidate;
     }
-
-    // detour가 있으면 그 방향을 4방향으로 양자화
-    let tvx=vx,tvy=vy;
-    if(bot._detour){
-        const dd=Math.hypot(bot.x-bot._detour.x,bot.y-bot._detour.y);
-        if(nowPerf>bot._detour.until || dd<18) bot._detour=null;
-        else {
-            tvx=bot._detour.x-bot.x;
-            tvy=bot._detour.y-bot.y;
-        }
-    }
-
-    let dir=chooseCardinalBotDirection(bot,tvx,tvy);
-
-    if(!dir){
-        bot._detour=findBotDetourPoint(bot,bot._lastNavGoal.x,bot._lastNavGoal.y);
-        if(bot._detour){
-            dir=chooseCardinalBotDirection(bot,bot._detour.x-bot.x,bot._detour.y-bot.y);
-        }
-    }
-
-    if(!dir){
-        bot.stuckFrames=(bot.stuckFrames||0)+1;
-        if(bot.stuckFrames>=5) recoverStuckBot(bot);
-        bot.isMoving=false;
-        return;
-    }
-
-    const total=Math.min(speed,9.5);
-    const steps=Math.max(1,Math.ceil(total/2.2));
-    const step=total/steps;
-    let moved=0;
-
-    for(let i=0;i<steps;i++){
-        const nx=bot.x+dir.x*step;
-        const ny=bot.y+dir.y*step;
-
-        if(!checkBotNavigationCollision(nx,ny,14,null) &&
-           getBotObstacleClearance(nx,ny,14)>=7){
-            bot.x=nx; bot.y=ny; moved+=step;
-            continue;
-        }
-
-        // 막히면 즉시 직각 방향만 검사
-        const turns=[
-            {x:-dir.y,y:dir.x},
-            {x:dir.y,y:-dir.x},
-            {x:-dir.x,y:-dir.y}
-        ];
-        let changed=false;
-        for(const t of turns){
-            if(isCardinalPathClear(bot,t.x,t.y,24,14)){
-                dir=t;
-                const tx=bot.x+dir.x*step;
-                const ty=bot.y+dir.y*step;
-                if(!checkBotNavigationCollision(tx,ty,14,null) &&
-                   getBotObstacleClearance(tx,ty,14)>=7){
-                    bot.x=tx; bot.y=ty; moved+=step; changed=true;
-                    break;
-                }
-            }
-        }
-        if(!changed) break;
-    }
-
-    bot.angle=Math.atan2(dir.y,dir.x);
-    const actual=Math.hypot(bot.x-oldX,bot.y-oldY);
-    bot.isMoving=actual>.05;
-
-    if(actual<Math.min(1.0,total*.25)) bot.stuckFrames=(bot.stuckFrames||0)+1;
-    else bot.stuckFrames=Math.max(0,(bot.stuckFrames||0)-2);
-
-    if((bot.stuckFrames||0)>=4 && !bot._detour){
-        bot._detour=findBotDetourPoint(bot,bot._lastNavGoal.x,bot._lastNavGoal.y);
-    }
-    if((bot.stuckFrames||0)>=8){
-        recoverStuckBot(bot);
-        bot.stuckFrames=0;
-    }
+    walkBotRoute(bot,{x:bot.x+Math.cos(angle)*32,y:bot.y+Math.sin(angle)*32},speed);
 }
 
 let lastAIUpdateAt = 0;
@@ -3282,7 +3651,13 @@ function ensureBotBrain(bot) {
         state:'patrol', targetId:null, lastKnown:null, lastSeenAt:0,
         reactionUntil:0, strafeDir:Math.random()<.5?-1:1, strafeUntil:0,
         patrol:null, patrolUntil:0, cover:null, coverUntil:0,
-        decisionAt:0, lastX:bot.x, lastY:bot.y, stillSince:performance.now()
+        decisionAt:0, lastX:bot.x, lastY:bot.y, stillSince:performance.now(),
+        personality: { aggression:.7+Math.random()*.6, caution:.75+Math.random()*.5,
+            aimSkill:.8+Math.random()*.4, turnSpeed:2.8+Math.random()*1.8 },
+        aimAngle:bot.angle || 0, aimBias:0, aimBiasGoal:0, aimNoiseAt:0,
+        burstLeft:0, burstPauseUntil:0, scanAt:0, observed:null,
+        lastHeardAt:0, lastHp:bot.hp, hurtUntil:0, holdUntil:0,
+        movementRequested:false
     };
     if (bot._brain) {
         if (bot._brain.lastEnemyX === undefined) bot._brain.lastEnemyX = null;
@@ -3308,21 +3683,86 @@ function getBotWeaponRange(bot) {
     return {ideal:430,min:190,max:820,vision:1200};
 }
 
+function botAngleDelta(to, from) {
+    return Math.atan2(Math.sin(to-from), Math.cos(to-from));
+}
+
+function turnBotAim(bot, brain, desired, dt) {
+    const limit=brain.personality.turnSpeed*(AI_DIFFICULTY[aiDifficulty]?.turnMult||1)*dt;
+    brain.aimAngle += Math.max(-limit, Math.min(limit, botAngleDelta(desired,brain.aimAngle)));
+    brain.aimAngle=botAngleDelta(brain.aimAngle,0);
+    bot.angle=brain.aimAngle;
+}
+
 function chooseBotEnemy(bot, brain) {
+    const now=Date.now();
     const range=getBotWeaponRange(bot);
+    // 인지는 7~10Hz. 캐시에는 실제 객체 대신 마지막 관측 좌표만 저장한다.
+    if(now<brain.scanAt) {
+        const t=brain.observed;
+        const live=t&&getCombatEntityById(t.id);
+        if(live && live.hp>0 && !live.isDead && !!live.isDowned===!!t.isDowned && hasLineOfSight(bot,t))return t;
+        brain.scanAt=0;
+    }
+    brain.scanAt=now+100+Math.random()*50;
     let best=null, bestScore=Infinity;
     for(const t of getBotEnemies(bot)) {
         const d=Math.hypot(t.x-bot.x,t.y-bot.y);
         if(d>range.vision) continue;
-        const visible=hasLineOfSight(bot,t);
-        if(!visible) continue;
-        let score=d;
-        if(brain.targetId===t.id) score-=150;
-        if(t.hp < t.maxHp*.35) score-=90;
-        if(d<range.min*.55) score+=120;
+        const offset=Math.abs(botAngleDelta(Math.atan2(t.y-bot.y,t.x-bot.x),brain.aimAngle));
+        // 가까운 적 외에는 전방 약 150도 안에서만 발견한다.
+        if(d>110 && offset>Math.PI*.42) continue;
+        if(!hasLineOfSight(bot,t)) continue;
+        const score=(t.isDowned?100000:0)+d-(brain.targetId===t.id?180:0);
         if(score<bestScore){bestScore=score;best=t;}
     }
-    return best;
+    brain.observed=best ? {id:best.id,x:best.x,y:best.y,isDowned:!!best.isDowned} : null;
+    return brain.observed;
+}
+
+function listenForBotThreats(bot,brain,now) {
+    let newest=null;
+    for(const snd of gunshotEvents) {
+        if(snd.time<=brain.lastHeardAt || now-snd.time>1200 || snd.shooterId===bot.id) continue;
+        const shooter=getCombatEntityById(snd.shooterId);
+        if(shooter && areAllies(bot,shooter)) continue;
+        const d=Math.hypot(snd.x-bot.x,snd.y-bot.y);
+        if(d>1400 || d<30) continue;
+        if(!newest || snd.time>newest.time) newest=snd;
+    }
+    if(!newest) return;
+    brain.lastHeardAt=newest.time;
+    if(now-brain.lastSeenAt<900) return;
+    // 소리는 대략적인 방향만 알려준다. 같은 총소리로 기억 시간을 연장하지 않는다.
+    const error=45+Math.hypot(newest.x-bot.x,newest.y-bot.y)*.1;
+    const a=Math.random()*Math.PI*2, r=error*(.5+Math.random()*.5);
+    bot.investigateTarget={x:Math.max(25,Math.min(WORLD_SIZE-25,newest.x+Math.cos(a)*r)),
+        y:Math.max(25,Math.min(WORLD_SIZE-25,newest.y+Math.sin(a)*r)),time:newest.time};
+}
+
+function updateHumanBotAim(bot,brain,enemy,diff,now,dt) {
+    const w=WEAPONS[bot.weapon];
+    const distance=Math.hypot(enemy.x-bot.x,enemy.y-bot.y);
+    const travelMs=Math.min(160,distance/(w.bulletSpeed*60)*1000);
+    const desired=Math.atan2(enemy.y+brain.enemyVy*travelMs*.7-bot.y,
+        enemy.x+brain.enemyVx*travelMs*.7-bot.x);
+    if(now>=brain.aimNoiseAt) {
+        brain.aimNoiseAt=now+200+Math.random()*250;
+        brain.aimBiasGoal=(Math.random()-.5)*diff.spread/brain.personality.aimSkill;
+    }
+    brain.aimBias+=(brain.aimBiasGoal-brain.aimBias)*Math.min(1,dt*5);
+    turnBotAim(bot,brain,desired+brain.aimBias,dt);
+    if(now<brain.reactionUntil || now<brain.burstPauseUntil || bot.isReloading || bot.clipAmmo<=0) return;
+    if(distance>getBotWeaponRange(bot).max || Math.abs(botAngleDelta(desired,bot.angle))>.1+diff.spread) return;
+    if(!hasLineOfSight(bot,enemy)) return;
+    // 실제 조준 방향까지 확인해서 아군 앞에서는 방아쇠를 놓는다.
+    const endpoint={x:bot.x+Math.cos(bot.angle)*distance,y:bot.y+Math.sin(bot.angle)*distance};
+    if(isFriendlyInFireLane(bot,enemy) || isFriendlyInFireLane(bot,endpoint)) return;
+    if(now-(bot.lastShootTime||0)<w.cooldown) return;
+    if(brain.burstLeft<=0) brain.burstLeft=bot.weapon==='ar'?2+Math.floor(Math.random()*4):1;
+    shoot(bot,diff.spread*.35+(bot.isMoving?.025:0));
+    bot.lastShootTime=now;
+    if(--brain.burstLeft<=0) brain.burstPauseUntil=now+(bot.weapon==='ar'?240+Math.random()*420:100+Math.random()*200);
 }
 
 function isFriendlyInFireLane(bot, enemy) {
@@ -3360,13 +3800,12 @@ function findBotCoverPoint(bot, enemy) {
     return best;
 }
 
-function moveBotToward(bot, target, speed, mode='sprint') {
-    if(!target) return false;
-    const navTarget=getAINavigationTarget(bot,target)||target;
-    bot.angle=Math.atan2(navTarget.y-bot.y,navTarget.x-bot.x);
+function moveBotToward(bot,target,speed,mode='sprint') {
+    if(!target)return false;
     bot.movementMode=mode;
-    if(moveBotThroughDoor(bot,navTarget,speed)) return true;
-    moveAIBot(bot,Math.cos(bot.angle)*speed,Math.sin(bot.angle)*speed);
+    if(mode==='sprint')speed=Math.min(4.6,speed*1.45);
+    const navTarget=getAINavigationTarget(bot,target)||target;
+    walkBotRoute(bot,navTarget,speed);
     return true;
 }
 
@@ -3408,41 +3847,68 @@ function chooseBotEmergencySupply(bot) {
     return best;
 }
 
+function botLootPriority(bot,item) {
+    if(['ar','shotgun','sniper'].includes(item.type))return !botHasUsableAmmo(bot)?0:Infinity;
+    if(item.type===getAmmoItemTypeForWeapon(bot.weapon) && bot.reserveAmmo<WEAPONS[bot.weapon].maxClip*2)return 120;
+    if(SCOPES[item.type] && (!bot.equippedScope || SCOPES[item.type].viewOffset>SCOPES[bot.equippedScope].viewOffset))return 260;
+    if(ARMORS[item.type]){
+        const current=item.type.startsWith('body_')?bot.equippedBodyArmor:bot.equippedHelmet;
+        if(!current || ARMORS[item.type].reduction>ARMORS[current].reduction)return 320;
+    }
+    if((item.type==='bandage' || isMedkitItemType(item.type)) && bot.hp<bot.maxHp)return 100;
+    return Infinity;
+}
+
 function chooseBotLoot(bot) {
-    let best=null, score=Infinity;
+    let best=null,score=Infinity;
+    const house=getHouseContainingPoint(bot.x,bot.y);
     for(const item of droppedItems){
         const d=Math.hypot(item.x-bot.x,item.y-bot.y);
-        if(d>2600) continue;
-        let priority=9999;
-        if(!bot.weapon && ['ar','shotgun','sniper'].includes(item.type)) priority=0;
-        else if(bot.weapon && bot.reserveAmmo < (WEAPONS[bot.weapon]?.maxClip||20)*1.5 && item.type.startsWith('ammo_')) priority=120;
-        else if(!bot.equippedScope && /^\d+x$/.test(item.type)) priority=260;
-        else if(!bot.equippedBodyArmor && item.type.startsWith('body_')) priority=320;
-        else if(!bot.equippedHelmet && item.type.startsWith('helmet_')) priority=340;
-        if(priority===9999) continue;
-        const sc=priority+d;
+        if(d>2600)continue;
+        // 안전지대 밖 보급품 때문에 들어갔다 나오는 루프를 방지한다.
+        if(selectedMode==='br' && Math.hypot(item.x-zone.x,item.y-zone.y)>zone.radius-Math.min(260,zone.radius*.25))continue;
+        const priority=botLootPriority(bot,item);
+        if(!Number.isFinite(priority))continue;
+        const sameHouse=house && isPointInsideHouse(item.x,item.y,house,(house.wallThickness||18)+2);
+        const sc=priority+d-(sameHouse?650:0);
         if(sc<score){score=sc;best=item;}
     }
     return best;
 }
 
 function botPickupItem(bot,item){
-    if(!item) return;
+    if(!item || !droppedItems.includes(item) || Math.hypot(bot.x-item.x,bot.y-item.y)>36 ||
+        !botSegmentClear(bot,item))return false;
     if(['ar','sniper','shotgun'].includes(item.type)){
-        bot.weapon=item.type; bot.clipAmmo=WEAPONS[item.type].maxClip; bot.reserveAmmo=Math.max(bot.reserveAmmo||0,WEAPONS[item.type].maxClip*2);
-    } else if(item.type.startsWith('ammo_')) {
-        const needed=getAmmoItemTypeForWeapon(bot.weapon);
-        if(!needed || item.type===needed) bot.reserveAmmo=(bot.reserveAmmo||0)+30;
+        if(bot.isReloading)return false;
+        bot.weapon=item.type;bot.clipAmmo=WEAPONS[item.type].maxClip;bot.reserveAmmo=WEAPONS[item.type].maxClip*2;
+    } else if(item.type===getAmmoItemTypeForWeapon(bot.weapon))bot.reserveAmmo=(bot.reserveAmmo||0)+30;
+    else if(SCOPES[item.type])bot.equippedScope=item.type;
+    else if(item.type.startsWith('body_'))bot.equippedBodyArmor=item.type;
+    else if(item.type.startsWith('helmet_'))bot.equippedHelmet=item.type;
+    else if(item.type==='bandage' || isMedkitItemType(item.type))bot.hp=Math.min(bot.maxHp,bot.hp+(item.type==='bandage'?20:60));
+    else return false;
+    droppedItems.splice(droppedItems.indexOf(item),1);
+    broadcastData({type:'PICKUP_ITEM',itemId:item.id});
+    if(bot.targetItem===item)bot.targetItem=null;
+    return true;
+}
+
+function updateBotLoot(bot,brain,diff) {
+    if(bot.targetItem && selectedMode==='br' && Math.hypot(bot.targetItem.x-zone.x,bot.targetItem.y-zone.y)>zone.radius-Math.min(260,zone.radius*.25))bot.targetItem=null;
+    if(!bot.targetItem || !droppedItems.includes(bot.targetItem) || !Number.isFinite(botLootPriority(bot,bot.targetItem)))bot.targetItem=chooseBotLoot(bot);
+    if(!bot.targetItem)return false;
+    const item=bot.targetItem;
+    brain.state='loot';
+    if(!botPickupItem(bot,item)){
+        moveBotToward(bot,item,1.85*diff.speedMult,'walk');
+        botPickupItem(bot,item);
     }
-    else if(/^\d+x$/.test(item.type)) bot.equippedScope=item.type;
-    else if(item.type.startsWith('body_')) bot.equippedBodyArmor=item.type;
-    else if(item.type.startsWith('helmet_')) bot.equippedHelmet=item.type;
-    const idx=droppedItems.findIndex(i=>i.id===item.id);
-    if(idx!==-1){ droppedItems.splice(idx,1); broadcastData({type:'PICKUP_ITEM',itemId:item.id}); }
-    bot.targetItem=null;
+    return true;
 }
 
 function updateBotStuckRecovery(bot, brain, nowPerf) {
+    if(!brain.movementRequested){brain.lastX=bot.x;brain.lastY=bot.y;brain.stillSince=nowPerf;return;}
     const moved = Math.hypot(bot.x - brain.lastX, bot.y - brain.lastY);
 
     if (moved > 1.2) {
@@ -3464,49 +3930,158 @@ function updateBotStuckRecovery(bot, brain, nowPerf) {
     }
 }
 
+function chooseBotZoneGoal(bot,brain) {
+    const cached=brain.zoneGoal;
+    if(cached && Math.hypot(bot.x-cached.x,bot.y-cached.y)>22 &&
+        Math.hypot(cached.x-zone.x,cached.y-zone.y)<Math.hypot(bot.x-zone.x,bot.y-zone.y)-5 &&
+        !checkBotNavigationCollision(cached.x,cached.y,18))return cached;
+    const d=Math.hypot(zone.x-bot.x,zone.y-bot.y),base=Math.atan2(zone.y-bot.y,zone.x-bot.x);
+    let best=null,score=Infinity;
+    // 먼 중심점 하나 대신 장애물 밖의 가까운 경유점을 선택한다.
+    for(const len of [Math.min(360,Math.max(10,d-zone.radius*.45)),Math.min(d,160),Math.min(d,80),Math.min(d,40),d*.65]){
+        for(const off of [0,.35,-.35,.7,-.7,1.05,-1.05,1.4,-1.4]){
+            const x=bot.x+Math.cos(base+off)*len,y=bot.y+Math.sin(base+off)*len;
+            const remaining=Math.hypot(x-zone.x,y-zone.y);
+            if(remaining>=d-Math.min(5,d*.2) || checkBotNavigationCollision(x,y,18) || getHouseContainingPoint(x,y))continue;
+            const cost=remaining+Math.abs(off)*20;
+            if(cost<score){score=cost;best={x,y};}
+        }
+    }
+    // 집 내부에서는 문 밖까지 먼저 나간 뒤 안전지대 경로를 다시 고른다.
+    const house=getHouseContainingPoint(bot.x,bot.y);
+    brain.zoneGoal=best || (house?getHouseDoorApproachPoint(house,true):null);
+    return brain.zoneGoal;
+}
+
+function findBotCoverTactic(bot,enemy) {
+    let best=null,score=Infinity;
+    const candidates=[];
+    const old=findBotCoverPoint(bot,enemy);if(old)candidates.push(old);
+    for(const o of nearbyObstacles(bot.x-360,bot.y-360,bot.x+360,bot.y+360)){
+        const pad=(o.type==='tree'?TREE_HITBOX_PADDING:0)+24;
+        for(const x of [o.x-pad,o.x+o.w+pad])for(const y of [o.y-pad,o.y+o.h+pad])candidates.push({x,y});
+        candidates.push({x:o.x-pad,y:o.y+o.h/2},{x:o.x+o.w+pad,y:o.y+o.h/2},
+            {x:o.x+o.w/2,y:o.y-pad},{x:o.x+o.w/2,y:o.y+o.h+pad});
+    }
+    for(const cover of candidates){
+        const distance=Math.hypot(cover.x-bot.x,cover.y-bot.y);
+        if(distance>360 || hasLineOfSight(enemy,cover) || !botSegmentClear(bot,cover))continue;
+        if(selectedMode==='br' && Math.hypot(cover.x-zone.x,cover.y-zone.y)>zone.radius-30)continue;
+        for(const radius of [36,64,96])for(let i=0;i<16;i++){
+            const a=i*Math.PI/8,peek={x:cover.x+Math.cos(a)*radius,y:cover.y+Math.sin(a)*radius};
+            if(!botSegmentClear(cover,peek) || !hasLineOfSight(peek,enemy))continue;
+            if(selectedMode==='br' && Math.hypot(peek.x-zone.x,peek.y-zone.y)>zone.radius-30)continue;
+            const cost=distance+radius*.5;
+            if(cost<score){score=cost;best={cover,peek,enemyId:enemy.id,enemy:{...enemy},phase:'approach',until:0,expires:Date.now()+6500};}
+        }
+    }
+    return best;
+}
+
+function updateBotCoverCombat(bot,brain,enemy,diff,now,dt,visible=true) {
+    if(!botHasUsableAmmo(bot) || bot.isReloading)return false;
+    let tactic=brain.tacticalCover;
+    if(tactic && (now>tactic.expires || tactic.enemyId!==enemy.id || Math.hypot(tactic.enemy.x-enemy.x,tactic.enemy.y-enemy.y)>180))tactic=brain.tacticalCover=null;
+    if(!tactic){
+        if(!visible || now<(brain.coverSearchAt||0))return false;
+        brain.coverSearchAt=now+1800;
+        tactic=brain.tacticalCover=findBotCoverTactic(bot,enemy);
+    }
+    if(!tactic)return false;
+    const cover=tactic.cover,peek=tactic.peek;
+    if(checkBotNavigationCollision(cover.x,cover.y,15) || !botSegmentClear(cover,peek)){brain.tacticalCover=null;return false;}
+    brain.state='cover_combat';
+    if(tactic.phase==='approach' || tactic.phase==='return'){
+        moveBotToward(bot,cover,3.2*diff.speedMult,'sprint');
+        if(Math.hypot(bot.x-cover.x,bot.y-cover.y)<8){tactic.phase='hide';tactic.until=now+400+Math.random()*500;}
+    }else if(tactic.phase==='hide'){
+        bot.isMoving=false;brain.movementRequested=false;bot.movementMode='walk';
+        if(now>=tactic.until)tactic.phase='peek';
+    }else if(tactic.phase==='peek'){
+        moveBotToward(bot,peek,1.7*diff.speedMult,'walk');
+        if(Math.hypot(bot.x-peek.x,bot.y-peek.y)<8){tactic.phase='fire';tactic.until=now+650+Math.random()*550;}
+    }else if(tactic.phase==='fire'){
+        bot.isMoving=false;brain.movementRequested=false;bot.movementMode='walk';
+        if(now>=tactic.until)tactic.phase='return';
+    }
+    // 다시 몸을 내민 자리에서 한 번 더 인지 갱신을 기다린 뒤 마지막 목격 방향으로 수색한다.
+    if(tactic.phase==='fire'){
+        if(visible)tactic.missingSince=0;
+        else {
+            if(!tactic.missingSince)tactic.missingSince=now;
+            if(now-tactic.missingSince>=250 && brain.lastKnown){
+                brain.tacticalCover=null;
+                brain.cover=null;
+                brain.coverSearchAt=now+1600;
+                brain.searchAfterPeekUntil=now+4200;
+                brain.predictedUntil=brain.searchAfterPeekUntil;
+                brain.state='predictive_search';
+                bot._route=null;
+                return false;
+            }
+        }
+    }
+    // 엄폐 이동과 복귀 중에도 보이는 적을 조준하며 사격한다.
+    if(visible)updateHumanBotAim(bot,brain,enemy,diff,now,dt);
+    else turnBotAim(bot,brain,Math.atan2(enemy.y-bot.y,enemy.x-bot.x),dt);
+    return true;
+}
+
 function updateAI() {
     if(!isHost || isSpawnSelecting) return;
     const perfNow=performance.now();
     if(perfNow-lastAIUpdateAt<AI_UPDATE_INTERVAL) return;
+    const aimDt=Math.min(.08,Math.max(.016,(perfNow-lastAIUpdateAt)/1000));
     lastAIUpdateAt=perfNow;
     const now=Date.now();
-    const diff=AI_DIFFICULTY[aiDifficulty];
+    const diff=AI_DIFFICULTY[aiDifficulty] || AI_DIFFICULTY.easy;
 
     for(let i=aiBots.length-1;i>=0;i--){
         const bot=aiBots[i];
-        if(bot.isDead) continue;
+        if(bot.isDead||bot.isDowned) continue;
         const brain=ensureBotBrain(bot);
         updateBotStuckRecovery(bot,brain,perfNow);
+        brain.movementRequested=false;
+        bot.isMoving=false;
+        if(bot.hp<brain.lastHp) brain.hurtUntil=now+1300;
+        brain.lastHp=bot.hp;
+        try {
 
-        // 안전지대는 생존 판단에서 가장 우선한다.
+        let returningToZone=false;
+        // 안전지대로 이동해도 적 관측과 사격은 계속한다.
         if(selectedMode==='br'){
             const dz=Math.hypot(bot.x-zone.x,bot.y-zone.y);
             if(dz>zone.radius){
-                bot.hp-=0.3*zoneStage;
-                if(bot.hp<=0){spawnBloodParticles(bot.x,bot.y);aiBots.splice(i,1);updateHUD();continue;}
+                applyBattleDamage(bot,0.3*zoneStage,null);
+                if(bot.isDead||bot.isDowned)continue;
             }
-            if(dz>zone.radius-260){
-                brain.state='zone'; brain.targetId=null;
-                moveBotToward(bot,{x:zone.x,y:zone.y},2.7*diff.speedMult,'sprint');
-                continue;
+            const margin=Math.min(260,zone.radius*(zone.radius<220?.08:.25));
+            if(dz>zone.radius-margin)brain.returningToZone=true;
+            else if(dz<zone.radius-margin*1.5)brain.returningToZone=false;
+            if(brain.returningToZone){
+                returningToZone=true;
+                brain.state='zone';brain.tacticalCover=null;
+                const zoneGoal=chooseBotZoneGoal(bot,brain);
+                if(zoneGoal)moveBotToward(bot,zoneGoal,2.7*diff.speedMult,'sprint');
+                else {brain.zoneGoal=null;brain.movementRequested=false;}
             }
         }
 
-        // 총소리는 마지막 목격 정보가 없을 때 조사 대상으로 사용한다.
-        for(const snd of gunshotEvents){
-            const shooter=getCombatEntityById(snd.shooterId);
-            if(shooter && areAllies(bot,shooter)) continue;
-            const d=Math.hypot(snd.x-bot.x,snd.y-bot.y);
-            if(d<2100 && d>70 && (!brain.lastKnown || now-brain.lastSeenAt>1500)){
-                bot.investigateTarget={x:snd.x,y:snd.y,time:now};
-            }
+        // 가까이 있는 필요한 물건은 전투/소리 조사로 상태가 바뀌어도 먼저 줍는다.
+        for(const item of droppedItems.slice()){
+            if(Math.hypot(item.x-bot.x,item.y-bot.y)<=36 && Number.isFinite(botLootPriority(bot,item)))botPickupItem(bot,item);
         }
+        listenForBotThreats(bot,brain,now);
+        listenForBotFootsteps(bot,brain,now);
 
         const enemy=chooseBotEnemy(bot,brain);
         if(enemy){
+            brain.searchAfterPeekUntil=0;
             const range=getBotWeaponRange(bot);
             const d=Math.hypot(enemy.x-bot.x,enemy.y-bot.y);
-            if(brain.targetId!==enemy.id){
+            if(brain.targetId!==enemy.id || now-brain.lastSeenAt>650){
+                brain.lastEnemyX=null; brain.lastEnemyY=null; brain.enemyVx=0; brain.enemyVy=0;
+                brain.burstLeft=0; brain.burstPauseUntil=0;
                 brain.targetId=enemy.id;
                 brain.reactionUntil=now+Math.max(120,diff.delay*(0.55+Math.random()*.45));
                 brain.strafeDir=Math.random()<.5?-1:1;
@@ -3517,8 +4092,8 @@ function updateAI() {
                 const rawVx = (enemy.x - brain.lastEnemyX) / dt;
                 const rawVy = (enemy.y - brain.lastEnemyY) / dt;
                 // 순간 튐을 줄이기 위한 간단한 저역통과 필터
-                brain.enemyVx = (brain.enemyVx || 0) * 0.65 + rawVx * 0.35;
-                brain.enemyVy = (brain.enemyVy || 0) * 0.65 + rawVy * 0.35;
+                brain.enemyVx = (brain.enemyVx || 0) * 0.65 + Math.max(-.5,Math.min(.5,rawVx)) * 0.35;
+                brain.enemyVy = (brain.enemyVy || 0) * 0.65 + Math.max(-.5,Math.min(.5,rawVy)) * 0.35;
             }
             brain.lastEnemyX = enemy.x;
             brain.lastEnemyY = enemy.y;
@@ -3527,6 +4102,14 @@ function updateAI() {
             brain.lastSeenAt = now;
             brain.predictedUntil = now + 4200;
             bot.investigateTarget=null;
+
+            if(returningToZone){
+                if(botHasGun(bot)){
+                    if(bot.clipAmmo<=0 && bot.reserveAmmo>0 && !bot.isReloading)reloadWeapon(bot);
+                    updateHumanBotAim(bot,brain,enemy,diff,now,aimDt);
+                }
+                continue;
+            }
 
             // 적을 만났더라도 총이 없거나 사용할 탄약이 전혀 없으면 싸우지 않고 무장부터 한다.
             // 장전 가능한 예비탄이 있으면 아이템을 찾지 않고 즉시 재장전한다.
@@ -3555,9 +4138,17 @@ function updateAI() {
             }
             bot.targetItem=null;
 
+            // 최종 원에서는 총의 평소 교전 거리까지 물러날 공간이 없다.
+            if(selectedMode==='br' && zone.radius<range.min*1.5){
+                brain.state='combat';brain.tacticalCover=null;brain.movementRequested=false;bot.isMoving=false;
+                if(bot.clipAmmo<=0 && bot.reserveAmmo>0 && !bot.isReloading)reloadWeapon(bot);
+                updateHumanBotAim(bot,brain,enemy,diff,now,aimDt);
+                continue;
+            }
+
             // 탄창이 비었거나 매우 적으면 엄폐하면서 재장전한다.
             const w=WEAPONS[bot.weapon];
-            if(w && bot.clipAmmo<=Math.max(0,Math.floor(w.maxClip*.12)) && bot.reserveAmmo>0){
+            if(bot.isReloading || (w && bot.clipAmmo<=Math.max(0,Math.floor(w.maxClip*.12)) && bot.reserveAmmo>0)){
                 if(!bot.isReloading) reloadWeapon(bot);
                 if(!brain.cover || now>brain.coverUntil){ brain.cover=findBotCoverPoint(bot,enemy); brain.coverUntil=now+1800; }
                 if(brain.cover) moveBotToward(bot,brain.cover,2.35*diff.speedMult,'sprint');
@@ -3570,38 +4161,57 @@ function updateAI() {
             }
 
             // 체력이 낮으면 가까운 엄폐물을 우선한다.
-            if(bot.hp < bot.maxHp*.28){
+            if(bot.hp < bot.maxHp*.38*brain.personality.caution || now<brain.hurtUntil){
                 if(!brain.cover || now>brain.coverUntil){ brain.cover=findBotCoverPoint(bot,enemy); brain.coverUntil=now+2200; }
                 if(brain.cover){ brain.state='retreat'; moveBotToward(bot,brain.cover,2.55*diff.speedMult,'sprint'); continue; }
             }
 
+            if(updateBotCoverCombat(bot,brain,enemy,diff,now,aimDt))continue;
             brain.state='combat';
-            bot.angle=Math.atan2(enemy.y-bot.y,enemy.x-bot.x);
-            if(d>range.ideal*1.18){
+            // 조준 방향은 updateHumanBotAim에서만 갱신한다.
+            if(d>range.ideal*1.18/brain.personality.aggression){
                 moveBotToward(bot,enemy,2.25*diff.speedMult,'sprint');
             } else if(d<range.min){
                 const away=Math.atan2(bot.y-enemy.y,bot.x-enemy.x);
                 bot.movementMode='sprint';
                 moveAIBot(bot,Math.cos(away)*2.15*diff.speedMult,Math.sin(away)*2.15*diff.speedMult);
+            } else if(now<brain.holdUntil) {
+                bot.movementMode='walk';
             } else {
+                if(now>brain.strafeUntil && Math.random()<.3) brain.holdUntil=now+220+Math.random()*480;
                 if(now>brain.strafeUntil){brain.strafeUntil=now+550+Math.random()*750;if(Math.random()<.35)brain.strafeDir*=-1;}
                 const a=Math.atan2(enemy.y-bot.y,enemy.x-bot.x)+brain.strafeDir*Math.PI/2;
                 bot.movementMode='walk';
                 moveAIBot(bot,Math.cos(a)*1.35*diff.speedMult,Math.sin(a)*1.35*diff.speedMult);
-                bot.angle=Math.atan2(enemy.y-bot.y,enemy.x-bot.x);
+                // 조준 방향은 updateHumanBotAim에서만 갱신한다.
             }
 
-            if(now>=brain.reactionUntil && w && !bot.isReloading && bot.clipAmmo>0 && hasLineOfSight(bot,enemy) && !isFriendlyInFireLane(bot,enemy)){
-                if(now-(bot.lastShootTime||0)>=w.cooldown){
-                    bot.angle=Math.atan2(enemy.y-bot.y,enemy.x-bot.x);
-                    // 이동 중에는 아주 약간 더 흔들려 인간적인 명중률을 만든다.
-                    const humanSpread=diff.spread + (bot.isMoving?0.018:0) + (bot.weapon==='sniper'&&d<350?0.025:0);
-                    shoot(bot,humanSpread); bot.lastShootTime=now;
-                }
-            }
+            updateHumanBotAim(bot,brain,enemy,diff,now,aimDt);
+
             continue;
         }
 
+        if(returningToZone)continue;
+
+        // 엄폐 뒤에서는 마지막으로 목격한 위치만 사용해 다음 노출 동작을 이어간다.
+        if(brain.tacticalCover && brain.lastKnown && now-brain.lastSeenAt<4200 &&
+            updateBotCoverCombat(bot,brain,{id:brain.targetId,...brain.lastKnown},diff,now,aimDt,false))continue;
+
+        // 무장 전에는 소리나 사라진 적을 쫓아 보급 목표를 포기하지 않는다.
+        // 이미 집 안에서 확보한 보급 목표도 보이는 적이 없으면 끝까지 처리한다.
+        const lootHouse=getHouseContainingPoint(bot.x,bot.y);
+        if((!botHasUsableAmmo(bot) || (lootHouse && !bot.isReloading && now>=(brain.searchAfterPeekUntil||0))) && updateBotLoot(bot,brain,diff))continue;
+
+        // 적이 가려졌다고 재장전/후퇴 중 엄폐 밖으로 바로 뛰어나가지 않는다.
+        if(brain.cover && (bot.isReloading || (brain.state==='retreat' && now<brain.coverUntil))) {
+            if(Math.hypot(bot.x-brain.cover.x,bot.y-brain.cover.y)>18)
+                moveBotToward(bot,brain.cover,2.1*diff.speedMult,'walk');
+            else {
+                bot.movementMode='walk';
+                if(brain.lastKnown) bot.angle=Math.atan2(brain.lastKnown.y-bot.y,brain.lastKnown.x-bot.x);
+            }
+            continue;
+        }
         // 적을 한 번 봤다면 시야에서 사라져도 마지막 이동 방향을 추정해서 계속 추적한다.
         if (brain.lastKnown && now < (brain.predictedUntil || brain.lastSeenAt + 4200)) {
             brain.state='predictive_search';
@@ -3636,7 +4246,9 @@ function updateAI() {
 
             // 예측 지점에 도착하면 잠깐 주변을 훑고, 오래 못 찾으면 추적을 종료한다.
             if (Math.hypot(bot.x - px, bot.y - py) < 58) {
-                bot.angle += (Math.random() - .5) * 1.8;
+                brain.movementRequested=false;
+                bot.isMoving=false;
+                bot.angle=brain.aimAngle+Math.sin(now*.002)*.5;
                 if (unseenMs > 3000) {
                     brain.lastKnown = null;
                     brain.targetId = null;
@@ -3656,17 +4268,13 @@ function updateAI() {
             continue;
         }
 
-        // 비전투 상태에서는 필요한 장비를 자연스럽게 챙긴다.
-        if(!bot.targetItem || !droppedItems.includes(bot.targetItem)) bot.targetItem=chooseBotLoot(bot);
-        if(bot.targetItem){
-            brain.state='loot';
-            moveBotToward(bot,bot.targetItem,1.85*diff.speedMult,'walk');
-            if(Math.hypot(bot.x-bot.targetItem.x,bot.y-bot.targetItem.y)<34) botPickupItem(bot,bot.targetItem);
-            continue;
-        }
+        if(followBotSquad(bot,brain,diff,now,true))continue;
+        if(updateBotLoot(bot,brain,diff))continue;
 
         // 탄약이 있고 탄창이 비어 있으면 안전할 때 미리 재장전한다.
-        if(bot.weapon && bot.clipAmmo===0 && bot.reserveAmmo>0 && !bot.isReloading) reloadWeapon(bot);
+        if(bot.weapon && bot.clipAmmo<WEAPONS[bot.weapon].maxClip*.6 && bot.reserveAmmo>0 && !bot.isReloading) reloadWeapon(bot);
+
+        if(followBotSquad(bot,brain,diff,now))continue;
 
         // 목적 없는 직선 이동 대신 짧은 순찰 목표를 만들어 집/나무 사이를 돌아다닌다.
         if(!brain.patrol || now>brain.patrolUntil || Math.hypot(bot.x-brain.patrol.x,bot.y-brain.patrol.y)<60){
@@ -3682,6 +4290,17 @@ function updateAI() {
         }
         brain.state='patrol';
         moveBotToward(bot,brain.patrol,1.45*diff.speedMult,'walk');
+        } finally {
+            // 이동과 시선을 독립적으로 처리한다. 적이 없을 때만 진행 방향을 바라본다.
+            if(brain.state!=='combat' && brain.state!=='cover_combat') {
+                let desired=bot.isMoving && Number.isFinite(bot.moveAngle)?bot.moveAngle:brain.aimAngle;
+                if(brain.lastKnown && now-brain.lastSeenAt<1200)
+                    desired=Math.atan2(brain.lastKnown.y-bot.y,brain.lastKnown.x-bot.x);
+                if(bot.investigateTarget && now-bot.investigateTarget.time<1200)
+                    desired=Math.atan2(bot.investigateTarget.y-bot.y,bot.investigateTarget.x-bot.x);
+                turnBotAim(bot,brain,desired,aimDt);
+            }
+        }
     }
 }
 
@@ -3711,8 +4330,14 @@ function shouldRenderCombatEntityToLocal(entity) {
 
 
 function returnToRoomAfterGame() {
+    document.getElementById('spectatorSwitch').style.display='none';
     gameStarted=false;
     gameEnded=false;
+    const startButton=document.getElementById('startButton');
+    if(startButton){startButton.disabled=false;startButton.style.display=isHost?'block':'none';}
+    for(const timer of [respawnInterval,spawnTimerInterval,zoneTimerInterval,weaponSelectInterval])if(timer)clearInterval(timer);
+    respawnInterval=spawnTimerInterval=zoneTimerInterval=weaponSelectInterval=null;
+    renderRoomRoles();
     isRespawning=false;
     isSpectating=false;
     isSpawnSelecting=false;
@@ -3720,9 +4345,12 @@ function returnToRoomAfterGame() {
     bullets.length=0;
     aiBots.length=0;
     gunshotEvents.length=0;
+    footstepEvents.length=0;footstepTracks.clear();
 
     // 게임 화면/결과창 숨기기
-    const idsToHide=['rankingScreen','deathScreen','spectatorUI','gameOverScreen'];
+    const idsToHide=['victoryOverlay','rankingScreen','deathScreen','spectatorUI','gameOverScreen','spectateHUD','respawnHUD','spawnSelectHUD','fullMapOverlay','inventory','reviveHUD'];
+    reviveSessions.clear();myPlayer.reviveHeld=false;
+    if(window._returnMenuTimer){clearTimeout(window._returnMenuTimer);window._returnMenuTimer=null;}
     for(const id of idsToHide){
         const el=document.getElementById(id);
         if(el) el.style.display='none';
@@ -3764,15 +4392,26 @@ function returnToRoomAfterGame() {
     }
 }
 
+function botNetworkState(bot) {
+    const state={};
+    for(const key of Object.keys(bot)){
+        if(key.startsWith('_') || ['targetItem','investigateTarget','firstSeenTime','stuckFrames','avoidDir'].includes(key))continue;
+        state[key]=bot[key];
+    }
+    return state;
+}
+
 function updateNetwork() {
     if(isHost) {
+        if(!Object.values(connections).some(c=>c.open))return;
         const allPlayers = [myPlayer, ...Object.values(remotePlayers)];
         broadcastData({
             type: 'SYNC',
             players: allPlayers,
-            aiBots: aiBots,
+            aiBots: aiBots.map(botNetworkState),
             bullets: bullets,
             items: droppedItems,
+            doors:obstacles.filter(h=>h.doorId).map(h=>({doorId:h.doorId,hp:h.doorHp,open:h.doorOpen})),
             zoneRadius: zone.radius,
             zoneX: zone.x,
             zoneY: zone.y,
@@ -3787,8 +4426,126 @@ function updateNetwork() {
     }
 }
 
+function bulletRectEntry(a,b,r,padding=2){
+    let enter=0,exit=1;
+    for(const axis of ['x','y']){
+        const delta=b[axis]-a[axis],lo=r[axis]-padding,hi=r[axis]+(axis==='x'?r.w:r.h)+padding;
+        if(Math.abs(delta)<1e-9){if(a[axis]<lo||a[axis]>hi)return Infinity;continue;}
+        const t1=(lo-a[axis])/delta,t2=(hi-a[axis])/delta;
+        enter=Math.max(enter,Math.min(t1,t2));exit=Math.min(exit,Math.max(t1,t2));
+        if(enter>exit)return Infinity;
+    }
+    return enter;
+}
+function bulletCircleEntry(a,b,p,radius=25){
+    const dx=b.x-a.x,dy=b.y-a.y,ox=a.x-p.x,oy=a.y-p.y;
+    const c=ox*ox+oy*oy-radius*radius;if(c<=0)return 0;
+    const length=dx*dx+dy*dy;if(length<1e-9)return Infinity;
+    const half=ox*dx+oy*dy,disc=half*half-length*c;if(disc<0)return Infinity;
+    const t=(-half-Math.sqrt(disc))/length;return t>=0&&t<=1?t:Infinity;
+}
+function firstBulletImpact(bullet){
+    const a={x:bullet.prevX,y:bullet.prevY},b={x:bullet.x,y:bullet.y};
+    let wallT=Infinity,door=null;
+    for(const obs of nearbyObstacles(Math.min(a.x,b.x)-2,Math.min(a.y,b.y)-2,Math.max(a.x,b.x)+2,Math.max(a.y,b.y)+2)){
+        const pad=obs.type==='tree'?TREE_HITBOX_PADDING:0;
+        const rects=obs.type==='house'?getHouseBallisticWallRects(obs):[{x:obs.x-pad,y:obs.y-pad,w:obs.w+pad*2,h:obs.h+pad*2}];
+        for(const rect of rects){const entry=bulletRectEntry(a,b,rect);if(entry<wallT){wallT=entry;door=null;}}
+        if(doorClosed(obs)){const entry=bulletRectEntry(a,b,houseDoorRect(obs));if(Number.isFinite(entry)&&entry<=wallT){wallT=entry;door=obs;}}
+    }
+    let target=null,t=wallT;
+    for(const p of [myPlayer,...Object.values(remotePlayers),...aiBots]){
+        if(p.id===bullet.ownerId||p.hp<=0||p.isDead||!botBulletCanDamage(bullet.ownerId,p))continue;
+        const entry=bulletCircleEntry(a,b,p);
+        // 몸의 판정 원이 얇은 벽 밖으로 튀어나와도 벽 너머 대상은 맞지 않는다.
+        if(entry<t && hasLineOfSight(a,p)){t=entry;target=p;}
+    }
+    return {target,t,door:target?null:door,wall:Number.isFinite(wallT)&&!target};
+}
+
+const reviveSessions=new Map();
+const REVIVE_RANGE=80,REVIVE_MS=5000,BLEED_MS=15000;
+let lastLifeTick=0;
+function resetDownedState(p){p.isDowned=false;p.downedUntil=0;p.reviveHeld=false;p.reviveProgress=0;p._lifeLockUntil=0;p._downedBy=null;p._downedHits=[];}
+function livingCombatants(){return [...roomHumans(),...aiBots].filter(p=>p.hp>0&&!p.isDead&&!isAssignedSpectator(p.id));}
+function canRevive(actor,target){return selectedMode==='br'&&actor&&target&&actor.id!==target.id&&actor.hp>0&&!actor.isDead&&!actor.isDowned&&!isAssignedSpectator(actor.id)&&target.isDowned&&!target.isDead&&areAllies(actor,target)&&Math.hypot(actor.x-target.x,actor.y-target.y)<=REVIVE_RANGE&&hasLineOfSight(actor,target);}
+function nearestDownedAlly(actor){return livingCombatants().filter(p=>canRevive(actor,p)).sort((a,b)=>Math.hypot(actor.x-a.x,actor.y-a.y)-Math.hypot(actor.x-b.x,actor.y-b.y))[0]||null;}
+function publishLife(p){broadcastData({type:'LIFE_STATE',player:{id:p.id,hp:p.hp,isDead:!!p.isDead,isDowned:!!p.isDowned,downedUntil:p.downedUntil||0,deaths:p.deaths||0}});}
+function applyLocalLife(state){
+    const wasDead=myPlayer.isDead;
+    for(const key of ['hp','isDead','isDowned','downedUntil','deaths'])if(state[key]!==undefined)myPlayer[key]=state[key];
+    if(myPlayer.isDowned){myPlayer.isShooting=false;myPlayer.isAiming=false;myPlayer.isMoving=false;myPlayer.reviveHeld=false;}
+    if(myPlayer.isDead&&!wasDead)startSpectating();
+}
+function finishBattleElimination(p,killer){
+    if(p.isDead)return;
+    p.isDowned=false;p.reviveHeld=false;p.hp=0;
+    if(p===myPlayer)handleMyDeath(killer);
+    else {p.isDead=true;p.deaths=(p.deaths||0)+1;if(killer)addKill(killer);}
+    if(isBotEntity(p)&&p.weapon){const item={id:'item_'+Math.random().toString(36).slice(2),x:p.x,y:p.y,type:p.weapon};droppedItems.push(item);broadcastData({type:'DROP_ITEM',item});}
+    publishLife(p);updateHUD();
+}
+function applyBattleDamage(p,damage,killer,shotId){
+    if(!isHost||p.isDead||isAssignedSpectator(p.id)||!(damage>0))return;
+    if(p.isDowned){
+        // 한 발의 산탄 여러 개는 시간을 한 번만 줄인다.
+        if(!shotId)return;
+        if(!Array.isArray(p._downedHits))p._downedHits=[];
+        if(p._downedHits.includes(shotId))return;
+        p._downedHits.push(shotId);
+        p.downedUntil-=500;
+        if(Date.now()>=p.downedUntil)finishBattleElimination(p,killer||p._downedBy);
+        else publishLife(p);
+        return;
+    }
+    p.reviveHeld=false;p.hp-=damage;
+    if(p.hp<=0){
+        const helper=livingCombatants().some(a=>a.id!==p.id&&!a.isDowned&&areAllies(a,p));
+        if(!p.isDowned&&helper){
+            p.hp=1;p.isDowned=true;p.downedUntil=Date.now()+BLEED_MS;p._downedBy=killer;p._downedHits=shotId?[shotId]:[];
+            p.isShooting=false;p.isAiming=false;p.isMoving=false;p.movementMode='walk';
+        }else {finishBattleElimination(p,killer||p._downedBy);return;}
+    }
+    p._lifeLockUntil=Date.now()+1500;publishLife(p);
+}
+function updateRevives(){
+    const now=Date.now();
+    if(!isHost||selectedMode!=='br'||isSpawnSelecting){lastLifeTick=now;return;}
+    const dt=Math.min(.1,Math.max(0,(now-(lastLifeTick||now))/1000));lastLifeTick=now;
+    for(const p of roomHumans())if(p.hp>0&&!p.isDead&&!p.isDowned&&!isAssignedSpectator(p.id)&&Math.hypot(p.x-zone.x,p.y-zone.y)>zone.radius)applyBattleDamage(p,9*zoneStage*dt,null);
+    for(const p of livingCombatants())if(p.isDowned){
+        const helper=livingCombatants().some(a=>a.id!==p.id&&!a.isDowned&&areAllies(a,p));
+        if(now>=p.downedUntil||!helper)finishBattleElimination(p,p._downedBy);
+    }
+    const claimed=new Set(),active=new Set();
+    for(const actor of roomHumans()){
+        actor.reviveProgress=0;
+        const fresh=actor===myPlayer||now-(actor._inputAt||0)<700;
+        const target=actor.reviveHeld&&fresh?nearestDownedAlly(actor):null;
+        if(!target||claimed.has(target.id)){reviveSessions.delete(actor.id);continue;}
+        claimed.add(target.id);active.add(actor.id);actor.isShooting=false;
+        let session=reviveSessions.get(actor.id);
+        if(!session||session.targetId!==target.id){session={targetId:target.id,started:now};reviveSessions.set(actor.id,session);}
+        actor.reviveProgress=Math.min(1,(now-session.started)/REVIVE_MS);
+        if(actor.reviveProgress>=1){resetDownedState(target);target.hp=Math.min(target.maxHp||200,80);target._lifeLockUntil=now+1500;publishLife(target);actor.reviveHeld=false;reviveSessions.delete(actor.id);}
+    }
+    for(const id of reviveSessions.keys())if(!active.has(id))reviveSessions.delete(id);
+}
+function updateReviveHUD(){
+    const el=document.getElementById('reviveHUD');
+    if(!gameStarted||gameEnded||isSpectating){el.style.display='none';return;}
+    let text='';
+    if(myPlayer.isDowned)text='기절 · 팀원의 소생을 기다리세요 ('+Math.max(0,Math.ceil((myPlayer.downedUntil-Date.now())/1000))+'초)';
+    else if(myPlayer.reviveHeld)text='소생 중 · F / 소생 버튼을 계속 누르세요';
+    else if(nearestDownedAlly(myPlayer))text='가까운 팀원 기절 · F / 소생 버튼 5초 누르기';
+    el.textContent=text;el.style.display=text?'block':'none';
+}
+
 function update() {
+    refreshSpectatorControls();
     if(!gameStarted || gameEnded) return;
+    enforceObserver(myPlayer);
+    updateRevives();updateReviveHUD();
 
     // 배틀로얄 무작위 위치 단계별 축소 진행
     if(selectedMode === 'br' && isHost && !isSpawnSelecting) {
@@ -3809,16 +4566,6 @@ function update() {
                 zoneTimer = Math.max(20, 60 - zoneStage * 8);
                 setupNextZoneTarget();
                 updateHUD();
-            }
-        }
-    }
-
-    if(selectedMode === 'br' && myPlayer.hp > 0 && !myPlayer.isDead && !isRespawning && !isSpawnSelecting) {
-        if(Math.hypot(myPlayer.x - zone.x, myPlayer.y - zone.y) > zone.radius) {
-            myPlayer.hp -= 0.15 * zoneStage;
-            triggerDamageEffect();
-            if(myPlayer.hp <= 0 && !myPlayer.isDead) {
-                handleMyDeath(null);
             }
         }
     }
@@ -3849,6 +4596,7 @@ function update() {
         dy = mobileMoveVec.y;
     }
 
+    if(myPlayer.isDowned||myPlayer.reviveHeld){dx=0;dy=0;myPlayer.isShooting=false;myPlayer.isAiming=false;}
     myPlayer.isMoving = (dx !== 0 || dy !== 0);
 
     if (myPlayer.hp > 0 && !myPlayer.isDead && !isSpectating && !isRespawning && !isSpawnSelecting) {
@@ -3868,6 +4616,7 @@ function update() {
     }
 
     updateAI();
+    updateFootsteps();
     updateNetwork();
 
     for (let i = bloodParticles.length - 1; i >= 0; i--) {
@@ -3881,6 +4630,7 @@ function update() {
     const screenCenterY = canvas.height / 2;
 
     if (isSpectating || isRespawning) {
+        if(spectateTarget)spectateTarget=spectateCandidates().find(p=>p.id===spectateTarget.id)||null;
         if (!spectateTarget || spectateTarget.hp <= 0 || spectateTarget.isDead) {
             findNextSpectateTarget();
         }
@@ -3905,7 +4655,8 @@ function update() {
             const dist = Math.hypot(mouseOffsetX, mouseOffsetY);
 
             if (dist > 0) {
-                const actualOffset = Math.min(dist * 2.0, sc.viewOffset);
+                const aimFraction=isMobile?Math.min(1,dist/sc.viewOffset):Math.min(1,dist/Math.max(1,Math.min(canvas.width,canvas.height)*.45));
+                const actualOffset=aimFraction*sc.viewOffset;
                 targetCamX += (mouseOffsetX / (dist || 1)) * actualOffset;
                 targetCamY += (mouseOffsetY / (dist || 1)) * actualOffset;
             }
@@ -3941,10 +4692,15 @@ function update() {
             b.x += b.dx; 
             b.y += b.dy;
 
-            // 창문 유리는 탄환과 교차하면 깨지지만 탄환은 계속 진행한다.
+            // 한 프레임 안에서 벽과 적을 모두 지나면 먼저 닿은 대상만 처리한다.
+            const impact=firstBulletImpact(b);
+            if(Number.isFinite(impact.t)){
+                b.x=b.prevX+(b.x-b.prevX)*impact.t;
+                b.y=b.prevY+(b.y-b.prevY)*impact.t;
+            }
             detectAndBreakWindowOnBullet(b);
-
-            if(checkBulletPathObstacleCollision(b.prevX, b.prevY, b.x, b.y, 2)) {
+            if(impact.wall) {
+                if(impact.door)damageHouseDoor(impact.door,b.shotId);
                 bullets.splice(i, 1);
                 continue;
             }
@@ -3955,11 +4711,12 @@ function update() {
                 const bot = aiBots[bIdx];
                 if (b.ownerId !== bot.id && !bot.isDead && bot.hp > 0 && botBulletCanDamage(b.ownerId, bot)) {
                     const distSq = distToSegmentSquared({x: bot.x, y: bot.y}, {x: b.prevX, y: b.prevY}, {x: b.x, y: b.y});
-                    if (distSq <= 25 * 25) {
+                    if (impact.target === bot) {
                         let finalDmg = b.damage;
                         if(bot.equippedBodyArmor && ARMORS[bot.equippedBodyArmor]) {
                             finalDmg *= (1 - ARMORS[bot.equippedBodyArmor].reduction);
                         }
+                        if(selectedMode==='br'){applyBattleDamage(bot,finalDmg,b.ownerId,b.shotId);spawnBloodParticles(bot.x,bot.y);hit=true;break;}
                         bot.hp -= finalDmg;
                         spawnBloodParticles(bot.x, bot.y);
                         hit = true;
@@ -3999,11 +4756,12 @@ function update() {
                 for(let targetP of allHumanPlayers) {
                     if(b.ownerId !== targetP.id && targetP.hp > 0 && !targetP.isDead && botBulletCanDamage(b.ownerId, targetP)) {
                         const distSq = distToSegmentSquared({x: targetP.x, y: targetP.y}, {x: b.prevX, y: b.prevY}, {x: b.x, y: b.y});
-                        if (distSq <= 25 * 25) {
+                        if (impact.target === targetP) {
                             let finalDmg = b.damage;
                             if(targetP.equippedBodyArmor && ARMORS[targetP.equippedBodyArmor]) {
                                 finalDmg *= (1 - ARMORS[targetP.equippedBodyArmor].reduction);
                             }
+                            if(selectedMode==='br'){applyBattleDamage(targetP,finalDmg,b.ownerId,b.shotId);spawnBloodParticles(targetP.x,targetP.y);hit=true;break;}
                             targetP.hp -= finalDmg;
                             spawnBloodParticles(targetP.x, targetP.y);
                             hit = true;
@@ -4071,11 +4829,7 @@ function getIntersection(ray, segment) {
     const s_px = segment.a.x, s_py = segment.a.y;
     const s_dx = segment.b.x - segment.a.x, s_dy = segment.b.y - segment.a.y;
 
-    const r_mag = Math.hypot(r_dx, r_dy);
-    const s_mag = Math.hypot(s_dx, s_dy);
-
-    if (r_mag === 0 || s_mag === 0) return null;
-    if (r_dx / r_mag === s_dx / s_mag && r_dy / r_mag === s_dy / s_mag) return null;
+    // 아래 외적 검사로 길이 0/평행도 판정하므로 반복 제곱근 계산이 필요 없다.
 
     const div = (s_dx * r_dy - s_dy * r_dx);
     if (Math.abs(div) < 0.0001) return null;
@@ -4110,7 +4864,7 @@ function drawFogOfWar() {
     const nowFog = performance.now();
 
     // 원본 방식은 유지하되 큰 맵에서 시작 직후 멈추지 않도록 약간만 캐시한다.
-    const fogInterval = 55;
+    const fogInterval = 24; // 그림자 반응 약 42Hz
     if (
         maskCanvas.width === canvas.width &&
         maskCanvas.height === canvas.height &&
@@ -4243,8 +4997,8 @@ function drawFogOfWar() {
         if (closest) intersects.push(closest);
     }
 
-    maskCanvas.width = canvas.width;
-    maskCanvas.height = canvas.height;
+    if(maskCanvas.width!==canvas.width)maskCanvas.width=canvas.width;
+    if(maskCanvas.height!==canvas.height)maskCanvas.height=canvas.height;
 
     // 기존 사용자 요청대로 그림자 농도 30% 유지
     mCtxMask.globalCompositeOperation = 'source-over';
@@ -4280,6 +5034,9 @@ function drawPlayer(p) {
     if (p !== myPlayer && !shouldRenderCombatEntityToLocal(p)) return;
     if (p.isDead || p.hp <= 0) return;
     const now = performance.now();
+    if(p.isDowned){
+        ctx.save();ctx.fillStyle='#ffb04a';ctx.beginPath();ctx.ellipse(p.x,p.y,22,10,0,0,Math.PI*2);ctx.fill();ctx.font='bold 13px sans-serif';ctx.textAlign='center';ctx.fillText(p.name+' · 기절',p.x,p.y-22);ctx.restore();return;
+    }
     const moving = !!p.isMoving || p.movementMode === 'sprint';
     const sprint = p.movementMode === 'sprint';
     const gait = moving ? Math.sin(now * (sprint ? 0.018 : 0.011) + (p.x+p.y)*0.01) : 0;
@@ -4295,11 +5052,15 @@ function drawPlayer(p) {
     ctx.translate(p.x, p.y - bob);
     ctx.rotate(p.angle);
 
+    // 봇의 하체는 이동 방향, 상체와 총은 조준 방향을 따른다.
+    ctx.save();
+    if(isBotEntity(p) && moving && Number.isFinite(p.moveAngle))ctx.rotate(p.moveAngle-p.angle);
     // legs/boots: run animation
     ctx.fillStyle = '#20252a';
     ctx.save(); ctx.translate(-9, -9 + gait*6); ctx.rotate(gait*.28); ctx.fillRect(-9,-5,18,9); ctx.restore();
     ctx.save(); ctx.translate(-9, 9 - gait*6); ctx.rotate(-gait*.28); ctx.fillRect(-9,-4,18,9); ctx.restore();
 
+    ctx.restore();
     // torso + vest panels
     ctx.fillStyle = '#d8aa32'; ctx.beginPath(); ctx.arc(0,0,19,0,Math.PI*2); ctx.fill();
     ctx.fillStyle='#9b7621'; ctx.fillRect(-12,-13,18,26);
@@ -4469,6 +5230,7 @@ function isViewerInHouseTransition(viewer, obs) {
     const pad = (obs.wallThickness || 20) + 6;
     if (isPointInsideHouse(viewer.x, viewer.y, obs, pad)) return true;
 
+    if(doorClosed(obs))return false;
     // 문턱에 걸쳐 있을 때 집 내부 판정이 프레임마다 바뀌지 않도록 문 주변에 전이 구역을 둔다.
     const door = getHouseDoorOpening(obs);
     const r = getHouseOpeningRect(obs, door);
@@ -4587,6 +5349,7 @@ function isObstacleInRenderRange(obs, margin=180){
 }
 
 function drawDesignedObstacle(obs){
+    if(!isObstacleInRenderRange(obs,220))return;
     if (obs.type === 'wall') {
         ctx.save();
 
@@ -4675,7 +5438,7 @@ function drawScopeReticle() {
     if (!myPlayer.weapon || !myPlayer.isAiming) return;
 
     const scope = myPlayer.equippedScope || '1x';
-    const cx = canvas.width / 2, cy = canvas.height / 2;
+    const cx = isMobile ? canvas.width / 2 : mouse.x, cy = isMobile ? canvas.height / 2 : mouse.y;
     ctx.save();
     ctx.lineCap='round'; ctx.lineJoin='round';
     ctx.strokeStyle='rgba(245,245,245,.92)';
@@ -4766,7 +5529,8 @@ function render() {
     }
 
     // 집 내부 바닥/벽과 나무를 먼저 그린다.
-    obstacles.forEach(obs => drawDesignedObstacle(obs));
+    const visibleObstacles=nearbyObstacles(camera.x-canvas.width/2-220,camera.y-canvas.height/2-220,camera.x+canvas.width/2+220,camera.y+canvas.height/2+220);
+    visibleObstacles.forEach(obs => drawDesignedObstacle(obs));
 
     // 그림자는 월드 오브젝트 뒤에만 깔고, 플레이어/총알/지붕 위에는 덮지 않는다.
     drawFogOfWar();
@@ -4816,10 +5580,12 @@ function render() {
     Object.values(remotePlayers).forEach(p => { if(Math.abs(p.x-camera.x)<canvas.width/2+160 && Math.abs(p.y-camera.y)<canvas.height/2+160) drawPlayer(p); });
     aiBots.forEach(b => { if(Math.abs(b.x-camera.x)<canvas.width/2+160 && Math.abs(b.y-camera.y)<canvas.height/2+160) drawPlayer(b); });
     drawGlassShards();
+    drawFootstepIndicators();
 
     // 지붕은 마지막에 그려 외부에서는 실내/플레이어/아이템을 가리고,
     // 집 안에서는 전체가 반투명하고, 집 밖에서는 문/창문으로 보이는 영역만 걷힌다.
-    obstacles.forEach(obs => { if(obs.type==='house' && isObstacleInRenderRange(obs,220)) drawHouseRoof(obs); });
+    visibleObstacles.forEach(obs => { if(obs.type==='house' && isObstacleInRenderRange(obs,220)) drawHouseRoof(obs); });
+    visibleObstacles.forEach(obs=>{if(obs.type==='house')drawHouseDoor(obs);});
 
     ctx.restore();
 
@@ -4832,6 +5598,24 @@ function render() {
 }
 
 let lastMinimapRenderAt = 0;
+function mapTeammates(){
+    if(selectedMode!=='br')return [];
+    const viewer=isAssignedSpectator(myPlayer.id)?spectateTarget:myPlayer;
+    if(!viewer)return [];
+    return [...roomHumans(),...aiBots].filter(p=>p.id!==viewer.id&&p.hp>0&&!p.isDead&&!isAssignedSpectator(p.id)&&areAllies(viewer,p));
+}
+function drawTeamMapMarkers(context,scale,width,height){
+    context.save();context.font='bold 11px sans-serif';context.textAlign='center';context.textBaseline='bottom';
+    for(const p of mapTeammates()){
+        const x=p.x*scale,y=p.y*scale;
+        context.fillStyle='#58a6ff';context.beginPath();context.arc(x,y,4,0,Math.PI*2);context.fill();
+        const tx=Math.max(35,Math.min(width-35,x)),ty=Math.max(14,y-7);
+        context.strokeStyle='#111';context.lineWidth=3;context.strokeText(p.name,tx,ty,100);
+        context.fillStyle='#a8d6ff';context.fillText(p.name,tx,ty,100);
+    }
+    context.restore();
+}
+
 function renderMinimap() {
     const mmNow = performance.now();
     if (mmNow - lastMinimapRenderAt < 90) return;
@@ -4876,6 +5660,7 @@ function renderMinimap() {
     });
 
     mCtx.restore();
+    drawTeamMapMarkers(mCtx,scale,minimapCanvas.width,minimapCanvas.height);
 
     mCtx.strokeStyle = '#00ffcc';
     mCtx.lineWidth = 2;
@@ -4910,6 +5695,7 @@ function renderFullMap() {
         fCtx.stroke();
     }
 
+    drawTeamMapMarkers(fCtx,scale,fullMapCanvas.width,fullMapCanvas.height);
     if (myPlayer.hp > 0 && !myPlayer.isDead) {
         fCtx.fillStyle = '#00ffcc';
         fCtx.beginPath();
