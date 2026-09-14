@@ -6642,6 +6642,218 @@ function renderFullMap() {
     setInterval(()=>{const e=document.getElementById('guestMapVal');if(e&&!isHost)e.textContent=themeName(EXP.mapTheme);},1500);
 })();
 
+
+/* ===== 2026-09 smoke / slow vault / building diversity expansion ===== */
+(function(){
+    const EXP=window.GAME_EXPANSION||{};
+    const BUILDING_INFO={
+        warehouse:{name:'창고', floor:'#5f625d', wall:'#8c9188', roof:'#5c6269'},
+        convenience:{name:'편의점', floor:'#77705e', wall:'#d9d0ad', roof:'#4d8065'},
+        police:{name:'경찰서', floor:'#666d74', wall:'#9fb1c1', roof:'#42566d'},
+        hospital:{name:'병원', floor:'#d0d4d1', wall:'#d9e0dc', roof:'#e5e9e7'},
+        apartment:{name:'아파트', floor:'#726d69', wall:'#aca49e', roof:'#66615e'},
+        barracks:{name:'군사기지', floor:'#666959', wall:'#8e9278', roof:'#505545'}
+    };
+    const THEME_COLORS={
+        city:{floor:'#676b6e',wall:'#a5aab0',roof:'#545a61'},
+        forest:{floor:'#625f50',wall:'#8d866d',roof:'#4f604b'},
+        military:{floor:'#5d604f',wall:'#80846c',roof:'#454a40'},
+        harbor:{floor:'#6b6860',wall:'#9b9487',roof:'#53606b'},
+        farm:{floor:'#72654f',wall:'#aa9470',roof:'#6c5140'},
+        factory:{floor:'#5b5b59',wall:'#85827b',roof:'#494b4d'},
+        mountain:{floor:'#625d56',wall:'#8b8176',roof:'#55504a'},
+        river:{floor:'#66625a',wall:'#9a927f',roof:'#58636b'},
+        bridge:{floor:'#606167',wall:'#90949a',roof:'#50545b'}
+    };
+
+    function activeSmokeRadius(s){
+        const age=Date.now()-(s.start||Date.now());
+        return Math.min(s.radius||240,40+Math.max(0,age)*.07);
+    }
+    function pointInsideSmoke(x,y){
+        return (EXP.smokes||[]).some(s=>Date.now()<(s.until||0)&&Math.hypot(x-s.x,y-s.y)<activeSmokeRadius(s)*.94);
+    }
+
+    // 적이 연막 안에 있으면 가장자리 샘플이 보여도 통째로 숨긴다. 아군은 팀 플레이를 위해 유지.
+    const baseShouldRender=shouldRenderCombatEntityToLocal;
+    shouldRenderCombatEntityToLocal=function(entity){
+        if(entity&&entity!==myPlayer&&pointInsideSmoke(entity.x,entity.y)&&!(typeof areAllies==='function'&&areAllies(myPlayer,entity)))return false;
+        return baseShouldRender(entity);
+    };
+
+    // 줍기 한 번으로 주변의 비무기 아이템을 전부 줍고, 단일 무기 슬롯 특성상 가장 가까운 무기 하나만 장착한다.
+    function collectOneItem(item){
+        if(!item)return false;
+        if(item.type&&item.type.startsWith('ammo_')){myPlayer.reserveAmmo+=30;return true;}
+        if(ARMORS[item.type]){if(!myPlayer.inventory.armors)myPlayer.inventory.armors=[];myPlayer.inventory.armors.push(item.type);return true;}
+        if(item.type==='bandage'||isMedkitItemType(item.type)){const bag=healingInventory(),key=item.type==='bandage'?'bandage':'medkit';bag[key]=(bag[key]||0)+1;return true;}
+        if(SCOPES[item.type]){myPlayer.inventory.scopes.push(item.type);return true;}
+        return false;
+    }
+    const previousPickup=pickupItem;
+    pickupItem=function(){
+        if(myPlayer.isDowned||myPlayer.hp<=0)return;
+        const crate=(EXP.airdrops||[]).find(c=>!c.opened&&Date.now()>=c.landAt&&Math.hypot(myPlayer.x-c.x,myPlayer.y-c.y)<90);
+        if(crate) previousPickup();
+        const nearby=droppedItems.map((it,i)=>({it,i,d:Math.hypot(myPlayer.x-it.x,myPlayer.y-it.y)})).filter(v=>v.d<58).sort((a,b)=>a.d-b.d);
+        if(!nearby.length){if(!crate)return previousPickup();return;}
+        const removeIds=new Set();
+        // 먼저 모든 탄약/방어구/회복/스코프를 한 번에 획득.
+        for(const v of nearby){if(collectOneItem(v.it))removeIds.add(v.it.id);}
+        // 무기는 가장 가까운 하나. 기존 무기는 바닥에 떨어뜨린다.
+        const weaponEntry=nearby.find(v=>WEAPONS[v.it.type]);
+        if(weaponEntry){
+            const it=weaponEntry.it;
+            if(myPlayer.weapon&&myPlayer.weapon!==it.type){const drop={id:'item_'+Math.random().toString(36).slice(2,9),x:myPlayer.x,y:myPlayer.y,type:myPlayer.weapon};droppedItems.push(drop);broadcastData({type:'DROP_ITEM',item:drop});}
+            myPlayer.weapon=it.type;myPlayer.clipAmmo=WEAPONS[it.type].maxClip;myPlayer.reserveAmmo=Math.max(myPlayer.reserveAmmo||0,WEAPONS[it.type].maxClip*2);removeIds.add(it.id);
+        }
+        if(removeIds.size){for(const id of removeIds)broadcastData({type:'PICKUP_ITEM',itemId:id});for(let i=droppedItems.length-1;i>=0;i--)if(removeIds.has(droppedItems[i].id))droppedItems.splice(i,1);updateHUD();renderInventory();}
+    };
+
+    // -------- Building generation --------
+    function pickKind(theme,index,rand){
+        const pools={
+            city:['apartment','convenience','police','hospital','warehouse','apartment','apartment'],
+            forest:['warehouse','convenience','apartment','warehouse'],
+            military:['barracks','warehouse','barracks','hospital','police'],
+            harbor:['warehouse','warehouse','convenience','police','apartment'],
+            farm:['warehouse','warehouse','convenience','apartment'],
+            factory:['warehouse','warehouse','police','hospital'],
+            mountain:['warehouse','apartment','convenience'],
+            river:['apartment','convenience','warehouse','hospital'],
+            bridge:['police','warehouse','convenience','apartment']
+        };
+        const p=pools[theme]||pools.city;return p[Math.floor((rand()*p.length+index)%p.length)];
+    }
+    function internalWallsFor(h){
+        const t=Math.max(10,Math.min(15,(h.wallThickness||18)*.7)),x=h.x,y=h.y,w=h.w,hh=h.h,gap=58,kind=h.buildingKind;
+        const R=[];
+        const vwall=(px,from,to,door=.5)=>{const len=to-from,dc=from+len*door;R.push({x:px-t/2,y:from,w:t,h:Math.max(0,dc-gap/2-from)});R.push({x:px-t/2,y:dc+gap/2,w:t,h:Math.max(0,to-dc-gap/2)});};
+        const hwall=(py,from,to,door=.5)=>{const len=to-from,dc=from+len*door;R.push({x:from,y:py-t/2,w:Math.max(0,dc-gap/2-from),h:t});R.push({x:dc+gap/2,y:py-t/2,w:Math.max(0,to-dc-gap/2),h:t});};
+        const l=x+(h.wallThickness||18)+12,r=x+w-(h.wallThickness||18)-12,top=y+(h.wallThickness||18)+12,bottom=y+hh-(h.wallThickness||18)-12;
+        if(kind==='warehouse'){if(w>360)vwall(x+w*.62,top,bottom,.7);}
+        else if(kind==='convenience'){hwall(y+hh*.68,l,r,.72);}
+        else if(kind==='police'){vwall(x+w*.48,top,bottom,.35);hwall(y+hh*.55,l,r,.78);}
+        else if(kind==='hospital'){vwall(x+w*.34,top,bottom,.5);vwall(x+w*.67,top,bottom,.5);hwall(y+hh*.55,l,r,.5);}
+        else if(kind==='apartment'){vwall(x+w*.5,top,bottom,.5);hwall(y+hh*.5,l,r,.32);}
+        else if(kind==='barracks'){hwall(y+hh*.43,l,r,.28);hwall(y+hh*.70,l,r,.72);}
+        return R.filter(q=>q.w>2&&q.h>2);
+    }
+    function applyKindSize(h,kind){
+        const c={warehouse:[520,350],convenience:[390,260],police:[470,340],hospital:[620,430],apartment:[500,480],barracks:[560,330]}[kind]||[h.w,h.h];
+        h.w=Math.max(h.w,c[0]);h.h=Math.max(h.h,c[1]);
+    }
+    function layoutPoint(theme,i,n,size,rand,w,h){
+        const safe=500;
+        if(theme==='city'){
+            const cols=Math.ceil(Math.sqrt(n)),rows=Math.ceil(n/cols),spacing=Math.min(980,(size-2000)/Math.max(cols,rows));
+            const col=i%cols,row=Math.floor(i/cols);return {x:size/2+(col-(cols-1)/2)*spacing-w/2,y:size/2+(row-(rows-1)/2)*spacing-h/2};
+        }
+        if(theme==='military'){
+            const cols=6,col=i%cols,row=Math.floor(i/cols);return {x:size*.5+(col-2.5)*760-w/2,y:size*.5+(row-2)*610-h/2};
+        }
+        if(theme==='harbor'){
+            const cols=5,col=i%cols,row=Math.floor(i/cols);return {x:size*.56-col*650-w/2,y:900+row*760-h/2};
+        }
+        if(theme==='farm'){
+            const cols=5,col=i%cols,row=Math.floor(i/cols);return {x:1000+col*3100+(row%2)*600-w/2,y:1300+row*1700-h/2};
+        }
+        if(theme==='factory'){
+            const district=i%3,local=Math.floor(i/3),cols=4,col=local%cols,row=Math.floor(local/cols);const centers=[[size*.28,size*.35],[size*.68,size*.36],[size*.52,size*.70]];return {x:centers[district][0]+(col-1.5)*820-w/2,y:centers[district][1]+(row-1.5)*680-h/2};
+        }
+        if(theme==='forest'){
+            const village=i%4,local=Math.floor(i/4),a=(village/4)*Math.PI*2+0.35,r=size*.31,cx=size/2+Math.cos(a)*r,cy=size/2+Math.sin(a)*r;return {x:cx+((local%4)-1.5)*650-w/2,y:cy+(Math.floor(local/4)-1)*570-h/2};
+        }
+        if(theme==='mountain'){
+            const valley=i%3,local=Math.floor(i/3),centers=[[size*.28,size*.62],[size*.52,size*.35],[size*.73,size*.66]];return {x:centers[valley][0]+((local%4)-1.5)*650-w/2,y:centers[valley][1]+(Math.floor(local/4)-1)*560-h/2};
+        }
+        if(theme==='river'||theme==='bridge'){
+            const side=i%2,local=Math.floor(i/2),x=side?size*.68:size*.25;return {x:x+((local%3)-1)*620-w/2,y:900+Math.floor(local/3)*660-h/2};
+        }
+        return {x:safe+rand()*(size-w-safe*2),y:safe+rand()*(size-h-safe*2)};
+    }
+    function decorateBuildings(data,seed,theme){
+        if(!data||!Array.isArray(data.obstacles)||data.worldSize<5000)return data;
+        const houses=data.obstacles.filter(o=>o.type==='house');if(!houses.length)return data;
+        const rand=createSeededRandom(hashSeed((Number(seed)||1)^0x5f3759df));
+        const itemRel=new Map();
+        for(const h of houses){const arr=[];for(const it of data.items||[]){if(it.houseSeed===h.seed)arr.push({it,rx:(it.x-h.x)/Math.max(1,h.w),ry:(it.y-h.y)/Math.max(1,h.h)});}itemRel.set(h.seed,arr);}
+        houses.forEach((h,i)=>{
+            const kind=pickKind(theme,i,rand);h.buildingKind=kind;h.buildingName=BUILDING_INFO[kind].name;applyKindSize(h,kind);
+            const p=layoutPoint(theme,i,houses.length,data.worldSize,rand,h.w,h.h);h.x=Math.max(100,Math.min(data.worldSize-h.w-100,p.x));h.y=Math.max(100,Math.min(data.worldSize-h.h-100,p.y));
+            const pal=THEME_COLORS[theme]||THEME_COLORS.city,bi=BUILDING_INFO[kind];h.themeFloor=bi.floor||pal.floor;h.themeWall=pal.wall;h.themeRoof=bi.roof||pal.roof;h._interiorRects=internalWallsFor(h);delete h._wallRectsCache;delete h._ballisticRectsCache;
+            for(const rel of itemRel.get(h.seed)||[]){rel.it.x=h.x+Math.max(.10,Math.min(.90,rel.rx))*h.w;rel.it.y=h.y+Math.max(.12,Math.min(.88,rel.ry))*h.h;}
+        });
+        return data;
+    }
+    const priorGenerate=generateMapData;
+    generateMapData=function(mode,seed){const data=priorGenerate(mode,seed);return mode==='br'?decorateBuildings(data,seed,EXP.mapTheme||data.theme||'city'):data;};
+
+    // 실제 실내방 벽을 이동/탄환/시야 판정에 포함.
+    const priorWallRects=getHouseWallRects;
+    getHouseWallRects=function(obs){
+        const base=priorWallRects(obs).filter(r=>!r._interior);
+        const ins=(obs&&obs._interiorRects)||[];
+        return base.concat(ins.map(r=>({...r,_interior:true})));
+    };
+    const priorBallistic=getHouseBallisticWallRects;
+    getHouseBallisticWallRects=function(obs){
+        const base=priorBallistic(obs).filter(r=>!r._interior);
+        const ins=(obs&&obs._interiorRects)||[];
+        return base.concat(ins.map(r=>({...r,_interior:true})));
+    };
+
+    // 테마/건물 종류가 보이도록 실내 바닥과 내부 벽을 덧그린다.
+    const priorDrawHouseBase=drawHouseBase;
+    drawHouseBase=function(obs){
+        priorDrawHouseBase(obs);if(!obs||obs.type!=='house')return;
+        const t=obs.wallThickness||18,info=BUILDING_INFO[obs.buildingKind]||BUILDING_INFO.warehouse;
+        ctx.save();ctx.globalAlpha=.46;ctx.fillStyle=obs.themeFloor||info.floor;ctx.fillRect(obs.x+t,obs.y+t,obs.w-t*2,obs.h-t*2);ctx.globalAlpha=1;
+        ctx.fillStyle=obs.themeWall||info.wall;for(const r of obs._interiorRects||[])ctx.fillRect(r.x,r.y,r.w,r.h);
+        // 간단한 건물별 실내 상징
+        ctx.font='bold 15px sans-serif';ctx.textAlign='center';ctx.fillStyle='rgba(255,255,255,.78)';ctx.fillText(obs.buildingName||'',obs.x+obs.w/2,obs.y+32);ctx.restore();
+    };
+
+    // -------- Deliberate slow window vault --------
+    let vaultAnim=null;
+    function nearestVaultCandidate(){
+        let best=null,bd=78;
+        const facing={x:Math.cos(myPlayer.angle||0),y:Math.sin(myPlayer.angle||0)};
+        for(const h of obstacles){if(h.type!=='house')continue;for(const w of getHouseWindowOpenings(h)){const r=getHouseOpeningRect(h,w),cx=r.x+r.w/2,cy=r.y+r.h/2,d=Math.hypot(myPlayer.x-cx,myPlayer.y-cy);if(d>bd)continue;let nx=0,ny=0;if(w.side==='top')ny=-1;else if(w.side==='bottom')ny=1;else if(w.side==='left')nx=-1;else nx=1;const side=(myPlayer.x-cx)*nx+(myPlayer.y-cy)*ny,dir=side>=0?-1:1,tx=cx+nx*dir*60,ty=cy+ny*dir*60;const toward=(facing.x*nx+facing.y*ny)*dir;if(toward<.05||checkObstacleCollision(tx,ty,12))continue;best={h,w,cx,cy,tx,ty};bd=d;}}
+        return best;
+    }
+    function requestSlowVault(){
+        if(!gameStarted||gameEnded||vaultAnim||myPlayer.isDead||myPlayer.isDowned)return false;
+        const c=nearestVaultCandidate();if(!c)return false;
+        if(!c.w.isBroken)breakWindow(c.h,c.w.id,c.cx,c.cy);if(!isHost)broadcastData({type:'VAULT_WINDOW',houseSeed:c.h.seed,windowId:c.w.id,x:c.cx,y:c.cy});
+        vaultAnim={sx:myPlayer.x,sy:myPlayer.y,tx:c.tx,ty:c.ty,start:performance.now(),dur:1600};
+        EXP.lastVaultAt=Date.now()+86400000;myPlayer.isShooting=false;return true;
+    }
+    document.addEventListener('keydown',e=>{if(e.key==='Shift'&&!e.repeat&&!['INPUT','SELECT','TEXTAREA'].includes(e.target?.tagName)){if(requestSlowVault()){e.preventDefault();e.stopImmediatePropagation();}}},true);
+    const sprintBtn=document.getElementById('btnSprint');if(sprintBtn)sprintBtn.addEventListener('pointerdown',e=>{if(requestSlowVault()){e.preventDefault();e.stopImmediatePropagation();}},true);
+    // 기존 자동 넘기는 루프를 사실상 비활성화.
+    EXP.lastVaultAt=Date.now()+86400000;
+    const previousUpdate2=update;
+    update=function(){
+        // 기존 tryWindowVault는 이 미래 timestamp 때문에 실행되지 않는다.
+        EXP.lastVaultAt=Math.max(EXP.lastVaultAt||0,Date.now()+3600000);
+        const r=previousUpdate2();
+        if(vaultAnim){const t=Math.min(1,(performance.now()-vaultAnim.start)/vaultAnim.dur),ease=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;myPlayer.x=vaultAnim.sx+(vaultAnim.tx-vaultAnim.sx)*ease;myPlayer.y=vaultAnim.sy+(vaultAnim.ty-vaultAnim.sy)*ease;myPlayer.isMoving=true;myPlayer.movementMode='walk';myPlayer.isShooting=false;if(t>=1)vaultAnim=null;}
+        return r;
+    };
+
+    // 미니맵/전체지도에 모든 건물 이름 표시.
+    function drawBuildingLabels(context,scale,fontPx){
+        context.save();context.font=`bold ${fontPx}px sans-serif`;context.textAlign='center';context.textBaseline='middle';
+        for(const h of obstacles){if(h.type!=='house'||!h.buildingName)continue;const x=(h.x+h.w/2)*scale,y=(h.y+h.h/2)*scale;context.lineWidth=Math.max(1,fontPx*.35);context.strokeStyle='rgba(0,0,0,.85)';context.strokeText(h.buildingName,x,y);context.fillStyle='#f2f2f2';context.fillText(h.buildingName,x,y);}
+        context.restore();
+    }
+    const priorMini=renderMinimap;
+    renderMinimap=function(){priorMini();drawBuildingLabels(mCtx,minimapCanvas.width/WORLD_SIZE,5.5);};
+    const priorFull=renderFullMap;
+    renderFullMap=function(){priorFull();drawBuildingLabels(fCtx,fullMapCanvas.width/WORLD_SIZE,9);};
+})();
+
 let lastLoopErrorAt = 0;
 function gameLoop() {
     try {
