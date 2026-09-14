@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>이름 뭘로하지</title>
+    <title>2D 배틀필드 로얄 - 멀티플레이어</title>
     <style>
         * { box-sizing: border-box; touch-action: none; user-select: none; }
         html, body {
@@ -5372,8 +5372,8 @@ function drawFogOfWar() {
     const px = myPlayer.x;
     const py = myPlayer.y;
 
-    // 가장 처음 파일과 동일한 넓은 시야 여유 영역
-    const viewMargin = 1200;
+    // 최적화: 실제 화면 주변만 시야 계산하고, 실내에서는 현재 건물 벽을 최우선 처리한다.
+    const viewMargin = 720;
     const screenLeft = camera.x - canvas.width / 2 - viewMargin;
     const screenRight = camera.x + canvas.width / 2 + viewMargin;
     const screenTop = camera.y - canvas.height / 2 - viewMargin;
@@ -5390,7 +5390,19 @@ function drawFogOfWar() {
     let rectCount = 0;
     const maxRects = 72;
 
-    for (const obs of obstacles) {
+    const currentHouse = (typeof getHouseContainingPoint === 'function') ? getHouseContainingPoint(px, py) : null;
+    const fogCandidates = (typeof nearbyObstacles === 'function')
+        ? nearbyObstacles(screenLeft, screenTop, screenRight, screenBottom)
+        : obstacles.slice();
+    // 방 안에서는 현재 집의 외벽/내부벽을 항상 먼저 계산하고, 나머지는 거리순으로 처리한다.
+    fogCandidates.sort((a,b)=>{
+        if(a===currentHouse) return -1;
+        if(b===currentHouse) return 1;
+        const acx=a.x+a.w*.5, acy=a.y+a.h*.5, bcx=b.x+b.w*.5, bcy=b.y+b.h*.5;
+        return ((acx-px)*(acx-px)+(acy-py)*(acy-py))-((bcx-px)*(bcx-px)+(bcy-py)*(bcy-py));
+    });
+
+    for (const obs of fogCandidates) {
         if (rectCount >= maxRects) break;
         if (!obs || !Number.isFinite(obs.x) || !Number.isFinite(obs.y) ||
             !Number.isFinite(obs.w) || !Number.isFinite(obs.h)) continue;
@@ -6842,16 +6854,120 @@ function renderFullMap() {
         return r;
     };
 
-    // 미니맵/전체지도에 모든 건물 이름 표시.
-    function drawBuildingLabels(context,scale,fontPx){
-        context.save();context.font=`bold ${fontPx}px sans-serif`;context.textAlign='center';context.textBaseline='middle';
-        for(const h of obstacles){if(h.type!=='house'||!h.buildingName)continue;const x=(h.x+h.w/2)*scale,y=(h.y+h.h/2)*scale;context.lineWidth=Math.max(1,fontPx*.35);context.strokeStyle='rgba(0,0,0,.85)';context.strokeText(h.buildingName,x,y);context.fillStyle='#f2f2f2';context.fillText(h.buildingName,x,y);}
-        context.restore();
+    // 미니맵/전체지도 건물명은 별도 레이어에 캐시하여 매 프레임 strokeText를 반복하지 않는다.
+    const buildingLabelMini=document.createElement('canvas'), buildingLabelFull=document.createElement('canvas');
+    let buildingLabelKey='';
+    function rebuildBuildingLabels(){
+        const houses=obstacles.filter(h=>h.type==='house'&&h.buildingName);
+        const key=WORLD_SIZE+'|'+houses.length+'|'+houses.map(h=>Math.round(h.x)+','+Math.round(h.y)+','+h.buildingName).join(';');
+        if(key===buildingLabelKey)return;buildingLabelKey=key;
+        buildingLabelMini.width=minimapCanvas.width;buildingLabelMini.height=minimapCanvas.height;
+        buildingLabelFull.width=fullMapCanvas.width;buildingLabelFull.height=fullMapCanvas.height;
+        const draw=(c,scale,fontPx)=>{c.clearRect(0,0,c.canvas.width,c.canvas.height);c.save();c.font=`bold ${fontPx}px sans-serif`;c.textAlign='center';c.textBaseline='middle';
+            for(const h of houses){const x=(h.x+h.w/2)*scale,y=(h.y+h.h/2)*scale;c.lineWidth=Math.max(1,fontPx*.35);c.strokeStyle='rgba(0,0,0,.85)';c.strokeText(h.buildingName,x,y);c.fillStyle='#f2f2f2';c.fillText(h.buildingName,x,y);}c.restore();};
+        draw(buildingLabelMini.getContext('2d'),minimapCanvas.width/WORLD_SIZE,5.5);
+        draw(buildingLabelFull.getContext('2d'),fullMapCanvas.width/WORLD_SIZE,9);
     }
     const priorMini=renderMinimap;
-    renderMinimap=function(){priorMini();drawBuildingLabels(mCtx,minimapCanvas.width/WORLD_SIZE,5.5);};
+    renderMinimap=function(){priorMini();rebuildBuildingLabels();mCtx.drawImage(buildingLabelMini,0,0);};
     const priorFull=renderFullMap;
-    renderFullMap=function(){priorFull();drawBuildingLabels(fCtx,fullMapCanvas.width/WORLD_SIZE,9);};
+    renderFullMap=function(){priorFull();rebuildBuildingLabels();fCtx.drawImage(buildingLabelFull,0,0);};
+})();
+
+
+// ===== Village clustering + empty-area forest + indoor occlusion/performance pass =====
+(function(){
+    const previousGenerateVillage=generateMapData;
+    const VILLAGE_CONFIG={
+        city:{count:6,radius:920}, forest:{count:5,radius:760}, military:{count:4,radius:820},
+        harbor:{count:4,radius:820}, farm:{count:5,radius:850}, factory:{count:4,radius:850},
+        mountain:{count:4,radius:760}, river:{count:5,radius:760}, bridge:{count:4,radius:760}
+    };
+    function villageCenters(theme,size,rnd,count){
+        const preset={
+            city:[[.28,.30],[.52,.27],[.74,.34],[.32,.66],[.56,.67],[.78,.70]],
+            forest:[[.23,.28],[.50,.22],[.76,.30],[.32,.70],[.68,.70]],
+            military:[[.32,.34],[.68,.34],[.35,.68],[.67,.68]],
+            harbor:[[.20,.24],[.46,.26],[.22,.66],[.49,.68]],
+            farm:[[.20,.25],[.50,.22],[.78,.28],[.30,.68],[.70,.70]],
+            factory:[[.27,.32],[.67,.30],[.33,.69],[.70,.68]],
+            mountain:[[.25,.30],[.58,.24],[.34,.70],[.72,.67]],
+            river:[[.22,.22],[.75,.25],[.22,.55],[.75,.58],[.49,.78]],
+            bridge:[[.22,.30],[.76,.30],[.24,.70],[.74,.70]]
+        }[theme]||[];
+        const result=[];
+        for(let i=0;i<count;i++){
+            const p=preset[i%preset.length]||[.2+rnd()*.6,.2+rnd()*.6];
+            result.push({x:size*(p[0]+(rnd()-.5)*.035),y:size*(p[1]+(rnd()-.5)*.035)});
+        }
+        return result;
+    }
+    function pointInRectPad(x,y,r,p){return x>=r.x-p&&x<=r.x+r.w+p&&y>=r.y-p&&y<=r.y+r.h+p;}
+    function reclusterMap(data,seed){
+        if(!data||data.worldSize<5000||!Array.isArray(data.obstacles))return data;
+        const theme=(typeof EXP!=='undefined'&&EXP.mapTheme)||data.theme||'city';
+        const rnd=createSeededRandom(hashSeed((Number(seed)||1)^0x41c64e6d));
+        const houses=data.obstacles.filter(o=>o.type==='house');
+        if(!houses.length)return data;
+        const cfg=VILLAGE_CONFIG[theme]||VILLAGE_CONFIG.city;
+        const count=Math.max(3,Math.min(cfg.count,Math.ceil(houses.length/5)));
+        const centers=villageCenters(theme,data.worldSize,rnd,count);
+        // 아이템의 건물 내부 상대 위치를 보존한다.
+        const relItems=new Map();
+        for(const h of houses){
+            const arr=[];for(const it of data.items||[]){if(it.x>=h.x&&it.x<=h.x+h.w&&it.y>=h.y&&it.y<=h.y+h.h)arr.push({it,rx:(it.x-h.x)/h.w,ry:(it.y-h.y)/h.h});}
+            relItems.set(h,arr);
+        }
+        const occupied=[];
+        houses.forEach((h,i)=>{
+            const v=i%count, local=Math.floor(i/count), c=centers[v];
+            const cols=3, col=local%cols,row=Math.floor(local/cols);
+            const jitterX=(rnd()-.5)*90,jitterY=(rnd()-.5)*90;
+            let x=c.x+(col-1)*Math.max(600,h.w+150)+jitterX-h.w/2;
+            let y=c.y+(row-.5)*Math.max(520,h.h+135)+jitterY-h.h/2;
+            x=Math.max(150,Math.min(data.worldSize-h.w-150,x));y=Math.max(150,Math.min(data.worldSize-h.h-150,y));
+            // 겹침 방지: 최대 12번 주변으로 밀어낸다.
+            for(let tries=0;tries<12;tries++){
+                const hit=occupied.some(o=>x-80<o.x+o.w&&x+h.w+80>o.x&&y-80<o.y+o.h&&y+h.h+80>o.y);
+                if(!hit)break;const a=(tries+1)*2.3999632297;x=Math.max(150,Math.min(data.worldSize-h.w-150,x+Math.cos(a)*170));y=Math.max(150,Math.min(data.worldSize-h.h-150,y+Math.sin(a)*150));
+            }
+            h.x=x;h.y=y;occupied.push(h);
+            for(const r of relItems.get(h)||[]){r.it.x=h.x+Math.max(.12,Math.min(.88,r.rx))*h.w;r.it.y=h.y+Math.max(.12,Math.min(.88,r.ry))*h.h;}
+            if(typeof internalWallsFor==='function')h._interiorRects=internalWallsFor(h);
+            delete h._wallRectsCache;delete h._ballisticRectsCache;delete h._roofVisionCache;delete h._windowDefsCache;
+        });
+        // 기존 나무를 제거하고 마을/테마 구조물/물 밖의 빈 지역에만 숲을 만든다.
+        const nonTrees=data.obstacles.filter(o=>o.type!=='tree');
+        const trees=[]; const size=data.worldSize;
+        const target=theme==='forest'?360:theme==='city'?170:theme==='military'?190:250;
+        const minDist=theme==='forest'?110:145;
+        const grid=new Map(),cell=minDist;
+        const nearTree=(x,y)=>{const gx=Math.floor(x/cell),gy=Math.floor(y/cell);for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++){const a=grid.get((gx+dx)+','+(gy+dy));if(a)for(const t of a)if((t.cx-x)**2+(t.cy-y)**2<minDist*minDist)return true;}return false;};
+        const addTree=(t)=>{trees.push(t);const cx=t.x+t.w/2,cy=t.y+t.h/2,k=Math.floor(cx/cell)+','+Math.floor(cy/cell);let a=grid.get(k);if(!a)grid.set(k,a=[]);a.push({cx,cy});};
+        let tries=0;
+        while(trees.length<target&&tries<target*40){tries++;const w=30+rnd()*18,x=90+rnd()*(size-w-180),y=90+rnd()*(size-w-180),cx=x+w/2,cy=y+w/2;
+            // 마을 주변은 넓게 비워 도로/전투 공간 확보.
+            if(centers.some(c=>(cx-c.x)*(cx-c.x)+(cy-c.y)*(cy-c.y)<(cfg.radius+420)*(cfg.radius+420)))continue;
+            if(nonTrees.some(o=>{const pad=o.type==='house'?180:70;return x-pad<o.x+o.w&&x+w+pad>o.x&&y-pad<o.y+o.h&&y+w+pad>o.y;}))continue;
+            const terrain=data.terrain||{water:[],bridges:[]};if((terrain.water||[]).some(r=>pointInRectPad(cx,cy,r,25)))continue;
+            if(nearTree(cx,cy))continue;addTree({x,y,w,h:w,type:'tree',style:Math.floor(rnd()*3),seed:rnd()});
+        }
+        data.obstacles=nonTrees.concat(trees);
+        data.villages=centers;
+        return data;
+    }
+    generateMapData=function(mode,seed){const data=previousGenerateVillage(mode,seed);return mode==='br'?reclusterMap(data,seed):data;};
+
+    // 실내의 다른 방은 내부 벽 LOS가 막히면 플레이어/봇을 절대 그리지 않는다.
+    if(typeof shouldRenderCombatEntityToLocal==='function'){
+        const prevShouldRender=shouldRenderCombatEntityToLocal;
+        shouldRenderCombatEntityToLocal=function(entity){
+            if(!prevShouldRender(entity))return false;
+            const myHouse=getHouseContainingPoint(myPlayer.x,myPlayer.y),theirHouse=entity&&getHouseContainingPoint(entity.x,entity.y);
+            if(myHouse&&theirHouse===myHouse&&typeof hasLineOfSight==='function'&&!hasLineOfSight(myPlayer,entity))return false;
+            return true;
+        };
+    }
 })();
 
 let lastLoopErrorAt = 0;
