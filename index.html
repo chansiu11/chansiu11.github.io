@@ -449,7 +449,11 @@ const NET_BOT_SYNC_MS = 1000 / 8;        // 가까운 AI는 8Hz로 전송하고 
 const NET_BOT_FULL_SYNC_MS = 1200;       // 먼 AI는 1.2초마다 전체 보정만 수행
 const NET_BOT_INTEREST_RADIUS = 4200;    // 참가자 주변 AI만 빠른 동기화 대상으로 사용
 const NET_BOT_INTERPOLATE_RADIUS = 5000; // 화면 근처 AI만 매 프레임 보간해 CPU 사용량 절감
-const NET_BOT_SMOOTH_MS = 95;            // 낮아진 네트워크 주기를 자연스럽게 연결
+const NET_BOT_SMOOTH_MS = 78;            // 빠르게 따라가되 좌표 스냅은 피한다
+const NET_BOT_PREDICT_MS = 70;            // 패킷 사이 이동량을 이용해 약간 앞을 예측해 끊김을 숨김
+const NET_PLAYER_SMOOTH_MS = 62;         // 다른 사람 이동은 봇보다 더 빠르게 보간
+const NET_PLAYER_PREDICT_MS = 45;        // 다른 사람 입력 패킷 사이를 짧게 예측
+const NET_PLAYER_SNAP_DISTANCE = 900;    // 부활/텔레포트만 즉시 반영
 const NET_BOT_SNAP_DISTANCE = 650;       // 부활/강제 이동처럼 큰 좌표 변화는 즉시 반영
 const NET_FULL_STATE_MS = 4000;          // 아이템/문 전체 복구 동기화는 드물게만 수행
 const NET_HEARTBEAT_MS = 3000;           // 참가자 -> 방장 연결 확인
@@ -462,6 +466,7 @@ let lastClientSyncAt = 0;
 let lastBotSyncAt = 0;
 let lastFullBotSyncAt = 0;
 let lastBotInterpolationAt = performance.now();
+let lastPlayerInterpolationAt = performance.now();
 let lastFullStateAt = 0;
 let lastGuestHudAt = 0;
 const guestBotById = new Map();
@@ -2048,7 +2053,7 @@ function handleNetworkData(data) {
             if (data.players) {
                 data.players.forEach(p => {
                     if(p.id !== myPlayer.id) {
-                        remotePlayers[p.id] = p;
+                        applyNetworkPlayerSnapshot(p);
                         activeIds[p.id] = true;
                     } else {
                         if(selectedMode==='br' && typeof p.isDowned==='boolean')applyLocalLife(p);
@@ -4631,6 +4636,73 @@ function botNetworkState(bot) {
 
 // 게스트 AI 동기화는 "근처 빠른 갱신 + 전체 저빈도 보정"으로 나눈다.
 // 매 패킷마다 100마리 배열/Map을 새로 만들지 않아 참가자 프레임 저하를 줄인다.
+// 게스트에서 다른 실제 플레이어도 네트워크 좌표를 바로 덮어쓰지 않고 렌더 좌표를 부드럽게 따라간다.
+function applyNetworkPlayerSnapshot(snap) {
+    if(isHost || !snap || !snap.id || snap.id===myPlayer.id) return;
+    let p=remotePlayers[snap.id];
+    if(!p){
+        p={...snap};
+        p._netTargetX=Number.isFinite(snap.x)?snap.x:0;
+        p._netTargetY=Number.isFinite(snap.y)?snap.y:0;
+        p._netTargetAngle=Number.isFinite(snap.angle)?snap.angle:0;
+        p._netSnapAt=performance.now();
+        p._netVx=0;p._netVy=0;
+        remotePlayers[snap.id]=p;
+        return;
+    }
+    const now=performance.now();
+    const tx=Number.isFinite(snap.x)?snap.x:(Number.isFinite(p._netTargetX)?p._netTargetX:p.x);
+    const ty=Number.isFinite(snap.y)?snap.y:(Number.isFinite(p._netTargetY)?p._netTargetY:p.y);
+    const prevTx=Number.isFinite(p._netTargetX)?p._netTargetX:(Number.isFinite(p.x)?p.x:tx);
+    const prevTy=Number.isFinite(p._netTargetY)?p._netTargetY:(Number.isFinite(p.y)?p.y:ty);
+    const elapsed=Math.max(16,Math.min(250,now-(p._netSnapAt||now-66)));
+    p._netVx=(tx-prevTx)/elapsed;
+    p._netVy=(ty-prevTy)/elapsed;
+    p._netSnapAt=now;
+
+    const dx=tx-(Number.isFinite(p.x)?p.x:tx),dy=ty-(Number.isFinite(p.y)?p.y:ty);
+    const lifeChanged=!!p.isDead!==!!snap.isDead || !!p.isDowned!==!!snap.isDowned;
+    for(const key of NETWORK_ENTITY_KEYS){
+        if(key==='x'||key==='y'||key==='angle'||key==='moveAngle')continue;
+        if(snap[key]!==undefined)p[key]=snap[key];
+    }
+    p._netTargetX=tx;p._netTargetY=ty;
+    if(Number.isFinite(snap.angle))p._netTargetAngle=snap.angle;
+    if(Number.isFinite(snap.moveAngle))p._netTargetMoveAngle=snap.moveAngle;
+    if(dx*dx+dy*dy>NET_PLAYER_SNAP_DISTANCE*NET_PLAYER_SNAP_DISTANCE||lifeChanged||!Number.isFinite(p.x)||!Number.isFinite(p.y)){
+        p.x=tx;p.y=ty;
+        if(Number.isFinite(snap.angle))p.angle=snap.angle;
+        if(Number.isFinite(snap.moveAngle))p.moveAngle=snap.moveAngle;
+    }
+}
+
+function updateGuestPlayerInterpolation(){
+    if(isHost)return;
+    const now=performance.now();
+    const dt=Math.min(50,Math.max(0,now-lastPlayerInterpolationAt));
+    lastPlayerInterpolationAt=now;
+    const alpha=1-Math.exp(-dt/NET_PLAYER_SMOOTH_MS);
+    for(const p of Object.values(remotePlayers)){
+        if(!p||p.isDead)continue;
+        if(!Number.isFinite(p.x)||!Number.isFinite(p.y))continue;
+        const age=Math.min(NET_PLAYER_PREDICT_MS,Math.max(0,now-(p._netSnapAt||now)));
+        const moving=p.isMoving||p.movementMode==='sprint';
+        const predict=moving?age:0;
+        const tx=(Number.isFinite(p._netTargetX)?p._netTargetX:p.x)+(Number.isFinite(p._netVx)?p._netVx:0)*predict;
+        const ty=(Number.isFinite(p._netTargetY)?p._netTargetY:p.y)+(Number.isFinite(p._netVy)?p._netVy:0)*predict;
+        p.x+=(tx-p.x)*alpha;
+        p.y+=(ty-p.y)*alpha;
+        if(Number.isFinite(p._netTargetAngle)){
+            const a=Number.isFinite(p.angle)?p.angle:p._netTargetAngle;
+            p.angle=a+shortestAngleDelta(a,p._netTargetAngle)*Math.min(1,alpha*1.35);
+        }
+        if(Number.isFinite(p._netTargetMoveAngle)){
+            const a=Number.isFinite(p.moveAngle)?p.moveAngle:p._netTargetMoveAngle;
+            p.moveAngle=a+shortestAngleDelta(a,p._netTargetMoveAngle)*Math.min(1,alpha*1.35);
+        }
+    }
+}
+
 function rebuildGuestBotIndex() {
     guestBotById.clear();
     for(const bot of aiBots) if(bot && bot.id) guestBotById.set(bot.id, bot);
@@ -4651,6 +4723,7 @@ function applyNetworkBotSnapshots(snapshotBots, replaceAll=false) {
             bot._netTargetY = Number.isFinite(snap.y) ? snap.y : 0;
             bot._netTargetAngle = Number.isFinite(snap.angle) ? snap.angle : 0;
             bot._netTargetMoveAngle = Number.isFinite(snap.moveAngle) ? snap.moveAngle : bot._netTargetAngle;
+            bot._netSnapAt=performance.now(); bot._netVx=0; bot._netVy=0;
             aiBots.push(bot);
             guestBotById.set(bot.id, bot);
             continue;
@@ -4658,6 +4731,13 @@ function applyNetworkBotSnapshots(snapshotBots, replaceAll=false) {
 
         const targetX = Number.isFinite(snap.x) ? snap.x : bot.x;
         const targetY = Number.isFinite(snap.y) ? snap.y : bot.y;
+        const snapNow=performance.now();
+        const prevTargetX=Number.isFinite(bot._netTargetX)?bot._netTargetX:targetX;
+        const prevTargetY=Number.isFinite(bot._netTargetY)?bot._netTargetY:targetY;
+        const snapDt=Math.max(20,Math.min(350,snapNow-(bot._netSnapAt||snapNow-125)));
+        bot._netVx=(targetX-prevTargetX)/snapDt;
+        bot._netVy=(targetY-prevTargetY)/snapDt;
+        bot._netSnapAt=snapNow;
         const dx=targetX-(Number.isFinite(bot.x)?bot.x:targetX);
         const dy=targetY-(Number.isFinite(bot.y)?bot.y:targetY);
         const jumpSq=dx*dx+dy*dy;
@@ -4714,15 +4794,20 @@ function updateGuestBotInterpolation() {
             const dx=bx-cx,dy=by-cy;
             if(dx*dx+dy*dy>maxD2) continue;
         }
-        if(Number.isFinite(bot._netTargetX)) bot.x += (bot._netTargetX-bot.x)*alpha;
-        if(Number.isFinite(bot._netTargetY)) bot.y += (bot._netTargetY-bot.y)*alpha;
+        const age=Math.min(NET_BOT_PREDICT_MS,Math.max(0,now-(bot._netSnapAt||now)));
+        const moving=bot.isMoving||bot.movementMode==='sprint';
+        const predict=moving?age:0;
+        const targetX=(Number.isFinite(bot._netTargetX)?bot._netTargetX:bot.x)+(Number.isFinite(bot._netVx)?bot._netVx:0)*predict;
+        const targetY=(Number.isFinite(bot._netTargetY)?bot._netTargetY:bot.y)+(Number.isFinite(bot._netVy)?bot._netVy:0)*predict;
+        if(Number.isFinite(targetX)) bot.x += (targetX-bot.x)*alpha;
+        if(Number.isFinite(targetY)) bot.y += (targetY-bot.y)*alpha;
         if(Number.isFinite(bot._netTargetAngle)) {
             const a=Number.isFinite(bot.angle)?bot.angle:bot._netTargetAngle;
-            bot.angle = a + shortestAngleDelta(a,bot._netTargetAngle)*alpha;
+            bot.angle = a + shortestAngleDelta(a,bot._netTargetAngle)*Math.min(1,alpha*1.25);
         }
         if(Number.isFinite(bot._netTargetMoveAngle)) {
             const a=Number.isFinite(bot.moveAngle)?bot.moveAngle:bot._netTargetMoveAngle;
-            bot.moveAngle = a + shortestAngleDelta(a,bot._netTargetMoveAngle)*alpha;
+            bot.moveAngle = a + shortestAngleDelta(a,bot._netTargetMoveAngle)*Math.min(1,alpha*1.25);
         }
     }
 }
@@ -4988,6 +5073,7 @@ function update() {
     }
 
     updateAI();
+    updateGuestPlayerInterpolation();
     updateGuestBotInterpolation();
     updateFootsteps();
     updateNetwork();
