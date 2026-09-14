@@ -440,6 +440,35 @@ let selectedMode = 'br';
 let isMobile = false;
 let aiDifficulty = 'very_easy';
 
+// --- 네트워크 안정화 설정 ---
+// 기존 코드는 매 렌더 프레임마다 전체 월드 상태를 전송해 WebRTC DataChannel 버퍼가
+// 계속 쌓일 수 있었다. 게임 화면은 60fps로 그리되 네트워크 동기화만 별도 주기로 제한한다.
+const NET_HOST_SYNC_MS = 1000 / 15;      // 방장 -> 참가자: 15Hz
+const NET_CLIENT_SYNC_MS = 1000 / 20;    // 참가자 -> 방장: 20Hz
+const NET_BOT_SYNC_MS = 1000 / 10;       // AI 전체 상태는 10Hz면 충분 (대역폭 절감)
+const NET_BOT_SMOOTH_MS = 85;            // 게스트 화면 AI 위치 보간 반응 속도
+const NET_BOT_SNAP_DISTANCE = 650;       // 부활/강제 이동처럼 큰 좌표 변화는 즉시 반영
+const NET_FULL_STATE_MS = 1000;          // 아이템/문 전체 복구 동기화는 1초에 1회
+const NET_HEARTBEAT_MS = 3000;           // 참가자 -> 방장 연결 확인
+const NET_HEARTBEAT_TIMEOUT_MS = 10000;  // 이 시간 동안 응답이 없으면 재접속
+const NET_MAX_BUFFERED_BYTES = 256 * 1024;
+const NET_MAX_QUEUED_MESSAGES = 4;
+const NET_RECONNECT_GRACE_MS = 12000;
+let lastHostSyncAt = 0;
+let lastClientSyncAt = 0;
+let lastBotSyncAt = 0;
+let lastBotInterpolationAt = performance.now();
+let lastFullStateAt = 0;
+let currentRoomCode = '';
+let joinTargetPeerId = '';
+let reconnectTimer = null;
+let reconnectAttempts = 0;
+let guestConnecting = false;
+let guestConnectTimeout = null;
+let guestHeartbeatTimer = null;
+let lastHostMessageAt = 0;
+const pendingDisconnectRemoval = new Map();
+
 let gameStarted = false;
 let gameEnded = false;
 let initialPlayerCount = 1;
@@ -1605,6 +1634,120 @@ function updateModeSettingsUI() {
 }
 document.getElementById('gameModeSelect').addEventListener('change', updateModeSettingsUI);
 
+function connectionBufferedBytes(c) {
+    const dc = c && c.dataChannel;
+    return dc && Number.isFinite(dc.bufferedAmount) ? dc.bufferedAmount : 0;
+}
+
+function safeSend(c, data) {
+    if(!c || !c.open) return false;
+    // SYNC는 다음 패킷이 곧 오므로 버퍼가 밀리면 오래된 상태를 더 쌓지 않고 건너뛴다.
+    if(data && data.type === 'SYNC') {
+        const queued = Number(c.bufferSize || 0);
+        if(connectionBufferedBytes(c) > NET_MAX_BUFFERED_BYTES || queued > NET_MAX_QUEUED_MESSAGES) return false;
+    }
+    try {
+        c.send(data);
+        return true;
+    } catch (err) {
+        console.warn('network send skipped:', err);
+        return false;
+    }
+}
+
+function installPeerReconnectHandlers(p) {
+    if(!p) return;
+    p.on('disconnected', () => {
+        // 기존 P2P 연결은 살아 있을 수 있으므로 페이지를 새로고침하지 않고
+        // PeerJS 신호 서버 연결만 다시 붙인다.
+        setTimeout(() => {
+            try {
+                if(p && !p.destroyed && p.disconnected) p.reconnect();
+            } catch (err) {
+                console.warn('peer signalling reconnect failed:', err);
+            }
+        }, 700);
+    });
+    p.on('error', err => {
+        console.warn('PeerJS:', err && (err.type || err.message || err));
+        // 게스트가 방장을 잠깐 찾지 못한 경우에도 페이지를 새로고침하지 않고 재시도한다.
+        if(!isHost && err && ['peer-unavailable','network','server-error','socket-error','disconnected'].includes(err.type)) {
+            guestConnecting=false;
+            if(guestConnectTimeout){clearTimeout(guestConnectTimeout);guestConnectTimeout=null;}
+            scheduleGuestReconnect();
+        }
+    });
+}
+
+function clearPendingDisconnect(playerId) {
+    if(!playerId) return;
+    const timer = pendingDisconnectRemoval.get(playerId);
+    if(timer) clearTimeout(timer);
+    pendingDisconnectRemoval.delete(playerId);
+}
+
+function attachHostConnection(c) {
+    c.on('open', () => {
+        connections[c.peer] = c;
+        safeSend(c, {
+            type: 'ROOM_SETTINGS',
+            mode: selectedMode,
+            aiToggle: document.getElementById('aiToggle').value === 'true',
+            aiDiff: document.getElementById('aiDifficultySelect').value,
+            aiCount: document.getElementById('aiCountInput').value,
+            mapSeed: currentMapSeed || 0
+        });
+    });
+
+    c.on('data', data => {
+        if(data && data.type==='PING') { safeSend(c,{type:'PONG',t:data.t}); return; }
+        if(data.player && data.player.id) {
+            if(!c.playerId)c.playerId = data.player.id;
+            data.player.id=c.playerId;
+            clearPendingDisconnect(c.playerId);
+        }
+        if(data.type==='LOBBY_HELLO' && data.player){
+            c.playerId=data.player.id;
+            clearPendingDisconnect(c.playerId);
+            remotePlayers[data.player.id]=data.player;
+            applyEntityTeam(remotePlayers[data.player.id]);
+            publishRoomRoles();
+            return;
+        }
+        if(c.playerId && isAssignedSpectator(c.playerId)){
+            if(data.type!=='SYNC')return;
+            if(data.player){data.player.id=c.playerId;enforceObserver(data.player);}
+        }
+        if(data.player)applyEntityTeam(data.player);
+        handleNetworkData(data);
+    });
+
+    let disconnectedHandled=false;
+    const handleDisconnect = () => {
+        if(disconnectedHandled) return;
+        disconnectedHandled=true;
+        if(connections[c.peer]===c) delete connections[c.peer];
+        const playerId=c.playerId;
+        if(!playerId) return;
+        clearPendingDisconnect(playerId);
+        // 짧은 Wi-Fi 전환/모바일 순간 끊김은 즉시 퇴장 처리하지 않고 재접속 시간을 준다.
+        const timer=setTimeout(() => {
+            const restored=Object.values(connections).some(conn=>conn && conn.open && conn.playerId===playerId);
+            if(restored) return;
+            delete remotePlayers[playerId];
+            spectatorIds.delete(playerId);
+            delete teamAssignments[playerId];
+            pendingDisconnectRemoval.delete(playerId);
+            publishRoomRoles();
+            updateHUD();
+        }, NET_RECONNECT_GRACE_MS);
+        pendingDisconnectRemoval.set(playerId,timer);
+    };
+
+    c.on('close', handleDisconnect);
+    c.on('error', err => { console.warn('guest connection error:',err); handleDisconnect(); });
+}
+
 function createRoom() {
     const nick = document.getElementById('nicknameInput').value.trim();
     if(nick) myPlayer.name = nick;
@@ -1616,6 +1759,7 @@ function createRoom() {
     updateModeSettingsUI();
 
     const code = generateShortId();
+    currentRoomCode = code;
     document.getElementById('displayRoomCode').innerText = code;
     
     document.getElementById('ui').style.display = 'none';
@@ -1627,47 +1771,115 @@ function createRoom() {
     document.getElementById('guestWaitText').style.display = 'none';
 
     peer = new Peer('gungame-room-' + code);
-    
-    peer.on('connection', c => { 
-        c.on('open', () => {
-            connections[c.peer] = c;
-            c.send({
-                type: 'ROOM_SETTINGS',
-                mode: selectedMode,
-                aiToggle: document.getElementById('aiToggle').value === 'true',
-                aiDiff: document.getElementById('aiDifficultySelect').value,
-                aiCount: document.getElementById('aiCountInput').value,
-                mapSeed: currentMapSeed || 0
-            });
-        });
+    installPeerReconnectHandlers(peer);
+    peer.on('connection', attachHostConnection);
+}
 
-        c.on('data', data => {
-            if(data.player && data.player.id) {
-                if(!c.playerId)c.playerId = data.player.id;
-                data.player.id=c.playerId;
-            }
-            if(data.type==='LOBBY_HELLO' && data.player){
-                remotePlayers[data.player.id]=data.player;publishRoomRoles();return;
-            }
-            if(c.playerId && isAssignedSpectator(c.playerId)){
-                if(data.type!=='SYNC')return;
-                if(data.player){data.player.id=c.playerId;enforceObserver(data.player);}
-            }
-            if(data.player)applyEntityTeam(data.player);
-            handleNetworkData(data);
-        });
+function setGuestConnectionUi(input) {
+    document.getElementById('ui').style.display = 'none';
+    document.getElementById('waitingRoom').style.display = 'flex';
+    document.getElementById('displayRoomCode').innerText = input;
+    document.getElementById('waitingTitle').innerText = "대기실";
+    document.getElementById('hostSettingsControls').style.display = 'none';
+    document.getElementById('guestSettingsDisplay').style.display = 'block';
+    document.getElementById('startButton').style.display = 'none';
+    document.getElementById('guestWaitText').style.display = 'block';
+}
 
-        const handleDisconnect = () => {
-            if (c.playerId) {
-                delete remotePlayers[c.playerId];
-            }
-            delete connections[c.peer];
-            if(c.playerId){spectatorIds.delete(c.playerId);delete teamAssignments[c.playerId];}publishRoomRoles();
-            updateHUD();
-        };
+function startGuestHeartbeat() {
+    if(guestHeartbeatTimer) return;
+    lastHostMessageAt=Date.now();
+    guestHeartbeatTimer=setInterval(() => {
+        if(isHost) return;
+        if(!hostConn || !hostConn.open) { scheduleGuestReconnect(); return; }
+        const now=Date.now();
+        if(lastHostMessageAt && now-lastHostMessageAt > NET_HEARTBEAT_TIMEOUT_MS) {
+            console.warn('host heartbeat timeout - reconnecting');
+            try { hostConn.close(); } catch(e) {}
+            hostConn=null;
+            guestConnecting=false;
+            scheduleGuestReconnect();
+            return;
+        }
+        safeSend(hostConn,{type:'PING',t:now});
+    }, NET_HEARTBEAT_MS);
+}
 
-        c.on('close', handleDisconnect);
-        c.on('error', handleDisconnect);
+function scheduleGuestReconnect() {
+    if(isHost || !joinTargetPeerId || reconnectTimer) return;
+    reconnectAttempts++;
+    const delay=Math.min(5000, 600 * Math.pow(1.55, Math.min(reconnectAttempts-1, 6)));
+    reconnectTimer=setTimeout(() => {
+        reconnectTimer=null;
+        if(hostConn && hostConn.open) return;
+        try {
+            if(peer && !peer.destroyed && peer.disconnected) peer.reconnect();
+        } catch(e) {}
+        connectGuestToHost();
+    }, delay);
+}
+
+function connectGuestToHost() {
+    if(isHost || !peer || peer.destroyed || !joinTargetPeerId) return;
+    if(hostConn && hostConn.open) return;
+    if(guestConnecting) return;
+    guestConnecting=true;
+
+    let c;
+    try {
+        c=peer.connect(joinTargetPeerId, {serialization:'binary'});
+    } catch(err) {
+        guestConnecting=false;
+        console.warn('connect retry failed:',err);
+        scheduleGuestReconnect();
+        return;
+    }
+    hostConn=c;
+    let opened=false;
+
+    // 연결 이벤트가 영원히 안 오는 경우를 방지한다.
+    if(guestConnectTimeout) clearTimeout(guestConnectTimeout);
+    guestConnectTimeout=setTimeout(() => {
+        if(hostConn===c && !opened) {
+            try { c.close(); } catch(e) {}
+            hostConn=null;
+            guestConnecting=false;
+            scheduleGuestReconnect();
+        }
+    }, 8000);
+
+    c.on('open', () => {
+        if(hostConn!==c) return;
+        opened=true;
+        guestConnecting=false;
+        lastHostMessageAt=Date.now();
+        if(guestConnectTimeout){clearTimeout(guestConnectTimeout);guestConnectTimeout=null;}
+        reconnectAttempts=0;
+        if(reconnectTimer){clearTimeout(reconnectTimer);reconnectTimer=null;}
+        setGuestConnectionUi(currentRoomCode);
+        safeSend(c,{type:'LOBBY_HELLO',player:networkEntityState(myPlayer)});
+        // 게임 중 재접속한 경우 현재 위치/상태도 즉시 한 번 보낸다.
+        if(gameStarted) safeSend(c,{type:'SYNC',player:networkEntityState(myPlayer)});
+        startGuestHeartbeat();
+    });
+    c.on('data', data => {
+        if(hostConn!==c) return;
+        lastHostMessageAt=Date.now();
+        if(data && data.type==='PONG') return;
+        handleNetworkData(data);
+    });
+    c.on('error', err => {
+        console.warn('host connection error:',err);
+        if(hostConn!==c) return;
+        guestConnecting=false;
+        if(guestConnectTimeout){clearTimeout(guestConnectTimeout);guestConnectTimeout=null;}
+        scheduleGuestReconnect();
+    });
+    c.on('close', () => {
+        if(hostConn===c) hostConn=null;
+        guestConnecting=false;
+        if(guestConnectTimeout){clearTimeout(guestConnectTimeout);guestConnectTimeout=null;}
+        scheduleGuestReconnect();
     });
 }
 
@@ -1680,37 +1892,22 @@ function joinRoom() {
     if(!input) { alert("방 코드를 입력해주세요."); return; }
 
     isHost = false;
+    currentRoomCode=input;
+    joinTargetPeerId='gungame-room-' + input;
+    reconnectAttempts=0;
+    guestConnecting=false;
+    if(reconnectTimer){clearTimeout(reconnectTimer);reconnectTimer=null;}
+    if(guestConnectTimeout){clearTimeout(guestConnectTimeout);guestConnectTimeout=null;}
     peer = new Peer();
-    peer.on('open', () => {
-        hostConn = peer.connect('gungame-room-' + input);
-        hostConn.on('open', () => {
-            document.getElementById('ui').style.display = 'none';
-            document.getElementById('waitingRoom').style.display = 'flex';
-            document.getElementById('displayRoomCode').innerText = input;
-            
-            document.getElementById('waitingTitle').innerText = "대기실";
-            document.getElementById('hostSettingsControls').style.display = 'none';
-            document.getElementById('guestSettingsDisplay').style.display = 'block';
-            document.getElementById('startButton').style.display = 'none'; 
-            document.getElementById('guestWaitText').style.display = 'block';
-            hostConn.send({type:'LOBBY_HELLO',player:myPlayer});
-        });
-        hostConn.on('data', data => handleNetworkData(data));
-        hostConn.on('error', () => alert('방 접속 실패!'));
-        hostConn.on('close', () => {
-            alert('방장과의 연결이 끊어졌습니다.');
-            location.reload();
-        });
-    });
+    installPeerReconnectHandlers(peer);
+    peer.on('open', () => connectGuestToHost());
 }
 
 function broadcastData(data) {
     if(isHost) {
-        Object.values(connections).forEach(c => {
-            if(c.open) c.send(data);
-        });
+        Object.values(connections).forEach(c => safeSend(c,data));
     } else if(hostConn && hostConn.open) {
-        hostConn.send(data);
+        safeSend(hostConn,data);
     }
 }
 
@@ -1830,7 +2027,7 @@ function handleNetworkData(data) {
                 // 아이템은 SYNC의 현재 상태가 권위 있으므로 아래에서 data.items로 덮어쓴다.
             }
             if(data.doors) data.doors.forEach(applyDoorState);
-            bullets = data.bullets || [];
+            if(Array.isArray(data.bullets)) bullets = data.bullets;
             zone.radius = data.zoneRadius;
             zone.x = data.zoneX;
             zone.y = data.zoneY;
@@ -1858,9 +2055,8 @@ function handleNetworkData(data) {
                 if(!activeIds[id]) delete remotePlayers[id];
             }
 
-            aiBots.length = 0;
-            if (data.aiBots) {
-                data.aiBots.forEach(b => aiBots.push(b));
+            if (Array.isArray(data.aiBots)) {
+                applyNetworkBotSnapshots(data.aiBots);
             }
             updateHUD();
             checkDeathmatchVictory();
@@ -1901,6 +2097,7 @@ function handleNetworkData(data) {
         if (data.killerId === myPlayer.id) {
             myPlayer.kills++;
             updateHUD();
+            showKillNotification();
         } else if (remotePlayers[data.killerId]) {
             remotePlayers[data.killerId].kills = (remotePlayers[data.killerId].kills || 0) + 1;
         }
@@ -4392,36 +4589,149 @@ function returnToRoomAfterGame() {
     }
 }
 
-function botNetworkState(bot) {
+const NETWORK_ENTITY_KEYS = [
+    'id','x','y','angle','speed','hp','maxHp','kills','deaths','isDead','name',
+    'weapon','clipAmmo','reserveAmmo','isReloading','reloadStartedAt',
+    'equippedScope','equippedHelmet','equippedBodyArmor',
+    'isAiming','isShooting','lastShootTime','isMoving','movementMode','moveAngle',
+    'isDowned','downedUntil','reviveHeld','reviveProgress','teamId','team'
+];
+
+function networkEntityState(entity) {
     const state={};
-    for(const key of Object.keys(bot)){
-        if(key.startsWith('_') || ['targetItem','investigateTarget','firstSeenTime','stuckFrames','avoidDir'].includes(key))continue;
-        state[key]=bot[key];
+    for(const key of NETWORK_ENTITY_KEYS) {
+        if(entity[key] !== undefined) state[key]=entity[key];
     }
     return state;
 }
 
+const NETWORK_BOT_KEYS = [
+    'id','x','y','angle','hp','maxHp','kills','deaths','isDead','name','weapon',
+    'clipAmmo','isReloading','reloadStartedAt','equippedHelmet','equippedBodyArmor',
+    'isMoving','movementMode','moveAngle','isDowned','downedUntil','teamId','team'
+];
+
+function botNetworkState(bot) {
+    const state={};
+    for(const key of NETWORK_BOT_KEYS) if(bot[key] !== undefined) state[key]=bot[key];
+    return state;
+}
+
+// 게스트는 10Hz로 도착하는 AI 좌표를 그대로 덮어쓰지 않고 목표 좌표로 저장한다.
+// 화면 렌더링 좌표는 매 프레임 부드럽게 따라가게 해 봇의 순간이동/뚝뚝 끊김을 없앤다.
+function applyNetworkBotSnapshots(snapshotBots) {
+    if(isHost || !Array.isArray(snapshotBots)) return;
+    const previousById = new Map(aiBots.map(bot => [bot.id, bot]));
+    const nextBots = [];
+
+    for(const snap of snapshotBots) {
+        if(!snap || !snap.id) continue;
+        let bot = previousById.get(snap.id);
+        if(!bot) {
+            bot = {...snap};
+            bot._netTargetX = Number.isFinite(snap.x) ? snap.x : 0;
+            bot._netTargetY = Number.isFinite(snap.y) ? snap.y : 0;
+            bot._netTargetAngle = Number.isFinite(snap.angle) ? snap.angle : 0;
+            bot._netTargetMoveAngle = Number.isFinite(snap.moveAngle) ? snap.moveAngle : bot._netTargetAngle;
+        } else {
+            const targetX = Number.isFinite(snap.x) ? snap.x : bot.x;
+            const targetY = Number.isFinite(snap.y) ? snap.y : bot.y;
+            const jump = Math.hypot(targetX - (bot.x || 0), targetY - (bot.y || 0));
+            const lifeStateChanged = !!bot.isDead !== !!snap.isDead || !!bot.isDowned !== !!snap.isDowned;
+
+            // 좌표/각도는 보간용 목표값으로 분리하고 나머지 전투 상태는 즉시 갱신한다.
+            for(const [key,value] of Object.entries(snap)) {
+                if(key==='x'||key==='y'||key==='angle'||key==='moveAngle') continue;
+                bot[key]=value;
+            }
+            bot._netTargetX = targetX;
+            bot._netTargetY = targetY;
+            if(Number.isFinite(snap.angle)) bot._netTargetAngle = snap.angle;
+            if(Number.isFinite(snap.moveAngle)) bot._netTargetMoveAngle = snap.moveAngle;
+
+            // 부활/스폰/강제 위치 변경은 보간하면 오히려 맵을 가로질러 미끄러지므로 즉시 이동한다.
+            if(jump > NET_BOT_SNAP_DISTANCE || lifeStateChanged || !Number.isFinite(bot.x) || !Number.isFinite(bot.y)) {
+                bot.x = targetX;
+                bot.y = targetY;
+                if(Number.isFinite(snap.angle)) bot.angle = snap.angle;
+                if(Number.isFinite(snap.moveAngle)) bot.moveAngle = snap.moveAngle;
+            }
+        }
+        nextBots.push(bot);
+        previousById.delete(snap.id);
+    }
+
+    aiBots.length = 0;
+    aiBots.push(...nextBots);
+}
+
+function shortestAngleDelta(from,to) {
+    let d=(to-from)%(Math.PI*2);
+    if(d>Math.PI)d-=Math.PI*2;
+    if(d<-Math.PI)d+=Math.PI*2;
+    return d;
+}
+
+function updateGuestBotInterpolation() {
+    if(isHost) return;
+    const now=performance.now();
+    const dt=Math.min(80,Math.max(0,now-lastBotInterpolationAt));
+    lastBotInterpolationAt=now;
+    // 프레임레이트와 무관한 지수 보간. 약 85ms 정도의 반응으로 10Hz 스냅을 자연스럽게 연결한다.
+    const alpha=1-Math.exp(-dt/NET_BOT_SMOOTH_MS);
+
+    for(const bot of aiBots) {
+        if(Number.isFinite(bot._netTargetX)) bot.x += (bot._netTargetX-bot.x)*alpha;
+        if(Number.isFinite(bot._netTargetY)) bot.y += (bot._netTargetY-bot.y)*alpha;
+        if(Number.isFinite(bot._netTargetAngle)) {
+            bot.angle = (Number.isFinite(bot.angle)?bot.angle:bot._netTargetAngle) + shortestAngleDelta(Number.isFinite(bot.angle)?bot.angle:bot._netTargetAngle,bot._netTargetAngle)*alpha;
+        }
+        if(Number.isFinite(bot._netTargetMoveAngle)) {
+            bot.moveAngle = (Number.isFinite(bot.moveAngle)?bot.moveAngle:bot._netTargetMoveAngle) + shortestAngleDelta(Number.isFinite(bot.moveAngle)?bot.moveAngle:bot._netTargetMoveAngle,bot._netTargetMoveAngle)*alpha;
+        }
+    }
+}
+
+function bulletNetworkState(b) {
+    return {x:b.x,y:b.y,prevX:b.prevX,prevY:b.prevY,ownerId:b.ownerId,shotId:b.shotId};
+}
+
 function updateNetwork() {
+    const now=performance.now();
     if(isHost) {
+        if(now-lastHostSyncAt < NET_HOST_SYNC_MS) return;
+        lastHostSyncAt=now;
         if(!Object.values(connections).some(c=>c.open))return;
-        const allPlayers = [myPlayer, ...Object.values(remotePlayers)];
-        broadcastData({
+
+        const includeBots = now-lastBotSyncAt >= NET_BOT_SYNC_MS;
+        if(includeBots) lastBotSyncAt=now;
+        const includeFullState = now-lastFullStateAt >= NET_FULL_STATE_MS;
+        if(includeFullState) lastFullStateAt=now;
+        const packet={
             type: 'SYNC',
-            players: allPlayers,
-            aiBots: aiBots.map(botNetworkState),
-            bullets: bullets,
-            items: droppedItems,
-            doors:obstacles.filter(h=>h.doorId).map(h=>({doorId:h.doorId,hp:h.doorHp,open:h.doorOpen})),
+            players: [myPlayer, ...Object.values(remotePlayers)].map(networkEntityState),
+            bullets: bullets.map(bulletNetworkState),
             zoneRadius: zone.radius,
             zoneX: zone.x,
             zoneY: zone.y,
             zoneStage: zoneStage,
             mapSeed: currentMapSeed
-        });
+        };
+        // AI는 수가 많으므로 플레이어보다 낮은 10Hz로 전송한다.
+        if(includeBots) packet.aiBots=aiBots.map(botNetworkState);
+        // 아이템과 문은 변경 이벤트가 따로 있으므로 매 프레임 전송하지 않는다.
+        // 그래도 유실 복구용으로 1초에 한 번 전체 상태를 실어 보낸다.
+        if(includeFullState) {
+            packet.items=droppedItems;
+            packet.doors=obstacles.filter(h=>h.doorId).map(h=>({doorId:h.doorId,hp:h.doorHp,open:h.doorOpen}));
+        }
+        broadcastData(packet);
     } else if(hostConn && hostConn.open) {
-        hostConn.send({
+        if(now-lastClientSyncAt < NET_CLIENT_SYNC_MS) return;
+        lastClientSyncAt=now;
+        safeSend(hostConn,{
             type: 'SYNC',
-            player: myPlayer
+            player: networkEntityState(myPlayer)
         });
     }
 }
@@ -4616,6 +4926,7 @@ function update() {
     }
 
     updateAI();
+    updateGuestBotInterpolation();
     updateFootsteps();
     updateNetwork();
 
