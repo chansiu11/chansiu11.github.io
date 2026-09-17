@@ -233,7 +233,7 @@
 
         <hr style="width:100%; border-color:#444; margin: 2px 0;">
         
-        <input type="text" id="joinIdInput" placeholder="방 코드 입력" maxlength="5">
+        <input type="text" id="joinIdInput" placeholder="4자리 숫자 방 코드" maxlength="4" inputmode="numeric" pattern="[0-9]{4}" autocomplete="off" oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)">
         <button onclick="joinRoom()" style="background-color: #ffcc00;">방 참가하기</button>
         <button onclick="openSettings()" class="btn-secondary" style="margin-top: 4px;">⚙️ 설정</button>
     </div>
@@ -1284,7 +1284,8 @@ function generateMapData(mode, seed = currentMapSeed || 1) {
             const h = rand() * 150 + 50;
             const x = rand() * (size - w - 200) + 100;
             const y = rand() * (size - h - 200) + 100;
-            newObstacles.push({ x, y, w, h });
+            // 데스매치 장애물은 그림자/충돌 좌표와 동일한 실제 벽으로 표시한다.
+            newObstacles.push({ type: 'wall', x, y, w, h });
         }
 
         const types = [
@@ -1613,7 +1614,10 @@ function refreshSpectatorControls(){
     if(active)updateSpectatorAliveCount();
 }
 
-function generateShortId() { return Math.random().toString(36).substring(2, 7).toLowerCase(); }
+function generateShortId() {
+    // 방 코드는 숫자만 사용하는 4자리(1000~9999)로 생성
+    return String(Math.floor(1000 + Math.random() * 9000));
+}
 
 function onHostSettingsChange() {
     if(!isHost) return;
@@ -1899,12 +1903,15 @@ function connectGuestToHost() {
 }
 
 function joinRoom() {
-    const input = document.getElementById('joinIdInput').value.trim().toLowerCase();
+    const input = document.getElementById('joinIdInput').value.replace(/\D/g, '').slice(0, 4);
     const nick = document.getElementById('nicknameInput').value.trim();
     if(nick) myPlayer.name = nick;
     applyPlatformSetting(document.getElementById('platformSelect').value);
 
-    if(!input) { alert("방 코드를 입력해주세요."); return; }
+    if(!/^\d{4}$/.test(input)) {
+        alert("방 코드는 숫자 4자리로 입력해주세요.");
+        return;
+    }
 
     isHost = false;
     currentRoomCode=input;
@@ -5809,7 +5816,8 @@ function isObstacleInRenderRange(obs, margin=180){
 
 function drawDesignedObstacle(obs){
     if(!isObstacleInRenderRange(obs,220))return;
-    if (obs.type === 'wall') {
+    // 이전 버전에서 type이 빠진 데스매치 장애물도 그림자 위치에 실제 벽으로 복구한다.
+    if (obs.type === 'wall' || (selectedMode === 'normal' && !obs.type)) {
         ctx.save();
 
         // 데스매치 골목 벽 본체
