@@ -3,202 +3,278 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>생태계 피라미드와 황소개구리 시뮬레이터</title>
+    <title>한국 민물 생태계 & 황소개구리 실시간 시뮬레이터</title>
     <style>
         body {
             font-family: 'Malgun Gothic', sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 900px;
-            margin: 0 auto;
+            background-color: #f4f6f7;
+            margin: 0;
             padding: 20px;
-            background-color: #f9f9f9;
-        }
-        h1, h2 {
-            text-align: center;
-            color: #2c3e50;
-        }
-        
-        /* 생태계 피라미드 시각화 스타일 */
-        .pyramid-container {
             display: flex;
             flex-direction: column;
             align-items: center;
-            margin: 30px 0;
         }
-        .pyramid-level {
-            text-align: center;
-            color: white;
-            font-weight: bold;
-            padding: 15px;
-            margin: 3px 0;
-            border-radius: 5px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            transition: all 0.5s ease;
-        }
+        h1 { color: #2c3e50; margin-bottom: 5px; }
+        p { color: #666; margin-top: 0; }
         
-        /* 피라미드 단계별 크기 및 색상 */
-        .level-4 { width: 30%; background-color: #e74c3c; } 
-        .level-3 { width: 50%; background-color: #e67e22; } 
-        .level-2 { width: 70%; background-color: #f1c40f; color: #333; } 
-        .level-1 { width: 90%; background-color: #27ae60; } 
-
-        .level-title {
-            font-size: 1.1em;
-            margin-bottom: 5px;
-        }
-        .level-desc {
-            font-size: 0.9em;
-            font-weight: normal;
-        }
-
-        /* 시뮬레이터 섹션 스타일 */
-        .simulator-section {
-            background: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-            margin: 40px 0;
-            text-align: center;
-        }
-        .btn-group {
-            margin: 20px 0;
-        }
-        button {
-            background-color: #3498db;
-            color: white;
-            border: none;
-            padding: 12px 25px;
-            font-size: 1em;
-            border-radius: 5px;
-            cursor: pointer;
-            margin: 0 10px;
-            transition: background 0.3s;
-        }
-        button:hover {
-            background-color: #2980b9;
-        }
-        button.reset {
-            background-color: #95a5a6;
-        }
-        button.reset:hover {
-            background-color: #7f8c8d;
-        }
-        .sim-log {
-            background-color: #f1f2f6;
-            padding: 15px;
-            border-radius: 5px;
-            margin-top: 20px;
-            font-weight: bold;
-            min-height: 40px;
+        .main-container {
             display: flex;
-            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
             justify-content: center;
         }
 
-        /* 황소개구리 영향 섹션 스타일 */
-        .impact-section {
-            background: white;
-            padding: 30px;
+        /* 맵 스타일 */
+        #simCanvas {
+            background: linear-gradient(to bottom, #d4edda, #cce5ff);
+            border: 3px solid #2c3e50;
             border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
-        .impact-box {
-            background-color: #fadbd8;
-            border-left: 5px solid #e74c3c;
-            padding: 15px;
-            margin: 15px 0;
-            text-align: left;
+
+        /* 제어 패널 스타일 */
+        .control-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            width: 300px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .status-box {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            border-left: 4px solid #3498db;
+            font-size: 0.9em;
+        }
+        button {
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            padding: 10px;
+            font-size: 1em;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover { background-color: #219653; }
+        button.danger { background-color: #e74c3c; }
+        button.danger:hover { background-color: #c0392b; }
+        button.solution { background-color: #2980b9; }
+        button.solution:hover { background-color: #1f618d; }
+
+        .legend {
+            font-size: 0.85em;
+            line-height: 1.5;
+        }
+        .legend span {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 5px;
+            vertical-align: middle;
         }
     </style>
 </head>
 <body>
 
-    <h1>🌿 생태계 피라미드 구조</h1>
-    <p style="text-align: center; color: #666;">아래 피라미드는 에너지가 상위 단계로 갈수록 줄어들고 개체수가 조절되는 안정적인 상태입니다.</p>
+    <h1>🐸 한국 민물 생태계 실시간 시뮬레이터</h1>
+    <p>개체들이 무작위로 움직이며 먹고 먹히는 생태계 흐름을 관찰하세요.</p>
 
-    <!-- 생태계 피라미드 시각화 -->
-    <div class="pyramid-container" id="pyramid">
-        <div class="pyramid-level level-4" id="lvl4">
-            <div class="level-title">3차 소비자 (최상위)</div>
-            <div class="level-desc" id="desc4">개체 수: 안정적</div>
-        </div>
-        <div class="pyramid-level level-3" id="lvl3">
-            <div class="level-title">2차 소비자 (육식동물)</div>
-            <div class="level-desc" id="desc3">토종 개구리 및 육식동물 공존</div>
-        </div>
-        <div class="pyramid-level level-2" id="lvl2">
-            <div class="level-title">1차 소비자 (초식동물)</div>
-            <div class="level-desc" id="desc2">개체 수: 안정적</div>
-        </div>
-        <div class="pyramid-level level-1" id="lvl1">
-            <div class="level-title">생산자</div>
-            <div class="level-desc" id="desc1">식물 및 플랑크톤 풍부</div>
-        </div>
-    </div>
+    <div class="main-container">
+        <!-- 캔버스 맵 -->
+        <canvas id="simCanvas" width="600" height="400"></canvas>
 
-    <!-- 시뮬레이터 제어 영역 -->
-    <div class="simulator-section">
-        <h2>⚡ 생태계 교란 시뮬레이터</h2>
-        <p>버튼을 눌러 민물 생태계에 외래종(황소개구리)이 유입되었을 때의 변화를 확인해보세요.</p>
-        <div class="btn-group">
-            <button onclick="introduceBullfrog()">황소개구리 투입하기</button>
-            <button class="reset" onclick="resetEcosystem()">시뮬레이터 초기화</button>
-        </div>
-        <div class="sim-log" id="simLog">초기 상태: 건강하고 균형 잡힌 민물 생태계입니다.</div>
-    </div>
+        <!-- 제어 패널 -->
+        <div class="control-panel">
+            <h3>컨트롤 패널</h3>
+            
+            <div class="status-box" id="statusText">
+                상태: 안정적인 토종 생태계 유지 중
+            </div>
 
-    <!-- 황소개구리 영향 설명 섹션 -->
-    <div class="impact-section">
-        <h2>🐸 우리나라 민물 생태계에 황소개구리가 미치는 영향</h2>
-        <div class="impact-box">
-            <strong>1. 천적 부재로 인한 폭발적 증가</strong>
-            <p>국내 생태계에 마땅한 상위 천적이 없어 황소개구리 개체 수가 급증합니다.</p>
-        </div>
-        <div class="impact-box">
-            <strong>2. 토종 생물 포식 및 먹이사슬 파괴</strong>
-            <p>토종 양서류와 물고기를 무차별적으로 잡아먹어 2차/3차 소비자의 균형이 무너집니다.</p>
-        </div>
-        <div class="impact-box">
-            <strong>3. 생태계 다양성 붕괴</strong>
-            <p>먹이사슬의 연결고리가 끊어지며 전체적인 생태계 피라미드가 심각하게 훼손됩니다.</p>
+            <button class="danger" onclick="injectBullfrog()">1. 황소개구리 투입 (교란)</button>
+            <button class="solution" onclick="applySolution()">2. 포획 및 천적 투입 (해결)</button>
+            <button onclick="resetSim()">초기화</button>
+
+            <div class="legend">
+                <strong>범례:</strong><br>
+                <span style="background: #27ae60;"></span> 생산자 (수초/플랑크톤)<br>
+                <span style="background: #f1c40f;"></span> 1차 소비자 (올챙이/초식)<br>
+                <span style="background: #e67e22;"></span> 토종 2차 (참개구리/물고기)<br>
+                <span style="background: #c0392b;"></span> 황소개구리 (외래종)<br>
+                <span style="background: #8e44ad;"></span> 최상위 (백로/수리부엉이)
+            </div>
         </div>
     </div>
 
     <script>
-        function introduceBullfrog() {
-            // 피라미드 형태 변형 (2차 소비자가 비정상적으로 커지고 다른 단계가 찌그러짐)
-            document.getElementById('lvl4').style.width = "20%";
-            document.getElementById('lvl3').style.width = "85%"; // 황소개구리 급증으로 팽창
-            document.getElementById('lvl3').style.backgroundColor = "#c0392b";
-            document.getElementById('desc3').innerText = "황소개구리 급증 (토종 양서류 멸종 위기)";
-            
-            document.getElementById('lvl2').style.width = "40%";
-            document.getElementById('desc2').innerText = "먹이 부족으로 개체 수 급감";
-            
-            document.getElementById('lvl1').style.width = "60%";
-            document.getElementById('desc1').innerText = "초식동물 감소로 인한 식물 불균형";
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
 
-            document.getElementById('simLog').innerHTML = "⚠️ 경고: 황소개구리 유입으로 2차 소비자층이 왜곡되고 전체 먹이사슬이 붕괴되었습니다!";
-            document.getElementById('simLog').style.color = "#c0392b";
+        let entities = [];
+        let stateMessage = "안정적인 토종 생태계 유지 중";
+
+        // 개체 클래스 정의
+        class Entity {
+            constructor(type, x, y) {
+                this.type = type; // 'producer', 'primary', 'secondary', 'bullfrog', 'apex'
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 2;
+                this.vy = (Math.random() - 0.5) * 2;
+                this.energy = 100;
+                
+                switch(type) {
+                    case 'producer': this.color = '#27ae60'; this.radius = 4; this.speed = 0.5; break;
+                    case 'primary': this.color = '#f1c40f'; this.radius = 6; this.speed = 1.2; break;
+                    case 'secondary': this.color = '#e67e22'; this.radius = 8; this.speed = 1.5; break;
+                    case 'bullfrog': this.color = '#c0392b'; this.radius = 11; this.speed = 1.8; break;
+                    case 'apex': this.color = '#8e44ad'; this.radius = 13; this.speed = 1.0; break;
+                }
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // 벽 충돌 시 방향 전환
+                if (this.x < this.radius || this.x > canvas.width - this.radius) this.vx *= -1;
+                if (this.y < this.radius || this.y > canvas.height - this.radius) this.vy *= -1;
+
+                // 약간의 무작위 움직임 변화
+                if (Math.random() < 0.05) {
+                    this.vx += (Math.random() - 0.5) * 0.5;
+                    this.vy += (Math.random() - 0.5) * 0.5;
+                    // 속도 제한
+                    const currentSpeed = Math.sqrt(this.vx*this.vx + this.vy*this.vy);
+                    if (currentSpeed > this.speed * 1.5) {
+                        this.vx = (this.vx / currentSpeed) * this.speed;
+                        this.vy = (this.vy / currentSpeed) * this.speed;
+                    }
+                }
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.closePath();
+            }
         }
 
-        function resetEcosystem() {
-            // 원래 상태로 복구
-            document.getElementById('lvl4').style.width = "30%";
-            document.getElementById('lvl3').style.width = "50%";
-            document.getElementById('lvl3').style.backgroundColor = "#e67e22";
-            document.getElementById('desc3').innerText = "토종 개구리 및 육식동물 공존";
-            
-            document.getElementById('lvl2').style.width = "70%";
-            document.getElementById('desc2').innerText = "개체 수: 안정적";
-            
-            document.getElementById('lvl1').style.width = "90%";
-            document.getElementById('desc1').innerText = "식물 및 플랑크톤 풍부";
-
-            document.getElementById('simLog').innerHTML = "✅ 초기화됨: 건강하고 균형 잡힌 민물 생태계로 돌아왔습니다.";
-            document.getElementById('simLog').style.color = "#333";
+        // 초기 생태계 세팅
+        function initEntities() {
+            entities = [];
+            // 생산자 생성
+            for (let i = 0; i < 40; i++) {
+                entities.push(new Entity('producer', Math.random()*canvas.width, Math.random()*canvas.height));
+            }
+            // 1차 소비자 생성
+            for (let i = 0; i < 20; i++) {
+                entities.push(new Entity('primary', Math.random()*canvas.width, Math.random()*canvas.height));
+            }
+            // 2차 소비자 생성
+            for (let i = 0; i < 10; i++) {
+                entities.push(new Entity('secondary', Math.random()*canvas.width, Math.random()*canvas.height));
+            }
+            // 최상위 소비자 생성
+            for (let i = 0; i < 3; i++) {
+                entities.push(new Entity('apex', Math.random()*canvas.width, Math.random()*canvas.height));
+            }
         }
+
+        function resetSim() {
+            initEntities();
+            stateMessage = "상태: 초기화됨 (안정적인 토종 생태계)";
+            document.getElementById('statusText').innerText = stateMessage;
+            document.getElementById('statusText').style.borderLeftColor = "#3498db";
+        }
+
+        // 황소개구리 투입
+        function injectBullfrog() {
+            // 황소개구리 8마리 투입
+            for (let i = 0; i < 8; i++) {
+                entities.push(new Entity('bullfrog', Math.random()*canvas.width, Math.random()*canvas.height));
+            }
+            stateMessage = "⚠️ 경고: 황소개구리 유입! 토종 양서류와 물고기를 무차별 포식하며 생태계가 파괴되는 중!";
+            document.getElementById('statusText').innerText = stateMessage;
+            document.getElementById('statusText').style.borderLeftColor = "#e74c3c";
+        }
+
+        // 해결책 적용 (집단 포식 및 천적 개입)
+        function applySolution() {
+            // 황소개구리 대폭 제거
+            entities = entities.filter(e => e.type !== 'bullfrog' || Math.random() < 0.2);
+            // 토종 및 최상위 개체 보충
+            for (let i = 0; i < 5; i++) {
+                entities.push(new Entity('secondary', Math.random()*canvas.width, Math.random()*canvas.height));
+            }
+            stateMessage = "✅ 회복 중: 적극적인 퇴치 사업과 생태계 복원으로 토종 생물들이 다시 균형을 찾아가는 중!";
+            document.getElementById('statusText').innerText = stateMessage;
+            document.getElementById('statusText').style.borderLeftColor = "#27ae60";
+        }
+
+        // 충돌 및 포식 메커니즘 처리
+        function handleInteractions() {
+            for (let i = 0; i < entities.length; i++) {
+                for (let j = i + 1; j < entities.length; j++) {
+                    let e1 = entities[i];
+                    let e2 = entities[j];
+
+                    let dx = e1.x - e2.x;
+                    let dy = e1.y - e2.y;
+                    let dist = Math.sqrt(dx*dx + dy*dy);
+
+                    if (dist < e1.radius + e2.radius) {
+                        // 포식 관계 판정
+                        // 황소개구리는 1차, 2차 소비자를 잡아먹음
+                        if (e1.type === 'bullfrog' && (e2.type === 'primary' || e2.type === 'secondary')) {
+                            entities.splice(j, 1); // e2 사망
+                            e1.radius = Math.min(e1.radius + 1, 16); // 먹어서 커짐
+                            break;
+                        } else if (e2.type === 'bullfrog' && (e1.type === 'primary' || e1.type === 'secondary')) {
+                            entities.splice(i, 1);
+                            e2.radius = Math.min(e2.radius + 1, 16);
+                            break;
+                        }
+
+                        // 최상위 소비자는 황소개구리나 2차 소비자를 먹음
+                        if (e1.type === 'apex' && (e2.type === 'secondary' || e2.type === 'bullfrog')) {
+                            entities.splice(j, 1);
+                            break;
+                        } else if (e2.type === 'apex' && (e1.type === 'secondary' || e1.type === 'bullfrog')) {
+                            entities.splice(i, 1);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 메인 애니메이션 루프
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            handleInteractions();
+
+            // 개체 업데이트 및 렌더링
+            entities.forEach(e => {
+                e.update();
+                e.draw();
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        // 실행
+        initEntities();
+        animate();
     </script>
 
 </body>
