@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>생태계 피라미드와 황소개구리의 영향</title>
+    <title>생태계 피라미드와 황소개구리 시뮬레이터</title>
     <style>
         body {
             font-family: 'Malgun Gothic', sans-serif;
@@ -24,7 +24,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            margin: 40px 0;
+            margin: 30px 0;
         }
         .pyramid-level {
             text-align: center;
@@ -34,17 +34,14 @@
             margin: 3px 0;
             border-radius: 5px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            transition: transform 0.3s;
-        }
-        .pyramid-level:hover {
-            transform: scale(1.02);
+            transition: all 0.5s ease;
         }
         
         /* 피라미드 단계별 크기 및 색상 */
-        .level-4 { width: 30%; background-color: #e74c3c; } /* 3차 소비자 */
-        .level-3 { width: 50%; background-color: #e67e22; } /* 2차 소비자 */
-        .level-2 { width: 70%; background-color: #f1c40f; color: #333; } /* 1차 소비자 */
-        .level-1 { width: 90%; background-color: #27ae60; } /* 생산자 */
+        .level-4 { width: 30%; background-color: #e74c3c; } 
+        .level-3 { width: 50%; background-color: #e67e22; } 
+        .level-2 { width: 70%; background-color: #f1c40f; color: #333; } 
+        .level-1 { width: 90%; background-color: #27ae60; } 
 
         .level-title {
             font-size: 1.1em;
@@ -55,67 +52,154 @@
             font-weight: normal;
         }
 
+        /* 시뮬레이터 섹션 스타일 */
+        .simulator-section {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            margin: 40px 0;
+            text-align: center;
+        }
+        .btn-group {
+            margin: 20px 0;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            font-size: 1em;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 0 10px;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button.reset {
+            background-color: #95a5a6;
+        }
+        button.reset:hover {
+            background-color: #7f8c8d;
+        }
+        .sim-log {
+            background-color: #f1f2f6;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            font-weight: bold;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
         /* 황소개구리 영향 섹션 스타일 */
         .impact-section {
             background: white;
             padding: 30px;
             border-radius: 8px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-            margin-top: 40px;
         }
         .impact-box {
             background-color: #fadbd8;
             border-left: 5px solid #e74c3c;
             padding: 15px;
             margin: 15px 0;
+            text-align: left;
         }
     </style>
 </head>
 <body>
 
     <h1>🌿 생태계 피라미드 구조</h1>
-    <p style="text-align: center; color: #666;">아래의 피라미드는 에너지가 상위 단계로 갈수록 줄어들고, 개체수와 생물량이 조절되는 안정적인 생태계 구조를 시각적으로 보여줍니다.</p>
+    <p style="text-align: center; color: #666;">아래 피라미드는 에너지가 상위 단계로 갈수록 줄어들고 개체수가 조절되는 안정적인 상태입니다.</p>
 
     <!-- 생태계 피라미드 시각화 -->
-    <div class="pyramid-container">
-        <div class="pyramid-level level-4">
-            <div class="level-title">3차 소비자 (최상위 소비자)</div>
-            <div class="level-desc">독수리, 호랑이 등 (에너지량과 개체 수가 가장 적음)</div>
+    <div class="pyramid-container" id="pyramid">
+        <div class="pyramid-level level-4" id="lvl4">
+            <div class="level-title">3차 소비자 (최상위)</div>
+            <div class="level-desc" id="desc4">개체 수: 안정적</div>
         </div>
-        <div class="pyramid-level level-3">
+        <div class="pyramid-level level-3" id="lvl3">
             <div class="level-title">2차 소비자 (육식동물)</div>
-            <div class="level-desc">개구리, 뱀, 작은 육식동물 등</div>
+            <div class="level-desc" id="desc3">토종 개구리 및 육식동물 공존</div>
         </div>
-        <div class="pyramid-level level-2">
+        <div class="pyramid-level level-2" id="lvl2">
             <div class="level-title">1차 소비자 (초식동물)</div>
-            <div class="level-desc">메뚜기, 토끼, 소 등 (식물을 섭취)</div>
+            <div class="level-desc" id="desc2">개체 수: 안정적</div>
         </div>
-        <div class="pyramid-level level-1">
+        <div class="pyramid-level level-1" id="lvl1">
             <div class="level-title">생산자</div>
-            <div class="level-desc">식물, 플랑크톤 등 (태양광으로 에너지를 스스로 생산, 가장 기초이자 양이 많음)</div>
+            <div class="level-desc" id="desc1">식물 및 플랑크톤 풍부</div>
         </div>
     </div>
 
-    <!-- 황소개구리 도입에 따른 생태계 영향 -->
+    <!-- 시뮬레이터 제어 영역 -->
+    <div class="simulator-section">
+        <h2>⚡ 생태계 교란 시뮬레이터</h2>
+        <p>버튼을 눌러 민물 생태계에 외래종(황소개구리)이 유입되었을 때의 변화를 확인해보세요.</p>
+        <div class="btn-group">
+            <button onclick="introduceBullfrog()">황소개구리 투입하기</button>
+            <button class="reset" onclick="resetEcosystem()">시뮬레이터 초기화</button>
+        </div>
+        <div class="sim-log" id="simLog">초기 상태: 건강하고 균형 잡힌 민물 생태계입니다.</div>
+    </div>
+
+    <!-- 황소개구리 영향 설명 섹션 -->
     <div class="impact-section">
-        <h2>🐸 우리나라 민물 생태계에 황소개구리가 들어왔을 때의 지장</h2>
-        <p>북미가 원산지인 <strong>황소개구리</strong>는 1970년대 어민 소득 증대를 위해 국내에 처음 도입되었으나, 천천히 균형을 이루던 토종 민물 생태계에 심각한 교란을 일으켰습니다.</p>
-        
+        <h2>🐸 우리나라 민물 생태계에 황소개구리가 미치는 영향</h2>
         <div class="impact-box">
-            <strong>1. 최상위 포식자의 부재 (무법자 등극)</strong>
-            <p>황소개구리는 덩치가 크고 번식력이 뛰어난데, 우리나라 생태계에는 이들을 효과적으로 잡아먹을 마땅한 천연 천하무적 천적(상위 포식자)이 없어 개체 수가 급증했습니다.</p>
+            <strong>1. 천적 부재로 인한 폭발적 증가</strong>
+            <p>국내 생태계에 마땅한 상위 천적이 없어 황소개구리 개체 수가 급증합니다.</p>
         </div>
-
         <div class="impact-box">
-            <strong>2. 토종 생물 무차별 포식 (먹이사슬 파괴)</strong>
-            <p>잡식성인 황소개구리는 눈에 보이는 것은 무엇이든 먹어치웁니다. 토종 개구리, 올챙이, 물고기, 심지어 뱀이나 작은 새까지 잡아먹어 토종 수생 생물의 씨를 마르게 했습니다.</p>
+            <strong>2. 토종 생물 포식 및 먹이사슬 파괴</strong>
+            <p>토종 양서류와 물고기를 무차별적으로 잡아먹어 2차/3차 소비자의 균형이 무너집니다.</p>
         </div>
-
         <div class="impact-box">
-            <strong>3. 생태계 피라미드 및 다양성 붕괴</strong>
-            <p>특정 생물이 지나치게 늘어나면 피라미드의 기초가 흔들리게 됩니다. 먹이사슬의 중간 단계를 차지하던 토종 양서류들이 사라지면서, 이들을 먹고살던 상위 소비자(백로, 뱀 등)들도 먹이가 없어 굶어 죽거나 개체 수가 급감하여 전체적인 생물 다양성이 심각하게 훼손되었습니다.</p>
+            <strong>3. 생태계 다양성 붕괴</strong>
+            <p>먹이사슬의 연결고리가 끊어지며 전체적인 생태계 피라미드가 심각하게 훼손됩니다.</p>
         </div>
     </div>
+
+    <script>
+        function introduceBullfrog() {
+            // 피라미드 형태 변형 (2차 소비자가 비정상적으로 커지고 다른 단계가 찌그러짐)
+            document.getElementById('lvl4').style.width = "20%";
+            document.getElementById('lvl3').style.width = "85%"; // 황소개구리 급증으로 팽창
+            document.getElementById('lvl3').style.backgroundColor = "#c0392b";
+            document.getElementById('desc3').innerText = "황소개구리 급증 (토종 양서류 멸종 위기)";
+            
+            document.getElementById('lvl2').style.width = "40%";
+            document.getElementById('desc2').innerText = "먹이 부족으로 개체 수 급감";
+            
+            document.getElementById('lvl1').style.width = "60%";
+            document.getElementById('desc1').innerText = "초식동물 감소로 인한 식물 불균형";
+
+            document.getElementById('simLog').innerHTML = "⚠️ 경고: 황소개구리 유입으로 2차 소비자층이 왜곡되고 전체 먹이사슬이 붕괴되었습니다!";
+            document.getElementById('simLog').style.color = "#c0392b";
+        }
+
+        function resetEcosystem() {
+            // 원래 상태로 복구
+            document.getElementById('lvl4').style.width = "30%";
+            document.getElementById('lvl3').style.width = "50%";
+            document.getElementById('lvl3').style.backgroundColor = "#e67e22";
+            document.getElementById('desc3').innerText = "토종 개구리 및 육식동물 공존";
+            
+            document.getElementById('lvl2').style.width = "70%";
+            document.getElementById('desc2').innerText = "개체 수: 안정적";
+            
+            document.getElementById('lvl1').style.width = "90%";
+            document.getElementById('desc1').innerText = "식물 및 플랑크톤 풍부";
+
+            document.getElementById('simLog').innerHTML = "✅ 초기화됨: 건강하고 균형 잡힌 민물 생태계로 돌아왔습니다.";
+            document.getElementById('simLog').style.color = "#333";
+        }
+    </script>
 
 </body>
 </html>
