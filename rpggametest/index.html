@@ -3106,9 +3106,9 @@ function updateFlameBreathFinale(seq,sk,dt){
    ox=player.x,oy=player.y;
   if(Math.hypot(spot.x-ox,spot.y-oy)>9){
    // Two short-lived wisps show vanishing and reappearing, without particle spam.
-   flameBreathPlume(ox,oy,f+Math.PI,83,55,.19,.83,.43);
+   // Keep the attacker clear: the victim-centered outer fire provides the
+   // teleport concealment without plumes spawning on the player model.
    player.x=spot.x;player.y=spot.y;bodyGridValid=false;
-   flameBreathPlume(player.x,player.y,f,104,69,.22,1.00,.49);
    seq.flameTeleports=(seq.flameTeleports||0)+1;
    syncInstantPlayerMove(330);
   }
@@ -4624,7 +4624,7 @@ function drawTown(){}
  // irregular fire tongues. Unlike the old renderer, no continuous radial gradient
  // or filled swirl sheets cover the arena; the constantly flying flames conceal
  // the attacker and victim themselves. All random values are generated once.
- const FLAME_FINALE_PARTICLES=Array.from({length:340},(_,i)=>{
+ const FLAME_FINALE_PARTICLES=Array.from({length:400},(_,i)=>{
   let seed=(Math.imul(i+139,1664525)+1013904223)>>>0;
   const rand=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
   return {angle:rand()*TAU,age:rand(),radius:rand(),size:rand(),sway:rand(),speed:.83+rand()*.87};
@@ -4635,7 +4635,7 @@ function drawTown(){}
   const since=seq.elapsed-seq.flameCaughtAt,
    fade=clamp(since/.17,0,1)*clamp((3.61-since)/.30,0,1);
   if(fade<=0)return;
-  const low=options.quality==='low',spin=since*4.1*(seq.side||1);
+  const low=options.quality==='low',spin=since*41.0*(seq.side||1); // Outer vortex now rotates precisely 10x faster
   const target=seq.flameTarget&&!seq.flameTarget.dead?seq.flameTarget:null;
   const center=target?combatCenter(target):seq.flameImpactPoint;
   if(!center)return;
@@ -4645,7 +4645,7 @@ function drawTown(){}
    r=Math.ceil(Math.max(low?248:284,attackerDistance+112)/16)*16,
    // More OUTER flames and flying embers, with no individual effects attached to the character.
    // Each pool entry has fixed random values; batching bounds the draw cost on mobile.
-   swarmCount=low?132:248,sparks=low?44:80,
+   swarmCount=low?148:280,sparks=low?54:92,
    colors=['#ff7429','#ffc04d','#ff9531','#ffe39a'],
    p=FLAME_FINALE_PARTICLES;
   ctx.save();ctx.translate(cx,cy);ctx.scale(1,.77);
@@ -4707,6 +4707,9 @@ function drawTown(){}
    seq.flameVortexParticleCount=swarmCount+sparks;
    seq.flameVortexSolidFill=false;
    seq.flameVortexPlayerClear=true;
+   seq.flameVortexSpinRate=41;
+   seq.flameVortexOuterCount=swarmCount;
+   seq.flameVortexAttackerClearRadius=81;
   }
  }
 function drawEffects(ground=false){for(const e of effects){const progress=1-e.t/e.max;if(e.type==='hazard'){if(!ground)continue;ctx.fillStyle='#e39a8327';ctx.strokeStyle='#edab97';ctx.lineWidth=2;ctx.beginPath();ctx.arc(e.x,e.y,e.r,0,TAU);ctx.fill();ctx.stroke();ctx.fillStyle='#eb998842';ctx.beginPath();ctx.arc(e.x,e.y,e.r*progress,0,TAU);ctx.fill();continue;}if(e.type==='crimsonScorch'){
