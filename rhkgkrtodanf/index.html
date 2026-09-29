@@ -3,318 +3,122 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#071c19">
-<title>황소개구리 생태계 평형 시뮬레이터</title>
+<meta name="theme-color" content="#061915">
+<title>황소개구리 생태계 실시간 시뮬레이션</title>
 <style>
-:root{
-  --bg:#071c19;--bg2:#0b2925;--panel:#0e312b;--panel2:#123d35;--line:rgba(216,255,239,.16);
-  --text:#effff9;--muted:#acd0c3;--accent:#7ee2b8;--accent2:#f0cb6e;--danger:#ff8b86;
-  --insect:#f1c75b;--native:#6fc7ff;--bull:#ff8a6a;--pred:#bc95ff;
-}
-*{box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{margin:0;min-height:100vh;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:
- radial-gradient(circle at 15% 0%,rgba(52,128,102,.26),transparent 32rem),
- linear-gradient(160deg,var(--bg),#051310 70%);color:var(--text)}
-button,input{font:inherit}
-button{cursor:pointer}
-.wrap{width:min(1280px,calc(100% - 24px));margin:0 auto;padding:24px 0 48px}
-.hero{display:grid;grid-template-columns:1.5fr .8fr;gap:18px;align-items:stretch;margin-bottom:18px}
-.card{background:linear-gradient(180deg,rgba(17,59,51,.95),rgba(10,39,34,.95));border:1px solid var(--line);border-radius:22px;box-shadow:0 18px 60px rgba(0,0,0,.24);overflow:hidden}
-.hero-main{padding:30px;position:relative}
-.kicker{display:inline-flex;align-items:center;gap:8px;padding:7px 11px;border-radius:999px;background:rgba(126,226,184,.1);border:1px solid rgba(126,226,184,.28);color:#bff5df;font-size:13px;font-weight:800}
-h1{font-size:clamp(30px,5vw,55px);line-height:1.05;margin:16px 0 12px;letter-spacing:-.04em}
-.hero p{margin:0;color:var(--muted);font-size:16px;line-height:1.7;max-width:760px}
-.hero-side{padding:22px;display:flex;flex-direction:column;justify-content:space-between;gap:14px}
-.hero-side strong{font-size:18px}
-.hero-side .small{font-size:13px;color:var(--muted);line-height:1.6}
-.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.chip{font-size:12px;padding:6px 9px;border-radius:999px;border:1px solid var(--line);color:#d9efe6;background:rgba(255,255,255,.025)}
-.grid{display:grid;grid-template-columns:350px 1fr;gap:18px;align-items:start}.controls{padding:20px;position:sticky;top:12px}.controls h2,.panel h2{font-size:19px;margin:0 0 15px}
-.control{margin:0 0 19px}.labelrow{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:8px}.labelrow label{font-size:14px;font-weight:800}.value{font-variant-numeric:tabular-nums;color:#d9fff0;font-weight:900}
-input[type=range]{width:100%;accent-color:var(--accent)}
-.hint{font-size:12px;color:var(--muted);line-height:1.45;margin-top:5px}
-.toggle{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 14px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.025)}
-.switch{position:relative;width:50px;height:28px;flex:none}.switch input{opacity:0;width:0;height:0}.slider{position:absolute;inset:0;border-radius:999px;background:#31524b;transition:.2s}.slider:before{content:"";position:absolute;width:22px;height:22px;left:3px;top:3px;border-radius:50%;background:white;transition:.2s}.switch input:checked+.slider{background:#4ab78c}.switch input:checked+.slider:before{transform:translateX(22px)}
-.actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:18px}.btn{border:0;border-radius:12px;padding:11px 12px;font-weight:850;background:#2e5b50;color:white}.btn.primary{background:var(--accent);color:#06261e}.btn.secondary{background:#173f37;border:1px solid var(--line)}.btn:active{transform:translateY(1px)}
-.presets{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:11px}.preset{padding:9px 8px;border-radius:11px;border:1px solid var(--line);background:rgba(255,255,255,.03);color:#dff7ed;font-size:12px;font-weight:750}
-.content{display:grid;gap:18px}.summary{padding:18px}.metric-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}.metric{padding:14px;border-radius:15px;background:rgba(255,255,255,.035);border:1px solid var(--line);min-width:0}.metric .name{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.metric .num{font-size:24px;font-weight:950;margin-top:4px;font-variant-numeric:tabular-nums}.metric .sub{font-size:11px;color:#cfe6dd;margin-top:3px}
-.status{display:flex;align-items:flex-start;gap:12px;margin-top:14px;padding:14px;border-radius:15px;border:1px solid var(--line);background:rgba(255,255,255,.025)}.status-dot{width:12px;height:12px;border-radius:50%;margin-top:5px;flex:none}.status strong{display:block;margin-bottom:3px}.status p{margin:0;color:var(--muted);font-size:13px;line-height:1.6}
-.panel{padding:18px}.chart-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:9px}.chart-head p{margin:3px 0 0;font-size:12px;color:var(--muted)}.legend{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:#dceee7}.swatch{width:10px;height:10px;border-radius:3px}
-.canvas-wrap{height:410px;position:relative;background:linear-gradient(180deg,rgba(0,0,0,.08),rgba(0,0,0,.18));border-radius:15px;border:1px solid var(--line);overflow:hidden}.canvas-wrap canvas{width:100%;height:100%;display:block}
-.timeline{display:flex;align-items:center;gap:10px;margin-top:11px}.timeline input{flex:1}.time-readout{font-size:12px;color:#d9eee6;min-width:72px;text-align:right;font-variant-numeric:tabular-nums}
-.two-col{display:grid;grid-template-columns:1fr 1fr;gap:18px}.foodweb{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.species{position:relative;padding:15px 10px;border:1px solid var(--line);background:rgba(255,255,255,.025);border-radius:14px;text-align:center}.species .ico{font-size:28px}.species strong{display:block;font-size:13px;margin-top:5px}.species span{display:block;font-size:11px;color:var(--muted);margin-top:3px}.food-note{font-size:12px;color:var(--muted);line-height:1.6;margin:11px 0 0}
-.formula{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:1.7;padding:13px;border-radius:12px;background:#071f1b;border:1px solid var(--line);overflow:auto;white-space:pre-wrap;color:#d7f3e8}.assumption{margin-top:10px;font-size:12px;color:var(--muted);line-height:1.6}.explain-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}.explain{padding:12px;border-radius:12px;background:rgba(255,255,255,.026);border:1px solid var(--line)}.explain b{font-size:12px}.explain p{margin:5px 0 0;font-size:11px;color:var(--muted);line-height:1.5}
-.note{padding:14px 16px;border-left:3px solid var(--accent2);background:rgba(240,203,110,.07);border-radius:10px;color:#ebf6f0;font-size:12px;line-height:1.65}.footer{margin-top:18px;text-align:center;color:#7da498;font-size:11px}
-@media(max-width:980px){.hero{grid-template-columns:1fr}.grid{grid-template-columns:1fr}.controls{position:static}.metric-grid{grid-template-columns:repeat(2,1fr)}.metric:last-child{grid-column:1/-1}.two-col{grid-template-columns:1fr}}
-@media(max-width:620px){.wrap{width:min(100% - 14px,1280px);padding-top:8px}.hero-main{padding:22px}.hero-side,.controls,.panel,.summary{padding:15px}.metric-grid{grid-template-columns:1fr 1fr}.metric .num{font-size:20px}.canvas-wrap{height:330px}.foodweb{grid-template-columns:1fr 1fr}.explain-grid{grid-template-columns:1fr}.chart-head{display:block}.legend{justify-content:flex-start;margin-top:8px}.actions{grid-template-columns:1fr 1fr}}
+:root{--bg:#061915;--panel:#0b2a24;--line:rgba(222,255,244,.15);--text:#effff9;--muted:#9ec6b7;--green:#7ee2b8;--yellow:#f4cd62;--blue:#71c7ff;--orange:#ff8a67;--purple:#bd98ff}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#061915;color:var(--text);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+button,input{font:inherit}button{cursor:pointer}.app{height:100vh;display:grid;grid-template-columns:300px minmax(0,1fr) 320px;gap:10px;padding:10px;background:radial-gradient(circle at 35% -10%,rgba(48,123,96,.25),transparent 40rem),linear-gradient(160deg,#061915,#04100e)}
+.panel{background:linear-gradient(180deg,rgba(13,48,40,.98),rgba(7,31,27,.98));border:1px solid var(--line);border-radius:18px;min-height:0;box-shadow:0 12px 45px rgba(0,0,0,.18)}
+.left,.right{padding:16px;overflow:auto}h1{font-size:20px;margin:0 0 4px;letter-spacing:-.02em}.sub{font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:16px}
+.control{margin:0 0 17px}.labelrow{display:flex;justify-content:space-between;gap:10px;margin-bottom:7px;font-size:13px}.labelrow b{font-weight:800}.value{font-weight:900;color:#dffbf0;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--green)}.hint{font-size:10px;color:#7fa99b;margin-top:4px;line-height:1.4}
+.toggle{display:flex;align-items:center;justify-content:space-between;padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.025)}
+.switch{position:relative;width:46px;height:26px}.switch input{opacity:0;width:0;height:0}.slider{position:absolute;inset:0;background:#36534c;border-radius:999px;transition:.2s}.slider:before{content:"";position:absolute;width:20px;height:20px;left:3px;top:3px;border-radius:50%;background:white;transition:.2s}.switch input:checked+.slider{background:#43b787}.switch input:checked+.slider:before{transform:translateX(20px)}
+.buttons{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:15px}.btn{border:0;border-radius:11px;padding:10px 8px;font-weight:850;background:#245147;color:white}.btn.main{background:var(--green);color:#05241c}.btn:active{transform:translateY(1px)}
+.speedrow{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}.speed{border:1px solid var(--line);background:rgba(255,255,255,.025);color:#d8eee6;border-radius:9px;padding:7px;font-size:11px;font-weight:800}.speed.active{background:#2a6758;border-color:#69cbaa}
+.center{position:relative;overflow:hidden}#world{display:block;width:100%;height:100%;background:radial-gradient(circle at 50% 20%,rgba(113,199,255,.16),transparent 35%),linear-gradient(180deg,#123d36 0%,#0d4b49 45%,#0b3732 100%)}
+.hud{position:absolute;left:12px;top:12px;display:flex;gap:7px;flex-wrap:wrap;pointer-events:none}.badge{padding:7px 10px;border:1px solid rgba(255,255,255,.18);background:rgba(4,22,18,.7);backdrop-filter:blur(6px);border-radius:999px;font-size:11px;font-weight:800}
+.legend{position:absolute;left:12px;bottom:12px;display:flex;gap:6px;flex-wrap:wrap;max-width:75%;pointer-events:none}.legend span{font-size:10px;padding:5px 7px;border-radius:999px;background:rgba(4,22,18,.68);border:1px solid rgba(255,255,255,.12)}
+.center-title{position:absolute;right:12px;top:12px;text-align:right;pointer-events:none}.center-title b{font-size:13px}.center-title small{display:block;color:#b6d7cb;font-size:10px;margin-top:2px}
+.section{margin-bottom:16px}.section h2{font-size:14px;margin:0 0 9px}.stats{display:grid;grid-template-columns:1fr 1fr;gap:7px}.stat{padding:10px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.024)}
+.stat .name{font-size:10px;color:var(--muted)}.stat .num{font-size:22px;font-weight:950;margin-top:1px;font-variant-numeric:tabular-nums}.stat .delta{font-size:10px;margin-top:2px;color:#badacf}
+.web{position:relative;height:310px;border:1px solid var(--line);border-radius:14px;background:radial-gradient(circle at 50% 50%,rgba(87,168,139,.08),transparent 70%),rgba(0,0,0,.08);overflow:hidden}#foodweb{width:100%;height:100%;display:block}
+.web-note{font-size:10px;color:var(--muted);line-height:1.45;margin-top:6px}.log{display:flex;flex-direction:column;gap:6px;max-height:205px;overflow:auto}.event{padding:8px 9px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.023);font-size:11px;line-height:1.4}.event b{color:#fff}.time{color:#7fa99b;margin-right:5px;font-variant-numeric:tabular-nums}
+.status{padding:10px 11px;border-radius:11px;border:1px solid var(--line);background:rgba(255,255,255,.025);font-size:11px;line-height:1.5}.status strong{display:block;margin-bottom:2px}
+@media(max-width:1050px){html,body{overflow:auto;height:auto}.app{height:auto;min-height:100vh;grid-template-columns:260px 1fr;padding:7px}.right{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}.center{height:70vh}}
+@media(max-width:760px){.app{display:flex;flex-direction:column}.left,.right{overflow:visible}.center{height:58vh;min-height:420px}.right{display:block}.web{height:300px}.stats{grid-template-columns:repeat(4,1fr)}.stat .num{font-size:17px}}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <section class="hero">
-    <div class="card hero-main">
-      <div class="kicker">과학탐구실험 · 시뮬레이션형</div>
-      <h1>황소개구리 유입이<br>생태계 평형에 미치는 영향</h1>
-      <p>황소개구리의 초기 개체 수, 포식 강도, 번식률, 천적 존재 여부를 바꿔 보며 곤충·토종 개구리·황소개구리·천적의 개체 수 변화를 비교합니다. 그래프와 생물다양성 지수를 함께 확인해 생태계 평형이 언제 흔들리는지 탐구할 수 있습니다.</p>
-      <div class="chips"><span class="chip">조작변인: 황소개구리 조건</span><span class="chip">종속변인: 생물 개체 수·다양성</span><span class="chip">시간 단위: 개월</span></div>
-    </div>
-    <aside class="card hero-side">
-      <div><strong>탐구 질문</strong><p class="small">황소개구리의 유입 규모와 포식·번식 특성이 달라지면 기존 생태계의 개체 수와 평형 상태는 어떻게 달라질까?</p></div>
-      <div class="note">이 페이지는 수업용 단순 모형입니다. 실제 생태계의 모든 종·기후·서식지 조건을 반영한 예측 모델이 아니므로 실제 방제 정책의 수치 판단에는 사용할 수 없습니다.</div>
-    </aside>
-  </section>
+<div class="app">
+  <aside class="panel left">
+    <h1>생태계 실시간 시뮬레이션</h1>
+    <div class="sub">황소개구리 조건을 바꾸고, 실제로 먹고 먹히는 장면과 개체 수 변화를 바로 확인합니다.</div>
+    <div class="control"><div class="labelrow"><b>황소개구리 초기 개체 수</b><span class="value" id="bull0v">30</span></div><input id="bull0" type="range" min="0" max="200" step="5" value="30"></div>
+    <div class="control"><div class="labelrow"><b>황소개구리 포식 강도</b><span class="value" id="predationv">1.00×</span></div><input id="predation" type="range" min="0.4" max="2.2" step="0.05" value="1"></div>
+    <div class="control"><div class="labelrow"><b>황소개구리 번식률</b><span class="value" id="breedv">1.00×</span></div><input id="breed" type="range" min="0.4" max="2.2" step="0.05" value="1"></div>
+    <div class="toggle"><div><b style="font-size:13px">천적 존재</b><div class="hint">조류·대형 어류가 개구리류를 포식</div></div><label class="switch"><input id="predatorOn" type="checkbox" checked><span class="slider"></span></label></div>
+    <div class="buttons"><button class="btn main" id="playBtn">⏸ 일시정지</button><button class="btn" id="resetBtn">↺ 다시 시작</button></div>
+    <div class="speedrow"><button class="speed" data-speed="0.5">0.5배</button><button class="speed active" data-speed="1">1배</button><button class="speed" data-speed="2">2배</button></div>
+    <div class="hint" style="margin-top:12px">가운데 생물 표시와 오른쪽 먹이사슬의 원 크기는 현재 개체 수에 따라 변합니다. 원의 넓이로 많고 적음을 비교할 수 있습니다.</div>
+  </aside>
 
-  <div class="grid">
-    <aside class="card controls">
-      <h2>조건 조절</h2>
-      <div class="control">
-        <div class="labelrow"><label for="bull0">황소개구리 초기 유입</label><span class="value" id="bull0v">30마리</span></div>
-        <input id="bull0" type="range" min="0" max="200" step="5" value="30">
-        <div class="hint">0으로 두면 외래종이 없는 기준 상태와 비교할 수 있습니다.</div>
-      </div>
-      <div class="control">
-        <div class="labelrow"><label for="predation">황소개구리 포식 강도</label><span class="value" id="predationv">1.00×</span></div>
-        <input id="predation" type="range" min="0.4" max="2.2" step="0.05" value="1">
-        <div class="hint">곤충과 토종 개구리를 잡아먹는 상호작용의 세기를 바꿉니다.</div>
-      </div>
-      <div class="control">
-        <div class="labelrow"><label for="breed">황소개구리 번식률</label><span class="value" id="breedv">1.00×</span></div>
-        <input id="breed" type="range" min="0.4" max="2.2" step="0.05" value="1">
-        <div class="hint">먹이가 충분할 때 황소개구리 개체 수가 늘어나는 속도를 바꿉니다.</div>
-      </div>
-      <div class="toggle">
-        <div><b style="font-size:14px">천적 존재</b><div class="hint" style="margin:2px 0 0">조류·대형 어류 등 천적 집단</div></div>
-        <label class="switch"><input id="predatorOn" type="checkbox" checked><span class="slider"></span></label>
-      </div>
-      <div class="actions">
-        <button class="btn primary" id="playBtn">▶ 재생</button>
-        <button class="btn secondary" id="resetBtn">↺ 처음부터</button>
-      </div>
-      <div class="presets">
-        <button class="preset" data-preset="none">외래종 없음</button>
-        <button class="preset" data-preset="low">소량 유입</button>
-        <button class="preset" data-preset="high">대량 유입</button>
-        <button class="preset" data-preset="strong">강한 번식·포식</button>
-      </div>
-    </aside>
+  <main class="panel center">
+    <canvas id="world"></canvas>
+    <div class="hud"><span class="badge" id="clock">0.0개월</span><span class="badge" id="simState">실행 중</span><span class="badge" id="diversity">다양성 0.00</span></div>
+    <div class="center-title"><b>습지 먹이그물</b><small>먹히면 빨간 표시와 기록이 나타납니다</small></div>
+    <div class="legend"><span>🦟 곤충</span><span>🐸 토종 개구리</span><span>🐸 황소개구리</span><span>🦅 천적</span></div>
+  </main>
 
-    <main class="content">
-      <section class="card summary">
-        <div class="metric-grid">
-          <div class="metric"><div class="name">곤충</div><div class="num" id="mI">-</div><div class="sub">개체</div></div>
-          <div class="metric"><div class="name">토종 개구리</div><div class="num" id="mN">-</div><div class="sub">개체</div></div>
-          <div class="metric"><div class="name">황소개구리</div><div class="num" id="mB">-</div><div class="sub">개체</div></div>
-          <div class="metric"><div class="name">천적</div><div class="num" id="mP">-</div><div class="sub">개체</div></div>
-          <div class="metric"><div class="name">생물다양성 지수</div><div class="num" id="mD">-</div><div class="sub">0~1, 높을수록 균등</div></div>
-        </div>
-        <div class="status" id="statusBox"><span class="status-dot"></span><div><strong id="statusTitle">계산 중</strong><p id="statusText">조건을 바꾸면 결과가 자동으로 다시 계산됩니다.</p></div></div>
-      </section>
-
-      <section class="card panel">
-        <div class="chart-head">
-          <div><h2 style="margin:0">시간에 따른 개체 수 변화</h2><p>가로축: 시간(개월) · 세로축: 개체 수(모형 단위)</p></div>
-          <div class="legend"><span class="leg"><i class="swatch" style="background:var(--insect)"></i>곤충</span><span class="leg"><i class="swatch" style="background:var(--native)"></i>토종 개구리</span><span class="leg"><i class="swatch" style="background:var(--bull)"></i>황소개구리</span><span class="leg"><i class="swatch" style="background:var(--pred)"></i>천적</span></div>
-        </div>
-        <div class="canvas-wrap"><canvas id="chart"></canvas></div>
-        <div class="timeline"><input id="timeSlider" type="range" min="0" max="120" value="0" step="1"><span class="time-readout" id="timeReadout">0.0개월</span></div>
-      </section>
-
-      <div class="two-col">
-        <section class="card panel">
-          <h2>먹이그물 해석</h2>
-          <div class="foodweb">
-            <div class="species"><div class="ico">🦟</div><strong>곤충</strong><span>주요 먹이</span></div>
-            <div class="species"><div class="ico">🐸</div><strong>토종 개구리</strong><span>곤충 포식</span></div>
-            <div class="species"><div class="ico">🐸</div><strong>황소개구리</strong><span>곤충·토종종 포식</span></div>
-            <div class="species"><div class="ico">🦅</div><strong>천적</strong><span>개구리류 포식</span></div>
-          </div>
-          <p class="food-note">이 모형에서는 곤충이 먹이 자원의 바탕이 되고, 토종 개구리와 황소개구리가 곤충을 이용합니다. 황소개구리는 토종 개구리에도 추가 압력을 주며, 천적이 있으면 황소개구리의 증가가 일부 억제되도록 설정했습니다.</p>
-        </section>
-        <section class="card panel">
-          <h2>결과 해석</h2>
-          <div id="interpretation" class="note" style="border-left-color:var(--accent)">조건을 바꿔 결과를 비교해 보세요.</div>
-          <div class="explain-grid">
-            <div class="explain"><b>비교 1</b><p>황소개구리 0마리와 30마리를 비교해 토종 개구리 변화 폭을 확인합니다.</p></div>
-            <div class="explain"><b>비교 2</b><p>포식 강도만 높이고 다른 값은 유지해 조작변인의 효과를 확인합니다.</p></div>
-            <div class="explain"><b>비교 3</b><p>천적을 켰다 껐다 하며 외래종 증가 억제 효과가 있는지 봅니다.</p></div>
-          </div>
-        </section>
-      </div>
-
-      <section class="card panel">
-        <h2>계산의 근거와 가정</h2>
-        <div class="formula">시간 간격 Δt = 0.5개월
-곤충:     I(t+Δt) = I + [자연증가 − 토종 개구리의 포식 − 황소개구리의 포식]·Δt
-토종종:   N(t+Δt) = N + [먹이량에 따른 증가 − 자연사 − 황소개구리 포식 − 천적 포식]·Δt
-황소개구리:B(t+Δt) = B + [먹이량·번식률에 따른 증가 − 자연사 − 천적 포식]·Δt
-천적:     P(t+Δt) = P + [개구리 먹이량에 따른 증가 − 자연사]·Δt
-
-생물다양성 지수 = Shannon 지수 H / ln(4),  H = −Σ pᵢ ln(pᵢ)</div>
-        <p class="assumption">가정: 폐쇄된 습지, 같은 면적·온도·수질·계절 조건, 다른 외래종과 질병 없음, 개체 수는 연속적인 모형 값으로 계산합니다. 사용한 계수는 실제 특정 습지의 현장 측정값이 아니라 교실에서 상호작용을 관찰하기 위한 교육용 상수입니다.</p>
-      </section>
-    </main>
-  </div>
-  <div class="footer">과학탐구실험2 · 외래종과 생태계 평형 탐구용 웹 시뮬레이션</div>
+  <aside class="panel right">
+    <section class="section"><h2>현재 개체 수</h2><div class="stats">
+      <div class="stat"><div class="name">곤충</div><div class="num" id="nI">820</div><div class="delta" id="dI">기준</div></div>
+      <div class="stat"><div class="name">토종 개구리</div><div class="num" id="nN">170</div><div class="delta" id="dN">기준</div></div>
+      <div class="stat"><div class="name">황소개구리</div><div class="num" id="nB">30</div><div class="delta" id="dB">기준</div></div>
+      <div class="stat"><div class="name">천적</div><div class="num" id="nP">26</div><div class="delta" id="dP">기준</div></div>
+    </div></section>
+    <section class="section"><h2>크기로 비교하는 먹이사슬</h2><div class="web"><canvas id="foodweb"></canvas></div><div class="web-note">화살표는 먹이 → 포식자 방향입니다. 원이 클수록 현재 개체 수가 많습니다.</div></section>
+    <section class="section"><h2>실시간 포식 기록</h2><div class="log" id="log"></div></section>
+    <section class="section"><div class="status" id="status"><strong>상태 계산 중</strong>개체 수 변화를 관찰하고 있습니다.</div></section>
+  </aside>
 </div>
-
 <script>
 (function(){
-  'use strict';
-  var el = function(id){return document.getElementById(id)};
-  var controls = {bull0:el('bull0'),predation:el('predation'),breed:el('breed'),predatorOn:el('predatorOn')};
-  var canvas = el('chart'), ctx = canvas.getContext('2d');
-  var series = null, cursor = 0, playing = false, timer = null;
-  var colors = {I:'#f1c75b',N:'#6fc7ff',B:'#ff8a6a',P:'#bc95ff'};
-  var steps = 120, dt = 0.5;
-
-  function clamp(v,min,max){return Math.max(min,Math.min(max,v))}
-  function params(){return {B0:+controls.bull0.value,pred:+controls.predation.value,breed:+controls.breed.value,predator:controls.predatorOn.checked}}
-
-  function shannonNormalized(vals){
-    var total = vals.reduce(function(a,b){return a+Math.max(0,b)},0);
-    if(total<=0) return 0;
-    var h=0;
-    vals.forEach(function(v){var p=Math.max(0,v)/total;if(p>0)h-=p*Math.log(p)});
-    return clamp(h/Math.log(4),0,1);
-  }
-
-  function simulate(){
-    var p=params();
-    var I=820,N=170,B=p.B0,P=p.predator?26:0;
-    var out={t:[],I:[],N:[],B:[],P:[],D:[]};
-    for(var s=0;s<=steps;s++){
-      out.t.push(s*dt);out.I.push(I);out.N.push(N);out.B.push(B);out.P.push(P);out.D.push(shannonNormalized([I,N,B,P]));
-      if(s===steps) break;
-      var KI=1050, KN=320;
-      var insectGrowth=0.50*I*(1-I/KI);
-      var nativeEat=0.22*N*(I/KI);
-      var bullEatInsect=0.18*p.pred*B*(I/KI);
-      var dI=insectGrowth-nativeEat-bullEatInsect;
-
-      var foodForNative=I/KI;
-      var nativeGrowth=0.23*N*(foodForNative-0.28)*(1-N/KN);
-      var nativeNatural=0.035*N;
-      var bullOnNative=0.11*p.pred*B*(N/(N+170));
-      var predatorOnNative=p.predator?0.028*P*(N/(N+130)):0;
-      var dN=nativeGrowth-nativeNatural-bullOnNative-predatorOnNative;
-
-      var preyFactor=clamp(0.62*(I/KI)+0.38*(N/220),0,1.6);
-      var bullGrowth=0.30*p.breed*B*(preyFactor-0.18)*(1-B/520);
-      var bullNatural=0.045*B;
-      var predOnBull=p.predator?0.13*P*(B/(B+110)):0;
-      var dB=bullGrowth-bullNatural-predOnBull;
-
-      var dP=0;
-      if(p.predator){
-        var preyAvail=clamp((B+0.45*N)/350,0,1.7);
-        dP=0.14*P*(preyAvail-0.34)*(1-P/95)-0.018*P;
-      }
-
-      I=clamp(I+dI*dt,0,1800);
-      N=clamp(N+dN*dt,0,700);
-      B=clamp(B+dB*dt,0,1000);
-      P=p.predator?clamp(P+dP*dt,0,180):0;
-      if(I<0.01)I=0;if(N<0.01)N=0;if(B<0.01)B=0;if(P<0.01)P=0;
-    }
-    series=out;
-  }
-
-  function resizeCanvas(){
-    var rect=canvas.getBoundingClientRect(), dpr=Math.min(window.devicePixelRatio||1,2);
-    canvas.width=Math.max(1,Math.round(rect.width*dpr));canvas.height=Math.max(1,Math.round(rect.height*dpr));ctx.setTransform(dpr,0,0,dpr,0,0);
-    draw();
-  }
-
-  function niceMax(v){
-    if(v<=10)return 10;var p=Math.pow(10,Math.floor(Math.log10(v))),n=v/p;var m=n<=1?1:n<=2?2:n<=5?5:10;return m*p;
-  }
-
-  function draw(){
-    if(!series)return;
-    var w=canvas.clientWidth,h=canvas.clientHeight;ctx.clearRect(0,0,w,h);
-    var pad={l:50,r:16,t:15,b:35};var pw=w-pad.l-pad.r,ph=h-pad.t-pad.b;
-    var upto=Math.max(1,cursor), maxv=0;
-    ['I','N','B','P'].forEach(function(k){for(var i=0;i<=Math.max(cursor,1);i++)maxv=Math.max(maxv,series[k][i]||0)});
-    maxv=niceMax(Math.max(100,maxv*1.08));
-    ctx.font='11px system-ui';ctx.lineWidth=1;ctx.strokeStyle='rgba(220,255,242,.12)';ctx.fillStyle='rgba(210,235,226,.66)';
-    for(var gy=0;gy<=5;gy++){
-      var y=pad.t+ph*(gy/5);ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();
-      var val=Math.round(maxv*(1-gy/5));ctx.fillText(String(val),6,y+4);
-    }
-    for(var gx=0;gx<=6;gx++){
-      var x=pad.l+pw*(gx/6);ctx.beginPath();ctx.moveTo(x,pad.t);ctx.lineTo(x,h-pad.b);ctx.stroke();
-      var tv=60*(gx/6);ctx.fillText(String(Math.round(tv)),x-7,h-12);
-    }
-    ctx.fillText('개체 수',6,11);ctx.fillText('개월',w-32,h-12);
-    function line(k){
-      ctx.beginPath();ctx.lineWidth=2.5;ctx.strokeStyle=colors[k];
-      for(var i=0;i<=upto;i++){
-        var x=pad.l+pw*(i/steps),y=pad.t+ph*(1-series[k][i]/maxv);
-        if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
-      }
-      ctx.stroke();
-    }
-    ['I','N','B','P'].forEach(line);
-    var cx=pad.l+pw*(cursor/steps);ctx.strokeStyle='rgba(255,255,255,.28)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(cx,pad.t);ctx.lineTo(cx,h-pad.b);ctx.stroke();
-  }
-
-  function stateAt(i){return {I:series.I[i],N:series.N[i],B:series.B[i],P:series.P[i],D:series.D[i]}}
-  function pct(v,base){return base?((v/base-1)*100):0}
-  function classify(i){
-    var s=stateAt(i), p=params(), baseN=170, baseI=820;
-    var nRatio=s.N/baseN, iRatio=s.I/baseI;
-    if(s.N<8 || s.I<30) return {level:'danger',title:'평형 붕괴 위험이 큼',text:'토종 개구리 또는 곤충이 매우 낮아졌습니다. 이 모형에서는 먹이그물의 한 축이 거의 사라진 상태입니다.'};
-    if(nRatio<0.35 || iRatio<0.35 || s.B>420) return {level:'warn',title:'생태계가 크게 흔들림',text:'기준 상태보다 토종 생물의 감소 폭이 크거나 황소개구리가 높은 수준으로 증가했습니다.'};
-    if(p.B0===0 && nRatio>0.65 && iRatio>0.55) return {level:'ok',title:'기준 생태계가 비교적 안정',text:'황소개구리가 없는 조건에서 곤충과 토종 개구리의 상호작용이 큰 붕괴 없이 유지되고 있습니다.'};
-    if(nRatio<0.7 || s.D<0.58) return {level:'watch',title:'평형 변화 관찰 필요',text:'개체 수 구성과 생물다양성 지수가 기준 상태에서 눈에 띄게 달라졌습니다. 다른 조건과 비교해 원인을 확인해 보세요.'};
-    return {level:'ok',title:'현재 조건에서는 비교적 안정',text:'모형 범위에서 주요 생물군이 모두 유지되고 있습니다. 장기 변화와 다른 조건도 함께 비교하는 것이 좋습니다.'};
-  }
-
-  function updateMetrics(){
-    var s=stateAt(cursor), c=classify(cursor);
-    el('mI').textContent=Math.round(s.I);el('mN').textContent=Math.round(s.N);el('mB').textContent=Math.round(s.B);el('mP').textContent=Math.round(s.P);el('mD').textContent=s.D.toFixed(2);
-    el('timeReadout').textContent=series.t[cursor].toFixed(1)+'개월';el('timeSlider').value=cursor;
-    var box=el('statusBox'),dot=box.querySelector('.status-dot');
-    var color=c.level==='danger'?'#ff6f6a':c.level==='warn'?'#ffab66':c.level==='watch'?'#f0cb6e':'#7ee2b8';
-    dot.style.background=color;box.style.borderColor=color+'66';el('statusTitle').textContent=c.title;el('statusText').textContent=c.text;
-    var nChange=pct(s.N,170), iChange=pct(s.I,820);
-    var p=params();
-    var txt=''+series.t[cursor].toFixed(1)+'개월 시점에서 토종 개구리는 시작값보다 '+Math.abs(nChange).toFixed(0)+'% '+(nChange<0?'감소':'증가')+'했고, 곤충은 '+Math.abs(iChange).toFixed(0)+'% '+(iChange<0?'감소':'증가')+'했습니다. ';
-    if(p.B0===0) txt+='이 조건은 외래종이 없는 기준선으로 사용할 수 있습니다.';
-    else if(s.B>p.B0*1.6) txt+='황소개구리가 초기 유입 개체 수보다 크게 증가해 먹이그물에 가하는 압력이 커진 조건입니다.';
-    else if(s.B<p.B0*0.45) txt+='황소개구리는 초기 유입보다 크게 줄었습니다. 천적과 먹이 조건이 증가를 억제한 것으로 해석할 수 있습니다.';
-    else txt+='황소개구리는 초기 유입과 비슷한 규모로 남아 있어 다른 생물군의 변화와 함께 해석해야 합니다.';
-    el('interpretation').textContent=txt;
-  }
-
-  function stop(){playing=false;clearInterval(timer);timer=null;el('playBtn').textContent='▶ 재생'}
-  function play(){
-    if(playing){stop();return}
-    if(cursor>=steps)cursor=0;playing=true;el('playBtn').textContent='⏸ 일시정지';
-    timer=setInterval(function(){cursor++;if(cursor>=steps){cursor=steps;stop()}draw();updateMetrics()},45);
-  }
-  function recompute(keepCursor){
-    simulate();if(!keepCursor)cursor=0;cursor=clamp(cursor,0,steps);draw();updateMetrics();
-  }
-  function updateLabels(){
-    el('bull0v').textContent=controls.bull0.value+'마리';el('predationv').textContent=(+controls.predation.value).toFixed(2)+'×';el('breedv').textContent=(+controls.breed.value).toFixed(2)+'×';
-  }
-
-  Object.keys(controls).forEach(function(k){controls[k].addEventListener('input',function(){stop();updateLabels();recompute(true)})});
-  el('playBtn').addEventListener('click',play);
-  el('resetBtn').addEventListener('click',function(){stop();cursor=0;draw();updateMetrics()});
-  el('timeSlider').addEventListener('input',function(){stop();cursor=+this.value;draw();updateMetrics()});
-  document.querySelectorAll('.preset').forEach(function(b){b.addEventListener('click',function(){
-    stop();var q=this.getAttribute('data-preset');
-    if(q==='none'){controls.bull0.value=0;controls.predation.value=1;controls.breed.value=1;controls.predatorOn.checked=true}
-    if(q==='low'){controls.bull0.value=20;controls.predation.value=.9;controls.breed.value=.9;controls.predatorOn.checked=true}
-    if(q==='high'){controls.bull0.value=120;controls.predation.value=1.3;controls.breed.value=1.35;controls.predatorOn.checked=true}
-    if(q==='strong'){controls.bull0.value=80;controls.predation.value=1.8;controls.breed.value=1.8;controls.predatorOn.checked=false}
-    updateLabels();cursor=0;recompute(false);
-  })});
-  window.addEventListener('resize',resizeCanvas);
-  updateLabels();simulate();resizeCanvas();updateMetrics();
+'use strict';
+const $=id=>document.getElementById(id),world=$('world'),wctx=world.getContext('2d'),web=$('foodweb'),fctx=web.getContext('2d');
+const controls={bull0:$('bull0'),predation:$('predation'),breed:$('breed'),predatorOn:$('predatorOn')};
+let state,initial,running=true,speed=1,last=performance.now(),simMonth=0,sprites=[],effects=[],eventCooldown=0,accum=0;
+const DT=.5,colors={I:'#f4cd62',N:'#71c7ff',B:'#ff8a67',P:'#bd98ff'},labels={I:'곤충',N:'토종 개구리',B:'황소개구리',P:'천적'},emoji={I:'🦟',N:'🐸',B:'🐸',P:'🦅'};
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),params=()=>({B0:+controls.bull0.value,pred:+controls.predation.value,breed:+controls.breed.value,predator:controls.predatorOn.checked}),fmt=n=>Math.round(n).toLocaleString('ko-KR');
+function shannon(s){const vals=[s.I,s.N,s.B,s.P].filter(v=>v>0),total=vals.reduce((a,b)=>a+b,0);if(!total)return 0;let h=0;vals.forEach(v=>{const p=v/total;h-=p*Math.log(p)});return clamp(h/Math.log(4),0,1)}
+function reset(){const p=params();state={I:820,N:170,B:p.B0,P:p.predator?26:0};initial={...state};simMonth=0;accum=0;effects=[];eventCooldown=0;$('log').innerHTML='';makeSprites();updateUI();pushLog('시뮬레이션 시작','현재 조건으로 생태계 계산을 시작했습니다.')}
+function makeSprites(){sprites=[];['I','N','B','P'].forEach(t=>{const count=t==='I'?28:t==='N'?18:t==='B'?16:10;for(let i=0;i<count;i++)sprites.push({type:t,x:.1+Math.random()*.8,y:.15+Math.random()*.7,vx:(Math.random()-.5)*.11,vy:(Math.random()-.5)*.11,size:.8+Math.random()*.4})})}
+function stepModel(){
+ const p=params(),I=state.I,N=state.N,B=state.B,P=state.P,KI=1050,KN=320;
+ const insectGrowth=.50*I*(1-I/KI),nativeEat=.22*N*(I/KI),bullEatInsect=.18*p.pred*B*(I/KI),dI=insectGrowth-nativeEat-bullEatInsect;
+ const nativeGrowth=.23*N*((I/KI)-.28)*(1-N/KN),nativeNatural=.035*N,bullOnNative=.11*p.pred*B*(N/(N+170)),predatorOnNative=p.predator?.028*P*(N/(N+130)):0,dN=nativeGrowth-nativeNatural-bullOnNative-predatorOnNative;
+ const preyFactor=clamp(.62*(I/KI)+.38*(N/220),0,1.6),bullGrowth=.30*p.breed*B*(preyFactor-.18)*(1-B/520),bullNatural=.045*B,predOnBull=p.predator?.13*P*(B/(B+110)):0,dB=bullGrowth-bullNatural-predOnBull;
+ let dP=0;if(p.predator){const preyAvail=clamp((B+.45*N)/350,0,1.7);dP=.14*P*(preyAvail-.34)*(1-P/95)-.018*P}
+ state.I=clamp(I+dI*DT,0,1800);state.N=clamp(N+dN*DT,0,700);state.B=clamp(B+dB*DT,0,1000);state.P=p.predator?clamp(P+dP*DT,0,180):0;simMonth+=DT;
+ maybePredation({NI:nativeEat,BI:bullEatInsect,BN:bullOnNative,PN:predatorOnNative,PB:predOnBull});
+}
+function weightedPick(items){const total=items.reduce((a,x)=>a+x.w,0);if(total<=0)return null;let r=Math.random()*total;for(const it of items){r-=it.w;if(r<=0)return it}return items[items.length-1]}
+function maybePredation(r){eventCooldown-=DT;if(eventCooldown>0)return;const e=weightedPick([{pred:'N',prey:'I',w:r.NI},{pred:'B',prey:'I',w:r.BI},{pred:'B',prey:'N',w:r.BN},{pred:'P',prey:'N',w:r.PN},{pred:'P',prey:'B',w:r.PB}]);if(!e)return;if(Math.random()<clamp((r.NI+r.BI+r.BN+r.PN+r.PB)/35,.12,.85)){triggerEat(e.pred,e.prey);eventCooldown=.8+Math.random()*1.8}}
+function spriteFor(type){const a=sprites.filter(s=>s.type===type);return a.length?a[Math.floor(Math.random()*a.length)]:null}
+function triggerEat(pred,prey){const a=spriteFor(pred),b=spriteFor(prey);if(!a||!b)return;effects.push({pred,prey,ax:a.x,ay:a.y,bx:b.x,by:b.y,t:0,dur:.9});pushLog('포식 발생',labels[pred]+'이(가) '+labels[prey]+'을(를) 잡아먹었습니다.')}
+function pushLog(title,text){const d=document.createElement('div');d.className='event';d.innerHTML='<span class="time">'+simMonth.toFixed(1)+'개월</span><b>'+title+'</b><br>'+text;$('log').prepend(d);while($('log').children.length>8)$('log').lastChild.remove()}
+function updateUI(){
+ $('nI').textContent=fmt(state.I);$('nN').textContent=fmt(state.N);$('nB').textContent=fmt(state.B);$('nP').textContent=fmt(state.P);
+ ['I','N','B','P'].forEach(k=>{const base=initial[k]||1,pc=(state[k]-initial[k])/base*100,e=$('d'+k);e.textContent=(pc>=0?'+':'')+pc.toFixed(0)+'%';e.style.color=pc<-20?'#ff9b95':pc>20?'#8ce6c0':'#badacf'});
+ $('clock').textContent=simMonth.toFixed(1)+'개월';$('diversity').textContent='다양성 '+shannon(state).toFixed(2);
+ const nRatio=state.N/170,iRatio=state.I/820;let title='비교적 안정',text='주요 생물군이 모두 유지되고 있습니다.',color='#7ee2b8';
+ if(state.N<8||state.I<30){title='평형 붕괴 위험';text='먹이그물의 한 생물군이 거의 사라졌습니다.';color='#ff6f6a'}else if(nRatio<.35||iRatio<.35||state.B>420){title='생태계 크게 흔들림';text='토종 생물 감소 또는 황소개구리 급증이 나타납니다.';color='#ff9b68'}else if(nRatio<.7||shannon(state)<.58){title='변화 관찰 필요';text='개체 수 구성과 다양성이 기준 상태에서 크게 변하고 있습니다.';color='#f4cd62'}
+ const box=$('status');box.innerHTML='<strong>'+title+'</strong>'+text;box.style.borderColor=color+'66';
+ $('bull0v').textContent=controls.bull0.value;$('predationv').textContent=(+controls.predation.value).toFixed(2)+'×';$('breedv').textContent=(+controls.breed.value).toFixed(2)+'×';
+}
+function radiusFor(v,max,minR,maxR){if(v<=0)return 0;return minR+(maxR-minR)*Math.sqrt(clamp(v/max,0,1))}
+function resizeCanvas(c,ctx){const r=c.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2);c.width=Math.round(r.width*d);c.height=Math.round(r.height*d);ctx.setTransform(d,0,0,d,0,0)}
+function drawWorld(){
+ const w=world.clientWidth,h=world.clientHeight;wctx.clearRect(0,0,w,h);wctx.fillStyle='rgba(234,204,130,.08)';wctx.fillRect(0,h*.78,w,h*.22);
+ for(let i=0;i<18;i++){const x=(i*67)%w,y=h*.78,wave=Math.sin(performance.now()/850+i)*5;wctx.strokeStyle='rgba(110,192,126,.19)';wctx.lineWidth=3;wctx.beginPath();wctx.moveTo(x,h);wctx.quadraticCurveTo(x+wave,y+40,x+8,y);wctx.stroke()}
+ const maxMap={I:1400,N:450,B:650,P:120},counts={I:state.I,N:state.N,B:state.B,P:state.P},visualN={I:Math.round(6+22*clamp(state.I/maxMap.I,0,1)),N:Math.round(3+13*clamp(state.N/maxMap.N,0,1)),B:state.B?Math.round(2+12*clamp(state.B/maxMap.B,0,1)):0,P:state.P?Math.round(1+8*clamp(state.P/maxMap.P,0,1)):0},seen={I:0,N:0,B:0,P:0};
+ sprites.forEach(s=>{const limit=visualN[s.type];if(seen[s.type]++>=limit)return;s.x+=s.vx*.016*speed;s.y+=s.vy*.016*speed;if(s.x<.05||s.x>.95)s.vx*=-1;if(s.y<.13||s.y>.88)s.vy*=-1;s.x=clamp(s.x,.04,.96);s.y=clamp(s.y,.1,.9);const x=s.x*w,y=s.y*h,rr=radiusFor(counts[s.type],maxMap[s.type],11,34)*s.size;wctx.beginPath();wctx.arc(x,y,rr,0,Math.PI*2);wctx.fillStyle=colors[s.type]+'22';wctx.fill();wctx.strokeStyle=colors[s.type]+'75';wctx.lineWidth=1.3;wctx.stroke();wctx.font=Math.max(14,rr*1.05)+'px system-ui';wctx.textAlign='center';wctx.textBaseline='middle';wctx.fillStyle='#fff';wctx.fillText(emoji[s.type],x,y)});
+ effects=effects.filter(e=>e.t<e.dur);effects.forEach(e=>{e.t+=.016*speed;const p=clamp(e.t/e.dur,0,1),ax=e.ax*w,ay=e.ay*h,bx=e.bx*w,by=e.by*h,x=bx+(ax-bx)*p,y=by+(ay-by)*p;wctx.strokeStyle='rgba(255,255,255,'+(1-p)+')';wctx.lineWidth=2;wctx.beginPath();wctx.moveTo(bx,by);wctx.lineTo(x,y);wctx.stroke();wctx.fillStyle='rgba(255,95,86,'+(1-p)+')';wctx.font='bold 13px system-ui';wctx.textAlign='center';wctx.fillText('잡아먹힘',bx,by-22-18*p);wctx.beginPath();wctx.arc(bx,by,10+28*p,0,Math.PI*2);wctx.strokeStyle='rgba(255,95,86,'+(1-p)+')';wctx.stroke()});
+}
+function drawArrow(ctx,x1,y1,x2,y2){const ang=Math.atan2(y2-y1,x2-x1),head=8;ctx.strokeStyle='rgba(220,245,236,.5)';ctx.fillStyle='rgba(220,245,236,.7)';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();ctx.beginPath();ctx.moveTo(x2,y2);ctx.lineTo(x2-head*Math.cos(ang-.45),y2-head*Math.sin(ang-.45));ctx.lineTo(x2-head*Math.cos(ang+.45),y2-head*Math.sin(ang+.45));ctx.closePath();ctx.fill()}
+function drawFoodweb(){
+ const w=web.clientWidth,h=web.clientHeight;fctx.clearRect(0,0,w,h);const pos={I:[w*.18,h*.57],N:[w*.48,h*.27],B:[w*.52,h*.72],P:[w*.83,h*.48]},r={I:radiusFor(state.I,1400,20,55),N:radiusFor(state.N,450,18,48),B:radiusFor(state.B,650,0,50),P:radiusFor(state.P,120,0,46)};
+ function edge(a,b){if(r[a]&&r[b]){const A=pos[a],B=pos[b],ang=Math.atan2(B[1]-A[1],B[0]-A[0]);drawArrow(fctx,A[0]+Math.cos(ang)*r[a],A[1]+Math.sin(ang)*r[a],B[0]-Math.cos(ang)*r[b],B[1]-Math.sin(ang)*r[b])}}
+ edge('I','N');edge('I','B');edge('N','B');edge('N','P');edge('B','P');
+ ['I','N','B','P'].forEach(k=>{if(r[k]<=0)return;const [x,y]=pos[k];fctx.beginPath();fctx.arc(x,y,r[k],0,Math.PI*2);fctx.fillStyle=colors[k]+'30';fctx.fill();fctx.strokeStyle=colors[k];fctx.lineWidth=2;fctx.stroke();fctx.textAlign='center';fctx.textBaseline='middle';fctx.font=Math.max(17,r[k]*.72)+'px system-ui';fctx.fillStyle='#fff';fctx.fillText(emoji[k],x,y-5);fctx.font='bold 10px system-ui';fctx.fillStyle='#eefcf7';fctx.fillText(labels[k]+' '+fmt(state[k]),x,y+r[k]+12)});
+}
+function animate(now){const delta=Math.min(.05,(now-last)/1000);last=now;if(running){accum+=delta*speed;while(accum>=.22){accum-=.22;stepModel();updateUI()}}drawWorld();drawFoodweb();requestAnimationFrame(animate)}
+Object.values(controls).forEach(c=>c.addEventListener('input',reset));
+$('playBtn').addEventListener('click',()=>{running=!running;$('playBtn').textContent=running?'⏸ 일시정지':'▶ 계속';$('simState').textContent=running?'실행 중':'일시정지'});
+$('resetBtn').addEventListener('click',reset);
+document.querySelectorAll('.speed').forEach(b=>b.addEventListener('click',()=>{speed=+b.dataset.speed;document.querySelectorAll('.speed').forEach(x=>x.classList.remove('active'));b.classList.add('active')}));
+function doResize(){resizeCanvas(world,wctx);resizeCanvas(web,fctx)}window.addEventListener('resize',doResize);reset();doResize();requestAnimationFrame(animate);
 })();
 </script>
-</body>
-</html>
+</body></html>
