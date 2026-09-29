@@ -1057,26 +1057,39 @@ function crimsonOneFireFlecks(x,y,a,n,spread=.30){
  if(effects.length>760)effects.splice(0,effects.length-760);
 }
 function crimsonStrokeCircle(cx,cy,rx,ry,aim,power=1){
- // A real circular attack made of wind-swept fire, not separated ribbon tiles.
+ // Keep the circular hit area; the outward-moving embers add depth without obscuring its outline.
  const r=rx,low=options.quality==='low';
- effects.push({type:'crimsonFlameRing',x:cx,y:cy,r,a:aim,seed:Math.floor(rnd(1,2147483646)),t:.48,max:.48});
- const groups=[aim-.38,aim+.82,aim+2.42,aim-2.18],count=low?23:45;
+ effects.push({type:'crimsonFlameRing',x:cx,y:cy,r,a:aim,seed:Math.floor(rnd(1,2147483646)),t:.55,max:.55});
+ const groups=[aim-.28,aim+.83,aim+2.43,aim-2.18],count=low?30:58;
  for(let j=0;j<count;j++){
-  const group=j<count*.43?0:j<count*.67?1:j<count*.83?2:3;
-  const a=groups[group]+rnd(-.75,.75),rr=r+rnd(-11,11);
-  crimsonOneFireFlecks(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr,a+rnd(-.42,.42),j%4===0?3:2,.30);
+  const group=j<count*.49?0:j<count*.71?1:j<count*.86?2:3;
+  const a=groups[group]+rnd(-.70,.70),rr=r+rnd(-10,10);
+  crimsonOneFireFlecks(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr,a+rnd(-.38,.38),j%5===0?3:2,.32);
+ }
+ // Concentrate a few additional glowing sweeps on the forward rim.
+ const sweeps=low?4:9;
+ for(let j=0;j<sweeps;j++){
+  const a=aim+rnd(-1.05,1.05),rr=r+rnd(2,11);
+  crimsonOneFireFlecks(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr,a+rnd(-.18,.18),j%3===0?3:2,.20);
  }
 }
 function crimsonStrokeLine(x1,y1,x2,y2,a,power=1){
- // Keep the existing straight hit area; only its visual surface becomes burning flame.
+ // A straight main slash with layered fire and an evenly spread wake of oval embers.
  const dx=x2-x1,dy=y2-y1,nx=-Math.sin(a),ny=Math.cos(a);
- effects.push({type:'crimsonFlameSlash',x:x1,y:y1,x2,y2,a,seed:Math.floor(rnd(1,2147483646)),t:.46,max:.46});
- const low=options.quality==='low',steps=low?14:30;
+ effects.push({type:'crimsonFlameSlash',x:x1,y:y1,x2,y2,a,seed:Math.floor(rnd(1,2147483646)),t:.50,max:.50});
+ const low=options.quality==='low',steps=low?18:38;
  for(let j=0;j<steps;j++){
-  const q=(j+rnd(.12,.88))/steps,off=rnd(7,17)*(j%2?-1:1);
-  const x=x1+dx*q+nx*off,y=y1+dy*q+ny*off;
-  crimsonOneFireFlecks(x,y,a+Math.PI+(j%2?.52:-.52),j%5===0?3:2,.40);
+  const q=(j+rnd(.15,.85))/steps,off=rnd(8,20)*(j%2?-1:1);
+  crimsonOneFireFlecks(x1+dx*q+nx*off,y1+dy*q+ny*off,a+Math.PI+(j%2?.52:-.52),j%6===0?3:2,.40);
  }
+ // A small flash where the line bursts from the circle, plus a few falling sparks at its tip.
+ const flare=low?5:10;
+ for(let j=0;j<flare;j++){
+  const side=j%2?-1:1;
+  crimsonOneFireFlecks(x1+nx*rnd(4,17)*side,y1+ny*rnd(4,17)*side,a+Math.PI+side*rnd(.20,.60),1,.25);
+ }
+ const tip=low?3:6;
+ for(let j=0;j<tip;j++)crimsonOneFireFlecks(x2+rnd(-9,9),y2+rnd(-9,9),a+rnd(-.50,.50),1,.28);
 }
 
 function ring(x,y,r,color,t=.5){effects.push({type:'ring',x,y,r,color,t,max:t});}
@@ -1342,7 +1355,7 @@ const SWORD_SKILL_LIBRARY=[
  {id:'starRush',name:'풍압 연파',level:18,price:0,cost:49,cool:9.6,color:'#61f0c7',desc:'두 번째 풍압 원을 앞으로 발사합니다. 소용돌이는 5초 동안 천천히 이동하며 적을 반시계방향으로 회전시키고 지속 피해를 줍니다. 사라질 때 바깥으로 날리며 발사 직후 시전자가 자유롭게 행동합니다.',cfg:{duration:.30,hits:[.12],mult:[1],arc:[TAU],reach:[0],step:[0],mode:'galeCrescendo'}},
  {id:'crossBloom',name:'연속 교차 베기',level:13,price:420,cost:40,cool:7.4,color:'#b88cff',desc:'표적의 좌우를 번갈아 밟으며 위치를 바꾸고 일곱 번의 교차 베기를 한 대상 주변에 집중합니다.',cfg:{duration:1.42,hits:[.10,.26,.42,.58,.76,.96,1.20],mult:[.43,.45,.48,.52,.56,.66,1.08],arc:[1.20,1.25,1.30,1.35,1.40,1.50,1.85],reach:[20,20,22,22,24,26,30],step:[0,0,0,0,0,0,4],mode:'stationaryFlurry'}},
  {id:'crescent',name:'초승달 이연참',level:16,price:520,cost:34,cool:9,color:'#b88cff',desc:'뒤로 크게 빠지면서 서로 다른 각도의 초승달 검압 두 개를 연속 발사합니다.',cfg:{duration:.80,hits:[.16,.52],mult:[.90,1.18],arc:[2.4,2.7],reach:[18,22],step:[2,4],mode:'crescentRetreat'}},
- {id:'guardBreak',name:'홍염 궤선',level:20,price:650,cost:0,cool:0,color:'#ff344d',desc:'캐릭터 중심에서 살짝 눌린 홍염 원이 펼쳐지고 적 방향으로 회전한 원의 아래쪽에서 직각으로 긴 화염선이 동시에 뻗습니다. 원 테두리에는 바깥으로 분출하는 불꽃이, 선 양옆에는 잔불이 남습니다. 외형 테스트용 재사용 대기시간 없음.',cfg:{duration:.50,hits:[.18,.18],mult:[1.18,2.35],arc:[6.283185307179586,6.283185307179586],reach:[0,0],step:[0,0],mode:'crimsonOrbitLine'}},
+ {id:'guardBreak',name:'홍염 궤선',level:20,price:650,cost:0,cool:0,color:'#ff344d',desc:'캐릭터 중심에서 살짝 눌린 홍염 원이 펼쳐지고 적 방향으로 회전한 원의 아래쪽에서 직각으로 긴 화염선이 0.1초 뒤 뻗습니다. 원 테두리에는 바깥으로 분출하는 불꽃이, 선 양옆에는 잔불이 남습니다. 외형 테스트용 재사용 대기시간 없음.',cfg:{duration:.52,hits:[.12,.22],mult:[1.18,2.35],arc:[6.283185307179586,6.283185307179586],reach:[0,0],step:[0,0],mode:'crimsonOrbitLine'}},
  {id:'tempest',name:'폭풍 검무',level:24,price:780,cost:48,cool:5.4,color:'#ffd95c',desc:'작은 나선 궤도를 직접 돌면서 여섯 번 회전 베기해 주변 적을 휩쓸어갑니다.',cfg:{duration:1.28,hits:[.08,.25,.42,.59,.78,1.02],mult:[.42,.45,.48,.52,.58,.92],arc:[TAU,TAU,TAU,TAU,TAU,TAU],reach:[18,22,26,30,34,42],step:[0,0,0,0,0,0],mode:'tempest'}},
  {id:'earthRend',name:'잔화 외투',level:30,price:920,cost:46,cool:6.0,color:'#ff344d',desc:'적의 한쪽 옆으로 미끄러졌다가 반대편으로 가로지르는 S자 화염 이동기. 방향을 꺾는 지점마다 불꽃 밀도가 크게 달라지고 마지막에 잔화가 한 번에 터집니다.',cfg:{duration:1.55,hits:[.14,.42,.72,1.04,1.36],mult:[.40,.44,.48,.54,1.18],arc:[6.283185307179586,6.283185307179586,6.283185307179586,6.283185307179586,6.283185307179586],reach:[64,68,72,78,90],step:[0,0,0,0,0],mode:'flameMantle'}},
  {id:'dawnArc',name:'여명 검파',level:38,price:1100,cost:58,cool:3.5,color:'#ffd95c',desc:'강한 검압 하나를 발사한 반동으로 몸이 뒤로 밀리는 초장거리 단발기입니다.',cfg:{duration:.72,hits:[.28],mult:[1.15],arc:[1.7],reach:[20],step:[0],mode:'dawnWave'}},
@@ -3756,6 +3769,15 @@ function drawEffects(ground=false){for(const e of effects){const progress=1-e.t/
    ctx.fillStyle=color;ctx.shadowColor=color;ctx.shadowBlur=low?2:6;
    ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,TAU);ctx.fill();ctx.restore();
   }
+  // Uneven illuminated fire pockets shimmer over the hot rim.
+  ctx.shadowColor='#ff9b56';ctx.shadowBlur=low?4:12;
+  for(let j=0;j<(low?6:12);j++){
+   const a=phase+rand()*TAU,span=.12+rand()*.38,rr=r-3+rand()*7;
+   ctx.globalAlpha=(.44+rand()*.45)*(1-progress*.28);
+   ctx.lineWidth=2+rand()*4;
+   ctx.strokeStyle=rand()<.19?'#fff0c1':rand()<.52?'#ffbe73':'#ff6b36';
+   ctx.beginPath();ctx.arc(0,0,rr,a,a+span);ctx.stroke();
+  }
   ctx.globalAlpha=.74*(1-progress*.2);ctx.shadowColor='#ffc175';ctx.shadowBlur=low?2:5;
   for(let j=0;j<(low?5:9);j++){
    const a=phase+rand()*TAU,span=.18+rand()*.55,rr=r-3+rand()*8;
@@ -3795,6 +3817,16 @@ function drawEffects(ground=false){for(const e of effects){const progress=1-e.t/
    const q=rand()*.90,from=length*q,to=Math.min(length,from+12+rand()*35),y=(rand()-.5)*9;
    ctx.strokeStyle=rand()<.6?'#ffd18b':'#fff1bc';ctx.lineWidth=2+rand()*4;ctx.beginPath();ctx.moveTo(from,y);ctx.lineTo(to,y+(rand()-.5)*7);ctx.stroke();
   }
+  // Short uneven hot streaks along the blade's straight wake.
+  for(let j=0;j<(low?5:10);j++){
+   const q=(j+rand()*.7)/(low?5:10),x=length*q,y=(rand()-.5)*22,segment=9+rand()*24;
+   ctx.globalAlpha=(.45+rand()*.43)*(1-progress*.35);
+   ctx.shadowColor='#ffac59';ctx.shadowBlur=low?3:9;
+   ctx.strokeStyle=rand()<.24?'#ffebae':rand()<.5?'#ff9b52':'#ff572f';
+   ctx.lineWidth=2+rand()*3;
+   ctx.beginPath();ctx.moveTo(x,y);ctx.quadraticCurveTo(x+segment*.55,y+(rand()-.5)*9,Math.min(length,x+segment),y+(rand()-.5)*8);ctx.stroke();
+  }
+  ctx.globalAlpha=1;
   // Loose, rounded fire embers along both edges; no triangular flame spikes.
   const flecks=low?19:33,colors=['#d51c36','#ff3a2a','#ff652d','#ff923f','#ffd081'];
   ctx.shadowColor='#ff562c';ctx.shadowBlur=low?2:6;
