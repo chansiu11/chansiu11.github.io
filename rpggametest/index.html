@@ -1206,9 +1206,19 @@ function flameBreathSignature(id,index,final,ang,reach,actor=player,ctxInfo=null
    for(let j=-2;j<=2;j++){const a=look+j*.29;crimsonFlameBurst(x+Math.cos(a)*r*.72,y+Math.sin(a)*r*.72,40,.42,.56);}
   }
  }else if(id==='earthRend'){
-  // The entire finishing strike is circular and centered at the end of the straight dash.
+  // The ring and the entire previously traversed dash trail ignite together at .50s.
   flameBreathCleaveCircle(x,y,FLAME_RISE_IMPACT_RADIUS,look,.67,1.35);
   flameBreathStroke(x,y,look+side*.14,FLAME_RISE_IMPACT_RADIUS,TAU,side,.57,1.16);
+  if(actor===player&&activeSwordSkill?.skillId==='earthRend'){
+   const origin=activeSwordSkill,d=Math.hypot(x-origin.originX,y-origin.originY),a=Math.atan2(y-origin.originY,x-origin.originX);
+   if(d>10){
+    crimsonDashEdgeFire(origin.originX,origin.originY,x,y,76,.54,1.07);
+    for(let j=0;j<Math.max(2,Math.ceil(d/68));j++){
+     const q=(j+.5)/Math.max(2,Math.ceil(d/68)),px=origin.originX+(x-origin.originX)*q,py=origin.originY+(y-origin.originY)*q;
+     flameBreathPlume(px,py,a,101,78,.47,1.04);
+    }
+   }
+  }
   crimsonEmbers(x,y,look+Math.PI,9,205,.51,.8);
  }else if(id==='quakeRush'){
   if(index===0){
@@ -1510,7 +1520,7 @@ const SWORD_SKILL_LIBRARY=[
  {id:'crescent',name:'초승달 이연참',level:16,price:520,cost:34,cool:9,color:'#b88cff',desc:'뒤로 크게 빠지면서 서로 다른 각도의 초승달 검압 두 개를 연속 발사합니다.',cfg:{duration:.80,hits:[.16,.52],mult:[.90,1.18],arc:[2.4,2.7],reach:[18,22],step:[2,4],mode:'crescentRetreat'}},
  {id:'guardBreak',name:'홍염 횡참',level:20,price:650,cost:28,cool:4.8,color:'#ff782e',desc:'검을 크게 휘둘러 전방에 두 겹의 화염 호를 남기는 2단 발도.',cfg:{duration:.72,hits:[.24,.48],mult:[1.15,.92],arc:[2.12,2.18],reach:[150,166],step:[0,0],mode:'flameBreathSweep'}},
  {id:'tempest',name:'폭풍 검무',level:24,price:780,cost:48,cool:5.4,color:'#ffd95c',desc:'작은 나선 궤도를 직접 돌면서 여섯 번 회전 베기해 주변 적을 휩쓸어갑니다.',cfg:{duration:1.28,hits:[.08,.25,.42,.59,.78,1.02],mult:[.42,.45,.48,.52,.58,.92],arc:[TAU,TAU,TAU,TAU,TAU,TAU],reach:[18,22,26,30,34,42],step:[0,0,0,0,0,0],mode:'tempest'}},
- {id:'earthRend',name:'승염 비상',level:30,price:920,cost:43,cool:7.4,color:'#ff782e',desc:'첫 순간 빠르게 정면으로 돌진하고 점점 감속해 기존 이동거리 328에 도달한다. 발동 0.5초 뒤 도착 지점에 방패를 관통하는 원형 화염 검격을 일으킨다.',cfg:{duration:.78,hits:[.50],mult:[2.61],arc:[TAU],reach:[250],step:[0],mode:'flameBreathRise'}},
+ {id:'earthRend',name:'승염 비상',level:30,price:920,cost:43,cool:7.4,color:'#ff782e',desc:'직선으로 328만큼 빠르게 돌진하며 점차 감속한다. 발동 0.5초 후 도착 지점의 원형 화염과 지나온 직선 경로에 동시에 피해를 주며 방패를 관통한다.',cfg:{duration:.78,hits:[.50],mult:[2.61],arc:[TAU],reach:[250],step:[0],mode:'flameBreathRise'}},
  {id:'dawnArc',name:'여명 검파',level:38,price:1100,cost:58,cool:3.5,color:'#ffd95c',desc:'강한 검압 하나를 발사한 반동으로 몸이 뒤로 밀리는 초장거리 단발기입니다.',cfg:{duration:.72,hits:[.28],mult:[1.15],arc:[1.7],reach:[20],step:[0],mode:'dawnWave'}},
  {id:'thunderDrive',name:'천풍 추살',level:44,price:1280,cost:74,cool:15.8,color:'#61f0c7',desc:'질풍 유파의 궁극기. 장거리 초고속 돌진에 맞는 순간 2번 질풍 점멸처럼 돌진 방향으로 강하게 날아가며, 이후 0.05초마다 총 30회의 추살 연계를 합니다. Lv.100 기준 일반 타격 100, 마지막 타격 200 피해입니다.',cfg:{duration:2.35,hits:Array.from({length:30},(_,i)=>.70+i*.05),mult:Array.from({length:30},(_,i)=>i===29?.38:.20),arc:Array(30).fill(TAU),reach:Array(30).fill(0),step:Array(30).fill(0),mode:'galePursuit'}},
  {id:'meteorBreaker',name:'극홍 · 염화일천',level:52,price:1520,cost:78,cool:19.5,color:'#ff782e',desc:'0.5초 동안 불꽃을 모은 뒤 장거리 초고속 화염 돌진. 적중하면 즉시 멈춰 기절시키고, 교차 화염 검격 두 번과 마지막 폭염 봉쇄로 마무리한다. 아무도 맞지 않으면 돌진 종료 즉시 기술이 끝난다.',cfg:{duration:1.65,hits:[],mult:[],arc:[TAU],reach:[0],step:[0],mode:'flameBreathFinale'}},
@@ -2397,6 +2407,39 @@ function finishSwordCarryTargets(seq,interrupted=false){
  seq.carryIds?.clear();
 }
 
+// Attach enemies struck by the spinning S-dash to its moving sword arc until the
+// final hit releases them. This keeps the next slashes inside the same hit sequence.
+function pullFlameWheelTargets(seq,dt,ox,oy){
+ if(!seq.flameWheelCaught?.size)return;
+ const a=seq.flameFace??seq.facing,fx=Math.cos(a),fy=Math.sin(a),targets=combatTargets();
+ for(const id of [...seq.flameWheelCaught]){
+  const e=targets.find(t=>t.id===id);
+  if(!e||e.dead||e.riftSleeping){seq.flameWheelCaught.delete(id);continue;}
+  if(e.kind==='boss')continue; // Bosses take later hits without forced body movement.
+  const tx=player.x+fx*64,ty=player.y+fy*64;
+  if(e.networkPlayer){
+   if(seq.elapsed>=(seq.flameWheelSyncAt||0)){
+    seq.flameWheelSyncAt=seq.elapsed+.065;
+    worldTargetControl(e.id,{x:tx,y:ty,duration:.12,stun:.22,range:1100});
+   }
+  }else if(multiplayerMode&&window.EchoesMulti?.connected&&e.type!=='dummy'&&!e.riftId){
+   if(seq.elapsed>=(seq.flameWheelSyncAt||0)){
+    seq.flameWheelSyncAt=seq.elapsed+.065;
+    window.EchoesMulti.damageMob(e.id,0,{knockbackX:tx-e.x,knockbackY:ty-e.y,duration:.12,stun:.22,replaceForce:true});
+   }
+  }else{
+   // Move with the player's actual frame displacement, then drift toward the
+   // sword's front. Avoid snapping the target from its initial impact position.
+   skill2Knocks=skill2Knocks.filter(k=>k.e!==e);
+   const dx=player.x-ox,dy=player.y-oy,follow=clamp(dt*10,0,1);
+   const bx=e.x+dx,by=e.y+dy;
+   moveBody(e,dx+(tx-bx)*follow,dy+(ty-by)*follow);
+   e.stun=Math.max(e.stun||0,.23);
+   if(e.type!=='dummy')e.state='stunned';
+  }
+ }
+}
+
 function flameBreathHit(seq,sk,k,damage,finalHit){
  const mode=sk.cfg.mode,base=seq.flameFace??seq.facing,side=seq.side||1,
   leg=seq.flameLegs?.[k===4?3:k],impact=seq.flameFinalImpact||{x:player.x,y:player.y};
@@ -2410,8 +2453,10 @@ function flameBreathHit(seq,sk,k,damage,finalHit){
    matched=d<r+er&&Math.abs(angleDiff(a,look))<half+er/Math.max(35,d);
    stun=k===0?.12:.28;push=k===0?20:44;
   }else if(mode==='flameBreathRise'){
-   // Single radial guard-piercing impact at .50s, after the full 328-unit straight dash.
-   matched=d<=FLAME_RISE_IMPACT_RADIUS+er;
+   // One simultaneous hit at .50s, whether the enemy is in the finish ring
+   // OR anywhere along the straight dash (no double damage in the overlap).
+   const pathDistance=segmentDistance(c.x,c.y,[seq.originX,seq.originY],[player.x,player.y]);
+   matched=d<=FLAME_RISE_IMPACT_RADIUS+er||pathDistance<=76+er;
    stun=.56;push=112;pushA=a;
   }else if(mode==='flameBreathCleave'){
    // The .10s opening ring hits at the origin; .65s landing uses the character's new position.
@@ -2423,8 +2468,11 @@ function flameBreathHit(seq,sk,k,damage,finalHit){
    pushA=Math.atan2(ry,rx);
   }else if(mode==='flameBreathWheel'){
    const r=[190,230,270][k],face=base+side*k*.72,half=[2.02,2.50,3.05][k];
-   matched=d<r+er&&Math.abs(angleDiff(a,face))<half+er/Math.max(35,d);
-   stun=k===2?.47:.17;push=k===2?155:38;pushA=Math.atan2(c.y-player.y,c.x-player.x);
+   // Confirmed earlier hits stay in the combo even while the attacker advances.
+   const carried=seq.flameWheelCaught?.has(e.id);
+   matched=!!carried||(d<r+er&&Math.abs(angleDiff(a,face))<half+er/Math.max(35,d));
+   stun=k===2?.47:.23;push=k===2?155:0;
+   pushA=Math.atan2(c.y-player.y,c.x-player.x);
   }else if(mode==='flameBreathFinale'){
    const nearPath=leg&&segmentDistance(c.x,c.y,[leg.from.x,leg.from.y],[k===3?player.x:leg.to.x,k===3?player.y:leg.to.y])<(k===3?108:93)+er;
    if(k<3){
@@ -2443,14 +2491,25 @@ function flameBreathHit(seq,sk,k,damage,finalHit){
   if(!matched)continue;
   const boss=e.kind==='boss',stunSecs=boss?Math.min(.20,stun*.38):stun,
    force=boss?0:push;
-  hitEnemy(e,damage,finalHit,player,{
+  const risePath=mode==='flameBreathRise'&&d>FLAME_RISE_IMPACT_RADIUS+er;
+  const hitShape=risePath?{shape:'segment',x1:seq.originX,y1:seq.originY,x2:player.x,y2:player.y,r:76}:
+   mode==='flameBreathRise'?{shape:'circle',x:player.x,y:player.y,r:FLAME_RISE_IMPACT_RADIUS}:
+   {shape:'circle',x:c.x,y:c.y,r:Math.max(24,er+10)};
+  const control={
    stun:stunSecs,
    dx:Math.cos(pushA)*force,dy:Math.sin(pushA)*force,
    duration:window.EchoesCombat.forceDuration(force),
    bypassShield:mode==='flameBreathRise',
-   skillId:sk.id,
-   shape:'circle',x:c.x,y:c.y,r:Math.max(24,er+10)
-  });
+   skillId:sk.id,...hitShape
+  };
+  if(mode==='flameBreathWheel'&&k<2){
+   control.onHit=()=>{if(activeSwordSkill===seq)(seq.flameWheelCaught??=new Set()).add(e.id);};
+  }
+  const outcome=hitEnemy(e,damage,finalHit,player,control);
+  if(mode==='flameBreathWheel'&&k<2&&outcome===true){
+   (seq.flameWheelCaught??=new Set()).add(e.id);
+   skill2Knocks=skill2Knocks.filter(knock=>knock.e!==e);
+  }
  }
 }
 
@@ -2765,6 +2824,7 @@ function flameBreathMotion(seq,sk,dt,t,target){
   const forward=465*first+400*third;
   const sideArc=side*(100*Math.sin(Math.PI*first)-86*Math.sin(Math.PI*third));
   approach(seq.originX+fx*forward+nx*sideArc,seq.originY+fy*forward+ny*sideArc,4600);
+  pullFlameWheelTargets(seq,dt,ox,oy);
   // One more visible sword spin during the third hit, with no gap after the second.
   player.facing=f+side*Math.PI*2.1*(first+third);seq.facing=f;
   player.skillLift=4+Math.sin(Math.PI*first)*10+Math.sin(Math.PI*third)*7;
