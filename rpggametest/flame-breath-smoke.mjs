@@ -20,7 +20,7 @@ for(const c of cases){
  await page.waitForFunction(()=>window.__game?.mode==='play'&&!!window.__game?.enemies?.find(e=>e.type==='dummy'));
  const init=await page.evaluate((c)=>{
   const g=window.__game,p=g.player,e=g.enemies.find(e=>e.type==='dummy');
-  e.x=p.x+(c.slot===2?140:260);e.y=p.y;e.sx=e.x;e.sy=e.y;e.r=25;e.testHitCount=0;e.testDamageTotal=0;e.speed=0;e.damage=0;e.maxHp=e.hp=1e8;e.baseMaxHp=1e8;e.stun=0;
+  e.x=p.x+(c.slot===1?32:c.slot===2?140:260);e.y=p.y;e.sx=e.x;e.sy=e.y;e.r=25;e.testHitCount=0;e.testDamageTotal=0;e.speed=0;e.damage=0;e.maxHp=e.hp=1e8;e.baseMaxHp=1e8;e.stun=0;
   g.admin.god=true;p.facing=0;p.stun=0;p.attackCd=0;p.cast=0;p.skillCds.fill(0);
   if(c.slot===1){
    window.__riseTrace=[];
@@ -37,7 +37,7 @@ for(const c of cases){
    const observeWheel=()=>{
     const seq=g.activeSwordSkill;
     if(seq?.skillId==='ironJudgment'&&window.__wheelTrace.length<300)
-     window.__wheelTrace.push({t:seq.elapsed,x:p.x,y:p.y});
+     window.__wheelTrace.push({t:seq.elapsed,x:p.x,y:p.y,enemyX:e.x,enemyY:e.y,hits:e.testHitCount||0});
     if(!window.__wheelTraceStop)requestAnimationFrame(observeWheel);
    };
    requestAnimationFrame(observeWheel);
@@ -99,9 +99,14 @@ for(const c of cases){
   const at=t=>trace.reduce((best,p)=>Math.abs(p.t-t)<Math.abs(best.t-t)?p:best,trace[0]);
   const a=at(.08),b=at(.20),c1=at(.36),d=at(.50),firstSpeed=(b.x-a.x)/(b.t-a.t),lastSpeed=(d.x-c1.x)/(d.t-c1.t);
   const drift=Math.max(...trace.map(p=>Math.abs(p.y-trace[0].y)));
-  if(firstSpeed<lastSpeed*1.8||Math.abs(d.x-3000-328)>18||drift>4||frame.hitCount!==1||!trace.some(p=>p.fx))
-   throw Error('Second form must travel straight 328 units, decelerate and hit in a fire ring at .50s: '+JSON.stringify({firstSpeed,lastSpeed,final:d,drift,hitCount:frame.hitCount,types:frame.types}));
-  console.log('Second form straight decelerating dash and circular hit verified:',JSON.stringify({firstSpeed,lastSpeed,travel:d.x-trace[0].x,drift}));
+  // Bot starts just 32 units down the path, over 250+its radius outside the
+  // finish ring. A registered hit here proves the full dash path deals damage.
+  const pathOnlyOutsideCircle=Math.abs(d.x-(3000+32))>250+25;
+  if(firstSpeed<lastSpeed*1.8||Math.abs(d.x-3000-328)>18||drift>4||
+     !pathOnlyOutsideCircle||frame.hitCount!==1||!trace.some(p=>p.fx))
+   throw Error('Second form must damage the dash path and end ring simultaneously at .50s: '+
+    JSON.stringify({firstSpeed,lastSpeed,final:d,drift,pathOnlyOutsideCircle,hitCount:frame.hitCount,types:frame.types}));
+  console.log('Second form straight decelerating dash PATH hit outside end ring:',JSON.stringify({firstSpeed,lastSpeed,travel:d.x-trace[0].x,drift}));
  }
  if(c.slot===4){
   // Confirm first collision arrests the dash, then crossing cuts and the final seal land.
@@ -118,9 +123,13 @@ for(const c of cases){
   const at=t=>trace.reduce((best,p)=>Math.abs(p.t-t)<Math.abs(best.t-t)?p:best,trace[0]);
   const second=at(.38),last=at(.63),travel=Math.hypot(last.x-second.x,last.y-second.y);
   const ys=trace.map(p=>p.y-trace[0].y),minSide=Math.min(...ys),maxSide=Math.max(...ys);
-  if(travel<250||minSide> -55||maxSide<55||minSide< -120)
-   throw Error('Fourth form must move through hit three along both sides of an S curve: '+JSON.stringify({travel,minSide,maxSide,second,last}));
-  console.log('Fourth form continuous S-shaped movement verified:',JSON.stringify({travel,minSide,maxSide}));
+  const beforeCarry=at(.23),duringCarry=at(.53),victimTravel=Math.hypot(
+   duringCarry.enemyX-beforeCarry.enemyX,duringCarry.enemyY-beforeCarry.enemyY);
+  if(travel<250||minSide> -55||maxSide<55||minSide< -120||
+     victimTravel<220||duringCarry.hits<2||last.hits<3)
+   throw Error('Fourth form must carry the first hit into two followups while moving in an S curve: '+
+    JSON.stringify({travel,minSide,maxSide,victimTravel,beforeCarry,duringCarry,last}));
+  console.log('Fourth form 3-hit S-dash and target carry verified:',JSON.stringify({travel,minSide,maxSide,victimTravel,hits:last.hits}));
  }
  await page.screenshot({path:'rpggametest/flame-preview/'+String(c.slot+1)+'-'+c.id+'.png'});
  if(c.slot===4){
