@@ -1046,7 +1046,7 @@ function crimsonOutside(x,y,inner=170,outer=290,count=14,inward=false,twist=0){
  const n=options.quality==='low'?Math.ceil(count*.58):count;
  for(let j=0;j<n;j++){const aa=rnd(0,TAU),rr=rnd(inner,outer),px=x+Math.cos(aa)*rr,py=y+Math.sin(aa)*rr,dir=(inward?aa+Math.PI:aa)+twist+rnd(-.38,.38);crimsonEmbers(px,py,dir,1+(j%3===0?1:0),rnd(190,360),.24,rnd(.72,1.12));}
 }
-const CRIMSON1_RX=110,CRIMSON1_RY=110,CRIMSON1_BEAM=168,CRIMSON1_WIDTH=39;
+const CRIMSON1_RX=110,CRIMSON1_RY=110,CRIMSON1_BEAM=168,CRIMSON1_WIDTH=39,CRIMSON1_DASH=48,CRIMSON1_DASH_TIME=.12;
 function crimsonOneFireFlecks(x,y,a,n,spread=.30){
  const low=options.quality==='low',count=low?Math.ceil(n*.57):n;
  const palette=['#e51b32','#ff352c','#ff642e','#ffad4b','#ffe0a0','#b61131'];
@@ -1477,7 +1477,7 @@ function swordSignatureFx(id,hitIndex,finalHit,ang,reach,color,actor=player,cont
   if(id==='guardBreak'){
    const ca2=Math.cos(ang),sa2=Math.sin(ang);
    if(hitIndex===0){crimsonStrokeCircle(actor.x,actor.y,CRIMSON1_RX,CRIMSON1_RY,ang,1.2);}
-   else{const x1=actor.x+ca2*CRIMSON1_RY,y1=actor.y+sa2*CRIMSON1_RY,x2=x1+ca2*CRIMSON1_BEAM,y2=y1+sa2*CRIMSON1_BEAM;crimsonStrokeLine(x1,y1,x2,y2,ang,1.3);}
+   else{const bx=Number.isFinite(context?.originX)?context.originX:actor.x,by=Number.isFinite(context?.originY)?context.originY:actor.y,x1=bx+ca2*CRIMSON1_RY,y1=by+sa2*CRIMSON1_RY,x2=x1+ca2*CRIMSON1_BEAM,y2=y1+sa2*CRIMSON1_BEAM;crimsonStrokeLine(x1,y1,x2,y2,ang,1.3);}
   }else if(id==='earthRend'){
    const density=[10,17,8,19,30][hitIndex]||12,aa=ang+Math.PI+(hitIndex%2?.68:-.68);crimsonEmbers(actor.x,actor.y,aa,density,285+hitIndex*34,.86,1.04+hitIndex*.04);
    if(hitIndex===1||hitIndex===3)crimsonOutside(actor.x,actor.y,125,270,10+hitIndex*2,false,hitIndex%2?.35:-.35);
@@ -2220,7 +2220,24 @@ function performSwordSkillHit(seq,hitIndex){
  else if(mode==='crimsonOrbitLine'){
   const ca2=Math.cos(ang),sa2=Math.sin(ang),tx=-sa2,ty=ca2;
   if(hitIndex===0){for(const e of combatTargets()){if(e.dead||e.riftSleeping)continue;const c=combatCenter(e),dx=c.x-player.x,dy=c.y-player.y,normal=dx*ca2+dy*sa2,tangent=dx*tx+dy*ty,radius=combatRadius(e);if((tangent/(CRIMSON1_RX+radius))**2+(normal/(CRIMSON1_RY+radius))**2>1)continue;hitEnemyConfirmed(e,damage,false,player,()=>applyEnemyStun(e,e.kind==='boss'?.06:.16));}}
-  else{const x1=player.x+ca2*CRIMSON1_RY,y1=player.y+sa2*CRIMSON1_RY,x2=x1+ca2*CRIMSON1_BEAM,y2=y1+sa2*CRIMSON1_BEAM,wid=CRIMSON1_WIDTH;for(const e of combatTargets()){if(e.dead||e.riftSleeping)continue;const c=combatCenter(e);if(segmentDistance(c.x,c.y,[x1,y1],[x2,y2])>wid+combatRadius(e))continue;hitEnemyConfirmed(e,damage,true,player,()=>applyEnemyStun(e,e.kind==='boss'?.12:.36));}}
+  else{
+   // Dash begins precisely when the line appears. Both player and line-hit targets travel 48px.
+   seq.crimson1DashLeft=CRIMSON1_DASH_TIME;seq.crimson1DashAngle=ang;
+   // The line stays attached to the original ring, not to the moving player.
+   const x1=seq.originX+ca2*CRIMSON1_RY,y1=seq.originY+sa2*CRIMSON1_RY,x2=x1+ca2*CRIMSON1_BEAM,y2=y1+sa2*CRIMSON1_BEAM,wid=CRIMSON1_WIDTH;
+   for(const e of combatTargets()){
+    if(e.dead||e.riftSleeping)continue;const c=combatCenter(e);
+    if(segmentDistance(c.x,c.y,[x1,y1],[x2,y2])>wid+combatRadius(e))continue;
+    hitEnemyConfirmed(e,damage,true,player,()=>{
+     applyEnemyStun(e,e.kind==='boss'?.12:.36);
+     // The target dummy bypasses normal knockback in hitEnemy, so animate it explicitly.
+     if(e.type==='dummy'){
+      skill2Knocks=skill2Knocks.filter(k=>k.e!==e);
+      skill2Knocks.push({e,startX:e.x,startY:e.y,x:e.x+ca2*CRIMSON1_DASH,y:e.y+sa2*CRIMSON1_DASH,t:CRIMSON1_DASH_TIME,max:CRIMSON1_DASH_TIME,cubic:true});
+     }
+    },{stun:e.kind==='boss'?.12:.36,dx:ca2*CRIMSON1_DASH,dy:sa2*CRIMSON1_DASH,duration:CRIMSON1_DASH_TIME});
+   }
+  }
  }
  else if(mode==='flameMantle'){const r=[150,156,164,174,192][hitIndex]||180;for(const e of combatTargets()){if(e.dead||e.riftSleeping||combatDistance(e,player)>r+combatRadius(e))continue;hitEnemyConfirmed(e,damage,finalHit,player,()=>applyEnemyStun(e,e.kind==='boss'?.05:(finalHit?.42:.10)));}}
  else if(mode==='cinderSnare'){const r=[178,198,214,236][hitIndex]||220;for(const e of combatTargets()){if(e.dead||e.riftSleeping||combatDistance(e,player)>r+combatRadius(e))continue;hitEnemyConfirmed(e,damage,finalHit,player,()=>{if(e.kind!=='boss'){const c=combatCenter(e),aa=Math.atan2(player.y-c.y,player.x-c.x),pull=[24,34,46,12][hitIndex]||24;moveBody(e,Math.cos(aa)*pull,Math.sin(aa)*pull);}applyEnemyStun(e,e.kind==='boss'?.06:(finalHit?.48:.14));});}}
@@ -2416,6 +2433,13 @@ function updateSwordSkillMotion(seq,sk,dt){
   }else if(mode==='cinderSnare'){
    seq.fx-=dt;if(seq.fx<=0){seq.fx=.060;const q=.25+.75*t,r=300-92*q;for(let j=0;j<4;j++){const aa=realTime*2.8+j*TAU/4,x=player.x+Math.cos(aa)*r,y=player.y+Math.sin(aa)*r;crimsonEmbers(x,y,aa+Math.PI,7+(t>.65?3:0),250+120*q,.34,1.0);}crimsonOutside(player.x,player.y,250,365,6,true,side*.15);}shake=Math.max(shake,5+4*t);
   }else if(mode==='crimsonOrbitLine'){
+   // A short forward dash follows the line's appearance; other skill phases remain stationary.
+   if(seq.crimson1DashLeft>0){
+    const moving=Math.min(dt,seq.crimson1DashLeft),da=seq.crimson1DashAngle??seq.facing;
+    moveBody(player,Math.cos(da)*CRIMSON1_DASH*moving/CRIMSON1_DASH_TIME,Math.sin(da)*CRIMSON1_DASH*moving/CRIMSON1_DASH_TIME);
+    seq.crimson1DashLeft=Math.max(0,seq.crimson1DashLeft-moving);
+    player.skillLift=Math.sin((1-seq.crimson1DashLeft/CRIMSON1_DASH_TIME)*Math.PI)*5;
+   }
    shake=Math.max(shake,t<.45?3.8:6.5);
   }
   player.facing=seq.facing=player.attackAngle=face;
