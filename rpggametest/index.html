@@ -2272,51 +2272,48 @@ function performSwordSkillHit(seq,hitIndex){
  else if(mode==='stationaryFlurry'){const target=swordSeqTarget(seq);if(target){const aa=ang+(hitIndex%2?1:-1)*1.05,tx=target.x-Math.cos(aa)*58,ty=target.y-Math.sin(aa)*58;moveBody(player,clamp(tx-player.x,-48,48),clamp(ty-player.y,-48,48));player.facing=Math.atan2(target.y-player.y,target.x-player.x);}meleeHit(reach,cfg.arc[hitIndex],damage,finalHit);}
  else if(mode==='doubleWave'||mode==='crescentRetreat'){meleeHit(reach,cfg.arc[hitIndex],damage*.38,false);const spread=hitIndex===0?-.18:.18;fireProjectile(player.x+Math.cos(ang)*32,player.y+Math.sin(ang)*32,ang+spread,510,damageValue(hitIndex===0?1.0:1.3),'player','wave',3);}
  else if(mode==='emberFuse'){
-  const f=seq.crimsonFace??seq.facing,ca=Math.cos(f),sa=Math.sin(f),x1=seq.originX,y1=seq.originY,x2=player.x,y2=player.y;
-  for(const e of combatTargets()){if(e.dead||e.riftSleeping)continue;const c=combatCenter(e),rad=combatRadius(e);
-   const inPath=segmentDistance(c.x,c.y,[x1,y1],[x2,y2])<=(hitIndex===0?54:79)+rad;
-   if(!inPath&&!(hitIndex===1&&Math.hypot(c.x-x2,c.y-y2)<110+rad))continue;
-   hitEnemyConfirmed(e,damage,finalHit,player,()=>applyEnemyStun(e,e.kind==='boss'?.08:finalHit?.40:.14));
+  const f=seq.crimsonFace??seq.facing,from={x:seq.originX,y:seq.originY},to={x:player.x,y:player.y},radius=hitIndex===0?192:90;
+  for(const e of combatTargets()){if(e.dead||e.riftSleeping)continue;const c=combatCenter(e),er=combatRadius(e),dx=c.x-player.x,dy=c.y-player.y,d=Math.hypot(dx,dy);
+   const slash=hitIndex===0&&d<=radius+er&&Math.abs(angleDiff(Math.atan2(dy,dx),f))<=.825+er/Math.max(35,d);
+   const smolder=hitIndex===1&&segmentDistance(c.x,c.y,[from.x,from.y],[to.x,to.y])<=radius+er;
+   if(!slash&&!smolder)continue;hitEnemyConfirmed(e,damage,finalHit,player,()=>applyEnemyStun(e,e.kind==='boss'?.09:finalHit?.36:.13));
   }
  }
  else if(mode==='scarletHook'){
-  const f=seq.crimsonFace??seq.facing,ca=Math.cos(f),sa=Math.sin(f),centerX=player.x+ca*76,centerY=player.y+sa*76,r=[78,90,115][hitIndex]||90;
-  for(const e of combatTargets()){if(e.dead||e.riftSleeping)continue;const c=combatCenter(e),rad=combatRadius(e),curve=segmentDistance(c.x,c.y,[seq.originX,seq.originY],[player.x,player.y])<rad+54;
-   if(Math.hypot(c.x-centerX,c.y-centerY)>r+rad&&!curve)continue;
-   hitEnemyConfirmed(e,damage,finalHit,player,()=>applyEnemyStun(e,e.kind==='boss'?.08:finalHit?.47:.14));
+  const f=seq.crimsonFace??seq.facing,side=seq.side||1,attackA=f+side*[.23,-1.95,2.16][hitIndex],radius=[198,218,246][hitIndex],width=[.79,.82,.97][hitIndex];
+  for(const e of combatTargets()){if(e.dead||e.riftSleeping)continue;const c=combatCenter(e),dx=c.x-player.x,dy=c.y-player.y,d=Math.hypot(dx,dy),er=combatRadius(e);
+   if(d>radius+er||Math.abs(angleDiff(Math.atan2(dy,dx),attackA))>width+er/Math.max(35,d))continue;
+   hitEnemyConfirmed(e,damage,finalHit,player,()=>applyEnemyStun(e,e.kind==='boss'?.09:finalHit?.43:.11));
   }
  }
  else if(mode==='butterflyVolley'){
-  const f=seq.crimsonFace??seq.facing,offset=[-.47,.35,-.24,.04][hitIndex]*(seq.side||1),attackA=f+offset,radius=[185,195,205,245][hitIndex],halfArc=[.52,.60,.72,.97][hitIndex];
-  for(const e of combatTargets()){if(e.dead||e.riftSleeping)continue;const c=combatCenter(e),dx=c.x-player.x,dy=c.y-player.y,d=Math.hypot(dx,dy),rad=combatRadius(e);
-   if(d>radius+rad||Math.abs(angleDiff(Math.atan2(dy,dx),attackA))>halfArc+rad/Math.max(60,d))continue;
-   hitEnemyConfirmed(e,damage,finalHit,player,()=>applyEnemyStun(e,e.kind==='boss'?.045:finalHit?.36:.09));
+  const f=seq.crimsonFace??seq.facing,tc=swordSeqTarget(seq),c=tc?combatCenter(tc):null,look=c?Math.atan2(c.y-player.y,c.x-player.x):f,slashA=look+(seq.side||1)*[-.18,.16,-.13,.06][hitIndex],radius=[190,205,220,265][hitIndex],halfArc=[.65,.71,.81,1.02][hitIndex];
+  for(const e of combatTargets()){if(e.dead||e.riftSleeping)continue;const c=combatCenter(e),dx=c.x-player.x,dy=c.y-player.y,d=Math.hypot(dx,dy),er=combatRadius(e);
+   if(d>radius+er||Math.abs(angleDiff(Math.atan2(dy,dx),slashA))>halfArc+er/Math.max(35,d))continue;
+   hitEnemyConfirmed(e,damage,finalHit,player,()=>applyEnemyStun(e,e.kind==='boss'?.05:finalHit?.37:.10));
   }
  }
  else if(mode==='pyreDomino'){
-  const f=seq.crimsonFace??seq.facing,cx=player.x+Math.cos(f)*105,cy=player.y+Math.sin(f)*105;
+  const f=seq.crimsonFace??seq.facing,tc=swordSeqTarget(seq),targetPos=tc?combatCenter(tc):null,look=targetPos?Math.atan2(targetPos.y-player.y,targetPos.x-player.x):f,cx=player.x+Math.cos(look)*115,cy=player.y+Math.sin(look)*115;
   seq.pyreNodes??=[];
-  if(hitIndex<3){
-   seq.pyreNodes.push({x:cx,y:cy});
-   for(const e of combatTargets()){if(e.dead||e.riftSleeping||combatDistance(e,{x:cx,y:cy})>77+combatRadius(e))continue;
-    hitEnemyConfirmed(e,damage,false,player,()=>applyEnemyStun(e,e.kind==='boss'?.045:.10));}
+  if(hitIndex<3){seq.pyreNodes.push({x:cx,y:cy,a:look});
+   for(const e of combatTargets()){if(e.dead||e.riftSleeping)continue;const c=combatCenter(e),dx=c.x-player.x,dy=c.y-player.y,d=Math.hypot(dx,dy),er=combatRadius(e);
+    if(d>195+er||Math.abs(angleDiff(Math.atan2(dy,dx),look))>.73+er/Math.max(35,d))continue;
+    hitEnemyConfirmed(e,damage,false,player,()=>applyEnemyStun(e,e.kind==='boss'?.05:.10));}
   }else{
-   const nodes=[...seq.pyreNodes,{x:cx,y:cy}],seen=new Set();
-   for(const e of combatTargets()){if(e.dead||e.riftSleeping||seen.has(e.id))continue;
-    if(nodes.some(n=>combatDistance(e,n)<=103+combatRadius(e))){seen.add(e.id);hitEnemyConfirmed(e,damage,true,player,()=>applyEnemyStun(e,e.kind==='boss'?.14:.48));}}
+   const nodes=[...seq.pyreNodes,{x:cx,y:cy,a:look}],seen=new Set();
+   for(const e of combatTargets()){if(e.dead||e.riftSleeping||seen.has(e.id))continue;const c=combatCenter(e),er=combatRadius(e),near=nodes.some(n=>combatDistance(e,n)<=108+er),dx=c.x-player.x,dy=c.y-player.y,d=Math.hypot(dx,dy);
+    if(near||(d<=257+er&&Math.abs(angleDiff(Math.atan2(dy,dx),look))<=1.16+er/Math.max(35,d))){seen.add(e.id);hitEnemyConfirmed(e,damage,true,player,()=>applyEnemyStun(e,e.kind==='boss'?.15:.46));}}
   }
  }
  else if(mode==='triadPyre'){
-  const vs=seq.triadVertices??crimsonTriadVertices(seq);seq.triadVertices=vs;
-  if(hitIndex<3){
-   const start=hitIndex===0?{x:seq.originX,y:seq.originY}:vs[hitIndex-1],end=vs[hitIndex];
-   for(const e of combatTargets()){if(e.dead||e.riftSleeping)continue;const c=combatCenter(e);
-    if(segmentDistance(c.x,c.y,[start.x,start.y],[end.x,end.y])>90+combatRadius(e))continue;
-    hitEnemyConfirmed(e,damage,false,player,()=>applyEnemyStun(e,e.kind==='boss'?.12:.22));}
-  }else{
-   for(const e of combatTargets()){if(e.dead||e.riftSleeping)continue;const c=combatCenter(e),rad=combatRadius(e);
-    if(!crimsonInTriangle(c.x,c.y,vs,rad+(hitIndex===4?60:12)))continue;
-    hitEnemyConfirmed(e,damage,finalHit,player,()=>applyEnemyStun(e,e.kind==='boss'?.16:finalHit?.83:.32));}
+  const vs=seq.triadVertices??crimsonTriadVertices(seq);seq.triadVertices=vs;const cx=Number.isFinite(seq.anchorX)?seq.anchorX:(vs[0].x+vs[1].x+vs[2].x)/3,cy=Number.isFinite(seq.anchorY)?seq.anchorY:(vs[0].y+vs[1].y+vs[2].y)/3;
+  if(hitIndex<3){const start=hitIndex===0?{x:seq.originX,y:seq.originY}:vs[hitIndex-1],end=vs[hitIndex],a=Math.atan2(cy-end.y,cx-end.x),radius=hitIndex===2?175:148;
+   for(const e of combatTargets()){if(e.dead||e.riftSleeping)continue;const c=combatCenter(e),er=combatRadius(e),d=Math.hypot(c.x-end.x,c.y-end.y),path=segmentDistance(c.x,c.y,[start.x,start.y],[end.x,end.y])<=82+er;
+    const slash=d<=radius+er&&Math.abs(angleDiff(Math.atan2(c.y-end.y,c.x-end.x),a))<=.94+er/Math.max(35,d);
+    if(!path&&!slash)continue;hitEnemyConfirmed(e,damage,false,player,()=>applyEnemyStun(e,e.kind==='boss'?.1:.21));}
+  }else{const r=hitIndex===4?255:190;for(const e of combatTargets()){if(e.dead||e.riftSleeping||combatDistance(e,{x:cx,y:cy})>r+combatRadius(e))continue;
+   hitEnemyConfirmed(e,damage,finalHit,player,()=>applyEnemyStun(e,e.kind==='boss'?.16:finalHit?.78:.29));}
   }
  }
  else if(mode==='guardPierce'){meleeHit(reach,.52,damage,true,e=>{applyEnemyStun(e,e.kind==='boss'?.65:1.15);e.poise=(e.poise||0)+45;});}
@@ -2809,7 +2806,7 @@ function styleAdeptPredictedPose(e,seq,k){
  else if(mode==='stationaryFlurry'){for(let j=0;j<=k;j++){const aa=a+(j%2?1:-1)*1.05,gx=tx-Math.cos(aa)*58,gy=ty-Math.sin(aa)*58;x+=clamp(gx-x,-48,48);y+=clamp(gy-y,-48,48);const st=Number(cfg.step?.[j])||0;x+=ca*st;y+=sa*st;}face=Math.atan2(ty-y,tx-x);}
  else if(mode==='galePursuit'){const offs=[2.35,-2.35,1.55,-1.55,Math.PI,.85,-.85,2.75,-2.75,0],aa=a+offs[k%offs.length],dist=k===seq.hits.length-1?62:82;x=tx+Math.cos(aa)*dist;y=ty+Math.sin(aa)*dist;face=Math.atan2(ty-y,tx-x);}
  else if(mode==='crescentRetreat'){const back=185*Math.min(t,.24);x=ox-ca*back+ca*step;y=oy-sa*back+sa*step;}
- else if(mode==='emberFuse'){const q=clamp(u/.55,0,1),ease=q*q*(3-2*q);x=ox+ca*235*ease;y=oy+sa*235*ease;face=a;}
+ else if(mode==='emberFuse'){const q=clamp((u-.12)/.44,0,1),ease=q*q*(3-2*q);x=ox+ca*235*ease;y=oy+sa*235*ease;face=a;}
  else if(mode==='scarletHook'){const q=clamp(u/.88,0,1),lateral=(Math.sin(Math.PI*q)*168-q*103)*side,smooth=q*q*(3-2*q);x=ox+ca*275*smooth-sa*lateral;y=oy+sa*275*smooth+ca*lateral;face=a;}
  else if(mode==='butterflyVolley'||mode==='pyreDomino'){const domino=mode==='pyreDomino',travel=domino?274:214,forward=domino?45:28;x=ox+ca*forward*u-sa*side*travel*u;y=oy+sa*forward*u+ca*side*travel*u;face=a;}
  else if(mode==='triadPyre'){const vs=crimsonTriadVertices({crimsonFace:a,anchorX:tx,anchorY:ty,side});const dst=vs[Math.min(k,2)];x=dst.x;y=dst.y;face=Math.atan2(ty-y,tx-x);}
@@ -2842,11 +2839,11 @@ function styleAdeptExactShapes(e,seq,k){
  if(mode==='moonBurst')return [circle(pose.x,pose.y,reach)];
  if(mode==='stationaryFlurry')return [sector(pose.x,pose.y,pose.a,reach,arc)];
  if(mode==='crescentRetreat'){const spread=k===0?-.18:.18;return [sector(pose.x,pose.y,a,reach,arc),proj(pose.x+ca*32,pose.y+sa*32,a+spread,510)];}
- if(mode==='emberFuse')return k===0?[seg(ox,oy,pose.x,pose.y,58)]:[seg(ox,oy,pose.x,pose.y,80),circle(pose.x,pose.y,108)];
- if(mode==='scarletHook')return [sector(pose.x,pose.y,pose.a,94+[105,145,178][k],1.5)];
- if(mode==='butterflyVolley')return [sector(pose.x,pose.y,a+[-.47,.35,-.24,.04][k]*(seq.side||1),[185,195,205,245][k],[1.04,1.20,1.44,1.94][k])];
- if(mode==='pyreDomino'){const nodes=[.30,.68,1.04,1.34].map(t=>{const q=t/1.46;return {x:ox+ca*45*q-sa*side*274*q+ca*105,y:oy+sa*45*q+ca*side*274*q+sa*105};});return k<3?[circle(nodes[k].x,nodes[k].y,77)]:nodes.map(n=>circle(n.x,n.y,103));}
- if(mode==='triadPyre'){const vs=crimsonTriadVertices({crimsonFace:a,anchorX:tx,anchorY:ty,side});if(k<3){const from=k===0?{x:ox,y:oy}:vs[k-1],to=vs[k];return [seg(from.x,from.y,to.x,to.y,90)];}return [{type:'triangle',vs}];}
+ if(mode==='emberFuse')return k===0?[sector(pose.x,pose.y,a,192,1.65)]:[seg(ox,oy,pose.x,pose.y,90)];
+ if(mode==='scarletHook')return [sector(pose.x,pose.y,a+(seq.side||1)*[.23,-1.95,2.16][k],[198,218,246][k],[1.58,1.64,1.94][k])];
+ if(mode==='butterflyVolley'){const look=Math.atan2(ty-pose.y,tx-pose.x);return [sector(pose.x,pose.y,look+(seq.side||1)*[-.18,.16,-.13,.06][k],[190,205,220,265][k],[1.30,1.42,1.62,2.04][k])];}
+ if(mode==='pyreDomino'){const nodes=[.30,.68,1.04].map(t=>{const q=t/1.46,px=ox+ca*45*q-sa*side*274*q,py=oy+sa*45*q+ca*side*274*q,aa=Math.atan2(ty-py,tx-px);return {x:px+Math.cos(aa)*115,y:py+Math.sin(aa)*115};});if(k<3){const look=Math.atan2(ty-pose.y,tx-pose.x);return [sector(pose.x,pose.y,look,195,1.46)];}return [...nodes.map(n=>circle(n.x,n.y,108)),sector(pose.x,pose.y,Math.atan2(ty-pose.y,tx-pose.x),257,2.32)];}
+ if(mode==='triadPyre'){const vs=crimsonTriadVertices({crimsonFace:a,anchorX:tx,anchorY:ty,side});if(k<3){const from=k===0?{x:ox,y:oy}:vs[k-1],to=vs[k],aa=Math.atan2(ty-to.y,tx-to.x);return [seg(from.x,from.y,to.x,to.y,82),sector(to.x,to.y,aa,k===2?175:148,1.88)];}return [circle(tx,ty,k===4?255:190)];}
  if(mode==='guardPierce')return [sector(pose.x,pose.y,a,reach,.52)];
  if(mode==='tempest')return [circle(pose.x,pose.y,reach)];
  if(mode==='earthSlam')return [circle(pose.x+ca*80,pose.y+sa*80,145)];
