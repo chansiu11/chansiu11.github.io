@@ -1163,13 +1163,13 @@ const FLAME_BREATH_MODES=new Set(['flameBreathSweep','flameBreathRise','flameBre
 const HONGRYEON_STUN_SCALE=2.0; // Longer stun on all five Hongryeon sword forms.
 const FLAME_CLEAVE_START_RADIUS=190,FLAME_CLEAVE_LAND_RADIUS=245,FLAME_RISE_IMPACT_RADIUS=250;
 // Ring effects and the damage check intentionally share these exact radii.
-function flameBreathCleaveCircle(x,y,r,face=0,life=.57,power=1){
+function flameBreathCleaveCircle(x,y,r,face=0,life=.57,power=1,density=1){
  crimsonBladeFire(x,y,face,r,TAU,1,life,.93*power);
  crimsonEdgeFlames(x,y,face,r,TAU,1,life*.89,.74*power);
- const n=options.quality==='low'?6:10;
+ const n=Math.max(3,Math.ceil((options.quality==='low'?6:10)*density));
  for(let j=0;j<n;j++){
   const a=face+TAU*(j+rnd(-.16,.16))/n,rr=r*rnd(.47,.70);
-  flameBreathPlume(x+Math.cos(a)*rr,y+Math.sin(a)*rr,a,r*rnd(.36,.56),r*rnd(.19,.30),life*rnd(.68,1.07),power*rnd(.74,1.11));
+  flameBreathPlume(x+Math.cos(a)*rr,y+Math.sin(a)*rr,a,r*rnd(.36,.56),r*rnd(.19,.30),life*rnd(.68,1.07),power*rnd(.74,1.11),density);
  }
  crimsonFlameBurst(x,y,r*.42,Math.min(life,.51),.72*power);
  crimsonAshPatch(x,y,r*.73,life*1.46,face);
@@ -1177,9 +1177,9 @@ function flameBreathCleaveCircle(x,y,r,face=0,life=.57,power=1){
  crimsonEmbers(x,y,face+Math.PI,options.quality==='low'?7:13,245,.68,.77*power);
 }
 
-function flameBreathPlume(x,y,a,len=165,width=55,life=.39,power=1){
+function flameBreathPlume(x,y,a,len=165,width=55,life=.39,power=1,density=1){
  if(!Number.isFinite(x+y+a+len+width))return;
- effects.push({type:'flameBreathPlume',x,y,a,len,width,power,seed:Math.floor(rnd(1,2147483646)),t:life,max:life});
+ effects.push({type:'flameBreathPlume',x,y,a,len,width,power,density:clamp(density,.4,1),seed:Math.floor(rnd(1,2147483646)),t:life,max:life});
 }
 function flameBreathStroke(x,y,a,r,arc,side=1,life=.46,power=1){
  crimsonBladeFire(x,y,a,r,arc,side,life,power);
@@ -1247,7 +1247,7 @@ function flameBreathSignature(id,index,final,ang,reach,actor=player,ctxInfo=null
    flameBreathPlume(x-Math.cos(a)*62,y-Math.sin(a)*62,a,241,94,.48,1.18);
    crimsonEmbers(x,y,a+Math.PI,10,222,.53,.85);
   }else{
-   flameBreathCleaveCircle(x,y,211,f,.87,1.75);
+   flameBreathCleaveCircle(x,y,211,f,.87,1.75,.65);
    flameBreathStroke(x,y,f+side*.27,325,2.78,side,.77,1.42);
    crimsonFlameBurst(x,y,177,.75,1.54);
    crimsonEmbers(x,y,f+Math.PI,18,318,.93,1.05);
@@ -2454,7 +2454,7 @@ function flameBreathHit(seq,sk,k,damage,finalHit){
   if(mode==='flameBreathSweep'){
    const r=k===0?300:328,half=k===0?1.07:1.12;
    matched=d<r+er&&Math.abs(angleDiff(a,look))<half+er/Math.max(35,d);
-   stun=k===0?.12:.28;push=k===0?20:44;
+   stun=k===0?.12:.53;push=k===0?20:44; // Second hit: +0.50s after the Hongryeon stun scale.
   }else if(mode==='flameBreathRise'){
    // One simultaneous hit at .50s, whether the enemy is in the finish ring
    // OR anywhere along the straight dash (no double damage in the overlap).
@@ -2467,7 +2467,7 @@ function flameBreathHit(seq,sk,k,damage,finalHit){
    const r=k===0?FLAME_CLEAVE_START_RADIUS:FLAME_CLEAVE_LAND_RADIUS;
    const rx=c.x-center.x,ry=c.y-center.y;
    matched=Math.hypot(rx,ry)<=r+er;
-   stun=k===0?.19:.53;push=k===0?24:126;
+   stun=k===0?.41:.53;push=k===0?24:126; // First hit holds until the .65s follow-up, plus a small buffer.
    pushA=Math.atan2(ry,rx);
   }else if(mode==='flameBreathWheel'){
    // First-hit only: a wider, invisible collision region also catches enemies
@@ -2495,7 +2495,7 @@ function flameBreathHit(seq,sk,k,damage,finalHit){
    }
   }
   if(!matched)continue;
-  const boss=e.kind==='boss',stunSecs=boss?Math.min(.40,stun*.38*HONGRYEON_STUN_SCALE):stun*HONGRYEON_STUN_SCALE,
+  const boss=e.kind==='boss',stunSecs=boss?(mode==='flameBreathCleave'&&k===0?.68:Math.min(.40,stun*.38*HONGRYEON_STUN_SCALE)):stun*HONGRYEON_STUN_SCALE,
    force=boss?0:push;
   const risePath=mode==='flameBreathRise'&&d>FLAME_RISE_IMPACT_RADIUS+er;
   const hitShape=risePath?{shape:'segment',x1:seq.originX,y1:seq.originY,x2:player.x,y2:player.y,r:76}:
@@ -2995,7 +2995,7 @@ function updateFlameBreathFinale(seq,sk,dt){
  const f=seq.flameFace??seq.facing,fx=Math.cos(f),fy=Math.sin(f),nx=-fy,ny=fx;
  seq.flameFace=f;
  const targets=()=>combatTargets().filter(e=>!e.dead&&!e.riftSleeping&&!(e.type==='finalBoss'&&!e.alert));
- const emit=()=>sendSharedSkillFxFrame(seq.slot,sk.id,player.weapon,f,.055);
+ const emit=()=>sendSharedSkillFxFrame(seq.slot,sk.id,player.weapon,f,.10);
  const finish=()=>{
   const far=Math.hypot(player.x-seq.originX,player.y-seq.originY)>25;
   activeSwordSkill=null;player.skillPose=-1;player.skillLift=0;
@@ -3026,15 +3026,15 @@ function updateFlameBreathFinale(seq,sk,dt){
   player.skillLift=Math.sin(Math.PI*clamp(seq.elapsed/dashTime,0,1))*7+4;
   seq.flameFX=(seq.flameFX||0)-dt;
   if(seq.flameFX<=0){
-   seq.flameFX=.042;
+   seq.flameFX=.085; // 2 fewer-lived plumes per tick instead of 3 every .042s.
    const theta=seq.elapsed*19,orbit=45,px=player.x,py=player.y;
-   for(const a of [theta,theta+Math.PI*2/3,theta+Math.PI*4/3]){
+   for(const a of [theta,theta+Math.PI]){
     const xx=px+nx*Math.cos(a)*orbit+fx*Math.sin(a)*orbit*.48;
     const yy=py+ny*Math.cos(a)*orbit+fy*Math.sin(a)*orbit*.48;
-    flameBreathPlume(xx-fx*35,yy-fy*35,f,165,81,.23,1.05);
+    flameBreathPlume(xx-fx*35,yy-fy*35,f,165,81,.23,1.05,.63);
    }
    crimsonChargeFlames(px,py,63,.17,.83);
-   crimsonEmbers(px,py,f+Math.PI,options.quality==='low'?3:5,235,.31,.62);
+   crimsonEmbers(px,py,f+Math.PI,options.quality==='low'?2:3,235,.31,.62);
    if(traveledNow>4)flameBreathTrail(ox,oy,px,py,1.55);
   }
   if(traveledNow>7)syncSkillMoveIfNeeded(ox,oy,18,2500);
@@ -4524,12 +4524,12 @@ if(ground)continue;ctx.save();ctx.globalAlpha=clamp(e.t/e.max,0,1);
 
  if(e.type==='flameBreathPlume'){
   // The in-game effect itself: irregular layered flame tongues, not a beam or texture mock-up.
-  const low=options.quality==='low',life=clamp(e.t/e.max,0,1),len=e.len,width=e.width;
+  const low=options.quality==='low',density=e.density||1,life=clamp(e.t/e.max,0,1),len=e.len,width=e.width;
   let seed=e.seed>>>0;const rand=()=>{seed=(Math.imul(1664525,seed)+1013904223)>>>0;return seed/4294967296;};
   const cols=[['#c63217','#e74419','#fc5c22'],['#f6601e','#ff922a','#ffbd55'],['#ffb84e','#ffd06c','#ffe4a2']];
   ctx.save();ctx.translate(e.x,e.y);ctx.rotate(e.a);ctx.globalCompositeOperation='lighter';
   for(let layer=0;layer<3;layer++){
-   const count=low?[7,5,3][layer]:[13,9,5][layer];
+   const count=Math.max(2,Math.ceil((low?[7,5,3][layer]:[13,9,5][layer])*density));
    for(let j=0;j<count;j++){
     const u=(j+.24+rand()*.57)/count,
       bx=(u-.54)*len*.88,by=(rand()-.5)*width*.90,
@@ -4537,7 +4537,7 @@ if(ground)continue;ctx.save();ctx.globalAlpha=clamp(e.t/e.max,0,1);
       w=width*(layer===0?.22:layer===1?.15:.095)*(.62+rand()*.76),
       bend=(rand()-.5)*width*.8,tipY=by+bend,tipX=bx+l*(.74+.35*life);
     ctx.globalAlpha=life*(layer===0?.48:layer===1?.67:.72)*Math.min(1.5,e.power||1);
-    const color=cols[layer][Math.floor(rand()*3)];ctx.fillStyle=color;ctx.shadowColor=color;ctx.shadowBlur=low?1:layer===0?9:5;
+    const color=cols[layer][Math.floor(rand()*3)];ctx.fillStyle=color;ctx.shadowColor=color;ctx.shadowBlur=low?1:density<.9?(layer===0?4:2):(layer===0?9:5);
     ctx.beginPath();ctx.moveTo(bx-w,by);
     ctx.bezierCurveTo(bx+l*.22,by-w*.99,bx+l*.55,tipY-w*.67,tipX,tipY);
     ctx.bezierCurveTo(bx+l*.57,tipY+w*.58,bx+l*.16,by+w*.94,bx+w,by);
