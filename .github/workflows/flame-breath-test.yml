@@ -2,7 +2,7 @@ name: Hongryeon flame form game test
 on:
   push:
     branches:
-      - feature/flame-breath-crimson-20260929
+      - main
     paths:
       - 'rpggametest/index.html'
       - 'rpggametest/flame-breath-smoke.mjs'
