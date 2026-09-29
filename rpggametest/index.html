@@ -2752,13 +2752,14 @@ function flameBreathMotion(seq,sk,dt,t,target){
   trail(.055,1.15);
  }else if(mode==='flameBreathCleave'){
   // Forward leap now aims 225 world units, up from the previous 70.
-  const q=ease((t-.25)/.40);
+  // Begin moving and rising exactly 0.10 seconds after skill activation.
+  const q=ease((elapsed-.10)/.42);
   approach(seq.originX+fx*225*q,seq.originY+fy*225*q,760);
-  const jump=clamp((t-.24)/.52,0,1);
+  const jump=clamp((elapsed-.10)/.52,0,1);
   player.skillLift=Math.sin(Math.PI*jump)*62;
   player.facing=seq.facing=f;
   if(jump>0&&jump<1&&Math.hypot(player.x-ox,player.y-oy)>5)trail(.066,1.05);
-  else if(elapsed<.27){seq.fx-=dt;if(seq.fx<=0){seq.fx=.12;crimsonEmbers(player.x,player.y,f+Math.PI,4,163,.49,.57);}}
+  else if(elapsed<.10){seq.fx-=dt;if(seq.fx<=0){seq.fx=.06;crimsonEmbers(player.x,player.y,f+Math.PI,4,163,.49,.57);}}
  }else if(mode==='flameBreathWheel'){
   const q=ease((t-.09)/.76),sideArc=side*Math.sin(q*Math.PI*2)*35;
   approach(seq.originX+fx*338*q+nx*sideArc,seq.originY+fy*338*q+ny*sideArc,950);
