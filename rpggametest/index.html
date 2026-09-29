@@ -1047,31 +1047,35 @@ function crimsonOutside(x,y,inner=170,outer=290,count=14,inward=false,twist=0){
  for(let j=0;j<n;j++){const aa=rnd(0,TAU),rr=rnd(inner,outer),px=x+Math.cos(aa)*rr,py=y+Math.sin(aa)*rr,dir=(inward?aa+Math.PI:aa)+twist+rnd(-.38,.38);crimsonEmbers(px,py,dir,1+(j%3===0?1:0),rnd(190,360),.24,rnd(.72,1.12));}
 }
 const CRIMSON1_RX=110,CRIMSON1_RY=110,CRIMSON1_BEAM=168,CRIMSON1_WIDTH=39;
+function crimsonOneFireFlecks(x,y,a,n,spread=.30){
+ const low=options.quality==='low',count=low?Math.ceil(n*.57):n;
+ const palette=['#e51b32','#ff352c','#ff642e','#ffad4b','#ffe0a0','#b61131'];
+ for(let i=0;i<count;i++){
+  const ang=a+rnd(-spread,spread),speed=rnd(110,270),life=rnd(.28,.64),size=rnd(4.8,11.5);
+  effects.push({type:'ember',x:x+rnd(-5,5),y:y+rnd(-5,5),vx:Math.cos(ang)*speed,vy:Math.sin(ang)*speed,color:palette[Math.floor(rnd(0,palette.length))],t:life,max:life,rx:size,ry:size*rnd(.23,.37),a:ang});
+ }
+ if(effects.length>760)effects.splice(0,effects.length-760);
+}
 function crimsonStrokeCircle(cx,cy,rx,ry,aim,power=1){
+ // A real circular attack made of wind-swept fire, not separated ribbon tiles.
  const r=rx,low=options.quality==='low';
- effects.push({type:'crimsonEllipse',x:cx,y:cy,rx:r,ry:r,a:aim,seed:rnd(0,TAU),t:.39,max:.39});
- // Flame patches follow irregular clusters, not evenly spaced wedges.
- const jets=low?15:22,centers=[aim-.43,aim+.70,aim+2.12,aim+Math.PI*1.18];
- for(let j=0;j<jets;j++){
-  const cluster=j<jets*.43?0:j<jets*.72?1:j<jets*.86?2:3;
-  const q=centers[cluster]+rnd(-.70,.70),rr=r+rnd(-5,8),px=cx+Math.cos(q)*rr,py=cy+Math.sin(q)*rr;
-  const front=(1+Math.cos(q-aim))*.5,amount=Math.max(1,Math.round((low?1:2)+(low?1:3)*front*front));
-  crimsonEmbers(px,py,q+rnd(-.34,.34),amount,185+front*125,.38,.75+front*.26);
+ effects.push({type:'crimsonFlameRing',x:cx,y:cy,r,a:aim,seed:Math.floor(rnd(1,2147483646)),t:.48,max:.48});
+ const groups=[aim-.38,aim+.82,aim+2.42,aim-2.18],count=low?19:35;
+ for(let j=0;j<count;j++){
+  const group=j<count*.43?0:j<count*.67?1:j<count*.83?2:3;
+  const a=groups[group]+rnd(-.75,.75),rr=r+rnd(-11,11);
+  crimsonOneFireFlecks(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr,a+rnd(-.42,.42),j%4===0?3:2,.30);
  }
 }
 function crimsonStrokeLine(x1,y1,x2,y2,a,power=1){
- // 곡선 참격이 아니라 원 둘레에서 정확히 앞쪽으로 뻗는 곧은 삼중 검격 선.
- // 붉은색·주황색·아이보리색 분리 띠는 2번 마지막 검격과 같은 색상이다.
+ // Keep the existing straight hit area; only its visual surface becomes burning flame.
  const dx=x2-x1,dy=y2-y1,nx=-Math.sin(a),ny=Math.cos(a);
- effects.push({type:'crimsonBeam',x:x1,y:y1,x2,y2,a,seed:rnd(0,TAU),t:.36,max:.36});
- // 시작~끝 전체에 균등하게 잔불을 남기고, 지나치게 많던 입자 수는 줄인다.
- const low=options.quality==='low',steps=low?8:13;
+ effects.push({type:'crimsonFlameSlash',x:x1,y:y1,x2,y2,a,seed:Math.floor(rnd(1,2147483646)),t:.46,max:.46});
+ const low=options.quality==='low',steps=low?12:25;
  for(let j=0;j<steps;j++){
-  const q=(j+.5)/steps;
-  for(const side of [-1,1]){
-   const off=rnd(7,16),x=x1+dx*q+nx*side*off,y=y1+dy*q+ny*side*off;
-   crimsonEmbers(x,y,a+Math.PI+side*rnd(.30,.68),low?1:2,rnd(145,230),.36,rnd(.68,.91));
-  }
+  const q=(j+rnd(.12,.88))/steps,off=rnd(7,17)*(j%2?-1:1);
+  const x=x1+dx*q+nx*off,y=y1+dy*q+ny*off;
+  crimsonOneFireFlecks(x,y,a+Math.PI+(j%2?.52:-.52),j%5===0?3:2,.40);
  }
 }
 
@@ -3730,71 +3734,78 @@ function drawEffects(ground=false){for(const e of effects){const progress=1-e.t/
  if(e.type==='ember'){ctx.save();ctx.translate(e.x,e.y);ctx.rotate(Number.isFinite(e.a)?e.a:Math.atan2(e.vy||0,e.vx||1));ctx.globalCompositeOperation='lighter';ctx.shadowColor=e.color;ctx.shadowBlur=10;ctx.fillStyle=e.color;ctx.beginPath();ctx.ellipse(0,0,e.rx||6,e.ry||2,0,0,TAU);ctx.fill();ctx.shadowBlur=4;ctx.fillStyle='#ffe4b8';ctx.globalAlpha*=.72;ctx.beginPath();ctx.ellipse((e.rx||6)*.22,0,(e.rx||6)*.42,(e.ry||2)*.48,0,0,TAU);ctx.fill();ctx.restore();}
  if(e.type==='flourish'){ctx.save();ctx.translate(e.x,e.y);ctx.rotate(progress*(e.style%2?-2:2));ctx.globalCompositeOperation='lighter';ctx.strokeStyle=e.color;ctx.lineWidth=3*(1-progress)+1;for(let j=0;j<2;j++){ctx.beginPath();ctx.ellipse(0,0,e.r*(.25+progress*.75)*(1-j*.18),e.r*(.25+progress*.75)*(.55-j*.08),0,0,TAU);ctx.stroke();}for(let j=0;j<8;j++){const a=j*TAU/8,r=e.r*progress;line(ctx,Math.cos(a)*r*.6,Math.sin(a)*r*.6,Math.cos(a)*r,Math.sin(a)*r,e.color,2);circle(ctx,Math.cos(a)*r,Math.sin(a)*r,3*(1-progress)+1,'#fff4d5');}ctx.restore();}
  if(e.type==='ring'){ctx.strokeStyle=e.color;ctx.lineWidth=2.5*(1-progress)+.5;ctx.beginPath();ctx.arc(e.x,e.y,e.r*(.35+.65*progress),0,TAU);ctx.stroke();}
- if(e.type==='crimsonEllipse'){
-  ctx.save();ctx.translate(e.x,e.y);ctx.globalCompositeOperation='source-over';ctx.lineCap='butt';
-  // Long, overlapping brush ribbons instead of regularly spaced broken arc tiles.
-  // Each cast keeps its own fixed color/offset pattern so the stroke never flickers.
-  let state=(Math.floor((e.seed||0)*1e8)>>>0)||334913;
-  const rand=()=>{state=(Math.imul(1664525,state)+1013904223)>>>0;return state/4294967296;};
-  const turn=(e.a||0)+.35+(rand()-.5)*.32,base=e.rx;
-  // The quiet full rim ties the unequal ribbons into one recognizable circle.
-  ctx.globalAlpha=.27;ctx.strokeStyle='#f76c4b';ctx.lineWidth=2.1;ctx.beginPath();ctx.arc(0,0,base,0,TAU);ctx.stroke();ctx.globalAlpha=1;
-  const bands=[
-   {start:-.85,span:5.08,off:-1.5,w:5.7,wave:1.3,colors:['#d6b390','#f6dfb7','#f5c997','#fff0d4']},
-   {start:-1.17,span:2.48,off:10.6,w:8.1,wave:2.0,colors:['#b91335','#f32e49','#fd584d','#d51f3b']},
-   {start:.87,span:2.04,off:-10.8,w:7.0,wave:2.1,colors:['#d74037','#fc8b4c','#f66e39','#e34a3e']},
-   {start:3.02,span:1.22,off:7.1,w:4.6,wave:1.5,colors:['#da2940','#fa7549','#ee3b48','#fbad73']},
-   {start:.27,span:3.74,off:-17.4,w:2.0,wave:.9,colors:['#b89179','#ffdfb5','#ffbd83','#e5c6a3']}
-  ];
-  for(let k=0;k<bands.length;k++){
-   const b=bands[k],start=turn+b.start+(rand()-.5)*.20,span=b.span*(.94+rand()*.11),r=base+b.off+(rand()-.5)*4.6;
-   const xshift=(rand()-.5)*6,yshift=(rand()-.5)*6,phase=rand()*TAU;
-   const grad=ctx.createLinearGradient(-r,-r*.62,r,r*.74);
-   for(let j=0;j<b.colors.length;j++)grad.addColorStop(j/(b.colors.length-1),b.colors[j]);
-   ctx.strokeStyle=grad;ctx.lineWidth=b.w*(.86+rand()*.25);ctx.shadowColor=k===0?'#e7a676':'#ff573c';ctx.shadowBlur=k===0?2:3.5;
-   ctx.beginPath();
-   // Tiny radial fluctuations make each ribbon hand-swept; its arc stays continuous.
-   const samples=k===0?54:Math.max(20,Math.ceil(span*9));
-   for(let j=0;j<=samples;j++){
-    const u=j/samples,a=start+span*u,rr=r+Math.sin(u*10.7+phase)*b.wave*.55+Math.sin(u*21.1+phase*.7)*b.wave*.24;
-    const x=xshift+Math.cos(a)*rr,y=yshift+Math.sin(a)*rr;
-    if(j===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
-   }
-   ctx.stroke();
+ if(e.type==='crimsonFlameRing'){
+  ctx.save();ctx.translate(e.x,e.y);ctx.globalCompositeOperation='lighter';ctx.lineCap='round';ctx.lineJoin='round';
+  let state=e.seed>>>0;const rand=()=>{state=(Math.imul(1664525,state)+1013904223)>>>0;return state/4294967296;};
+  const r=e.r*(1+.032*Math.sin(progress*Math.PI)),phase=e.a||0,low=options.quality==='low';
+  // The ring stays round, but its edge is heat and flame rather than a traced circle.
+  ctx.shadowColor='#fb402c';ctx.shadowBlur=low?6:17;ctx.strokeStyle='#b5182d';ctx.lineWidth=19;
+  ctx.beginPath();
+  const seg=low?40:64;
+  for(let j=0;j<=seg;j++){const a=phase+j*TAU/seg,rr=r+Math.sin(a*7.1+e.seed)*3+Math.sin(a*12.6+e.seed*.3)*2;const x=Math.cos(a)*rr,y=Math.sin(a)*rr;j?ctx.lineTo(x,y):ctx.moveTo(x,y);}
+  ctx.closePath();ctx.stroke();
+  ctx.shadowBlur=low?3:9;ctx.lineWidth=10;ctx.strokeStyle='#ff592e';ctx.stroke();
+  // Dense, irregular tongues erupt outward; their angle, length and color differ per cast.
+  const tongues=low?20:35,colors=['#dd2032','#ff352b','#ff5b2e','#ff8438','#ffbd6b'];
+  for(let j=0;j<tongues;j++){
+   const a=rand()<.55?phase+(rand()-.5)*2.65:rand()*TAU;
+   const rr=r+rand()*7-4,da=.055+rand()*.13,reach=18+rand()*42+(j%9===0?24:0),bend=(rand()-.5)*.32;
+   const lx=Math.cos(a-da)*rr,ly=Math.sin(a-da)*rr,rx=Math.cos(a+da)*rr,ry=Math.sin(a+da)*rr;
+   const tipA=a+bend,tipR=rr+reach,tipX=Math.cos(tipA)*tipR,tipY=Math.sin(tipA)*tipR;
+   ctx.fillStyle=colors[Math.floor(rand()*colors.length)];ctx.globalAlpha=(.50+rand()*.43)*(1-progress*.28);
+   ctx.shadowBlur=low?2:7;ctx.beginPath();ctx.moveTo(lx,ly);
+   ctx.quadraticCurveTo(Math.cos(a-da*.45)*(rr+reach*.65),Math.sin(a-da*.45)*(rr+reach*.65),tipX,tipY);
+   ctx.quadraticCurveTo(Math.cos(a+da*.45)*(rr+reach*.4),Math.sin(a+da*.45)*(rr+reach*.4),rx,ry);
+   ctx.closePath();ctx.fill();
   }
-  // A few free fragments: not an even ring of small gaps.
-  ctx.shadowBlur=0;
-  for(let j=0;j<4;j++){
-   const a=turn+[-1.23,1.46,2.94,4.58][j]+(rand()-.5)*.42,r=base+[-22,20,-27,18][j]+(rand()-.5)*9,len=.06+rand()*.15;
-   ctx.strokeStyle=['#ef4450','#ff8e57','#f2d6aa','#e92c47'][j];
-   ctx.lineWidth=1.8+rand()*1.7;ctx.beginPath();ctx.arc(0,0,r,a,a+len);ctx.stroke();
+  ctx.globalAlpha=.74*(1-progress*.2);ctx.shadowColor='#ffc175';ctx.shadowBlur=low?2:5;
+  for(let j=0;j<(low?5:9);j++){
+   const a=phase+rand()*TAU,span=.18+rand()*.55,rr=r-3+rand()*8;
+   ctx.strokeStyle=rand()<.32?'#fff0b6':'#ffb157';ctx.lineWidth=2.5+rand()*5;
+   ctx.beginPath();ctx.arc(0,0,rr,a,a+span);ctx.stroke();
   }
   ctx.restore();
  }
- if(e.type==='crimsonBeam'){
-  ctx.save();ctx.globalCompositeOperation='source-over';ctx.lineCap='butt';ctx.shadowColor='#f75c45';ctx.shadowBlur=2.5;
-  // The forward hit remains perfectly straight. Unequal long color ribbons run beside it.
-  let state=(Math.floor((e.seed||0)*1e8)>>>0)||970411;
-  const rand=()=>{state=(Math.imul(1664525,state)+1013904223)>>>0;return state/4294967296;};
-  const a=Number.isFinite(e.a)?e.a:Math.atan2(e.y2-e.y,e.x2-e.x),nx=-Math.sin(a),ny=Math.cos(a),dx=e.x2-e.x,dy=e.y2-e.y;
-  const bands=[
-   {from:.025,to:.98,off:0,w:5.7,colors:['#cfaa8e','#f8ddb1','#e7ba92','#ffe3ba']},
-   {from:0,to:.59,off:10.5,w:8.0,colors:['#bf1735','#f1354b','#ff6550','#dc2b40']},
-   {from:.18,to:.86,off:-9.8,w:7.0,colors:['#d93f38','#ff9151','#ff643a','#e95044']},
-   {from:.54,to:.96,off:6.2,w:4.5,colors:['#e02c43','#fa8654','#ffbb82','#e54047']},
-   {from:.12,to:.79,off:-16.5,w:2.0,colors:['#e3c399','#ffe1bb','#f4b781','#ead1a7']}
-  ];
-  for(const b of bands){
-   const from=Math.max(0,b.from+(rand()-.5)*.055),to=Math.min(1,b.to+(rand()-.5)*.045),off=b.off+(rand()-.5)*3.3;
-   const x1=e.x+dx*from+nx*off,y1=e.y+dy*from+ny*off,x2=e.x+dx*to+nx*off,y2=e.y+dy*to+ny*off;
-   const grad=ctx.createLinearGradient(x1,y1,x2,y2);for(let j=0;j<b.colors.length;j++)grad.addColorStop(j/(b.colors.length-1),b.colors[j]);
-   ctx.strokeStyle=grad;ctx.lineWidth=b.w*(.86+rand()*.24);ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+ if(e.type==='crimsonFlameSlash'){
+  ctx.save();ctx.translate(e.x,e.y);ctx.rotate(Number.isFinite(e.a)?e.a:Math.atan2(e.y2-e.y,e.x2-e.x));
+  ctx.globalCompositeOperation='lighter';ctx.lineJoin='round';
+  const length=Math.hypot(e.x2-e.x,e.y2-e.y),low=options.quality==='low';
+  let state=e.seed>>>0;const rand=()=>{state=(Math.imul(1664525,state)+1013904223)>>>0;return state/4294967296;};
+  // A burning sword wake: its direction is straight, its fiery edges are not.
+  function ribbon(halfWidth,fill,segments){
+   const top=[],bottom=[];
+   for(let j=0;j<=segments;j++){
+    const q=j/segments,x=length*q;
+    const envelope=(1-.58*q)*Math.min(1,.38+q*8);
+    const wobble=(rand()-.5)*halfWidth*.56;
+    top.push([x,-halfWidth*envelope+wobble]);
+    bottom.push([x,halfWidth*envelope+(rand()-.5)*halfWidth*.56]);
+   }
+   ctx.beginPath();ctx.moveTo(top[0][0],top[0][1]);
+   for(let j=1;j<top.length;j++)ctx.lineTo(top[j][0],top[j][1]);
+   for(let j=bottom.length-1;j>=0;j--)ctx.lineTo(bottom[j][0],bottom[j][1]);
+   ctx.closePath();ctx.fillStyle=fill;ctx.fill();
   }
-  ctx.shadowBlur=0;
-  for(let j=0;j<3;j++){
-   const q=[.13,.49,.85][j]+(rand()-.5)*.09,off=[19,-23,16][j]+(rand()-.5)*6,len=.07+rand()*.12;
-   ctx.strokeStyle=['#e73148','#f38e56','#edc99c'][j];ctx.lineWidth=1.5+rand()*1.6;ctx.beginPath();
-   ctx.moveTo(e.x+dx*q+nx*off,e.y+dy*q+ny*off);ctx.lineTo(e.x+dx*Math.min(1,q+len)+nx*off,e.y+dy*Math.min(1,q+len)+ny*off);ctx.stroke();
+  ctx.shadowColor='#ff392c';ctx.shadowBlur=low?8:21;
+  ribbon(26,'#b61b31',low?10:19);
+  ctx.shadowBlur=low?3:9;
+  const grad=ctx.createLinearGradient(0,-12,0,12);grad.addColorStop(0,'#ffb550');grad.addColorStop(.35,'#ff5c29');grad.addColorStop(.75,'#ff3c28');grad.addColorStop(1,'#bd192b');
+  ribbon(15,grad,low?10:19);
+  // High heat appears in short uneven pockets, not a continuous ivory laser.
+  ctx.shadowColor='#ffe2a0';ctx.shadowBlur=low?2:5;
+  for(let j=0;j<(low?5:9);j++){
+   const q=rand()*.90,from=length*q,to=Math.min(length,from+12+rand()*35),y=(rand()-.5)*9;
+   ctx.strokeStyle=rand()<.6?'#ffd18b':'#fff1bc';ctx.lineWidth=2+rand()*4;ctx.beginPath();ctx.moveTo(from,y);ctx.lineTo(to,y+(rand()-.5)*7);ctx.stroke();
+  }
+  // Flame licks break away along both sides, with different lean and reach.
+  ctx.shadowColor='#ff562c';ctx.shadowBlur=low?2:7;
+  const tongues=low?12:23,colors=['#d51c36','#ff3a2a','#ff652d','#ff923f','#ffd081'];
+  for(let j=0;j<tongues;j++){
+   const q=rand()*.96,x=length*q,side=rand()<.5?-1:1,rootY=side*(8+rand()*10)*(1-q*.35);
+   const lift=10+rand()*28,drift=(rand()-.3)*44;
+   ctx.globalAlpha=(.55+rand()*.42)*(1-progress*.24);ctx.fillStyle=colors[Math.floor(rand()*colors.length)];
+   ctx.beginPath();ctx.moveTo(x-7,rootY);ctx.quadraticCurveTo(x+drift*.35,rootY+side*lift*.72,x+drift,rootY+side*lift);
+   ctx.quadraticCurveTo(x+drift*.65,rootY+side*lift*.23,x+9,rootY-2*side);ctx.closePath();ctx.fill();
   }
   ctx.restore();
  }
