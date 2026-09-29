@@ -1530,15 +1530,15 @@ function swordSignatureFx(id,hitIndex,finalHit,ang,reach,color,actor=player,cont
   const slot=['guardBreak','earthRend','quakeRush','ironJudgment','meteorBreaker'].indexOf(id),f=context?.baseFacing??ang,ca=Math.cos(f),sa=Math.sin(f),nx=-sa,ny=ca,side=context?.side||1;
   const target=context?.target,look=target?Math.atan2(target.y-actor.y,target.x-actor.x):f;
   if(id==='guardBreak'){
-   const a=look+side*(hitIndex===0?-.10:.24),rad=hitIndex===0?196:204,arc=hitIndex===0?1.8:1.67;
-   crimsonBladeFire(actor.x,actor.y,a,rad,arc,hitIndex===0?side:-side,.51,hitIndex===0?1.13:1.22);
-   crimsonEdgeFlames(actor.x,actor.y,a,rad,arc,side,.49,.82);
-   if(hitIndex===0){crimsonFlameBurst(actor.x+Math.cos(a)*110,actor.y+Math.sin(a)*110,54,.42,.77);}
+   const a=look,rad=hitIndex===0?225:251,arc=hitIndex===0?2.02:2.16;
+   crimsonBladeFire(actor.x,actor.y,a,rad,arc,side,hitIndex===0?.38:.58,hitIndex===0?.95:1.27);
+   crimsonEdgeFlames(actor.x,actor.y,a,rad,arc,side,hitIndex===0?.34:.54,hitIndex===0?.67:.96);
+   if(hitIndex===0){crimsonEmbers(actor.x+ca*120,actor.y+sa*120,a+Math.PI,5,186,.70,.68);}
    else{
-    const ox=context?.originX??actor.x+nx*side*150,oy=context?.originY??actor.y+ny*side*150,n=options.quality==='low'?5:8;
-    for(let j=0;j<n;j++){const q=(j+.4)/n,px=ox+(actor.x-ox)*q,py=oy+(actor.y-oy)*q;
-     crimsonFlameBurst(px+rnd(-19,19),py+rnd(-19,19),rnd(33,58),rnd(.35,.55),.67);}
-    crimsonEmbers(actor.x,actor.y,a+Math.PI,10,265,.95,.90);
+    for(let j=-2;j<=2;j++){const aa=a+j*arc/5,px=actor.x+Math.cos(aa)*rad*.75,py=actor.y+Math.sin(aa)*rad*.75;
+     crimsonFlameBurst(px,py,37+Math.abs(j)*6,.46,.60);
+    }
+    crimsonEmbers(actor.x+ca*142,actor.y+sa*142,a+Math.PI,10,265,.85,.93);
    }
   }else if(id==='earthRend'){
    const a=f+side*[.23,-1.55,2.32][hitIndex],r=[205,229,262][hitIndex],arc=[1.70,1.90,2.08][hitIndex],flip=hitIndex%2?-side:side;
@@ -1548,12 +1548,12 @@ function swordSignatureFx(id,hitIndex,finalHit,ang,reach,color,actor=player,cont
    crimsonFlameBurst(tipX,tipY,hitIndex===2?103:62,.43,hitIndex===2?1.12:.78);
    if(finalHit){crimsonAshPatch(tipX,tipY,94,.92,a);crimsonEmbers(tipX,tipY,a,14,335,.96,1.04);}
   }else if(id==='quakeRush'){
-   const a=look+side*[-.22,.20,-.16,.08][hitIndex],r=[210,226,245,280][hitIndex],arc=[1.38,1.56,1.82,2.28][hitIndex],flip=hitIndex%2?-side:side;
-   crimsonBladeFire(actor.x,actor.y,a,r,arc,flip,finalHit?.67:.44,finalHit?1.40:.98);
-   crimsonEdgeFlames(actor.x,actor.y,a,r,arc,flip,finalHit?.59:.44,finalHit?1.0:.72);
-   const px=actor.x+Math.cos(a)*r*.64,py=actor.y+Math.sin(a)*r*.64;
-   if(hitIndex>0)crimsonFlameBurst(px+rnd(-12,12),py+rnd(-12,12),finalHit?104:54,.41,finalHit?1.15:.69);
-   crimsonEmbers(px,py,a+Math.PI,finalHit?12:5,finalHit?320:220,.90,.92);
+   const counter=!!context?.counterTriggered,a=look,r=counter?254:176,arc=counter?2.05:1.32;
+   crimsonBladeFire(actor.x,actor.y,a,r,arc,-side,counter?.72:.31,counter?1.49:.49);
+   crimsonEdgeFlames(actor.x,actor.y,a,r,arc,-side,counter?.61:.29,counter?.98:.43);
+   if(counter){const px=actor.x+Math.cos(a)*r*.64,py=actor.y+Math.sin(a)*r*.64;
+    crimsonFlameBurst(px,py,105,.57,1.18);crimsonEmbers(px,py,a+Math.PI,16,285,.92,1.04);
+   }else crimsonEmbers(actor.x,actor.y,a,4,95,.43,.43);
   }else if(id==='ironJudgment'){
    const a=hitIndex<3?f:look,r=hitIndex===3?255:198,arc=hitIndex===3?2.26:1.68,flip=hitIndex%2?-side:side;
    crimsonBladeFire(actor.x,actor.y,a,r,arc,flip,hitIndex===3?.74:.49,hitIndex===3?1.42:1.04);
@@ -2473,7 +2473,7 @@ function performSwordSkillHit(seq,hitIndex){
  }
  else if(mode==='bladeRain'){for(let j=-4;j<=4;j++)fireProjectile(player.x,player.y,ang+j*.13,520+Math.abs(j)*22,damageValue(.68),'player','wave',2);}
  moveSwordCarryTargets(seq,player.x-px0,player.y-py0);
- swordSignatureFx(sk.id,hitIndex,finalHit,ang,reach,sk.color,player,{anchorX:seq.anchorX,anchorY:seq.anchorY,originX:seq.originX,originY:seq.originY,target:swordSeqTarget(seq),side:seq.side||1,baseFacing:seq.crimsonFace??seq.facing,pyreNodes:seq.pyreNodes,triadVertices:seq.triadVertices});
+ swordSignatureFx(sk.id,hitIndex,finalHit,ang,reach,sk.color,player,{anchorX:seq.anchorX,anchorY:seq.anchorY,originX:seq.originX,originY:seq.originY,target:swordSeqTarget(seq),side:seq.side||1,baseFacing:seq.crimsonFace??seq.facing,pyreNodes:seq.pyreNodes,triadVertices:seq.triadVertices,counterTriggered:!!seq.counterTriggered});
  if(mode==='galePulse')sendSharedSkillFx(seq.slot,sk.id,player.weapon,ang);
  swordUltimateHitVisuals(player,sk,seq.slot,hitIndex,ang,reach);
  if(finalHit){sound('hit');shake=Math.max(shake,seq.ultimate?16:['earthSlam','meteorNova'].includes(mode)?12:['guardPierce','thunderDash','dawnWave'].includes(mode)?8:5);}else sound('swing');
