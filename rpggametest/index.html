@@ -109,7 +109,7 @@ body{position:relative}.touch-mode select,.touch-mode input{font-size:16px}
 <style>#rpgTestBadge{position:fixed;z-index:99999;right:12px;top:12px;padding:7px 10px;border:1px solid #ff6a4d88;border-radius:8px;background:#210c12d9;color:#ffd2c5;font:700 11px system-ui;letter-spacing:.08em;pointer-events:none;box-shadow:0 4px 20px #0008}</style>
 </head>
 <body>
-<div id="rpgTestBadge">RPGGAMETEST · 홍련 리메이크 · 게임 실화면</div>
+<div id="rpgTestBadge">RPGGAMETEST · 홍련 5종 실제 플레이 · 3번 자동 반격</div>
 <canvas id="game" aria-label="잔광의 숲 게임 화면"></canvas>
 <div id="hud" class="hidden">
  <div id="brand">ECHOES OF THE WILD · TEST</div>
@@ -959,7 +959,7 @@ function buildTestArena(){
  player.x=3000;player.y=3000;player.facing=0;player.level=200;player.difficulty='normal';player.training={move:999,dodge:true,attack:true,parry:true,complete:true};
  player.swordStyle='break';player.learnedSwordSkills=['guardBreak','earthRend','quakeRush','ironJudgment','meteorBreaker'];player.equippedSwordSkills=['guardBreak','earthRend','quakeRush','ironJudgment','meteorBreaker'];player.adminSwordSkills=[...player.equippedSwordSkills];player.weapon=0;player.ownedWeapons=[0];
  recalculateEquipment();player.hp=player.maxHp;player.stam=player.maxStam;player.shield=player.maxShield;player.skillCds=[0,0,0,0,0];player.hiddenSkillCds=[0,0,0,0,0];
- const e=addEnemy('dummy',3420,3000,'testDummy');if(e){e.name='외형 테스트 몬스터';e.speed=0;e.damage=0;e.maxHp=e.hp=999999;e.baseMaxHp=999999;e.state='idle';e.timer=999999;e.alert=false;e.provoked=false;e.stun=0;}
+ const e=addEnemy('dummy',3210,3000,'testDummy');if(e){e.name='외형 테스트 몬스터';e.speed=0;e.damage=0;e.maxHp=e.hp=999999;e.baseMaxHp=999999;e.state='idle';e.timer=999999;e.alert=false;e.provoked=false;e.stun=0;}
  bodyGridValid=false;camera.x=player.x;camera.y=player.y;
 }
 player=newPlayer();buildTestArena();
@@ -2688,6 +2688,11 @@ function updateSwordSkill(dt){
  if(!isNormalSwordWeapon()||player.hp<=0){finishSwordCarryTargets(activeSwordSkill,true);cancelSwordSkill();return;}
  const seq=activeSwordSkill,sk=balancedSwordSkill(swordSkillById(seq.skillId),seq.slot),cfg=sk?.cfg;if(!cfg){cancelSwordSkill();return;}seq.elapsed+=dt;
  if(seq.chasing){updatePrismWorldChase(seq,dt);return;}
+ // Offline visual-test arena: the training dummy strikes during the brief third-skill counter window.
+ if(cfg.mode==='cinderCounter'&&!multiplayerMode&&!seq.testCounterStrike&&seq.elapsed>=.16&&seq.elapsed<.34){
+  const testDummy=enemies.find(e=>e.type==='dummy');
+  if(testDummy&&Math.hypot(testDummy.x-player.x,testDummy.y-player.y)<270){seq.testCounterStrike=true;hitPlayer(0,testDummy,true);}
+ }
  if(cfg.mode==='galePulse'){if(seq.elapsed<.5)sendSharedSkillFxFrame(seq.slot,'galeCharge',player.weapon,seq.facing,.12);}else sendSharedSkillFxFrame(seq.slot,sk.id,player.weapon,seq.facing,sk.id==='prismLance'?.25:seq.ultimate?.085:.12);
  if(seq.held){updateHeldSwordSkill(seq,sk,dt);if(activeSwordSkill===seq&&(seq.elapsed>=seq.duration||(seq.tapReleaseAt&&seq.elapsed>=seq.tapReleaseAt)))stopHeldSwordSkill(seq.slot,false);return;}
  updateUltimateCinematic(seq,sk,dt);
