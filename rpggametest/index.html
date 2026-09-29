@@ -3093,19 +3093,30 @@ function updateFlameBreathFinale(seq,sk,dt){
  const e=seq.flameTarget&&!seq.flameTarget.dead?seq.flameTarget:targets().find(v=>v.id===seq.flameTargetId);
  const c=e?combatCenter(e):seq.flameImpactPoint||{x:player.x+fx*92,y:player.y+fy*92};
  seq.flameImpactPoint={x:c.x,y:c.y};
- // Footwork: short alternating steps stay sword-length away from the locked target,
- // so the blade visibly reaches it instead of firing damage from the original spot.
- const next=FLAME_FINALE_CUTS[Math.min(seq.flameStage||0,FLAME_FINALE_CUTS.length-1)];
- const lateral=(seq.side||1)*(next?.side||0);
- if(e){
-  const tx=c.x-fx*94+nx*lateral,ty=c.y-fy*94+ny*lateral,
-   dx=tx-player.x,dy=ty-player.y,d=Math.hypot(dx,dy);
-  const step=Math.min(d,(next?.kind==='finisher'?120:205)*dt);
-  if(d>1&&step>0){const ox=player.x,oy=player.y;moveBody(player,dx/d*step,dy/d*step);
-   if(Math.hypot(player.x-ox,player.y-oy)>5)syncSkillMoveIfNeeded(ox,oy,18,500);}
- }
+ // Once the dash connects, do not slide between swings. Each authored cut
+ // instantly relocates to a different stance, like a flame-hidden blink strike.
+ // Distances stay within the ORIGINAL sword reaches; damage and timings are unchanged.
+ const blinkStances=[[-96,-80],[-104,99],[69,-79],[92,75],[-88,-106],[76,96],[-105,-42],[-117,0]];
+ const blinkToCut=(stage)=>{
+  if(!e)return;
+  const stance=blinkStances[Math.min(stage,blinkStances.length-1)],side=seq.side||1,
+   tx=clamp(c.x+fx*stance[0]+nx*side*stance[1],40,WORLD.w-40),
+   ty=clamp(c.y+fy*stance[0]+ny*side*stance[1],40,WORLD.h-40),
+   spot=solidAt(tx,ty,player.r+3)?freeBodySpot(tx,ty,player.r+3):{x:tx,y:ty},
+   ox=player.x,oy=player.y;
+  if(Math.hypot(spot.x-ox,spot.y-oy)>9){
+   // Two short-lived wisps show vanishing and reappearing, without particle spam.
+   flameBreathPlume(ox,oy,f+Math.PI,83,55,.19,.83,.43);
+   player.x=spot.x;player.y=spot.y;bodyGridValid=false;
+   flameBreathPlume(player.x,player.y,f,104,69,.22,1.00,.49);
+   seq.flameTeleports=(seq.flameTeleports||0)+1;
+   syncInstantPlayerMove(330);
+  }
+ };
  player.facing=seq.facing=e?Math.atan2(c.y-player.y,c.x-player.x):f;
  const strike=(cut,stage)=>{
+  blinkToCut(stage);
+  player.facing=seq.facing=Math.atan2(c.y-player.y,c.x-player.x);
   const angle=Math.atan2(c.y-player.y,c.x-player.x),d=Math.hypot(c.x-player.x,c.y-player.y),
    radius=e?combatRadius(e):0;
   // Each strike uses the blade's current reach and sector instead of timed proximity damage.
@@ -3133,6 +3144,8 @@ function updateFlameBreathFinale(seq,sk,dt){
   if(cut.kind!=='finisher'){strike(cut,idx+1);continue;}
   // Only the final heavy overhead slash fans out to nearby enemies.
   // A missed initial dash never enters this branch.
+  blinkToCut(idx);
+  player.facing=seq.facing=e?Math.atan2(c.y-player.y,c.x-player.x):f;
   const center=e?combatCenter(e):c,r=cut.reach;
   for(const v of targets()){
    const vc=combatCenter(v),distanceFromImpact=Math.hypot(vc.x-center.x,vc.y-center.y);
@@ -4607,6 +4620,56 @@ function drawTelegraph(e){if(e.state!=='windup')return;const styleProgress=clamp
  else{ctx.rotate(e.locked);ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,e.range,-1.05,1.05);ctx.closePath();ctx.fill();ctx.stroke();ctx.fillStyle='#ead18738';ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,e.range*progress,-1.05,1.05);ctx.closePath();ctx.fill();}
  if(progress>.73){ctx.strokeStyle=danger?'#ffc7b4':'#fff0b5';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,e.r+6,0,TAU);ctx.stroke();}ctx.restore();}
 function drawTown(){}
+// Foreground animation is drawn ONCE per frame, not added to the particle array.
+// The central molten glow deliberately obscures the duelist while the outer flame
+// tongues rotate in opposite directions around the stationary / blinking swordsman.
+function drawFlameFinaleVortex(){
+ const seq=activeSwordSkill;
+ if(seq?.skillId!=='meteorBreaker'||!seq.flameCaught)return;
+ const since=seq.elapsed-seq.flameCaughtAt,
+  fade=clamp(since/.20,0,1)*clamp((3.61-since)/.26,0,1);
+ if(fade<=0)return;
+ const low=options.quality==='low',phase=since*4.7*(seq.side||1);
+ const cx=player.x,cy=player.y-23,r=low?126:145;
+ ctx.save();ctx.translate(cx,cy);ctx.scale(1,.77);
+ // One radial gradient and a small, fixed number of curved flame shapes per frame.
+ const core=ctx.createRadialGradient(0,0,7,0,0,r*.99);
+ core.addColorStop(0,'rgba(255,243,166,.95)');
+ core.addColorStop(.30,'rgba(255,157,44,.95)');
+ core.addColorStop(.60,'rgba(249,76,19,.86)');
+ core.addColorStop(.83,'rgba(176,34,13,.52)');
+ core.addColorStop(1,'rgba(125,24,9,0)');
+ ctx.globalAlpha=.82*fade;ctx.fillStyle=core;
+ ctx.beginPath();ctx.arc(0,0,r,0,TAU);ctx.fill();
+ // Irregular layered fire, not radial beams or 50+ independent heavy plume effects.
+ for(let layer=0;layer<2;layer++){
+  const count=low?(layer===0?8:6):(layer===0?13:10);
+  const radius=r*(layer===0?.66:.40),spin=phase*(layer===0?1:-1.2);
+  ctx.globalAlpha=(layer===0?.86:.91)*fade;
+  for(let i=0;i<count;i++){
+   const angle=spin+i*TAU/count+.13*Math.sin(i*2.19+since*6),
+    len=r*(layer===0?.77:.51)*(.79+.18*Math.sin(i*3.3+since*8)),
+    broad=r*(layer===0?.21:.17),
+    rootX=Math.cos(angle)*radius,rootY=Math.sin(angle)*radius,
+    sweep=layer===0?.59:-.64,tipA=angle+sweep,
+    tipX=Math.cos(tipA)*(radius+len*.61),tipY=Math.sin(tipA)*(radius+len*.61);
+   ctx.fillStyle=(i+layer)%4===0?'#ffdc75':(i+layer)%3===0?'#ffae38':layer===0?'#e94a1d':'#ff7c22';
+   ctx.beginPath();
+   ctx.moveTo(rootX-Math.sin(angle)*broad,rootY+Math.cos(angle)*broad);
+   ctx.bezierCurveTo(rootX+Math.cos(angle)*len*.27-Math.sin(angle)*broad*1.6,
+    rootY+Math.sin(angle)*len*.27+Math.cos(angle)*broad*1.6,
+    tipX-Math.sin(tipA)*broad*.36,tipY+Math.cos(tipA)*broad*.36,
+    tipX,tipY);
+   ctx.bezierCurveTo(tipX+Math.sin(tipA)*broad*.30,tipY-Math.cos(tipA)*broad*.30,
+    rootX+Math.cos(angle)*len*.11+Math.sin(angle)*broad*.65,
+    rootY+Math.sin(angle)*len*.11-Math.cos(angle)*broad*.65,
+    rootX+Math.sin(angle)*broad,rootY-Math.cos(angle)*broad);
+   ctx.closePath();ctx.fill();
+  }
+ }
+ ctx.restore();
+ if(window.__PLAYTEST__)seq.flameVortexFrames=(seq.flameVortexFrames||0)+1;
+}
 function drawEffects(ground=false){for(const e of effects){const progress=1-e.t/e.max;if(e.type==='hazard'){if(!ground)continue;ctx.fillStyle='#e39a8327';ctx.strokeStyle='#edab97';ctx.lineWidth=2;ctx.beginPath();ctx.arc(e.x,e.y,e.r,0,TAU);ctx.fill();ctx.stroke();ctx.fillStyle='#eb998842';ctx.beginPath();ctx.arc(e.x,e.y,e.r*progress,0,TAU);ctx.fill();continue;}if(e.type==='crimsonScorch'){
   if(!ground)continue;ctx.save();ctx.translate(e.x,e.y);const dx=(e.x2??e.x)-e.x,dy=(e.y2??e.y)-e.y,len=Math.hypot(dx,dy);if(len)ctx.rotate(Math.atan2(dy,dx));
   ctx.globalAlpha=.28*clamp(e.t/e.max,0,1);ctx.fillStyle='#731c25';ctx.beginPath();ctx.ellipse(len*.5,0,Math.max(14,len*.52+(e.w||0)*.35,e.r||0),Math.max(10,len?(e.w||30)*.58:(e.r||40)*.57),0,0,TAU);ctx.fill();
@@ -4971,7 +5034,7 @@ function render(){ctx.setTransform(DPR,0,0,DPR,0,0);ctx.fillStyle='#192a2c';ctx.
  for(const d of renderList){if(d.kind==='tree')drawTree(d.o);else if(d.kind==='rock')drawRock(d.o);else if(d.kind==='house')drawHouse(d.o);else if(d.kind==='object')drawObject(d.o);else if(d.kind==='enemy')drawEnemy(d.o);else if(d.kind==='remote')drawRemotePlayer(d.o);else drawPlayer();}
  for(const p of projectiles){if(p._styleCollisionOnly||!visible(p))continue;const color=p.owner==='player'?(p.kind==='arrow'?'#dddcc1':'#c4ecda'):'#edc899';if(p.kind==='orb'||p.kind==='star'){glow(ctx,p.x,p.y,17,color+'30');circle(ctx,p.x,p.y,5,color);circle(ctx,p.x,p.y,2,'#f7f0d4');}else{const len=p.visualLen||(p.kind==='charged'?29:p.kind==='wave'?48:20);line(ctx,p.x-Math.cos(p.a)*len,p.y-Math.sin(p.a)*len,p.x,p.y,color,p.kind==='wave'?6:p.kind==='charged'?4:2);polygon(ctx,[[p.x+Math.cos(p.a)*5,p.y+Math.sin(p.a)*5],[p.x+Math.cos(p.a+2.5)*7,p.y+Math.sin(p.a+2.5)*7],[p.x+Math.cos(p.a-2.5)*7,p.y+Math.sin(p.a-2.5)*7]],color);}}
  for(const p of remoteSkillProjectiles){if(!visible(p))continue;const color=p.color||(p.kind==='arrow'?'#dddcc1':'#c4ecda');if(p.kind==='orb'||p.kind==='star'){glow(ctx,p.x,p.y,17,color+'30');circle(ctx,p.x,p.y,5,color);circle(ctx,p.x,p.y,2,'#f7f0d4');}else{const len=p.visualLen||(p.kind==='charged'?29:p.kind==='wave'?48:20);line(ctx,p.x-Math.cos(p.a)*len,p.y-Math.sin(p.a)*len,p.x,p.y,color,p.kind==='wave'?6:p.kind==='charged'?4:2);polygon(ctx,[[p.x+Math.cos(p.a)*5,p.y+Math.sin(p.a)*5],[p.x+Math.cos(p.a+2.5)*7,p.y+Math.sin(p.a+2.5)*7],[p.x+Math.cos(p.a-2.5)*7,p.y+Math.sin(p.a-2.5)*7]],color);}}
- for(const v of galeVortices)GALE_VORTEX.draw(ctx,v);for(const v of remoteGaleVortices)GALE_VORTEX.draw(ctx,v);drawEffects(false);drawLockMarker();
+ for(const v of galeVortices)GALE_VORTEX.draw(ctx,v);for(const v of remoteGaleVortices)GALE_VORTEX.draw(ctx,v);drawEffects(false);drawFlameFinaleVortex();drawLockMarker();
  if(nearby&&mode==='play'){ctx.strokeStyle='#dcd4a47a';ctx.lineWidth=1;ctx.beginPath();ctx.ellipse(nearby.x,nearby.y+6,28,13,0,0,TAU);ctx.stroke();}
  for(const f of floaters){ctx.globalAlpha=clamp(f.t*2,0,1);if(f.damage){ctx.save();ctx.translate(f.x,f.y);ctx.rotate(f.rot||0);ctx.font='900 '+(f.big?22:16)+'px system-ui';ctx.textAlign='center';ctx.lineWidth=f.big?5:4;ctx.strokeStyle='#391619cc';ctx.strokeText(f.text,0,0);ctx.fillStyle=f.color;ctx.fillText(f.text,0,0);ctx.restore();}else worldText(f.text,f.x,f.y-(1-f.t/f.max)*30,f.color,f.big?18:13);}ctx.globalAlpha=1;
  if(mapWaypoint&&mode==='play'){const d=distance(player,mapWaypoint);if(d<55){mapWaypoint=null;toast('목적지에 도착했습니다.');}else if(visible(mapWaypoint)){const yy=mapWaypoint.y+Math.sin(realTime*3)*5;polygon(ctx,[[mapWaypoint.x,yy-46],[mapWaypoint.x+8,yy-34],[mapWaypoint.x,yy-22],[mapWaypoint.x-8,yy-34]],'#e5c780','#fff0b1',1);ctx.strokeStyle='#ebd18b80';ctx.beginPath();ctx.ellipse(mapWaypoint.x,mapWaypoint.y,21,10,0,0,TAU);ctx.stroke();}}
