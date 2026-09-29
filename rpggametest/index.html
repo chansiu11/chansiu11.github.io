@@ -1048,39 +1048,42 @@ function crimsonOutside(x,y,inner=170,outer=290,count=14,inward=false,twist=0){
 }
 const CRIMSON1_RX=110,CRIMSON1_RY=110,CRIMSON1_BEAM=168,CRIMSON1_WIDTH=39;
 function crimsonStrokeCircle(cx,cy,rx,ry,aim,power=1){
- // 원은 선명한 원형 검격으로 유지한다. 선이 이어지는 전방에 불꽃을 모으고 뒤쪽은 잔불만 남긴다.
+ // 원 둘레의 잔불은 선이 나가는 전방에 더 많게 두되, 전체 생성량은 기존의 약 절반이다.
  const r=rx,low=options.quality==='low';
  effects.push({type:'crimsonEllipse',x:cx,y:cy,rx:r,ry:r,a:0,t:.39,max:.39});
- const jets=low?22:38;
+ const jets=low?18:28;
  for(let j=0;j<jets;j++){
-  const q=aim+j*TAU/jets+ rnd(-.035,.035),px=cx+Math.cos(q)*r,py=cy+Math.sin(q)*r;
-  const front=(1+Math.cos(q-aim))*.5,cluster=(j%9===0||j%9===1)?1.45:1;
-  const amount=Math.max(1,Math.round(((low?2:3)+(low?5:10)*front*front)*cluster));
-  crimsonEmbers(px,py,q+rnd(-.34,.34),amount,225+front*175,.40,.79+front*.42);
-  if(front>.7&&j%3===0)crimsonEmbers(px,py,q+rnd(-.28,.28),low?3:6,405,.37,1.14);
+  const q=aim+j*TAU/jets+rnd(-.04,.04),px=cx+Math.cos(q)*r,py=cy+Math.sin(q)*r;
+  const front=(1+Math.cos(q-aim))*.5;
+  const amount=Math.max(1,Math.round((low?1:2)+(low?4:6)*front*front));
+  crimsonEmbers(px,py,q+rnd(-.34,.34),amount,215+front*150,.36,.78+front*.32);
  }
 }
 function crimsonStrokeLine(x1,y1,x2,y2,a,power=1){
- // 2번의 마지막 검격처럼 짧게 겹치는 붉은 참격 자취를 사용한다. 레이저형 crimsonBeam은 쓰지 않는다.
+ // 2번 스킬 마지막 검격처럼 붉은색·주황색·아이보리색 곡선 참격 세 겹.
+ // 공격 판정은 기존 직선 그대로이며, 겉모양만 곡선 참격으로 표현한다.
  const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy),nx=-Math.sin(a),ny=Math.cos(a);
- const low=options.quality==='low',parts=low?3:5,colors=['#ff3049','#ff713c','#ffd2a2'];
- for(let j=0;j<parts;j++){
-  const q=(j+.5)/parts,x=x1+dx*q,y=y1+dy*q,near=1-q;
-  effects.push({type:'riftCut',x,y,a,len:len/parts+28,width:CRIMSON1_WIDTH*(.62+.18*near),color:colors[j%3],t:.32,max:.32});
+ const mx=(x1+x2)*.5,my=(y1+y2)*.5,r=Math.max(175,len*1.4);
+ const cx=mx+nx*r,cy=my+ny*r,arc=len/r,centerAngle=a-Math.PI/2;
+ const layers=[
+  {offset:9,color:'#d8233f',shift:-.075},
+  {offset:0,color:'#ff8144',shift:0},
+  {offset:-9,color:'#e7cca3',shift:.055}
+ ];
+ for(const layer of layers){
+  effects.push({type:'slash',x:cx,y:cy,r:r+layer.offset,a:centerAngle+layer.shift,arc:arc*.99,color:layer.color,t:.34,max:.34});
  }
- // 불꽃은 원의 앞쪽과 직선 시작점에 밀집하고 끝으로 갈수록 자연스럽게 줄어든다.
- const steps=low?11:19;
- for(let j=0;j<=steps;j++){
-  const q=j/steps,near=Math.pow(1-q,1.65),base=low?1:2;
-  const amount=base+Math.round((low?5:10)*near);
+ // 일정한 간격으로 선 전체에 잔불을 배치한다. 시작과 끝의 개수는 같다.
+ const low=options.quality==='low',steps=low?11:18;
+ for(let j=0;j<steps;j++){
+  const q=(j+.5)/steps;
   for(const side of [-1,1]){
-   const spread=rnd(6,18)+q*10,x=x1+dx*q+nx*side*spread,y=y1+dy*q+ny*side*spread;
-   crimsonEmbers(x,y,a+Math.PI+side*rnd(.24,.70),amount,rnd(155,295)*(1-.20*q),.42,.76+near*.34);
+   const off=rnd(7,19),x=x1+dx*q+nx*side*off,y=y1+dy*q+ny*side*off;
+   crimsonEmbers(x,y,a+Math.PI+side*rnd(.30,.72),low?2:3,rnd(155,265),.40,rnd(.72,.96));
   }
  }
- // 불꽃 외곽에 얇게 남는 검격 잔향만 추가한다.
- crimsonEmbers(x1,y1,a+Math.PI,low?7:16,270,.66,1.06);
 }
+
 function ring(x,y,r,color,t=.5){effects.push({type:'ring',x,y,r,color,t,max:t});}
 let prismCastSerial=0;
 function cancelSwordSkill(preserveFollow=false){activeSwordSkill=null;fourthSkillHold=null;fourthSkillField=null;secondSkillDash=null;secondSkillArmed=false;skillTrayPress=null;standardSkillHold=null;skill2Knocks=[];hiddenSkillEvents=[];hiddenSkillHold=null;if(!preserveFollow)hiddenSkillFollowup=null;if(void3State)endVoid3World();if(player){player.skillKind='';player.skillPose=-1;player.skillLift=0;player.pendingSlam=null;player.cast=0;player.pvpKnock=null;}}
