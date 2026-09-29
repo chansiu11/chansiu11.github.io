@@ -2620,10 +2620,91 @@ function updateGalePulseChargePull(seq,dt){
   }
  }
 }
+
+function flameBreathMotion(seq,sk,dt,t,target){
+ const mode=sk.cfg.mode,f=seq.flameFace??seq.facing,fx=Math.cos(f),fy=Math.sin(f),
+   nx=-fy,ny=fx,side=seq.side||1,ox=player.x,oy=player.y,elapsed=seq.elapsed;
+ seq.flameFace=f;
+ const ease=q=>{q=clamp(q,0,1);return q*q*(3-2*q);};
+ const approach=(x,y,speed)=>{
+  const dx=x-player.x,dy=y-player.y,d=Math.hypot(dx,dy);if(d<.001)return;
+  const step=Math.min(d,speed*dt);moveBody(player,dx/d*step,dy/d*step);
+ };
+ const trail=(rate=.07,power=1)=>{
+  seq.fx-=dt;if(seq.fx<=0&&Math.hypot(player.x-ox,player.y-oy)>7){
+   seq.fx=rate;flameBreathTrail(ox,oy,player.x,player.y,power);
+   crimsonEmbers(player.x,player.y,f+Math.PI,options.quality==='low'?2:3,115+power*70,.62,.62);
+  }
+ };
+ if(mode==='flameBreathSweep'){
+  player.skillLift=Math.sin(Math.PI*t)*3;
+  seq.fx-=dt;if(seq.fx<=0&&elapsed<.43){seq.fx=.11;crimsonEmbers(player.x+fx*60,player.y+fy*60,f+Math.PI,2,105,.35,.40);}
+ }else if(mode==='flameBreathRise'){
+  const q=ease((t-.10)/.62),lateral=side*(Math.sin(Math.PI*q)*103+q*47);
+  approach(seq.originX+fx*328*q+nx*lateral,seq.originY+fy*328*q+ny*lateral,1100);
+  player.skillLift=Math.sin(Math.PI*clamp((t-.14)/.73,0,1))*24;
+  player.facing=seq.facing=target?Math.atan2(target.y-player.y,target.x-player.x):f;
+  trail(.055,1.15);
+ }else if(mode==='flameBreathCleave'){
+  if(elapsed<.32){seq.fx-=dt;if(seq.fx<=0){seq.fx=.16;crimsonEmbers(player.x+fx*23,player.y+fy*23,f+Math.PI,3,103,.44,.44);}}
+  const q=ease((t-.35)/.37);
+  approach(seq.originX+fx*70*q,seq.originY+fy*70*q,285);
+  player.skillLift=t<.59?23*Math.sin(Math.PI*Math.min(1,t/.59)):Math.max(0,23*(1-(t-.59)/.23));
+  player.facing=seq.facing=f;
+ }else if(mode==='flameBreathWheel'){
+  const q=ease((t-.09)/.76),sideArc=side*Math.sin(q*Math.PI*2)*35;
+  approach(seq.originX+fx*338*q+nx*sideArc,seq.originY+fy*338*q+ny*sideArc,950);
+  // Visually spin the sword-wielding character while collision stays oriented to the original direction.
+  player.facing=f+side*Math.PI*2.1*q;seq.facing=f;
+  player.skillLift=4+Math.sin(q*Math.PI)*10;
+  if(q>.05&&q<.96)player.invuln=Math.max(player.invuln,.055);
+  trail(.06,1.21);
+  if(seq.fx<=0&&q>.03&&q<.94)flameBreathPlume(player.x,player.y,player.facing+side*1.2,115,73,.31,.77);
+ }else if(mode==='flameBreathFinale'){
+  const windows=[[.92,1.28],[1.82,2.22],[2.75,3.13],[4.18,4.97]];
+  const phase=windows.findIndex(w=>elapsed>=w[0]&&elapsed<w[1]);
+  if(phase>=0){
+   if(seq.flamePhase!==phase){
+    seq.flamePhase=phase;seq.flameFrom={x:player.x,y:player.y};seq.fx=0;
+    const pt=phase===0?{x:seq.originX+fx*308+nx*side*14,y:seq.originY+fy*308+ny*side*14}:
+     phase===1?{x:seq.originX+fx*220+nx*side*178,y:seq.originY+fy*220+ny*side*178}:
+     phase===2?{x:seq.originX+fx*404-nx*side*123,y:seq.originY+fy*404-ny*side*123}:null;
+    if(phase===3){
+     const e=target?combatCenter(target):null,a=e?Math.atan2(e.y-player.y,e.x-player.x):f;
+     seq.flameFinalFace=a;seq.flameFinalImpact=e||{x:player.x+Math.cos(a)*310,y:player.y+Math.sin(a)*310};
+     seq.flameTo={x:player.x+Math.cos(a)*465,y:player.y+Math.sin(a)*465};
+    }else seq.flameTo=pt;
+    seq.flameLegs??=[];seq.flameLegs[phase]={from:{...seq.flameFrom},to:{...seq.flameTo}};
+   }
+   const [begin,end]=windows[phase],q=ease((elapsed-begin)/(end-begin)),from=seq.flameFrom,to=seq.flameTo,
+     a=Math.atan2(to.y-from.y,to.x-from.x);
+   approach(from.x+(to.x-from.x)*q,from.y+(to.y-from.y)*q,phase===3?1450:1240);
+   player.facing=seq.facing=a;
+   player.skillLift=Math.sin(q*Math.PI)*(phase===3?24:phase===2?17:11);
+   trail(phase===3?.045:.068,phase===3?1.58:1.2+phase*.12);
+   if(phase===3&&seq.fx<=.02&&Math.hypot(player.x-ox,player.y-oy)>5)
+    flameBreathPlume(ox,oy,a,190,116,.37,1.30);
+  }else if(elapsed<.92){
+   player.facing=seq.facing=f;seq.fx-=dt;
+   if(seq.fx<=0){seq.fx=.13;crimsonEmbers(player.x,player.y,f+Math.PI,5,148,.80,.70);
+     if(elapsed>.52)crimsonChargeFlames(player.x,player.y,54,.21,.53);
+   }
+  }else if(elapsed>=3.30&&elapsed<4.17){
+   // Long visible breathing pause before the ultimate's last charge.
+   player.facing=seq.facing=seq.flameFinalFace??f;seq.fx-=dt;
+   if(seq.fx<=0){seq.fx=.16;crimsonChargeFlames(player.x,player.y,83,.27,1.09);
+    crimsonEmbers(player.x,player.y,f+Math.PI,7,202,.70,.82);
+   }
+  }else player.skillLift=0;
+ }
+ if(Math.hypot(player.x-ox,player.y-oy)>7)syncSkillMoveIfNeeded(ox,oy,18,1450);
+}
+
 function updateSwordSkillMotion(seq,sk,dt){
  const cfg=sk.cfg,mode=cfg.mode,t=clamp(seq.elapsed/seq.duration,0,1),a=seq.facing,ca=Math.cos(a),sa=Math.sin(a),side=seq.side||1,target=swordSeqTarget(seq),px0=player.x,py0=player.y;
  player.skillLift=0;
- if(CRIMSON_SKILLS.has(sk.id)){
+ if(FLAME_BREATH_MODES.has(mode))flameBreathMotion(seq,sk,dt,t,target);
+ elseif(CRIMSON_SKILLS.has(sk.id)){
   const tc=target?combatCenter(target):null,face=seq.crimsonFace??seq.facing,fx=Math.cos(face),fy=Math.sin(face),nx=-fy,ny=fx,u=t;
   seq.crimsonFace=face;
   const look=tc?Math.atan2(tc.y-player.y,tc.x-player.x):face;
