@@ -1160,6 +1160,7 @@ function crimsonChargeFlames(x,y,r=90,life=.95,power=1){
 
 /* Hongryeon sword-forms: original flame effects driven by the real hitbox, not sprites or beams. */
 const FLAME_BREATH_MODES=new Set(['flameBreathSweep','flameBreathRise','flameBreathCleave','flameBreathWheel','flameBreathFinale']);
+const HONGRYEON_STUN_SCALE=1.5; // Increase control duration for all five Hongryeon sword forms.
 const FLAME_CLEAVE_START_RADIUS=190,FLAME_CLEAVE_LAND_RADIUS=245,FLAME_RISE_IMPACT_RADIUS=250;
 // Ring effects and the damage check intentionally share these exact radii.
 function flameBreathCleaveCircle(x,y,r,face=0,life=.57,power=1){
@@ -2494,7 +2495,7 @@ function flameBreathHit(seq,sk,k,damage,finalHit){
    }
   }
   if(!matched)continue;
-  const boss=e.kind==='boss',stunSecs=boss?Math.min(.20,stun*.38):stun,
+  const boss=e.kind==='boss',stunSecs=boss?Math.min(.30,stun*.38*HONGRYEON_STUN_SCALE):stun*HONGRYEON_STUN_SCALE,
    force=boss?0:push;
   const risePath=mode==='flameBreathRise'&&d>FLAME_RISE_IMPACT_RADIUS+er;
   const hitShape=risePath?{shape:'segment',x1:seq.originX,y1:seq.originY,x2:player.x,y2:player.y,r:76}:
@@ -3040,7 +3041,7 @@ function updateFlameBreathFinale(seq,sk,dt){
   if(collision&&Math.hypot(player.x-ox,player.y-oy)+2>=advance){
    const e=collision.enemy,c=combatCenter(e);
    const landed=hitEnemy(e,damageValue(1.36),false,player,{
-    stun:e.kind==='boss'?.19:1.55,dx:0,dy:0,duration:0,
+    stun:e.kind==='boss'?.19*HONGRYEON_STUN_SCALE:1.55*HONGRYEON_STUN_SCALE,dx:0,dy:0,duration:0,
     bypassShield:true,skillId:sk.id,shape:'circle',x:c.x,y:c.y,r:79+combatRadius(e)
    });
    if(landed!==false){
@@ -3049,7 +3050,7 @@ function updateFlameBreathFinale(seq,sk,dt){
     seq.duration=seq.elapsed+1.04;player.skillLift=0;
     flameBreathSignature(sk.id,0,false,f,185,{x:c.x,y:c.y},{side:seq.side||1,baseFacing:f});
     shake=Math.max(shake,11);sound('hit');
-    if(e.kind!=='boss'&&!e.networkPlayer)applyEnemyStun(e,1.55);
+    if(e.kind!=='boss'&&!e.networkPlayer)applyEnemyStun(e,1.55*HONGRYEON_STUN_SCALE);
     return;
    }
   }
@@ -3064,7 +3065,7 @@ function updateFlameBreathFinale(seq,sk,dt){
  player.facing=seq.facing=f;player.skillLift=0;
  const direct=(mult,stun,force=0,heavy=false)=>{
   if(!e||e.dead||e.riftSleeping)return;
-  hitEnemy(e,damageValue(mult),heavy,player,{stun:e.kind==='boss'?.17:stun,
+  hitEnemy(e,damageValue(mult),heavy,player,{stun:e.kind==='boss'?.17*HONGRYEON_STUN_SCALE:stun*HONGRYEON_STUN_SCALE,
    dx:fx*force,dy:fy*force,duration:force?window.EchoesCombat.forceDuration(force):0,
    bypassShield:true,skillId:sk.id,shape:'circle',x:c.x,y:c.y,r:85+combatRadius(e)});
  };
@@ -3087,7 +3088,7 @@ function updateFlameBreathFinale(seq,sk,dt){
    if(d>r+combatRadius(v))continue;
    const main=v===e;
    hitEnemy(v,damageValue(main?2.26:.98),main,player,{
-    stun:v.kind==='boss'?.19:main?.92:.38,
+    stun:v.kind==='boss'?.19*HONGRYEON_STUN_SCALE:(main?.92:.38)*HONGRYEON_STUN_SCALE,
     dx:fx*(main?145:64),dy:fy*(main?145:64),
     duration:window.EchoesCombat.forceDuration(main?145:64),
     bypassShield:true,skillId:sk.id,shape:'circle',x:vc.x,y:vc.y,r:combatRadius(v)+18
