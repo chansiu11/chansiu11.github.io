@@ -20,13 +20,13 @@ for(const c of cases){
  await page.waitForFunction(()=>window.__game?.mode==='play'&&!!window.__game?.enemies?.find(e=>e.type==='dummy'));
  const init=await page.evaluate((c)=>{
   const g=window.__game,p=g.player,e=g.enemies.find(e=>e.type==='dummy');
-  e.x=p.x+260;e.y=p.y;e.sx=e.x;e.sy=e.y;e.r=25;e.testHitCount=0;e.testDamageTotal=0;e.speed=0;e.damage=0;e.maxHp=e.hp=1e8;e.baseMaxHp=1e8;e.stun=0;
+  e.x=p.x+(c.slot===2?140:260);e.y=p.y;e.sx=e.x;e.sy=e.y;e.r=25;e.testHitCount=0;e.testDamageTotal=0;e.speed=0;e.damage=0;e.maxHp=e.hp=1e8;e.baseMaxHp=1e8;e.stun=0;
   g.admin.god=true;p.facing=0;p.stun=0;p.attackCd=0;p.cast=0;p.skillCds.fill(0);
   g.skill(c.slot);
   return {name:g.skillInfo(c.slot).name,mode:g.skillInfo(c.slot).cfg.mode,hp:e.hp,skillStarted:!!g.activeSwordSkill};
  },c);
  if(init.mode!==c.mode)throw Error('Wrong form '+c.id+' '+JSON.stringify(init));
- const elapsedTarget=[.42,.68,.77,.91,4.66][c.slot];
+ const elapsedTarget=[.42,.68,.91,.91,4.66][c.slot];
  const check=await page.waitForFunction(t=>{const g=window.__game;return g?.activeSwordSkill?.elapsed>=t?'reached':(!g?.activeSwordSkill&&g?.player?.skillPose===-1?'ended':false);},elapsedTarget,{timeout:180000,polling:60});
  if(await check.jsonValue()!=='reached')throw Error('Skill ended before capture: '+c.id);
  const frame=await page.evaluate(()=>{
@@ -38,6 +38,7 @@ for(const c of cases){
  await page.screenshot({path:'rpggametest/flame-preview/'+String(c.slot+1)+'-'+c.id+'.png'});
  if(errors.length||frame.pageError)throw Error('Runtime errors '+c.id+': '+errors.join(' | ')+' '+frame.pageError);
  if(frame.hitCount<1||frame.damageTotal<=0)throw Error('No hit registered for '+c.id+' '+JSON.stringify(frame));
+ if(c.slot===2&&frame.hitCount<2)throw Error('Fire circle or landing area damage did not register: '+JSON.stringify(frame));
  if(!frame.types.some(t=>['flameBreathPlume','crimsonBladeFire','crimsonEdgeFlames','crimsonChargeFlames','crimsonFlameBurst','ember'].includes(t)))throw Error('No real fire graphics '+c.id+' '+JSON.stringify(frame));
  report.push({slot:c.slot,name:init.name,mode:init.mode,hit:true,fx:frame.fx,effects:frame.types,hero:frame.hero});
  console.log(JSON.stringify(report.at(-1)));
