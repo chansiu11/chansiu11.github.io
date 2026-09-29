@@ -109,7 +109,7 @@ body{position:relative}.touch-mode select,.touch-mode input{font-size:16px}
 <style>#rpgTestBadge{position:fixed;z-index:99999;right:12px;top:12px;padding:7px 10px;border:1px solid #ff6a4d88;border-radius:8px;background:#210c12d9;color:#ffd2c5;font:700 11px system-ui;letter-spacing:.08em;pointer-events:none;box-shadow:0 4px 20px #0008}</style>
 </head>
 <body>
-<div id="rpgTestBadge">RPGGAMETEST · 홍련 3돌진 / 2횡보 테스트</div>
+<div id="rpgTestBadge">RPGGAMETEST · 홍련 리메이크 · 게임 실화면</div>
 <canvas id="game" aria-label="잔광의 숲 게임 화면"></canvas>
 <div id="hud" class="hidden">
  <div id="brand">ECHOES OF THE WILD · TEST</div>
@@ -1409,17 +1409,17 @@ const SWORD_SKILL_LIBRARY=[
  {id:'starRush',name:'풍압 연파',level:18,price:0,cost:49,cool:9.6,color:'#61f0c7',desc:'두 번째 풍압 원을 앞으로 발사합니다. 소용돌이는 5초 동안 천천히 이동하며 적을 반시계방향으로 회전시키고 지속 피해를 줍니다. 사라질 때 바깥으로 날리며 발사 직후 시전자가 자유롭게 행동합니다.',cfg:{duration:.30,hits:[.12],mult:[1],arc:[TAU],reach:[0],step:[0],mode:'galeCrescendo'}},
  {id:'crossBloom',name:'연속 교차 베기',level:13,price:420,cost:40,cool:7.4,color:'#b88cff',desc:'표적의 좌우를 번갈아 밟으며 위치를 바꾸고 일곱 번의 교차 베기를 한 대상 주변에 집중합니다.',cfg:{duration:1.42,hits:[.10,.26,.42,.58,.76,.96,1.20],mult:[.43,.45,.48,.52,.56,.66,1.08],arc:[1.20,1.25,1.30,1.35,1.40,1.50,1.85],reach:[20,20,22,22,24,26,30],step:[0,0,0,0,0,0,4],mode:'stationaryFlurry'}},
  {id:'crescent',name:'초승달 이연참',level:16,price:520,cost:34,cool:9,color:'#b88cff',desc:'뒤로 크게 빠지면서 서로 다른 각도의 초승달 검압 두 개를 연속 발사합니다.',cfg:{duration:.80,hits:[.16,.52],mult:[.90,1.18],arc:[2.4,2.7],reach:[18,22],step:[2,4],mode:'crescentRetreat'}},
- {id:'guardBreak',name:'비화 횡참',level:20,price:650,cost:30,cool:4.8,color:'#ff344d',desc:'왼쪽이나 오른쪽으로 흘러가며 넓은 화염 발도검을 휘두른 뒤, 지나온 횡보 경로의 불씨를 연속 점화합니다.',cfg:{duration:0.94,hits:[.28,.76],mult:[1.05,1.54],arc:[1.75,1.65],reach:[100,112],step:[0,0],mode:'emberFuse'}},
+ {id:'guardBreak',name:'잔화 일섬',level:20,price:650,cost:30,cool:4.8,color:'#ff344d',desc:'제자리에서 빠르게 가로 베고, 같은 검흔을 따라 잠깐 뒤 불꽃이 다시 타오르는 2단 광역 발도.',cfg:{duration:.66,hits:[.16,.38],mult:[.82,1.23],arc:[2.05,2.12],reach:[134,154],step:[0,0],mode:'emberDraw'}},
  {id:'tempest',name:'폭풍 검무',level:24,price:780,cost:48,cool:5.4,color:'#ffd95c',desc:'작은 나선 궤도를 직접 돌면서 여섯 번 회전 베기해 주변 적을 휩쓸어갑니다.',cfg:{duration:1.28,hits:[.08,.25,.42,.59,.78,1.02],mult:[.42,.45,.48,.52,.58,.92],arc:[TAU,TAU,TAU,TAU,TAU,TAU],reach:[18,22,26,30,34,42],step:[0,0,0,0,0,0],mode:'tempest'}},
- {id:'earthRend',name:'염월 유성참',level:30,price:920,cost:46,cool:7.4,color:'#ff344d',desc:'상대 측면을 향해 크게 휘어 돌진하고 검을 앞·옆·뒤로 세 번 베어 불타는 곡선 검흔을 새깁니다.',cfg:{duration:1.22,hits:[.34,.73,1.10],mult:[.59,.76,1.56],arc:[1.62,1.72,1.96],reach:[85,98,132],step:[0,0,0],mode:'scarletHook'}},
+ {id:'earthRend',name:'적련 유성',level:30,price:920,cost:46,cool:7.4,color:'#ff344d',desc:'목표의 측면을 향해 곡선 돌진해 세 번 베어낸다. 마지막 올려 베기와 함께 지나온 경로의 불꽃이 솟아오른다.',cfg:{duration:1.22,hits:[.34,.73,1.10],mult:[.59,.76,1.56],arc:[1.62,1.72,1.96],reach:[85,98,132],step:[0,0,0],mode:'scarletHook'}},
  {id:'dawnArc',name:'여명 검파',level:38,price:1100,cost:58,cool:3.5,color:'#ffd95c',desc:'강한 검압 하나를 발사한 반동으로 몸이 뒤로 밀리는 초장거리 단발기입니다.',cfg:{duration:.72,hits:[.28],mult:[1.15],arc:[1.7],reach:[20],step:[0],mode:'dawnWave'}},
  {id:'thunderDrive',name:'천풍 추살',level:44,price:1280,cost:74,cool:15.8,color:'#61f0c7',desc:'질풍 유파의 궁극기. 장거리 초고속 돌진에 맞는 순간 2번 질풍 점멸처럼 돌진 방향으로 강하게 날아가며, 이후 0.05초마다 총 30회의 추살 연계를 합니다. Lv.100 기준 일반 타격 100, 마지막 타격 200 피해입니다.',cfg:{duration:2.35,hits:Array.from({length:30},(_,i)=>.70+i*.05),mult:Array.from({length:30},(_,i)=>i===29?.38:.20),arc:Array(30).fill(TAU),reach:Array(30).fill(0),step:Array(30).fill(0),mode:'galePursuit'}},
- {id:'meteorBreaker',name:'멸홍 삼연극',level:52,price:1520,cost:78,cool:18,color:'#ff344d',desc:'긴 호흡으로 검에 불꽃을 모아 세 번 서로 다른 방향으로 질주하며 거대한 화염 검격을 펼칩니다. 검을 치켜든 뒤 마지막 일도양단과 업화 대폭발로 마무리합니다.',cfg:{duration:5.20,hits:[1.38,2.38,3.35,4.36,4.96],mult:[.63,.82,1.14,1.02,2.62],arc:[1.75,1.86,2.10,2.80,TAU],reach:[112,124,142,0,0],step:[0,0,0,0,0],mode:'triadPyre'}},
+ {id:'meteorBreaker',name:'종염 · 삼천화',level:52,price:1520,cost:78,cool:18,color:'#ff344d',desc:'약 1초간 검에 불꽃을 모은 뒤 서로 다른 방향으로 세 번 돌진한다. 다시 기를 모아 마지막 큰 횡베기와 거대한 화염 폭발로 끝낸다.',cfg:{duration:5.20,hits:[1.38,2.38,3.35,4.36,4.96],mult:[.63,.82,1.14,1.02,2.62],arc:[1.75,1.86,2.10,2.80,TAU],reach:[112,124,142,0,0],step:[0,0,0,0,0],mode:'triadPyre'}},
  {id:'galeOrbit',name:'풍환 폭발',level:10,price:340,cost:39,cool:8,color:'#61f0c7',desc:'0.5초 동안 넓은 풍환으로 주변 적의 이동을 봉쇄하고 부드럽게 중심으로 끌어당깁니다. 적은 스킬을 사용할 수 있으며, 이후 회전하는 원형 폭발로 타격합니다.',cfg:{duration:.78,hits:[.50],mult:[6.45],arc:[TAU],reach:[0],step:[0],mode:'galePulse'}},
  {id:'mirrorStep',name:'거울 걸음',level:8,price:0,cost:30,cool:5,color:'#b88cff',desc:'멀리 있는 적을 포착해 반대편까지 단숨에 파고든 뒤 뒤쪽에서 베는 장거리 추격 돌진기입니다.',cfg:{duration:.55,hits:[.32],mult:[2.25],arc:[1.1],reach:[36],step:[0],mode:'mirrorBackstab'}},
  {id:'lunarBind',name:'월인 결박',level:26,price:0,cost:46,cool:14.8,color:'#b88cff',desc:'표적의 좌우와 뒤로 세 번 순간이동하며 달빛 결계를 이동시켜 적을 구속하고, 마지막 위치에서 월륜 참격으로 마무리합니다.',cfg:{duration:.82,hits:[.50],mult:[2.05],arc:[TAU],reach:[84],step:[0],mode:'lunarPull'}},
- {id:'quakeRush',name:'연화 사절',level:12,price:0,cost:40,cool:6.8,color:'#ff344d',desc:'적을 바라보며 옆으로 이동하고 좌우를 교차하는 네 번의 검무로 엇갈린 화염 깃을 흩뿌립니다.',cfg:{duration:1.34,hits:[.24,.55,.88,1.20],mult:[.44,.53,.65,1.14],arc:[1.25,1.39,1.6,2.05],reach:[105,132,156,188],step:[0,0,0,0],mode:'butterflyVolley'}},
- {id:'ironJudgment',name:'주염 파천',level:36,price:0,cost:54,cool:10,color:'#ff344d',desc:'강하게 앞으로 관통 돌진하면서 세 개의 타오르는 검흔을 새기고, 멈춰서 역으로 크게 되베어 검흔을 연쇄 폭발시킵니다.',cfg:{duration:1.78,hits:[.38,.81,1.26,1.60],mult:[.53,.64,.77,1.76],arc:[1.25,1.39,1.53,2.22],reach:[82,94,107,163],step:[0,0,0,0],mode:'pyreDomino'}},
+ {id:'quakeRush',name:'회신 역화',level:12,price:0,cost:40,cool:8.3,color:'#ff344d',desc:'짧게 검을 세워 기다렸다가 적의 공격을 받으면 옆으로 회피하며 강력한 화염 역베기로 반격한다. 실패하면 약한 전방 베기만 나간다.',cfg:{duration:.80,hits:[.58],mult:[1.32],arc:[1.95],reach:[154],step:[0],mode:'cinderCounter'}},
+ {id:'ironJudgment',name:'염맥 관통',level:36,price:0,cost:54,cool:10,color:'#ff344d',desc:'정면을 관통 돌진하며 적을 진행 방향으로 밀고 간다. 멈춘 뒤 크게 역베기해 경로의 검흔을 연쇄 폭발시킨다.',cfg:{duration:1.78,hits:[.38,.81,1.26,1.60],mult:[.53,.64,.77,1.76],arc:[1.25,1.39,1.53,2.22],reach:[82,94,107,163],step:[0,0,0,0],mode:'pyreDomino'}},
  {id:'solarReturn',name:'태양 회귀',level:14,price:0,cost:36,cool:9.4,color:'#ffd95c',desc:'조준 방향으로 빠르게 대시하며 전후방으로 검압을 발사합니다. 적중한 적을 시전자 쪽으로 끌어당깁니다.',cfg:{duration:.66,hits:[.24,.46],mult:[1.0,1.0],arc:[1.5,1.5],reach:[18,18],step:[0,0],dashDistance:360,dashDuration:.30,mode:'boomerangWave'}},
  {id:'prismLance',name:'프리즘 창렬',level:22,price:0,cost:44,cool:15.2,color:'#ffd95c',desc:'5발과 9발의 검압, 마지막 광창을 발사합니다. 투사체가 적중한 적들을 가까운 순서로 빠르게 추격해 대상마다 한 번씩 강한 일격을 가합니다.',cfg:{duration:.62,hits:[.30],mult:[1.0],arc:[1.8],reach:[10],step:[0],mode:'fanLances'}},
  {id:'skyFall',name:'천광 낙하',level:42,price:0,cost:64,cool:7.8,color:'#ffd95c',desc:'멀리 있는 적을 자동 포착해 크게 도약하며 따라붙은 뒤 목표 지점에 낙하 충격을 일으킵니다.',cfg:{duration:1.0,hits:[.78],mult:[3.25],arc:[TAU],reach:[0],step:[0],mode:'skyFall'}},
@@ -1459,7 +1459,7 @@ const SWORD_SKILL_IDENTITY={
 const SWORD_STYLE_GROUPS=[
  {id:'gale',name:'질풍 유파',desc:'3열 단거리 검풍·점멸 압송·지연 원폭·전방 파문·적중 연계형 추살 궁극기 중심',skills:['windSlash','flashRush','galeOrbit','starRush','thunderDrive']},
  {id:'moon',name:'월영 유파',desc:'위치 교환·흡인·후퇴 검압·교차 난무 중심',skills:['moonSpin','mirrorStep','crossBloom','crescent','lunarBind']},
- {id:'break',name:'홍련 유파',desc:'비화 횡참·연화 사절은 횡보 검술, 염월 유성참·주염 파천·멸홍 삼연극은 곡선/관통/3단 돌진 검술. 각 공격 가장자리에 작게 불꽃이 튀며 궁극기는 기 모으기부터 종결까지 긴 호흡을 지닌다.',skills:['guardBreak','earthRend','quakeRush','ironJudgment','meteorBreaker']},
+ {id:'break',name:'홍련 유파',desc:'잔화 일섬(2단 발도)·적련 유성(곡선 돌진)·회신 역화(반격)·염맥 관통(정면 관통)·종염 삼천화(3단 돌진 궁극기)',skills:['guardBreak','earthRend','quakeRush','ironJudgment','meteorBreaker']},
  {id:'dawn',name:'여명 유파',desc:'원거리 검압·회전·다중 발사·낙하 중심',skills:['dawnArc','tempest','skyFall','solarReturn','prismLance']},
  {id:'void',name:'이형 유파',desc:'중력 편향 이동·특이점 돌진·지속 압착·공간 접기·공허 난무 중심',skills:['chainReap','phantomSwap','gravityCut','bladeRain','voidDance']}
 ];
@@ -1467,7 +1467,7 @@ const SWORD_DAMAGE_BALANCE=Object.freeze({
  // 1번: 짧은 쿨/기본기, 2번: 이동·연계, 3번: 핵심기, 4번: 상급기, 5번: 궁극기
  windSlash:.85,flashRush:.90,galeOrbit:.52,starRush:1.05,thunderDrive:.90,
  moonSpin:1.05,mirrorStep:.95,crossBloom:.95,crescent:1.25,lunarBind:.95,
- guardBreak:.75,earthRend:.90,quakeRush:1.05,ironJudgment:1.05,meteorBreaker:.82,
+ guardBreak:.89,earthRend:.93,quakeRush:1.07,ironJudgment:1.05,meteorBreaker:.82,
  dawnArc:1.45,tempest:.75,skyFall:.95,solarReturn:1.15,prismLance:.58,
  chainReap:1.00,phantomSwap:.65,gravityCut:.75,bladeRain:1.15,voidDance:.32
 });
