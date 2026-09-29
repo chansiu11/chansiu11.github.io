@@ -1236,16 +1236,17 @@ function flameBreathSignature(id,index,final,ang,reach,actor=player,ctxInfo=null
   flameBreathPlume(x,y,a+side*Math.PI/2,120+index*39,58+index*16,.41,.88);
   if(final)crimsonFlameBurst(x+Math.cos(look)*115,y+Math.sin(look)*115,116,.58,1.17);
  }else if(id==='meteorBreaker'){
-  // Four original animation beats: contact, crossing cuts, and the finishing seal.
+  // Contact, four alternating fiery blade cuts, then the original final seal.
+  // Additional beats reuse light blade FX rather than more full-screen rings.
   if(index===0){
    flameBreathStroke(x,y,f,190,1.35,side,.39,1.20);
    flameBreathPlume(x-Math.cos(f)*68,y-Math.sin(f)*68,f,242,104,.46,1.36);
    crimsonFlameBurst(x,y,76,.39,.87);
-  }else if(index===1||index===2){
-   const a=f+side*(index===1?.66:-.66);
-   flameBreathStroke(x,y,a,228,2.30,index===1?side:-side,.53,1.19);
-   flameBreathPlume(x-Math.cos(a)*62,y-Math.sin(a)*62,a,241,94,.48,1.18);
-   crimsonEmbers(x,y,a+Math.PI,10,222,.53,.85);
+  }else if(index>=1&&index<=4){
+   const nextSide=index%2?side:-side,a=f+nextSide*(index>=3?.85:.66);
+   flameBreathStroke(x,y,a,index>=3?250:228,index>=3?2.55:2.30,nextSide,.48,index>=3?1.27:1.19);
+   flameBreathPlume(x-Math.cos(a)*55,y-Math.sin(a)*55,a,210,79,.40,1.07,.64);
+   crimsonEmbers(x,y,a+Math.PI,options.quality==='low'?4:7,201,.45,.73);
   }else{
    flameBreathCleaveCircle(x,y,211,f,.87,1.75,.65);
    flameBreathStroke(x,y,f+side*.27,325,2.78,side,.77,1.42);
@@ -1524,7 +1525,7 @@ const SWORD_SKILL_LIBRARY=[
  {id:'earthRend',name:'승염 비상',level:30,price:920,cost:43,cool:7.4,color:'#ff782e',desc:'직선으로 328만큼 빠르게 돌진하며 점차 감속한다. 발동 0.5초 후 도착 지점의 원형 화염과 지나온 직선 경로에 동시에 피해를 주며 방패를 관통한다.',cfg:{duration:.78,hits:[.50],mult:[2.61],arc:[TAU],reach:[250],step:[0],mode:'flameBreathRise'}},
  {id:'dawnArc',name:'여명 검파',level:38,price:1100,cost:58,cool:3.5,color:'#ffd95c',desc:'강한 검압 하나를 발사한 반동으로 몸이 뒤로 밀리는 초장거리 단발기입니다.',cfg:{duration:.72,hits:[.28],mult:[1.15],arc:[1.7],reach:[20],step:[0],mode:'dawnWave'}},
  {id:'thunderDrive',name:'천풍 추살',level:44,price:1280,cost:74,cool:15.8,color:'#61f0c7',desc:'질풍 유파의 궁극기. 장거리 초고속 돌진에 맞는 순간 2번 질풍 점멸처럼 돌진 방향으로 강하게 날아가며, 이후 0.05초마다 총 30회의 추살 연계를 합니다. Lv.100 기준 일반 타격 100, 마지막 타격 200 피해입니다.',cfg:{duration:2.35,hits:Array.from({length:30},(_,i)=>.70+i*.05),mult:Array.from({length:30},(_,i)=>i===29?.38:.20),arc:Array(30).fill(TAU),reach:Array(30).fill(0),step:Array(30).fill(0),mode:'galePursuit'}},
- {id:'meteorBreaker',name:'극홍 · 염화일천',level:52,price:1520,cost:78,cool:19.5,color:'#ff782e',desc:'0.5초 동안 불꽃을 모은 뒤 장거리 초고속 화염 돌진. 적중하면 즉시 멈춰 기절시키고, 교차 화염 검격 두 번과 마지막 폭염 봉쇄로 마무리한다. 아무도 맞지 않으면 돌진 종료 즉시 기술이 끝난다.',cfg:{duration:1.65,hits:[],mult:[],arc:[TAU],reach:[0],step:[0],mode:'flameBreathFinale'}},
+ {id:'meteorBreaker',name:'극홍 · 염화일천',level:52,price:1520,cost:78,cool:19.5,color:'#ff782e',desc:'0.5초 동안 불꽃을 모은 뒤 장거리 초고속 화염 돌진. 적중하면 즉시 멈춰 기절시키고 교차 화염 검격 네 번을 연달아 펼친 다음 폭염 봉쇄로 마무리한다. 아무도 맞지 않으면 돌진 종료 즉시 기술이 끝난다.',cfg:{duration:1.65,hits:[],mult:[],arc:[TAU],reach:[0],step:[0],mode:'flameBreathFinale'}},
  {id:'galeOrbit',name:'풍환 폭발',level:10,price:340,cost:39,cool:8,color:'#61f0c7',desc:'0.5초 동안 넓은 풍환으로 주변 적의 이동을 봉쇄하고 부드럽게 중심으로 끌어당깁니다. 적은 스킬을 사용할 수 있으며, 이후 회전하는 원형 폭발로 타격합니다.',cfg:{duration:.78,hits:[.50],mult:[6.45],arc:[TAU],reach:[0],step:[0],mode:'galePulse'}},
  {id:'mirrorStep',name:'거울 걸음',level:8,price:0,cost:30,cool:5,color:'#b88cff',desc:'멀리 있는 적을 포착해 반대편까지 단숨에 파고든 뒤 뒤쪽에서 베는 장거리 추격 돌진기입니다.',cfg:{duration:.55,hits:[.32],mult:[2.25],arc:[1.1],reach:[36],step:[0],mode:'mirrorBackstab'}},
  {id:'lunarBind',name:'월인 결박',level:26,price:0,cost:46,cool:14.8,color:'#b88cff',desc:'표적의 좌우와 뒤로 세 번 순간이동하며 달빛 결계를 이동시켜 적을 구속하고, 마지막 위치에서 월륜 참격으로 마무리합니다.',cfg:{duration:.82,hits:[.50],mult:[2.05],arc:[TAU],reach:[84],step:[0],mode:'lunarPull'}},
@@ -3047,7 +3048,15 @@ function updateFlameBreathFinale(seq,sk,dt){
    if(landed!==false){
     seq.flameCaught=true;seq.flameCaughtAt=seq.elapsed;
     seq.flameTarget=e;seq.flameTargetId=e.id;seq.flameStage=0;
-    seq.duration=seq.elapsed+1.04;player.skillLift=0;
+    // Extend the hit-confirmed combo and real character animation, not the missed dash.
+    seq.duration=seq.elapsed+1.88;
+    const followTime=seq.duration-seq.elapsed;
+    player.cast=Math.max(player.cast,followTime);
+    player.attackCd=Math.max(player.attackCd,followTime);
+    player.attackAnim=Math.max(player.attackAnim,followTime);
+    player.attackDuration=Math.max(player.attackDuration,followTime);
+    player.moveLock=Math.max(player.moveLock||0,followTime);
+    player.skillLift=0;
     flameBreathSignature(sk.id,0,false,f,185,{x:c.x,y:c.y},{side:seq.side||1,baseFacing:f});
     shake=Math.max(shake,11);sound('hit');
     if(e.kind!=='boss'&&!e.networkPlayer)applyEnemyStun(e,1.55*HONGRYEON_STUN_SCALE);
@@ -3079,9 +3088,21 @@ function updateFlameBreathFinale(seq,sk,dt){
   flameBreathSignature(sk.id,2,false,f,228,{x:c.x,y:c.y},{side:seq.side||1,baseFacing:f});
   shake=Math.max(shake,9);
  }
- if(since>=.75&&seq.flameStage<3){
+ if(since>=.76&&seq.flameStage<3){
   seq.flameStage=3;
-  // Crossing slashes ignite a broad final seal, damaging nearby bystanders too.
+  direct(.47,.92);
+  flameBreathSignature(sk.id,3,false,f,250,{x:c.x,y:c.y},{side:seq.side||1,baseFacing:f});
+  shake=Math.max(shake,8);
+ }
+ if(since>=1.08&&seq.flameStage<4){
+  seq.flameStage=4;
+  direct(.58,.89);
+  flameBreathSignature(sk.id,4,false,f,250,{x:c.x,y:c.y},{side:seq.side||1,baseFacing:f});
+  shake=Math.max(shake,10);
+ }
+ if(since>=1.47&&seq.flameStage<5){
+  seq.flameStage=5;
+  // Four crossing slashes converge into the original wide finishing fire seal.
   const r=211;
   for(const v of targets()){
    const vc=combatCenter(v),d=Math.hypot(vc.x-c.x,vc.y-c.y);
@@ -3094,10 +3115,10 @@ function updateFlameBreathFinale(seq,sk,dt){
     bypassShield:true,skillId:sk.id,shape:'circle',x:vc.x,y:vc.y,r:combatRadius(v)+18
    });
   }
-  flameBreathSignature(sk.id,3,true,f,211,{x:c.x,y:c.y},{side:seq.side||1,baseFacing:f});
+  flameBreathSignature(sk.id,5,true,f,211,{x:c.x,y:c.y},{side:seq.side||1,baseFacing:f});
   shake=Math.max(shake,19);sound('hit');
  }
- if(since>=1.04)finish();
+ if(since>=1.88)finish();
 }
 
 function updateSwordSkill(dt){
