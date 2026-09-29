@@ -109,7 +109,7 @@ body{position:relative}.touch-mode select,.touch-mode input{font-size:16px}
 <style>#rpgTestBadge{position:fixed;z-index:99999;right:12px;top:12px;padding:7px 10px;border:1px solid #ff6a4d88;border-radius:8px;background:#210c12d9;color:#ffd2c5;font:700 11px system-ui;letter-spacing:.08em;pointer-events:none;box-shadow:0 4px 20px #0008}</style>
 </head>
 <body>
-<div id="rpgTestBadge">RPGGAMETEST · 외형 테스트</div>
+<div id="rpgTestBadge">RPGGAMETEST · 홍련 3돌진 / 2횡보 테스트</div>
 <canvas id="game" aria-label="잔광의 숲 게임 화면"></canvas>
 <div id="hud" class="hidden">
  <div id="brand">ECHOES OF THE WILD · TEST</div>
@@ -2127,7 +2127,7 @@ function updateHeldSwordSkill(seq,sk,dt){
  if(seq.ultimate&&seq.releaseQueued&&seq.elapsed>=SWORD_ULT_HOLD_MIN)stopHeldSwordSkill(seq.slot,false);
 }
 function crimsonSkillAllowsMove(seq=activeSwordSkill){return false;}
-function crimsonStrafeSide(facing,fallback=1){const x=(keys.has('KeyD')?1:0)-(keys.has('KeyA')?1:0)+(joy.active?joy.x:0),y=(keys.has('KeyS')?1:0)-(keys.has('KeyW')?1:0)+(joy.active?joy.y:0),cross=Math.cos(facing)*y-Math.sin(facing)*x;return Math.abs(cross)>.22?Math.sign(cross):fallback;}
+function crimsonStrafeSide(facing,fallback=1){const x=(keys.has('KeyD')||keys.has('ArrowRight')?1:0)-(keys.has('KeyA')||keys.has('ArrowLeft')?1:0)+(joy.active?joy.x:0),y=(keys.has('KeyS')||keys.has('ArrowDown')?1:0)-(keys.has('KeyW')||keys.has('ArrowUp')?1:0)+(joy.active?joy.y:0),cross=Math.cos(facing)*y-Math.sin(facing)*x;return Math.abs(cross)>.22?Math.sign(cross):fallback;}
 function startSwordSkill(slot){
  const sk=skillInfo(slot),cfg=sk?.cfg;
  if(!sk||sk.locked||!cfg||!canAct()||!isNormalSwordWeapon())return false;
