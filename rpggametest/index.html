@@ -4640,15 +4640,17 @@ function drawTown(){}
   const center=target?combatCenter(target):seq.flameImpactPoint;
   if(!center)return;
   const cx=center.x,cy=center.y-18,
-   attackerX=player.x-cx,attackerY=(player.y-23-cy)/.77,
+   attackerX=player.x-cx,attackerY=player.y-23-cy,
    attackerDistance=Math.hypot(attackerX,attackerY),
-   r=Math.ceil(Math.max(low?248:284,attackerDistance+112)/16)*16,
+   // True circular radius in world coordinates. Broaden it enough to envelop
+   // the blinking player as well as the hit victim without an elliptical stretch.
+   r=Math.ceil(Math.max(low?320:384,attackerDistance+156)/16)*16,
    // Three times as many irregular tongues and ember streaks; all positions
    // come from one preallocated pool and six batched fill paths.
    swarmCount=low?340:780,sparks=low?118:260,
    colors=['#ff7429','#ffc04d','#ff9531','#ffe39a'],
    p=FLAME_FINALE_PARTICLES;
-  ctx.save();ctx.translate(cx,cy);ctx.scale(1,.77);
+  ctx.save();ctx.translate(cx,cy); // 1:1 XY scale: actual circle, not a flattened ellipse.
   // Do NOT clip a hole around the attacker. The vortex is rendered BEFORE
   // characters, so tongues fly behind their silhouettes without vanishing
   // abruptly when the rotating arc crosses either combatant.
@@ -4694,6 +4696,38 @@ function drawTown(){}
    }
    ctx.fill();
   }
+  // Sword-shaped curved wind cuts: thin animated arcs, not solid sheets of fire.
+  // Three batched strokes add a second readable visual language to the flames.
+  ctx.lineCap='round';
+  for(let color=0;color<3;color++){
+   ctx.strokeStyle=['#fff3c2','#fbd2a3','#e9764d'][color];
+   ctx.globalAlpha=(.66+.10*color)*fade;ctx.lineWidth=low?2.5+color:3.5+color;
+   ctx.beginPath();
+   for(let k=color;k<(low?15:27);k+=3){
+    const v=p[(k*19+41)%p.length],
+     a=v.angle+spin*(.72+v.sway*.18),
+     rad=r*(.56+v.radius*.30),
+     start=a-v.size*.20,end=start+.16+v.sway*.28;
+    ctx.arc(0,0,rad,start,end);
+   }
+   ctx.stroke();
+  }
+  // Shard/diamond sparks are independent angular shapes, not flame tongues.
+  for(let color=0;color<3;color++){
+   ctx.fillStyle=['#fff0b4','#ffbc6a','#e35d47'][color];ctx.globalAlpha=.81*fade;
+   ctx.beginPath();
+   for(let k=color;k<(low?48:102);k+=3){
+    const v=p[(k*7+83)%p.length],a=v.angle+spin*(.58+v.sway*.23),
+     radius=r*(.33+v.radius*.55),x=Math.cos(a)*radius,y=Math.sin(a)*radius,
+     tangent=a+(seq.side||1)*Math.PI/2,dx=Math.cos(tangent),dy=Math.sin(tangent),
+     nx=-dy,ny=dx,len=8+v.size*20,w=2+v.sway*4;
+    ctx.moveTo(x-dx*len*.6,y-dy*len*.6);
+    ctx.lineTo(x+nx*w,y+ny*w);
+    ctx.lineTo(x+dx*len,y+dy*len);
+    ctx.lineTo(x-nx*w,y-ny*w);ctx.closePath();
+   }
+   ctx.fill();
+  }
   ctx.restore();
   if(window.__PLAYTEST__){
    seq.flameVortexFrames=(seq.flameVortexFrames||0)+1;
@@ -4702,7 +4736,11 @@ function drawTown(){}
    seq.flameVortexSprays=sparks;
    seq.flameVortexParticleCount=swarmCount+sparks;
    seq.flameVortexSolidFill=false;
-   seq.flameVortexPlayerClear=true;
+   seq.flameVortexPlayerClear=false;
+   seq.flameVortexDrawsAboveCharacters=true;
+   seq.flameVortexIsCircular=true;
+   seq.flameVortexArcCount=low?15:27;
+   seq.flameVortexShardCount=low?48:102;
    seq.flameVortexSpinRate=410;
    seq.flameVortexOuterCount=swarmCount;
    seq.flameVortexAttackerClearRadius=0; // Character is rendered above the unmasked effect
@@ -5068,14 +5106,16 @@ function drawQuestScreenPings(){
 function render(){ctx.setTransform(DPR,0,0,DPR,0,0);ctx.fillStyle='#192a2c';ctx.fillRect(0,0,W,H);ctx.save();const sx=options.shake?Math.sin(realTime*109)*shake:0,sy=options.shake?Math.cos(realTime*127)*shake*.6:0;ctx.translate(W/2+sx,H/2+sy);ctx.scale(VIEW_SCALE,VIEW_SCALE);ctx.translate(-camera.x,-camera.y);drawGround();drawTown();drawRiftGround();
  const l=camera.x-VIEW_W/2-140,r=camera.x+VIEW_W/2+140,t=camera.y-VIEW_H/2-150,b=camera.y+VIEW_H/2+180;const visible=e=>e.x>l&&e.x<r&&e.y>t&&e.y<b;
  for(const e of enemies)if(!e.dead&&!e.riftSleeping&&visible(e))drawTelegraph(e);drawEffects(true);
- // The large victim-centered flames rotate underneath both character models,
- // so no particle disappears at a hard player-shaped clipping boundary.
- drawFlameFinaleVortex();
+ // Character sprites render first. The victim-centered outer vortex is
+ // composited ABOVE them later, without any player-shaped clipping cutout.
  const renderList=[];for(const o of objects)if(visible(o))renderList.push({y:o.y,kind:'object',o});for(const o of candidates(camera.x,camera.y,Math.max(VIEW_W,VIEW_H)/2+240))if(o.type&&visible(o))renderList.push({y:o.y+(o.type==='house'?o.h*.4:0),kind:o.type,o});for(const e of enemies)if(!e.dead&&!e.riftSleeping&&visible(e))renderList.push({y:e.y,kind:'enemy',o:e});if(multiplayerMode)for(const rp of multiRemotePlayers.values()){const x=Number.isFinite(rp.rx)?rp.rx:rp.x,y=Number.isFinite(rp.ry)?rp.ry:rp.y;if(visible({x,y}))renderList.push({y,kind:'remote',o:rp});}renderList.push({y:player.y,kind:'player'});renderList.sort((a,b)=>a.y-b.y);
  for(const d of renderList){if(d.kind==='tree')drawTree(d.o);else if(d.kind==='rock')drawRock(d.o);else if(d.kind==='house')drawHouse(d.o);else if(d.kind==='object')drawObject(d.o);else if(d.kind==='enemy')drawEnemy(d.o);else if(d.kind==='remote')drawRemotePlayer(d.o);else drawPlayer();}
  for(const p of projectiles){if(p._styleCollisionOnly||!visible(p))continue;const color=p.owner==='player'?(p.kind==='arrow'?'#dddcc1':'#c4ecda'):'#edc899';if(p.kind==='orb'||p.kind==='star'){glow(ctx,p.x,p.y,17,color+'30');circle(ctx,p.x,p.y,5,color);circle(ctx,p.x,p.y,2,'#f7f0d4');}else{const len=p.visualLen||(p.kind==='charged'?29:p.kind==='wave'?48:20);line(ctx,p.x-Math.cos(p.a)*len,p.y-Math.sin(p.a)*len,p.x,p.y,color,p.kind==='wave'?6:p.kind==='charged'?4:2);polygon(ctx,[[p.x+Math.cos(p.a)*5,p.y+Math.sin(p.a)*5],[p.x+Math.cos(p.a+2.5)*7,p.y+Math.sin(p.a+2.5)*7],[p.x+Math.cos(p.a-2.5)*7,p.y+Math.sin(p.a-2.5)*7]],color);}}
  for(const p of remoteSkillProjectiles){if(!visible(p))continue;const color=p.color||(p.kind==='arrow'?'#dddcc1':'#c4ecda');if(p.kind==='orb'||p.kind==='star'){glow(ctx,p.x,p.y,17,color+'30');circle(ctx,p.x,p.y,5,color);circle(ctx,p.x,p.y,2,'#f7f0d4');}else{const len=p.visualLen||(p.kind==='charged'?29:p.kind==='wave'?48:20);line(ctx,p.x-Math.cos(p.a)*len,p.y-Math.sin(p.a)*len,p.x,p.y,color,p.kind==='wave'?6:p.kind==='charged'?4:2);polygon(ctx,[[p.x+Math.cos(p.a)*5,p.y+Math.sin(p.a)*5],[p.x+Math.cos(p.a+2.5)*7,p.y+Math.sin(p.a+2.5)*7],[p.x+Math.cos(p.a-2.5)*7,p.y+Math.sin(p.a-2.5)*7]],color);}}
- for(const v of galeVortices)GALE_VORTEX.draw(ctx,v);for(const v of remoteGaleVortices)GALE_VORTEX.draw(ctx,v);drawEffects(false);drawLockMarker();
+ for(const v of galeVortices)GALE_VORTEX.draw(ctx,v);for(const v of remoteGaleVortices)GALE_VORTEX.draw(ctx,v);drawEffects(false);
+ // Overlay the circular fire and sword-shard vortex on top of both fighters.
+ drawFlameFinaleVortex();
+ drawLockMarker();
  if(nearby&&mode==='play'){ctx.strokeStyle='#dcd4a47a';ctx.lineWidth=1;ctx.beginPath();ctx.ellipse(nearby.x,nearby.y+6,28,13,0,0,TAU);ctx.stroke();}
  for(const f of floaters){ctx.globalAlpha=clamp(f.t*2,0,1);if(f.damage){ctx.save();ctx.translate(f.x,f.y);ctx.rotate(f.rot||0);ctx.font='900 '+(f.big?22:16)+'px system-ui';ctx.textAlign='center';ctx.lineWidth=f.big?5:4;ctx.strokeStyle='#391619cc';ctx.strokeText(f.text,0,0);ctx.fillStyle=f.color;ctx.fillText(f.text,0,0);ctx.restore();}else worldText(f.text,f.x,f.y-(1-f.t/f.max)*30,f.color,f.big?18:13);}ctx.globalAlpha=1;
  if(mapWaypoint&&mode==='play'){const d=distance(player,mapWaypoint);if(d<55){mapWaypoint=null;toast('목적지에 도착했습니다.');}else if(visible(mapWaypoint)){const yy=mapWaypoint.y+Math.sin(realTime*3)*5;polygon(ctx,[[mapWaypoint.x,yy-46],[mapWaypoint.x+8,yy-34],[mapWaypoint.x,yy-22],[mapWaypoint.x-8,yy-34]],'#e5c780','#fff0b1',1);ctx.strokeStyle='#ebd18b80';ctx.beginPath();ctx.ellipse(mapWaypoint.x,mapWaypoint.y,21,10,0,0,TAU);ctx.stroke();}}
