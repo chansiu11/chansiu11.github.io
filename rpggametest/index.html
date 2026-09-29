@@ -1048,38 +1048,29 @@ function crimsonOutside(x,y,inner=170,outer=290,count=14,inward=false,twist=0){
 }
 const CRIMSON1_RX=110,CRIMSON1_RY=110,CRIMSON1_BEAM=168,CRIMSON1_WIDTH=39;
 function crimsonStrokeCircle(cx,cy,rx,ry,aim,power=1){
- // 원 둘레의 잔불은 선이 나가는 전방에 더 많게 두되, 전체 생성량은 기존의 약 절반이다.
+ // 2번 마지막 검격의 삼중 띠를 원으로 연결한다. 선 쪽에서 불씨가 더 많이 뿜어진다.
  const r=rx,low=options.quality==='low';
- effects.push({type:'crimsonEllipse',x:cx,y:cy,rx:r,ry:r,a:0,t:.39,max:.39});
- const jets=low?18:28;
+ effects.push({type:'crimsonEllipse',x:cx,y:cy,rx:r,ry:r,a:aim,t:.39,max:.39});
+ const jets=low?12:18;
  for(let j=0;j<jets;j++){
-  const q=aim+j*TAU/jets+rnd(-.04,.04),px=cx+Math.cos(q)*r,py=cy+Math.sin(q)*r;
+  const q=aim+j*TAU/jets+rnd(-.035,.035),px=cx+Math.cos(q)*r,py=cy+Math.sin(q)*r;
   const front=(1+Math.cos(q-aim))*.5;
-  const amount=Math.max(1,Math.round((low?1:2)+(low?4:6)*front*front));
-  crimsonEmbers(px,py,q+rnd(-.34,.34),amount,215+front*150,.36,.78+front*.32);
+  const amount=Math.max(1,Math.round((low?1:2)+(low?1:3)*front*front));
+  crimsonEmbers(px,py,q+rnd(-.32,.32),amount,190+front*120,.34,.77+front*.24);
  }
 }
 function crimsonStrokeLine(x1,y1,x2,y2,a,power=1){
- // 2번 스킬 마지막 검격처럼 붉은색·주황색·아이보리색 곡선 참격 세 겹.
- // 공격 판정은 기존 직선 그대로이며, 겉모양만 곡선 참격으로 표현한다.
- const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy),nx=-Math.sin(a),ny=Math.cos(a);
- const mx=(x1+x2)*.5,my=(y1+y2)*.5,r=Math.max(175,len*1.4);
- const cx=mx+nx*r,cy=my+ny*r,arc=len/r,centerAngle=a-Math.PI/2;
- const layers=[
-  {offset:9,color:'#d8233f',shift:-.075},
-  {offset:0,color:'#ff8144',shift:0},
-  {offset:-9,color:'#e7cca3',shift:.055}
- ];
- for(const layer of layers){
-  effects.push({type:'slash',x:cx,y:cy,r:r+layer.offset,a:centerAngle+layer.shift,arc:arc*.99,color:layer.color,t:.34,max:.34});
- }
- // 일정한 간격으로 선 전체에 잔불을 배치한다. 시작과 끝의 개수는 같다.
- const low=options.quality==='low',steps=low?11:18;
+ // 곡선 참격이 아니라 원 둘레에서 정확히 앞쪽으로 뻗는 곧은 삼중 검격 선.
+ // 붉은색·주황색·아이보리색 분리 띠는 2번 마지막 검격과 같은 색상이다.
+ const dx=x2-x1,dy=y2-y1,nx=-Math.sin(a),ny=Math.cos(a);
+ effects.push({type:'crimsonBeam',x:x1,y:y1,x2,y2,a,t:.36,max:.36});
+ // 시작~끝 전체에 균등하게 잔불을 남기고, 지나치게 많던 입자 수는 줄인다.
+ const low=options.quality==='low',steps=low?7:11;
  for(let j=0;j<steps;j++){
   const q=(j+.5)/steps;
   for(const side of [-1,1]){
-   const off=rnd(7,19),x=x1+dx*q+nx*side*off,y=y1+dy*q+ny*side*off;
-   crimsonEmbers(x,y,a+Math.PI+side*rnd(.30,.72),low?2:3,rnd(155,265),.40,rnd(.72,.96));
+   const off=rnd(7,16),x=x1+dx*q+nx*side*off,y=y1+dy*q+ny*side*off;
+   crimsonEmbers(x,y,a+Math.PI+side*rnd(.30,.68),low?1:2,rnd(145,230),.36,rnd(.68,.91));
   }
  }
 }
@@ -3740,13 +3731,20 @@ function drawEffects(ground=false){for(const e of effects){const progress=1-e.t/
  if(e.type==='flourish'){ctx.save();ctx.translate(e.x,e.y);ctx.rotate(progress*(e.style%2?-2:2));ctx.globalCompositeOperation='lighter';ctx.strokeStyle=e.color;ctx.lineWidth=3*(1-progress)+1;for(let j=0;j<2;j++){ctx.beginPath();ctx.ellipse(0,0,e.r*(.25+progress*.75)*(1-j*.18),e.r*(.25+progress*.75)*(.55-j*.08),0,0,TAU);ctx.stroke();}for(let j=0;j<8;j++){const a=j*TAU/8,r=e.r*progress;line(ctx,Math.cos(a)*r*.6,Math.sin(a)*r*.6,Math.cos(a)*r,Math.sin(a)*r,e.color,2);circle(ctx,Math.cos(a)*r,Math.sin(a)*r,3*(1-progress)+1,'#fff4d5');}ctx.restore();}
  if(e.type==='ring'){ctx.strokeStyle=e.color;ctx.lineWidth=2.5*(1-progress)+.5;ctx.beginPath();ctx.arc(e.x,e.y,e.r*(.35+.65*progress),0,TAU);ctx.stroke();}
  if(e.type==='crimsonEllipse'){
-  ctx.save();ctx.translate(e.x,e.y);ctx.rotate(e.a-Math.PI/2);ctx.globalCompositeOperation='lighter';ctx.shadowColor='#ff5437';ctx.shadowBlur=20;ctx.lineCap='round';
-  for(const [width,col] of [[12,'#98102d'],[6,'#ff4535'],[2.4,'#ffdfb3']]){ctx.lineWidth=width;ctx.strokeStyle=col;ctx.beginPath();ctx.arc(0,0,e.rx,0,TAU);ctx.stroke();}
+  ctx.save();ctx.translate(e.x,e.y);ctx.globalCompositeOperation='source-over';ctx.shadowColor='#ff6949';ctx.shadowBlur=4;ctx.lineCap='butt';
+  // 서로 겹치지 않는 3겹 검격: 사진 속 2번 마지막 참격의 색과 두께를 그대로 사용.
+  for(const [offset,width,col] of [[9,6,'#d8233f'],[0,7,'#ff8144'],[-9,3.5,'#e7cca3']]){
+   ctx.lineWidth=width;ctx.strokeStyle=col;ctx.beginPath();ctx.arc(0,0,e.rx+offset,0,TAU);ctx.stroke();
+  }
   ctx.restore();
  }
  if(e.type==='crimsonBeam'){
-  ctx.save();ctx.globalCompositeOperation='lighter';ctx.lineCap='round';ctx.shadowColor='#ff4c30';ctx.shadowBlur=23;
-  for(const [width,col] of [[e.w+10,'#7c0922'],[e.w*.68,'#ff3b34'],[e.w*.26,'#ff9c55'],[Math.max(2,e.w*.09),'#ffe8bd']]){ctx.lineWidth=width;ctx.strokeStyle=col;ctx.beginPath();ctx.moveTo(e.x,e.y);ctx.lineTo(e.x2,e.y2);ctx.stroke();}
+  ctx.save();ctx.globalCompositeOperation='source-over';ctx.lineCap='butt';ctx.shadowColor='#ff6949';ctx.shadowBlur=4;
+  // 세 띠 모두 같은 방향의 직선이며, 반원이나 곡선으로 휘어지지 않는다.
+  const a=Number.isFinite(e.a)?e.a:Math.atan2(e.y2-e.y,e.x2-e.x),nx=-Math.sin(a),ny=Math.cos(a);
+  for(const [offset,width,col] of [[9,6,'#d8233f'],[0,7,'#ff8144'],[-9,3.5,'#e7cca3']]){
+   ctx.lineWidth=width;ctx.strokeStyle=col;ctx.beginPath();ctx.moveTo(e.x+nx*offset,e.y+ny*offset);ctx.lineTo(e.x2+nx*offset,e.y2+ny*offset);ctx.stroke();
+  }
   ctx.restore();
  }
  if(e.type==='line')line(ctx,e.x,e.y,e.x2,e.y2,e.color,14*(1-progress)+2);
