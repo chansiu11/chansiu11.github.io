@@ -52,12 +52,12 @@ input[type=range]{width:100%;accent-color:var(--green)}.hint{font-size:10px;colo
       <div class="legend"><span>🌿 식물</span><span>🦟 곤충</span><span>🐸 토종 개구리</span><span>🐸 황소개구리</span><span>🦅 천적</span></div>
     </div>
     <section class="pyramid-wrap" aria-label="실시간 생태계 개체 수 피라미드">
-      <div class="pyramid-heading"><b>생태계 개체 수 피라미드</b><small>모든 층 동일 눈금</small></div>
+      <div class="pyramid-heading"><b>생태계 개체 수 피라미드</b><small>모든 층 같은 제곱근 눈금</small></div>
       <div class="pyramid-level"><span class="level-label">🦅 최상위 포식자</span><div class="level-track"><div id="barTop" class="level-bar" style="background:var(--purple)"></div></div><span class="level-count" id="countTop">26</span></div>
       <div class="pyramid-level"><span class="level-label">🐸 2차 소비자</span><div class="level-track"><div id="barFrogs" class="level-bar" style="background:linear-gradient(90deg,var(--blue),var(--orange))"></div></div><span class="level-count" id="countFrogs">170</span></div>
       <div class="pyramid-level"><span class="level-label">🦟 1차 소비자</span><div class="level-track"><div id="barInsects" class="level-bar" style="background:var(--yellow)"></div></div><span class="level-count" id="countInsects">820</span></div>
       <div class="pyramid-level"><span class="level-label">🌿 생산자</span><div class="level-track"><div id="barPlants" class="level-bar" style="background:var(--green)"></div></div><span class="level-count" id="countPlants">1,500</span></div>
-      <div class="pyramid-note">2차 소비자 = 토종 개구리 + 황소개구리. 황소개구리는 토종 개구리도 포식하므로 실제 영양 단계는 더 복잡합니다. 실측 자료가 아닌 교육용 계산 모형입니다.</div>
+      <div class="pyramid-note">2차 소비자 = 토종 개구리 + 황소개구리. 황소개구리는 토종 개구리도 포식하므로 실제 영양 단계는 더 복잡합니다. 막대 폭은 작은 집단도 보이도록 제곱근을 적용했으며 정확한 수는 오른쪽에 표시합니다. 실측 자료가 아닌 교육용 계산 모형입니다.</div>
     </section>
   </main>
   <aside class="panel right">
@@ -80,7 +80,7 @@ const controls={bull0:$('bull0'),predation:$('predation'),breed:$('breed'),preda
 let state,initial,running=true,speed=1,last=performance.now(),simMonth=0,sprites=[],effects=[],eventCooldown=0,accum=0;
 const DT=.5,colors={V:'#7ee2b8',I:'#f4cd62',N:'#71c7ff',B:'#ff8a67',P:'#bd98ff'},labels={V:'습지 식물',I:'곤충',N:'토종 개구리',B:'황소개구리',P:'천적'},emoji={V:'🌿',I:'🦟',N:'🐸',B:'🐸',P:'🦅'};
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),params=()=>({B0:+controls.bull0.value,pred:+controls.predation.value,breed:+controls.breed.value,predator:controls.predatorOn.checked}),fmt=n=>Math.round(n).toLocaleString('ko-KR');
-function shannon(s){const vals=[s.I,s.N,s.B,s.P].filter(v=>v>0),total=vals.reduce((a,b)=>a+b,0);if(!total)return 0;let h=0;vals.forEach(v=>{const p=v/total;h-=p*Math.log(p)});return clamp(h/Math.log(4),0,1)}
+function shannon(s){const vals=[s.V,s.I,s.N,s.B,s.P].filter(v=>v>0),total=vals.reduce((a,b)=>a+b,0);if(!total)return 0;let h=0;vals.forEach(v=>{const p=v/total;h-=p*Math.log(p)});return clamp(h/Math.log(5),0,1)}
 function reset(){const p=params();state={V:1500,I:820,N:170,B:0,P:p.predator?26:0};initial={...state};simMonth=0;accum=0;effects=[];eventCooldown=0;$('log').innerHTML='';makeSprites();updateUI();pushLog('시뮬레이션 시작','현재 조건으로 생태계 계산을 시작했습니다.')}
 function makeSprites(){sprites=[];['I','N','B','P'].forEach(t=>{const count=t==='I'?28:t==='N'?18:t==='B'?16:10;for(let i=0;i<count;i++)sprites.push({type:t,x:.1+Math.random()*.8,y:.15+Math.random()*.7,vx:(Math.random()-.5)*.11,vy:(Math.random()-.5)*.11,size:.8+Math.random()*.4})})}
 function stepModel(){
@@ -95,7 +95,12 @@ function stepModel(){
 }
 function weightedPick(items){const total=items.reduce((a,x)=>a+x.w,0);if(total<=0)return null;let r=Math.random()*total;for(const it of items){r-=it.w;if(r<=0)return it}return items[items.length-1]}
 function maybePredation(r){eventCooldown-=DT;if(eventCooldown>0)return;const e=weightedPick([{pred:'N',prey:'I',w:r.NI},{pred:'B',prey:'I',w:r.BI},{pred:'B',prey:'N',w:r.BN},{pred:'P',prey:'N',w:r.PN},{pred:'P',prey:'B',w:r.PB}]);if(!e)return;if(Math.random()<clamp((r.NI+r.BI+r.BN+r.PN+r.PB)/35,.12,.85)){triggerEat(e.pred,e.prey);eventCooldown=.8+Math.random()*1.8}}
-function spriteFor(type){const now=performance.now(),a=sprites.filter(s=>s.type===type&&(!s.hiddenUntil||s.hiddenUntil<now));return a.length?a[Math.floor(Math.random()*a.length)]:null}
+const visualCap={I:28,N:18,B:16,P:10},visualMax={I:1400,N:450,B:650,P:120},visualMin={I:3,N:2,B:1,P:1};
+function visibleCount(type){if(!state[type])return 0;const cap=visualCap[type],min=visualMin[type];return Math.min(cap,Math.round(min+(cap-min)*clamp(state[type]/visualMax[type],0,1)))}
+function spriteFor(type){
+ const now=performance.now(),visible=sprites.filter(s=>s.type===type).slice(0,visibleCount(type)).filter(s=>!s.hiddenUntil||s.hiddenUntil<now);
+ return visible.length?visible[Math.floor(Math.random()*visible.length)]:null;
+}
 function triggerEat(pred,prey){if(state[pred]<=0||state[prey]<=0)return;const a=spriteFor(pred),b=spriteFor(prey);if(!a||!b)return;
  // Model predation has already reduced the population. Hide a representative prey icon; do not subtract twice.
  a.x=clamp(b.x+.022,.03,.97);a.y=clamp(b.y+.018,.09,.91);b.hiddenUntil=performance.now()+1500;
@@ -109,7 +114,7 @@ function updateUI(){
  Object.entries(layers).forEach(([k,v])=>{const width=v>0?100*Math.sqrt(Math.min(v,2300)/2300):0;$('bar'+k).style.width=width.toFixed(2)+'%';$('count'+k).textContent=fmt(v)});
  $('clock').textContent=simMonth.toFixed(1)+'개월';$('diversity').textContent='다양성 '+shannon(state).toFixed(2);
  const nRatio=state.N/170,iRatio=state.I/820;let title='비교적 안정',text='주요 생물군이 모두 유지되고 있습니다.',color='#7ee2b8';
- if(state.N<8||state.I<30){title='평형 붕괴 위험';text='먹이그물의 한 생물군이 거의 사라졌습니다.';color='#ff6f6a'}else if(nRatio<.35||iRatio<.35||state.B>420){title='생태계 크게 흔들림';text='토종 생물 감소 또는 황소개구리 급증이 나타납니다.';color='#ff9b68'}else if(nRatio<.7||shannon(state)<.58){title='변화 관찰 필요';text='개체 수 구성과 다양성이 기준 상태에서 크게 변하고 있습니다.';color='#f4cd62'}
+ if(state.N<8||state.I<30){title='평형 붕괴 위험';text='먹이그물의 한 생물군이 거의 사라졌습니다.';color='#ff6f6a'}else if(nRatio<.35||iRatio<.35||state.B>420){title='생태계 크게 흔들림';text='토종 생물 감소 또는 황소개구리 급증이 나타납니다.';color='#ff9b68'}else if(nRatio<.7||shannon(state)<shannon(initial)*.75){title='변화 관찰 필요';text='개체 수 구성과 다양성이 기준 상태에서 크게 변하고 있습니다.';color='#f4cd62'}
  const box=$('status');box.innerHTML='<strong>'+title+'</strong>'+text;box.style.borderColor=color+'66';
  $('bull0v').textContent=controls.bull0.value;$('predationv').textContent=(+controls.predation.value).toFixed(2)+'×';$('breedv').textContent=(+controls.breed.value).toFixed(2)+'×';
 }
@@ -121,8 +126,7 @@ function drawWorld(){
  const nGrass=Math.round(plantDensity*40);
  for(let i=0;i<nGrass;i++){const x=((i*97.3)%Math.max(1,w)),y=h*(.76+(i%4)*.045),wave=Math.sin(performance.now()/850+i)*2;
    wctx.strokeStyle='rgba(110,211,126,.24)';wctx.lineWidth=1.8;wctx.beginPath();wctx.moveTo(x,y+20);wctx.quadraticCurveTo(x+wave,y+7,x+3,y);wctx.stroke()}
- const maxMap={I:1400,N:450,B:650,P:120},counts={I:state.I,N:state.N,B:state.B,P:state.P};
- const visualN={I:state.I>0?Math.round(3+25*clamp(state.I/maxMap.I,0,1)):0,N:state.N>0?Math.round(2+16*clamp(state.N/maxMap.N,0,1)):0,B:state.B>0?Math.round(1+15*clamp(state.B/maxMap.B,0,1)):0,P:state.P>0?Math.round(1+9*clamp(state.P/maxMap.P,0,1)):0},seen={I:0,N:0,B:0,P:0},now=performance.now();
+ const visualN={I:visibleCount('I'),N:visibleCount('N'),B:visibleCount('B'),P:visibleCount('P')},seen={I:0,N:0,B:0,P:0},now=performance.now();
  sprites.forEach(s=>{
    const visibleSlot=seen[s.type]++<visualN[s.type];if(!visibleSlot||s.hiddenUntil>now)return;
    if(running){s.x+=s.vx*.016*speed;s.y+=s.vy*.016*speed}
