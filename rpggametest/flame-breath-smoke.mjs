@@ -3,7 +3,7 @@ import {mkdir} from 'node:fs/promises';
 const base=process.env.RPG_URL||'http://127.0.0.1:8123/rpggametest/';
 const cases=[
  {slot:0,id:'guardBreak',ms:620,mode:'flameBreathSweep',hitTimes:2},
- {slot:1,id:'earthRend',ms:930,mode:'flameBreathRise',hitTimes:2},
+ {slot:1,id:'earthRend',ms:700,mode:'flameBreathRise',hitTimes:1},
  {slot:2,id:'quakeRush',ms:1000,mode:'flameBreathCleave',hitTimes:2},
  {slot:3,id:'ironJudgment',ms:720,mode:'flameBreathWheel',hitTimes:3},
  {slot:4,id:'meteorBreaker',ms:4940,mode:'flameBreathFinale',hitTimes:5}
@@ -22,6 +22,16 @@ for(const c of cases){
   const g=window.__game,p=g.player,e=g.enemies.find(e=>e.type==='dummy');
   e.x=p.x+(c.slot===2?140:260);e.y=p.y;e.sx=e.x;e.sy=e.y;e.r=25;e.testHitCount=0;e.testDamageTotal=0;e.speed=0;e.damage=0;e.maxHp=e.hp=1e8;e.baseMaxHp=1e8;e.stun=0;
   g.admin.god=true;p.facing=0;p.stun=0;p.attackCd=0;p.cast=0;p.skillCds.fill(0);
+  if(c.slot===1){
+   window.__riseTrace=[];
+   const observeRise=()=>{
+    const seq=g.activeSwordSkill;
+    if(seq?.skillId==='earthRend'&&window.__riseTrace.length<100)
+     window.__riseTrace.push({t:seq.elapsed,x:p.x,y:p.y});
+    if(!window.__riseTraceStop)requestAnimationFrame(observeRise);
+   };
+   requestAnimationFrame(observeRise);
+  }
   if(c.slot===3){
    window.__wheelTrace=[];
    const observeWheel=()=>{
@@ -53,6 +63,16 @@ for(const c of cases){
     fx:g.effects.length,types:[...new Set(g.effects.map(f=>f.type))],
     hp:e.hp,hitCount:e.testHitCount||0,damageTotal:e.testDamageTotal||0,hero:{x:g.player.x,y:g.player.y},pageError:g.error};
  });
+ if(c.slot===1){
+  const trace=await page.evaluate(()=>{window.__riseTraceStop=true;return window.__riseTrace||[];});
+  if(trace.length<8)throw Error('Missing second-form straight dash trace: '+JSON.stringify(trace));
+  const at=t=>trace.reduce((best,p)=>Math.abs(p.t-t)<Math.abs(best.t-t)?p:best,trace[0]);
+  const a=at(.08),b=at(.20),c1=at(.36),d=at(.50),firstSpeed=(b.x-a.x)/(b.t-a.t),lastSpeed=(d.x-c1.x)/(d.t-c1.t);
+  const drift=Math.max(...trace.map(p=>Math.abs(p.y-trace[0].y)));
+  if(firstSpeed<lastSpeed*1.8||Math.abs(d.x-trace[0].x-328)>18||drift>4||frame.hitCount!==1||!frame.types.includes('crimsonBladeFire'))
+   throw Error('Second form must travel straight 328 units, decelerate and hit in a fire ring at .50s: '+JSON.stringify({firstSpeed,lastSpeed,final:d,drift,hitCount:frame.hitCount,types:frame.types}));
+  console.log('Second form straight decelerating dash and circular hit verified:',JSON.stringify({firstSpeed,lastSpeed,travel:d.x-trace[0].x,drift}));
+ }
  if(c.slot===3){
   // Check trace before screenshot rendering might advance the game past skill end.
   await page.waitForFunction(()=>window.__wheelTrace?.some(p=>p.t>=.66),{timeout:30000,polling:35});
