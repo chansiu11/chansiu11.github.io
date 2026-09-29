@@ -69,7 +69,7 @@ for(const c of cases){
   const at=t=>trace.reduce((best,p)=>Math.abs(p.t-t)<Math.abs(best.t-t)?p:best,trace[0]);
   const a=at(.08),b=at(.20),c1=at(.36),d=at(.50),firstSpeed=(b.x-a.x)/(b.t-a.t),lastSpeed=(d.x-c1.x)/(d.t-c1.t);
   const drift=Math.max(...trace.map(p=>Math.abs(p.y-trace[0].y)));
-  if(firstSpeed<lastSpeed*1.8||Math.abs(d.x-trace[0].x-328)>18||drift>4||frame.hitCount!==1||!trace.some(p=>p.fx))
+  if(firstSpeed<lastSpeed*1.8||Math.abs(d.x-3000-328)>18||drift>4||frame.hitCount!==1||!trace.some(p=>p.fx))
    throw Error('Second form must travel straight 328 units, decelerate and hit in a fire ring at .50s: '+JSON.stringify({firstSpeed,lastSpeed,final:d,drift,hitCount:frame.hitCount,types:frame.types}));
   console.log('Second form straight decelerating dash and circular hit verified:',JSON.stringify({firstSpeed,lastSpeed,travel:d.x-trace[0].x,drift}));
  }
