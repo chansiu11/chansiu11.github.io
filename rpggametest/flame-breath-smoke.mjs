@@ -6,7 +6,7 @@ const cases=[
  {slot:1,id:'earthRend',ms:700,mode:'flameBreathRise',hitTimes:1},
  {slot:2,id:'quakeRush',ms:1000,mode:'flameBreathCleave',hitTimes:2},
  {slot:3,id:'ironJudgment',ms:720,mode:'flameBreathWheel',hitTimes:3},
- {slot:4,id:'meteorBreaker',ms:1500,mode:'flameBreathFinale',hitTimes:4}
+ {slot:4,id:'meteorBreaker',ms:2300,mode:'flameBreathFinale',hitTimes:6}
 ];
 await mkdir('rpggametest/flame-preview',{recursive:true});
 const browser=await chromium.launch({headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
@@ -31,6 +31,16 @@ for(const c of cases){
     if(!window.__riseTraceStop)requestAnimationFrame(observeRise);
    };
    requestAnimationFrame(observeRise);
+  }
+  if(c.slot===4){
+   window.__finaleTrace=[];
+   const observeFinale=()=>{
+    const seq=g.activeSwordSkill;
+    if(seq?.skillId==='meteorBreaker'&&seq.flameCaught&&window.__finaleTrace.length<250)
+     window.__finaleTrace.push({since:seq.elapsed-seq.flameCaughtAt,stage:seq.flameStage,hits:e.testHitCount||0});
+    if(!window.__finaleTraceStop)requestAnimationFrame(observeFinale);
+   };
+   requestAnimationFrame(observeFinale);
   }
   if(c.slot===3){
    window.__wheelTrace=[];
@@ -133,10 +143,14 @@ for(const c of cases){
  }
  await page.screenshot({path:'rpggametest/flame-preview/'+String(c.slot+1)+'-'+c.id+'.png'});
  if(c.slot===4){
-  await page.waitForFunction(()=>window.__game?.enemies?.find(e=>e.type==='dummy')?.testHitCount>=4,{timeout:30000,polling:35});
+  await page.waitForFunction(()=>window.__game?.enemies?.find(e=>e.type==='dummy')?.testHitCount>=6,{timeout:30000,polling:35});
   const end=await page.evaluate(()=>{const g=window.__game,e=g.enemies.find(v=>v.type==='dummy');return {hits:e.testHitCount,damage:e.testDamageTotal,x:g.player.x};});
-  if(end.hits<4||end.damage<=0)throw Error('Ultimate crossed two times but missed final seal: '+JSON.stringify(end));
-  console.log('Fifth form full finishing seal verified:',JSON.stringify(end));
+  const trace=await page.evaluate(()=>{window.__finaleTraceStop=true;return window.__finaleTrace||[];});
+  const sawAddedCuts=trace.some(p=>p.since>=1.08&&p.stage>=4);
+  const sawLateFinale=trace.some(p=>p.since>=1.47&&p.stage===5);
+  if(end.hits<6||end.damage<=0||!sawAddedCuts||!sawLateFinale)
+   throw Error('Extended ultimate must land four crosscuts and late finishing seal: '+JSON.stringify({end,sawAddedCuts,sawLateFinale,traceEnd:trace.slice(-5)}));
+  console.log('Fifth form extended four-crosscut finishing seal verified:',JSON.stringify({end,latest:trace.slice(-3)}));
  }
  if(errors.length||frame.pageError)throw Error('Runtime errors '+c.id+': '+errors.join(' | ')+' '+frame.pageError);
  if(frame.hitCount<1||frame.damageTotal<=0)throw Error('No hit registered for '+c.id+' '+JSON.stringify(frame));
