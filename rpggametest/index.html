@@ -1046,15 +1046,15 @@ function crimsonOutside(x,y,inner=170,outer=290,count=14,inward=false,twist=0){
  const n=options.quality==='low'?Math.ceil(count*.58):count;
  for(let j=0;j<n;j++){const aa=rnd(0,TAU),rr=rnd(inner,outer),px=x+Math.cos(aa)*rr,py=y+Math.sin(aa)*rr,dir=(inward?aa+Math.PI:aa)+twist+rnd(-.38,.38);crimsonEmbers(px,py,dir,1+(j%3===0?1:0),rnd(190,360),.24,rnd(.72,1.12));}
 }
-const CRIMSON1_RX=110,CRIMSON1_RY=110,CRIMSON1_BEAM=194,CRIMSON1_WIDTH=39;
+const CRIMSON1_RX=110,CRIMSON1_RY=110,CRIMSON1_BEAM=168,CRIMSON1_WIDTH=39;
 function crimsonStrokeCircle(cx,cy,rx,ry,aim,power=1){
  // Skill 1 uses a true circle; skill 2's wind-swept oval embers are reused around its edge.
  const r=rx;
  effects.push({type:'crimsonEllipse',x:cx,y:cy,rx:r,ry:r,a:0,t:.38,max:.38});
- const jets=30,low=options.quality==='low';
+ const jets=34,low=options.quality==='low';
  for(let j=0;j<jets;j++){
   const q=aim+j*TAU/jets,px=cx+Math.cos(q)*r,py=cy+Math.sin(q)*r;
-  const strong=j%8===0||j%8===1,amount=low?(strong?3:2):(strong?8:4);
+  const strong=j%8===0||j%8===1,amount=low?(strong?4:3):(strong?11:6);
   // Reuse skill 2's wind-swept elliptical flame particles around the circular edge.
   crimsonEmbers(px,py,q+rnd(-.20,.20),amount,strong?345:260,.38,strong?1.2:.95);
  }
@@ -1063,9 +1063,9 @@ function crimsonStrokeLine(x1,y1,x2,y2,a,power=1){
  effects.push({type:'crimsonBeam',x:x1,y:y1,x2,y2,a,w:CRIMSON1_WIDTH,t:.39,max:.39});
  // Ash trails gather along the sides and behind the line instead of covering its bright center.
  const tangentX=-Math.sin(a),tangentY=Math.cos(a),dx=x2-x1,dy=y2-y1;
- for(let j=1;j<=12;j++){
-  const q=j/13,side=j%2?1:-1,off=rnd(8,20),px=x1+dx*q+tangentX*side*off,py=y1+dy*q+tangentY*side*off;
-  crimsonEmbers(px,py,a+Math.PI+side*rnd(.35,.62),j%4===0?4:2,rnd(130,230),.30,rnd(.6,.9));
+ for(let j=1;j<=17;j++){
+  const q=j/18,side=j%2?1:-1,off=rnd(8,23),px=x1+dx*q+tangentX*side*off,py=y1+dy*q+tangentY*side*off;
+  crimsonEmbers(px,py,a+Math.PI+side*rnd(.35,.62),j%4===0?6:3,rnd(130,240),.30,rnd(.6,.9));
  }
 }
 function ring(x,y,r,color,t=.5){effects.push({type:'ring',x,y,r,color,t,max:t});}
