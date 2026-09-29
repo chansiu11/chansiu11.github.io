@@ -2372,7 +2372,7 @@ function performSwordSkillHit(seq,hitIndex){
   }
  }
  else if(mode==='triadPyre'){
-  const vs=seq.triadVertices??crimsonTriadVertices(seq);seq.triadVertices=vs,center={x:Number.isFinite(seq.anchorX)?seq.anchorX:(vs[0].x+vs[1].x+vs[2].x)/3,y:Number.isFinite(seq.anchorY)?seq.anchorY:(vs[0].y+vs[1].y+vs[2].y)/3};
+  const vs=seq.triadVertices??crimsonTriadVertices(seq);seq.triadVertices=vs;const center={x:Number.isFinite(seq.anchorX)?seq.anchorX:(vs[0].x+vs[1].x+vs[2].x)/3,y:Number.isFinite(seq.anchorY)?seq.anchorY:(vs[0].y+vs[1].y+vs[2].y)/3};
   if(hitIndex<3){
    const from=hitIndex===0?{x:seq.originX,y:seq.originY}:vs[hitIndex-1],to=vs[hitIndex],a=Math.atan2(center.y-to.y,center.x-to.x),radius=hitIndex===2?198:170;
    for(const e of combatTargets()){if(e.dead||e.riftSleeping)continue;const c=combatCenter(e),er=combatRadius(e),d=combatDistance(e,to);
