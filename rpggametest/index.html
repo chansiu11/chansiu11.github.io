@@ -1101,6 +1101,17 @@ function crimsonBloom(x,y,r=112,life=.5,intensity=1){
  effects.push({type:'crimsonBloom',x,y,r,intensity,seed:Math.floor(rnd(1,2147483646)),t:life,max:life});
  effects.push({type:'crimsonScorch',x,y,r:r*.76,w:r*.60,t:life*1.4,max:life*1.4});
 }
+// Distinct original Crimson render primitives: wing-shaped flame, rising embers, and triangular burn seal.
+function crimsonWingFx(x,y,a,reach=180,side=1,life=.45){
+ effects.push({type:'crimsonWing',x,y,a,reach,side,seed:Math.floor(rnd(1,2147483646)),t:life,max:life});
+ crimsonEmbers(x+Math.cos(a)*reach*.56,y+Math.sin(a)*reach*.56,a+Math.PI,options.quality==='low'?4:7,235,.75,.96);
+}
+function crimsonPillarFx(x,y,r=82,delay=0,life=.52){
+ effects.push({type:'crimsonPillar',x,y,r,activeLife:life,delay,t:life+delay,max:life+delay,seed:Math.floor(rnd(1,2147483646))});
+}
+function crimsonTriangleFx(vs,life=.76){
+ if(!Array.isArray(vs)||vs.length!==3)return;effects.push({type:'crimsonTriangle',vs:vs.map(v=>({x:v.x,y:v.y})),t:life,max:life,seed:Math.floor(rnd(1,2147483646))});
+}
 function ring(x,y,r,color,t=.5){effects.push({type:'ring',x,y,r,color,t,max:t});}
 let prismCastSerial=0;
 function cancelSwordSkill(preserveFollow=false){activeSwordSkill=null;fourthSkillHold=null;fourthSkillField=null;secondSkillDash=null;secondSkillArmed=false;skillTrayPress=null;standardSkillHold=null;skill2Knocks=[];hiddenSkillEvents=[];hiddenSkillHold=null;if(!preserveFollow)hiddenSkillFollowup=null;if(void3State)endVoid3World();if(player){player.skillKind='';player.skillPose=-1;player.skillLift=0;player.pendingSlam=null;player.cast=0;player.pvpKnock=null;}}
@@ -1482,29 +1493,55 @@ function swordSignatureFx(id,hitIndex,finalHit,ang,reach,color,actor=player,cont
  const theme=swordStyleFxForSkill(id);color=theme.main;const sub=theme.sub,accent=theme.accent,dark=theme.dark;
  const x=actor.x+Math.cos(ang)*Math.min(Math.max(reach*.45,28),85),y=actor.y+Math.sin(ang)*Math.min(Math.max(reach*.45,28),85);
  if(CRIMSON_SKILLS.has(id)){
-  const slot=['guardBreak','earthRend','quakeRush','ironJudgment','meteorBreaker'].indexOf(id),ax=Number.isFinite(context?.anchorX)?context.anchorX:actor.x+Math.cos(ang)*145,ay=Number.isFinite(context?.anchorY)?context.anchorY:actor.y+Math.sin(ang)*145;
+  const slot=['guardBreak','earthRend','quakeRush','ironJudgment','meteorBreaker'].indexOf(id);
+  const f=context?.baseFacing??ang,ca=Math.cos(f),sa=Math.sin(f),nx=-sa,ny=ca,side=context?.side||1;
   if(id==='guardBreak'){
-   const ca2=Math.cos(ang),sa2=Math.sin(ang);
-   if(hitIndex===0){crimsonStrokeCircle(actor.x,actor.y,CRIMSON1_RX,CRIMSON1_RY,ang,1.2);}
-   else{const bx=Number.isFinite(context?.originX)?context.originX:actor.x,by=Number.isFinite(context?.originY)?context.originY:actor.y,x1=bx+ca2*CRIMSON1_RY,y1=by+sa2*CRIMSON1_RY,x2=x1+ca2*CRIMSON1_BEAM,y2=y1+sa2*CRIMSON1_BEAM;crimsonStrokeLine(x1,y1,x2,y2,ang,1.3);}
+   const ox=context?.originX??actor.x-ca*80,oy=context?.originY??actor.y-sa*80;
+   if(hitIndex===0){crimsonRibbon(ox,oy,actor.x,actor.y,43,.50,'wake');crimsonEmbers(actor.x,actor.y,f+Math.PI,12,275,.48,.92);}
+   else{
+    crimsonRibbon(ox,oy,actor.x,actor.y,86,.72,'wall');
+    for(let j=0;j<4;j++){const q=(j+.35)/4;crimsonEmbers(ox+(actor.x-ox)*q,oy+(actor.y-oy)*q,f+Math.PI,7,330,.55,1.03);}
+    crimsonBloom(actor.x,actor.y,112,.53,1.23);
+   }
   }else if(id==='earthRend'){
-    const density=[7,10,8,13,17][hitIndex]||8,face=context?.baseFacing??ang,ca=Math.cos(face),sa=Math.sin(face),nx=-sa,ny=ca,side=context?.side||1;crimsonRibbon(actor.x-ca*112-nx*side*38,actor.y-sa*112-ny*side*38,actor.x+ca*55+nx*side*28,actor.y+sa*55+ny*side*28,38+hitIndex*5,.40,'wake');crimsonEmbers(actor.x,actor.y,ang+Math.PI,density,285+hitIndex*34,.78,1.05);
-    if(hitIndex===1||hitIndex===3)crimsonBloom(actor.x,actor.y,82+hitIndex*14,.42,.88);
-    if(finalHit){crimsonBloom(actor.x,actor.y,150,.57,1.08);crimsonEmbers(actor.x,actor.y,face+Math.PI,11,385,.82,1.12);}
+   // Flame hooks curve across the line of travel instead of tracing a circle or copying a crescent projectile.
+   const size=75+hitIndex*25;
+   for(const off of [-.36,.16,.65]){const dir=f+side*(off+.12*hitIndex),bx=actor.x-ca*80-nx*side*24,by=actor.y-sa*80-ny*side*24;
+    crimsonRibbon(bx,by,bx+Math.cos(dir)*size+nx*side*50,by+Math.sin(dir)*size+ny*side*50,26+hitIndex*5,.45,'wake');}
+   crimsonEmbers(actor.x,actor.y,f+Math.PI,11,290+hitIndex*38,.67,.99);
+   if(finalHit)crimsonBloom(actor.x+ca*45,actor.y+sa*45,123,.55,1.12);
   }else if(id==='quakeRush'){
-    const face=context?.baseFacing??ang,ca=Math.cos(face),sa=Math.sin(face),nx=-sa,ny=ca,lead=[96,132,166,205][hitIndex]||166,off=(hitIndex%2?24:-24)*(context?.side||1),cx=actor.x+ca*lead+nx*off,cy=actor.y+sa*lead+ny*off,rad=[75,90,109,145][hitIndex]||100;crimsonBloom(cx,cy,rad,finalHit?.60:.42,finalHit?1.25:.88);for(let j=-1;j<=1;j++)crimsonEmbers(cx+nx*j*rad*.52,cy+ny*j*rad*.52,face+Math.PI,finalHit?6:3,finalHit?350:230,.72,finalHit?1.1:.85);
-    if(finalHit){crimsonEmbers(cx,cy,face+Math.PI,10,345,.78,1.0);}
+   const offset=[-.47,.35,-.24,.04][hitIndex]*side;
+   crimsonWingFx(actor.x,actor.y,f+offset,[185,195,205,245][hitIndex],side,finalHit?.62:.46);
+   crimsonEmbers(actor.x+ca*65,actor.y+sa*65,f+offset,7+hitIndex*2,270,.92,.96);
+   if(finalHit)crimsonBloom(actor.x+ca*154,actor.y+sa*154,92,.51,1.0);
   }else if(id==='ironJudgment'){
-    const ox=context?.originX??actor.x,oy=context?.originY??actor.y,face=context?.baseFacing??ang,ca=Math.cos(face),sa=Math.sin(face),nx=-sa,ny=ca,side=context?.side||1;crimsonRibbon(actor.x+ca*65-nx*side*(50+hitIndex*8),actor.y+sa*65-ny*side*(50+hitIndex*8),actor.x+ca*65+nx*side*(58+hitIndex*12),actor.y+sa*65+ny*side*(58+hitIndex*12),40+hitIndex*4,.40,'wake');crimsonEmbers(actor.x+ca*70,actor.y+sa*70,face+side*Math.PI/2,7+hitIndex*2,250+hitIndex*40,.70,1.0);
-    if(hitIndex===3){crimsonRibbon(ox+ca*110,oy+sa*110,actor.x+ca*110,actor.y+sa*110,116,.78,'wall');crimsonBloom(actor.x+ca*110,actor.y+sa*110,98,.6,1.0);crimsonEmbers(actor.x,actor.y,face+side*Math.PI/2,13,375,.85,1.12);}
-  }else{
-   const target=context?.target,cx=target?.x??ax,cy=target?.y??ay;
-    if(hitIndex<3){crimsonRibbon(actor.x-Math.cos(ang)*105,actor.y-Math.sin(ang)*105,actor.x+Math.cos(ang)*65,actor.y+Math.sin(ang)*65,44+hitIndex*7,.46,'wake');crimsonEmbers(actor.x,actor.y,ang+Math.PI,9+hitIndex*2,310,.72,1.04);}
-    else if(hitIndex<7){const a=context?.baseFacing??ang,nx=-Math.sin(a),ny=Math.cos(a),side=context?.side||1,px=cx+nx*side*(hitIndex%2?65:-65),py=cy+ny*side*(hitIndex%2?65:-65);crimsonBloom(px,py,78+hitIndex*11,.48,.91);crimsonEmbers(px,py,a+Math.PI,8,310,.78,1.0);}
-    else if(hitIndex===7){crimsonBloom(cx,cy,145,.54,1.12);crimsonEmbers(cx,cy,ang+Math.PI,7,225,.45,.95);}
-    else{crimsonBloom(cx,cy,275,.80,1.4);const a=context?.baseFacing??ang,nx=-Math.sin(a),ny=Math.cos(a),ca=Math.cos(a),sa=Math.sin(a);for(let j=-1;j<=1;j++)crimsonRibbon(cx-ca*205+nx*j*80,cy-sa*205+ny*j*80,cx+ca*225+nx*j*80,cy+sa*225+ny*j*80,65,.70,'wall');crimsonEmbers(cx,cy,ang,16,470,.90,1.28);}
+   const px=actor.x+ca*105,py=actor.y+sa*105;
+   if(hitIndex<3){crimsonPillarFx(px,py,64+hitIndex*6,0,.52);crimsonEmbers(px,py,f+Math.PI,10,235,1.1,.99);}
+   else{
+    const nodes=[...(context?.pyreNodes||[]),{x:px,y:py}];
+    nodes.forEach((n,i)=>crimsonPillarFx(n.x,n.y,106-i*8,i*.105,.62));
+    crimsonRibbon(context?.originX??actor.x,context?.originY??actor.y,actor.x,actor.y,75,.60,'wall');
+    crimsonEmbers(px,py,f+side*Math.PI/2,13,390,1.0,1.15);
+   }
+  }else if(id==='meteorBreaker'){
+   const vs=context?.triadVertices??crimsonTriadVertices({crimsonFace:f,anchorX:context?.anchorX,anchorY:context?.anchorY,side},actor);
+   if(hitIndex<3){
+    const from=hitIndex===0?{x:context?.originX??actor.x,y:context?.originY??actor.y}:vs[hitIndex-1],to=vs[hitIndex];
+    crimsonRibbon(from.x,from.y,to.x,to.y,hitIndex===2?72:56,.77,'wall');
+    crimsonPillarFx(to.x,to.y,68+hitIndex*16,0,.62);
+    crimsonEmbers(to.x,to.y,ang+Math.PI,11+hitIndex*3,305,.91,1.06);
+   }else if(hitIndex===3){
+    crimsonRibbon(vs[2].x,vs[2].y,vs[0].x,vs[0].y,78,.85,'wall');
+    crimsonTriangleFx(vs,.88);for(const v of vs)crimsonPillarFx(v.x,v.y,89,0,.62);
+   }else{
+    const cx=(vs[0].x+vs[1].x+vs[2].x)/3,cy=(vs[0].y+vs[1].y+vs[2].y)/3;
+    crimsonTriangleFx(vs,1.02);crimsonBloom(cx,cy,235,.87,1.47);
+    for(let i=0;i<3;i++){const from=vs[i],to=vs[(i+1)%3];crimsonRibbon(from.x,from.y,to.x,to.y,92,.90,'wall');}
+    for(const v of vs)crimsonPillarFx(v.x,v.y,115,0,.84);
+   }
   }
-  if(actor===player){const shakeScale=id==='meteorBreaker'?(hitIndex===7?.20:hitIndex===8?2.0:hitIndex<3?.55:.95):finalHit?1.28:.62;triggerSkillShake(Math.max(0,slot),shakeScale);}
+  if(actor===player)triggerSkillShake(Math.max(0,slot),id==='meteorBreaker'?finalHit?1.8:.85:finalHit?1.06:.50);
   return;
  }
  if(id==='windSlash'){
@@ -1994,14 +2031,14 @@ function swordSkillStartVisuals(actor,sk,slot,facing){
   burst(x,y,theme.main,18,160);
  }
  if(cfg.mode!=='galePulse'){
-  if(CRIMSON_SKILLS.has(sk.id)){if(sk.id==='guardBreak'){}else if(sk.id==='earthRend')crimsonEmbers(x,y,facing+Math.PI,4,165,.55,.8);else if(sk.id==='quakeRush')for(let j=0;j<3;j++)crimsonEmbers(x+Math.cos(j*TAU/3)*90,y+Math.sin(j*TAU/3)*90,j*TAU/3+Math.PI,3,150,.35,.8);else if(sk.id==='ironJudgment')crimsonFlare(x,y,facing,.65,false);}
+  if(CRIMSON_SKILLS.has(sk.id)){crimsonEmbers(x,y,facing+Math.PI,sk.id==='meteorBreaker'?12:7,sk.id==='meteorBreaker'?260:180,.62,.85);if(sk.id==='quakeRush')crimsonWingFx(x+Math.cos(facing)*30,y+Math.sin(facing)*30,facing,68,1,.24);else if(sk.id==='ironJudgment')crimsonPillarFx(x+Math.cos(facing)*80,y+Math.sin(facing)*80,42,0,.27);}
   else if(!['chainReap','phantomSwap','gravityCut','bladeRain'].includes(sk.id))ring(x,y,slot===4?64:24,theme.main,slot===4?.38:.22);
   else effects.push({type:'line',x:x-Math.sin(facing)*30,y:y+Math.cos(facing)*30,x2:x+Math.cos(facing)*125+Math.sin(facing)*30,y2:y+Math.sin(facing)*125-Math.cos(facing)*30,color:theme.main,t:.22,max:.22});
  }
 }
 function swordUltimateHitVisuals(actor,sk,slot,hitIndex,ang,reach){
  if(!actor||!sk||slot!==4||sk.id==='thunderDrive')return;const th=swordStyleFxForSkill(sk.id),x=actor.x,y=actor.y;
-   if(sk.id==='meteorBreaker'){crimsonEmbers(x,y,ang+Math.PI,5+hitIndex,250+hitIndex*22,.76,1.03);if(hitIndex===2||hitIndex===6)crimsonBloom(x,y,80+hitIndex*9,.36,.80);return;}
+   if(sk.id==='meteorBreaker')return;
  effects.push({type:'nova',x:x+Math.cos(ang)*Math.min(reach*.45,110),y:y+Math.sin(ang)*Math.min(reach*.45,110),r:105+hitIndex*18,color:th.accent,t:.34,max:.34});
  effects.push({type:'starSeal',x,y,r:125+hitIndex*14,color:th.main,t:.30,max:.30});
  burst(x+Math.cos(ang)*55,y+Math.sin(ang)*55,th.sub,10+hitIndex*3,175);
@@ -2051,12 +2088,14 @@ function updateUltimateCinematic(seq,sk,dt){
   if(seq.ultPhase===0&&p>=.26){seq.ultPhase=1;effects.push({type:'nova',x:player.x,y:player.y,r:210,color:th.main,t:.48,max:.48});shake=Math.max(shake,8);}
   if(seq.ultPhase===1&&p>=.70){seq.ultPhase=2;for(let j=0;j<8;j++){const a=j*TAU/8;effects.push({type:'slash',x:player.x,y:player.y,a,arc:1.15,r:190,color:j%2?th.sub:th.main,t:.28,max:.28});}shake=Math.max(shake,12);}
  }else if(sk.id==='meteorBreaker'){
-   const target=swordSeqTarget(seq),cx=target?.x??seq.anchorX??player.x+Math.cos(seq.facing)*190,cy=target?.y??seq.anchorY??player.y+Math.sin(seq.facing)*190,u=p;
-   const moving=(u>=.06&&u<.23)||(u>=.39&&u<.56)||(u>=.75&&u<.92);
-   if(seq.ultFx<=0){seq.ultFx=moving?.085:u>.92?.048:.135;
-    if(!moving&&u<.92){const side=seq.side||1,a=seq.crimsonFace??seq.facing,offset=u<.39?130:u<.75?-125:0,px=cx-Math.sin(a)*side*offset,py=cy+Math.cos(a)*side*offset;crimsonBloom(px,py,u<.39?52:u<.75?76:105,.34,.68);crimsonEmbers(px,py,a+Math.PI,4,175,.55,.78);}
-    else if(u>.92){crimsonBloom(cx,cy,175,.36,1.06);crimsonEmbers(cx,cy,seq.facing,9,440,1.0,1.12);}
-   }shake=Math.max(shake,u>.92?19:moving?9:5);
+  const vs=seq.triadVertices??crimsonTriadVertices(seq),u=p;
+  if(seq.ultFx<=0){seq.ultFx=u>.75?.11:.16;
+   const leg=u<.30?0:u<.56?1:2,point=vs[leg];
+   if(u<.80){crimsonEmbers(point.x,point.y,seq.crimsonFace??seq.facing,6,175,1.1,.91);}
+   else{const cx=(vs[0].x+vs[1].x+vs[2].x)/3,cy=(vs[0].y+vs[1].y+vs[2].y)/3;
+    crimsonEmbers(cx,cy,seq.crimsonFace??seq.facing,9,295,.9,1.0);}
+  }
+  shake=Math.max(shake,u>.80?13:7);
  }else if(sk.id==='prismLance'){
   player.skillLift=0; // Arena parity: fixed-origin three-phase lance, no world-only sidestep.
  }else if(sk.id==='voidDance'){
@@ -2072,8 +2111,10 @@ function ultimateFinishFx(seq,sk){
  }else if(sk.id==='lunarBind'){
   effects.push({type:'starSeal',x:player.x,y:player.y,r:320,color:th.sub,t:.72,max:.72});for(let j=0;j<12;j++){const a=j*TAU/12;effects.push({type:'slash',x:player.x,y:player.y,a,arc:.9,r:280,color:j%2?th.main:th.sub,t:.42,max:.42});}
  }else if(sk.id==='meteorBreaker'){
-   const target=swordSeqTarget(seq),cx=target?.x??seq.anchorX??player.x+Math.cos(seq.facing)*190,cy=target?.y??seq.anchorY??player.y+Math.sin(seq.facing)*190,a=seq.crimsonFace??seq.facing,ca=Math.cos(a),sa=Math.sin(a),nx=-sa,ny=ca;crimsonBloom(cx,cy,310,.95,1.40);
-   for(let j=-2;j<=2;j++)crimsonRibbon(cx-ca*255+nx*j*82,cy-sa*255+ny*j*82,cx+ca*260+nx*j*97,cy+sa*260+ny*j*97,54+Math.abs(j)*8,.78,'wall');crimsonOutside(cx,cy,205,385,13,false);crimsonEmbers(cx,cy,a,18,500,.9,1.28);shake=Math.max(shake,24);
+  const vs=seq.triadVertices??crimsonTriadVertices(seq),cx=(vs[0].x+vs[1].x+vs[2].x)/3,cy=(vs[0].y+vs[1].y+vs[2].y)/3,a=seq.crimsonFace??seq.facing;
+  crimsonBloom(cx,cy,248,.91,1.38);crimsonTriangleFx(vs,.88);
+  for(const v of vs)crimsonEmbers(v.x,v.y,a,10,420,.94,1.17);
+  shake=Math.max(shake,24);
  }else if(sk.id==='prismLance'){
   const a=seq.facing;effects.push({type:'riftCut',x:player.x+Math.cos(a)*260,y:player.y+Math.sin(a)*260,a,len:760,width:92,color:th.sub,t:.66,max:.66});for(let j=-3;j<=3;j++){const aa=a+j*.13;effects.push({type:'line',x:player.x,y:player.y,x2:player.x+Math.cos(aa)*520,y2:player.y+Math.sin(aa)*520,color:j===0?th.sub:th.main,t:.44,max:.44});}
  }else if(sk.id==='voidDance'){
@@ -2364,7 +2405,7 @@ function performSwordSkillHit(seq,hitIndex){
  }
  else if(mode==='bladeRain'){for(let j=-4;j<=4;j++)fireProjectile(player.x,player.y,ang+j*.13,520+Math.abs(j)*22,damageValue(.68),'player','wave',2);}
  moveSwordCarryTargets(seq,player.x-px0,player.y-py0);
- swordSignatureFx(sk.id,hitIndex,finalHit,ang,reach,sk.color,player,{anchorX:seq.anchorX,anchorY:seq.anchorY,originX:seq.originX,originY:seq.originY,target:swordSeqTarget(seq),side:seq.side||1,baseFacing:seq.crimsonFace??seq.facing});
+ swordSignatureFx(sk.id,hitIndex,finalHit,ang,reach,sk.color,player,{anchorX:seq.anchorX,anchorY:seq.anchorY,originX:seq.originX,originY:seq.originY,target:swordSeqTarget(seq),side:seq.side||1,baseFacing:seq.crimsonFace??seq.facing,pyreNodes:seq.pyreNodes,triadVertices:seq.triadVertices});
  if(mode==='galePulse')sendSharedSkillFx(seq.slot,sk.id,player.weapon,ang);
  swordUltimateHitVisuals(player,sk,seq.slot,hitIndex,ang,reach);
  if(finalHit){sound('hit');shake=Math.max(shake,seq.ultimate?16:['earthSlam','meteorNova'].includes(mode)?12:['guardPierce','thunderDash','dawnWave'].includes(mode)?8:5);}else sound('swing');
@@ -3803,6 +3844,41 @@ function drawEffects(ground=false){for(const e of effects){const progress=1-e.t/
  if(ground)continue;ctx.save();ctx.globalAlpha=clamp(e.t/e.max,0,1);
  if(e.type==='particle'){circle(ctx,e.x,e.y,e.size,e.color);}
  if(e.type==='ember'){ctx.save();ctx.translate(e.x,e.y);ctx.rotate(Number.isFinite(e.a)?e.a:Math.atan2(e.vy||0,e.vx||1));ctx.globalCompositeOperation='lighter';ctx.shadowColor=e.color;ctx.shadowBlur=10;ctx.fillStyle=e.color;ctx.beginPath();ctx.ellipse(0,0,e.rx||6,e.ry||2,0,0,TAU);ctx.fill();ctx.shadowBlur=4;ctx.fillStyle='#ffe4b8';ctx.globalAlpha*=.72;ctx.beginPath();ctx.ellipse((e.rx||6)*.22,0,(e.rx||6)*.42,(e.ry||2)*.48,0,0,TAU);ctx.fill();ctx.restore();}
+ if(e.type==='crimsonWing'){
+  ctx.save();ctx.translate(e.x,e.y);ctx.rotate(e.a);ctx.globalCompositeOperation='lighter';
+  let seed=e.seed>>>0;const rand=()=>{seed=(Math.imul(1664525,seed)+1013904223)>>>0;return seed/4294967296;};
+  const low=options.quality==='low',r=e.reach;
+  for(const side of [-1,1]){
+   for(const layer of [1,.67,.37]){
+    ctx.beginPath();ctx.moveTo(0,0);
+    ctx.bezierCurveTo(r*.13,-side*r*.14*layer,r*.46,side*r*(.80+rand()*.19)*layer,r*(.94-rand()*.12),side*r*(.27+rand()*.25)*layer);
+    ctx.bezierCurveTo(r*.67,side*r*(.13+rand()*.09)*layer,r*.43,side*r*.12*layer,0,0);
+    ctx.closePath();ctx.fillStyle=layer===1?'#c91d35':layer>.5?'#ff6b31':'#ffcd79';ctx.shadowColor=ctx.fillStyle;ctx.shadowBlur=low?5:16;ctx.fill();
+   }
+   for(let i=0,n=low?3:7;i<n;i++){const q=(i+.15+rand()*.7)/n,px=r*q,py=side*r*(.17+q*.32),sz=5+rand()*r*.035;
+    ctx.fillStyle=i%3===0?'#fff0b7':'#ff9847';ctx.beginPath();ctx.ellipse(px,py,sz,sz*.34,q*side,0,TAU);ctx.fill();}
+  }
+  ctx.restore();
+ }
+ if(e.type==='crimsonPillar'){
+  if(e.t>e.activeLife){ctx.restore();continue;}
+  ctx.save();ctx.translate(e.x,e.y);ctx.globalCompositeOperation='lighter';const r=e.r,life=clamp(e.t/e.activeLife,0,1),low=options.quality==='low';
+  let seed=e.seed>>>0;const rand=()=>{seed=(Math.imul(1664525,seed)+1013904223)>>>0;return seed/4294967296;};
+  const grad=ctx.createRadialGradient(0,0,1,0,0,r*1.3);grad.addColorStop(0,'rgba(255,224,138,.84)');grad.addColorStop(.32,'rgba(255,117,40,.71)');grad.addColorStop(1,'rgba(190,23,40,0)');ctx.fillStyle=grad;ctx.beginPath();ctx.arc(0,0,r*1.3,0,TAU);ctx.fill();
+  for(let i=0,n=low?5:11;i<n;i++){const a=i*TAU/n+(rand()-.5)*.4,rr=r*(.18+rand()*.35),xx=Math.cos(a)*rr,yy=Math.sin(a)*rr,h=r*(.64+rand()*.88)*life;
+   ctx.fillStyle=i%4===0?'#ffe2a0':i%2?'#fc532c':'#fa9b48';ctx.shadowColor='#ff743c';ctx.shadowBlur=low?5:12;
+   ctx.beginPath();ctx.moveTo(xx-r*.20,yy+r*.17);ctx.bezierCurveTo(xx-r*.28,yy-h*.20,xx+r*.25,yy-h*.56,xx+(rand()-.5)*r*.4,yy-h);ctx.bezierCurveTo(xx+r*.32,yy-h*.46,xx+r*.20,yy+r*.18,xx-r*.20,yy+r*.17);ctx.closePath();ctx.fill();
+  }ctx.restore();
+ }
+ if(e.type==='crimsonTriangle'){
+  ctx.save();ctx.globalCompositeOperation='lighter';const vs=e.vs,life=clamp(e.t/e.max,0,1),cx=(vs[0].x+vs[1].x+vs[2].x)/3,cy=(vs[0].y+vs[1].y+vs[2].y)/3;
+  const r=Math.max(155,Math.hypot(vs[0].x-cx,vs[0].y-cy)),g=ctx.createRadialGradient(cx,cy,8,cx,cy,r*1.5);
+  g.addColorStop(0,'rgba(255,213,115,.47)');g.addColorStop(.43,'rgba(248,87,40,.37)');g.addColorStop(1,'rgba(124,9,42,.03)');
+  ctx.beginPath();ctx.moveTo(vs[0].x,vs[0].y);ctx.lineTo(vs[1].x,vs[1].y);ctx.lineTo(vs[2].x,vs[2].y);ctx.closePath();ctx.fillStyle=g;ctx.fill();
+  ctx.strokeStyle='#fc7d34';ctx.lineWidth=6+(1-life)*8;ctx.shadowColor='#ff7f43';ctx.shadowBlur=options.quality==='low'?7:22;ctx.stroke();
+  ctx.strokeStyle='#fff1b5';ctx.lineWidth=2;ctx.stroke();ctx.restore();
+ }
+
  if(e.type==='crimsonRibbon'){
   ctx.save();ctx.translate(e.x,e.y);const a=Math.atan2(e.y2-e.y,e.x2-e.x),len=Math.hypot(e.x2-e.x,e.y2-e.y),w=e.w||40,low=options.quality==='low';ctx.rotate(a);ctx.globalCompositeOperation='lighter';ctx.lineCap='round';
   let seed=e.seed>>>0;const rand=()=>{seed=(Math.imul(1664525,seed)+1013904223)>>>0;return seed/4294967296;};
