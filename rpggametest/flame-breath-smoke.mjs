@@ -43,9 +43,10 @@ for(const c of cases){
    requestAnimationFrame(observeWheel);
   }
   g.skill(c.slot);
-  return {name:g.skillInfo(c.slot).name,mode:g.skillInfo(c.slot).cfg.mode,hp:e.hp,skillStarted:!!g.activeSwordSkill};
+  return {name:g.skillInfo(c.slot).name,mode:g.skillInfo(c.slot).cfg.mode,hp:e.hp,skillStarted:!!g.activeSwordSkill,pvpBot:e.pvpTrainingBot===true,botName:e.name,botDamage:e.damage};
  },c);
  if(init.mode!==c.mode)throw Error('Wrong form '+c.id+' '+JSON.stringify(init));
+ if(!init.pvpBot||init.botName!=='PVP 연습 봇'||init.botDamage!==0)throw Error('Inert PVP training bot was not imported: '+JSON.stringify(init));
  if([1,2,3].includes(c.slot)){
   // Character animations must move the actual sword arm AND both legs, not just fire particles.
   const poses=await page.evaluate(({id,slot})=>{
@@ -90,7 +91,7 @@ for(const c of cases){
   const g=window.__game,e=g.enemies.find(e=>e.type==='dummy'),seq=g.activeSwordSkill;
   return {id:seq?.skillId||'',elapsed:seq?.elapsed||0,
     fx:g.effects.length,types:[...new Set(g.effects.map(f=>f.type))],
-    hp:e.hp,hitCount:e.testHitCount||0,damageTotal:e.testDamageTotal||0,hero:{x:g.player.x,y:g.player.y},pageError:g.error};
+    hp:e.hp,maxHp:e.maxHp,hitCount:e.testHitCount||0,damageTotal:e.testDamageTotal||0,hero:{x:g.player.x,y:g.player.y},pageError:g.error};
  });
  if(c.slot===1){
   const trace=await page.evaluate(()=>{window.__riseTraceStop=true;return window.__riseTrace||[];});
@@ -130,6 +131,7 @@ for(const c of cases){
  }
  if(errors.length||frame.pageError)throw Error('Runtime errors '+c.id+': '+errors.join(' | ')+' '+frame.pageError);
  if(frame.hitCount<1||frame.damageTotal<=0)throw Error('No hit registered for '+c.id+' '+JSON.stringify(frame));
+ if(frame.hp!==frame.maxHp)throw Error('PVP practice bot must never lose health: '+JSON.stringify(frame));
  if(c.slot===2&&frame.hitCount<2)throw Error('Opening fire ring or landing attack did not register: '+JSON.stringify(frame));
  if(c.slot!==1&&!frame.types.some(t=>['flameBreathPlume','crimsonBladeFire','crimsonEdgeFlames','crimsonChargeFlames','crimsonFlameBurst','ember'].includes(t)))throw Error('No real fire graphics '+c.id+' '+JSON.stringify(frame));
  report.push({slot:c.slot,name:init.name,mode:init.mode,hit:true,fx:frame.fx,effects:frame.types,hero:frame.hero});
