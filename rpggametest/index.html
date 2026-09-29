@@ -4093,6 +4093,81 @@ function drawObject(o){if(o.type==='loot'){const color=o.lootKind.startsWith('we
  if(o.type==='lore'){ellipse(ctx,o.x,o.y+5,18,8,'#0b1b225e');polygon(ctx,[[o.x-13,o.y+5],[o.x-10,o.y-24],[o.x+3,o.y-35],[o.x+13,o.y-25],[o.x+15,o.y+5]],'#7b918e','#4d6566',2);line(ctx,o.x-5,o.y-16,o.x+5,o.y-16,'#cdddb3',2);line(ctx,o.x-5,o.y-10,o.x+3,o.y-10,'#bccda9',1.5);line(ctx,o.x-4,o.y-3,o.x+6,o.y-3,'#cdddb3',1.5);if(!player.notes.includes(o.id))glow(ctx,o.x,o.y-10,39,'#aadfd624');return;}
  if(o.type==='altar'){ellipse(ctx,o.x,o.y+15,54,23,'#677083');ellipse(ctx,o.x,o.y+8,45,21,'#9b9fa7');polygon(ctx,[[o.x-16,o.y+8],[o.x-12,o.y-42],[o.x+12,o.y-42],[o.x+16,o.y+8]],'#738692','#b8c1b9',2);const bob=Math.sin(realTime*1.7)*5;polygon(ctx,[[o.x,o.y-91+bob],[o.x+19,o.y-65+bob],[o.x,o.y-42+bob],[o.x-19,o.y-65+bob]],'#9dcecb','#dce3ca',2);glow(ctx,o.x,o.y-65,65,'#a2d5d422');worldText('종언의 별 제단',o.x,o.y-115,'#ddd1f0',13);}
 }
+// Character limb animation for Hongryeon forms 2-4. No particle/visual-only pose:
+// the same computed hands hold the rendered sword, while feet and knees really move.
+function hongryeonLimbPose(id,preparing,time,sign,side,a,shoulderY,headY){
+ const fx=Math.cos(a),fy=Math.sin(a),q=clamp(time,0,1),s=sign===side?1:-1;
+ const foot=(forward,spread=8,lift=0)=>({x:sign*spread+fx*forward,y:fy*forward-lift});
+ let hand,leg,elbow={x:0,y:0},swordA=null;
+ if(id==='earthRend'){
+  if(preparing){
+   // Lower into a sprinter's stance and draw the sword behind the rear hip.
+   const k=q*q*(3-2*q);
+   hand=s>0?{x:-fx*(8+18*k)+side*8,y:shoulderY+9-8*k}:
+     {x:fx*(7+15*k)-side*4,y:shoulderY+14-7*k};
+   leg=foot((s>0?-16:18)*k,7+4*k);
+   elbow={x:s>0?-fx*5:-fx*2,y:s>0?-5:4};
+   swordA=a+Math.PI*(1-.08*k);
+  }else{
+   // Thrust straight ahead as the fast dash slows, then spread both arms for impact.
+   const d=clamp(time/.50,0,1),push=clamp(time/.27,0,1),burst=clamp((time-.47)/.15,0,1);
+   hand=s>0?{x:-fx*23*(1-push)+fx*33*push+side*7,y:shoulderY+4+9*push-12*burst}:
+     {x:-fx*(7+17*push)-side*5,y:shoulderY+13-5*burst};
+   leg=foot(s>0?-19-4*d:22-3*d,10+2*d,s<0?Math.sin(Math.PI*d)*3:0);
+   elbow={x:s>0?fx*5:-fx*7,y:s>0?1:-1};
+   swordA=a+Math.PI*(1-push)-side*burst*1.5;
+  }
+ }else if(id==='quakeRush'){
+  if(preparing){
+   // Wide planted stance; both elbows raise the sword above the helmet.
+   const k=q*q*(3-2*q);
+   hand=s>0?{x:side*(13-7*k),y:shoulderY+11+(headY-20-shoulderY-11)*k}:
+     {x:-side*11+side*13*k,y:shoulderY+14+(headY-10-shoulderY-14)*k};
+   leg=foot(s>0?-7*k:9*k,7+7*k);
+   elbow={x:s>0?side*3:-side*4,y:-7*k};
+   swordA=-Math.PI/2+side*.10;
+  }else if(time<.11){
+   // Arms sweep a full circle at the original stationary fire-ring strike.
+   const spin=clamp(time/.11,0,1),angle=a+side*TAU*spin;
+   hand=s>0?{x:Math.cos(angle)*27,y:shoulderY+12+Math.sin(angle)*18}:
+     {x:-side*9,y:shoulderY+3};
+   leg=foot(s>0?-8:10,13);
+   elbow={x:Math.cos(angle)*6,y:-3};
+   swordA=angle+side*.4;
+  }else{
+   // Tuck both legs on takeoff, hold the blade overhead, then bring it down to land.
+   const flight=clamp((time-.11)/.49,0,1),lift=Math.sin(Math.PI*flight);
+   const strike=clamp((time-.48)/.18,0,1);
+   hand=s>0?{x:side*6+fx*22*strike,y:headY-16+(shoulderY+36-(headY-16))*strike}:
+     {x:-side*8+fx*10*strike,y:headY-5+(shoulderY+14-(headY-5))*strike};
+   leg=foot(s>0?-12:15,12-3*lift,12*lift);
+   elbow={x:s>0?side*8:-side*6,y:-6*lift+5*strike};
+   swordA=-Math.PI/2+strike*(a+Math.PI/2+side*.36);
+  }
+ }else if(id==='ironJudgment'){
+  if(preparing){
+   // Twist into a low rotating stance, sword pulled across the rear shoulder.
+   const k=q*q*(3-2*q);
+   hand=s>0?{x:-fx*17*k+side*(12+6*k),y:shoulderY+11-9*k}:
+     {x:fx*16*k-side*8,y:shoulderY+14+5*k};
+   leg=foot((s>0?-12:15)*k,8+5*k);
+   elbow={x:s>0?-side*8:side*5,y:s>0?-5*k:4*k};
+   swordA=a-side*(.9+1.2*k);
+  }else{
+   // Windmill arms and alternating skater strides follow all three S-curve slashes.
+   const phase=clamp(time/.75,0,1),turn=side*(-2.1+TAU*2.1*phase);
+   const angle=a+turn;
+   hand=s>0?{x:Math.cos(angle)*27,y:shoulderY+12+Math.sin(angle)*17}:
+     {x:-Math.cos(angle)*22,y:shoulderY+14-Math.sin(angle)*13};
+   const stride=Math.sin(angle+sign*Math.PI*.55);
+   leg=foot(stride*20,10+Math.abs(Math.cos(angle))*3,Math.max(0,stride)*4);
+   elbow={x:Math.cos(angle+side*.8)*5,y:Math.sin(angle)*4};
+   swordA=angle+side*.40;
+  }
+ }
+ return {hand,leg,elbow,swordA};
+}
+
 // Feet stay on the ground plane; only the limbs and equipment turn with aiming.
 function drawPlayer(){
  const p=player;if(p.deathHidden)return;
@@ -4101,6 +4176,10 @@ function drawPlayer(){
  if(deathP>0){ctx.translate(p.x,p.y);ctx.rotate((p.deathSide||1)*deathP*1.22);ctx.translate(-p.x,-p.y);ctx.globalAlpha=1-clamp((deathP-.72)/.28,0,1);}
  const m=p.motion||{phase:0,walk:0,facing:p.facing,lean:0},a=m.facing,fx=Math.cos(a),fy=Math.sin(a),back=fy<-.35,side=fx<-.2?-1:1;
  const prep=String(p.skillKind||'').startsWith('prepare:')?String(p.skillKind).slice(8):'',prepT=1-(p.attackAnim||0)/window.EchoesSkillPrepare.duration,prepVariant=window.EchoesSkillPrepare.variant(p.weapon===3?'hidden:'+p.skillPose:p.weapon===2?'bow:'+p.skillPose:(p.swordSkills?.[p.skillPose]||p.equippedSwordSkills?.[p.skillPose]||''),p.skillPose);
+ const limbId=prep?((standardSkillHold&&standardSkillHold.index===p.skillPose?skillInfo(p.skillPose)?.id:null)||''):activeSwordSkill?.skillId;
+ const customLimb=['earthRend','quakeRush','ironJudgment'].includes(limbId)?limbId:null;
+ const limbTime=prep?clamp(prepT,0,1):activeSwordSkill?.elapsed||0;
+ const limbAt=sign=>customLimb?hongryeonLimbPose(customLimb,!!prep,limbTime,sign,side,a,shoulderY,headY):null;
  const walk=prep?0:m.walk,bounce=Math.abs(Math.sin(m.phase))*walk*1.3,attackT=clamp(1-p.attackAnim/(p.attackDuration||.26),0,1),swing=p.attackAnim>0?Math.sin(attackT*Math.PI):0;
  const breath=Math.sin(realTime*2.2)*.35,hipY=-21-bounce,shoulderY=-42-bounce+breath+m.lean*2,headY=shoulderY-14,bodyWidth=10+Math.abs(fy)*2,armor=p.equippedChest==='abyssPlate'?['#553c59','#8f6b91']:p.equippedChest==='frostMail'?['#5e8893','#b8d9df']:p.equippedChest==='knightPlate'?['#596b70','#aeb9b6']:['#709d91','#a2bbae'],helm=p.equippedHead==='voidVisor'?'#5c4770':p.equippedHead==='frostCrown'?'#8fb9bf':p.equippedHead==='ironHelm'?'#79888a':'#8ca99d',shieldCol=p.equippedShield==='astralShield'?'#d4c8ff':p.equippedShield==='frostShield'?'#9bd8e4':p.equippedShield==='ironShield'?'#9aa5a6':'#82bab0';
  ellipse(ctx,p.x,p.y+3,19,7,'#07171c77');
@@ -4114,15 +4193,23 @@ function drawPlayer(){
  line(ctx,-12+capeSway,hipY+10,3+capeSway,hipY+15,'#b7b889',1.6);
  // Alternating heel plant, knee bend and toe lift, measured from actual travel.
  const legs=[-1,1].map(sign=>{const phase=m.phase+(sign===1?Math.PI:0),step=Math.sin(phase)*walk,lift=Math.max(0,Math.cos(phase))*walk*3.5;return {sign,step,lift,footX:sign*5+step*fx*5,footY:step*fy*4-lift};}).sort((l,r)=>l.footY-r.footY);
- if(prep)for(const leg of legs){const v=window.EchoesSkillPrepare.pose(prep,a,prepT,leg.sign,side,shoulderY,headY,prepVariant);leg.footX+=(v.footX-leg.footX)*v.q;leg.footY+=(v.footY-leg.footY)*v.q;leg.lift=3*v.q;}
- for(const leg of legs){const {sign,step,footX,footY}=leg,kneeX=sign*6+step*fx*2,kneeY=-10+step*fy*2-leg.lift*.45;line(ctx,sign*5,hipY+1,kneeX,kneeY,'#263c43',7);circle(ctx,kneeX,kneeY,3.2,'#82948b');line(ctx,kneeX,kneeY,footX,footY-2,'#354d50',6);ellipse(ctx,footX+fx*1.5,footY+1,4.8,2.7,'#c7c6a6');line(ctx,footX-3,footY+2,footX+3,footY+2,'#283e40',1.4);}
+ if(prep&&!customLimb)for(const leg of legs){const v=window.EchoesSkillPrepare.pose(prep,a,prepT,leg.sign,side,shoulderY,headY,prepVariant);leg.footX+=(v.footX-leg.footX)*v.q;leg.footY+=(v.footY-leg.footY)*v.q;leg.lift=3*v.q;}
+ if(customLimb)for(const leg of legs){
+  const v=limbAt(leg.sign);
+  if(v?.leg){const blend=prep?clamp(prepT*2.7,0,1):1;leg.footX+=(v.leg.x-leg.footX)*blend;leg.footY+=(v.leg.y-leg.footY)*blend;leg.lift=0;}
+ }
+ for(const leg of legs){const {sign,step,footX,footY}=leg,lb=limbAt(sign),kneeX=sign*6+step*fx*2+(lb?.leg?(lb.leg.x-sign*6)*.48:0),kneeY=-10+step*fy*2-leg.lift*.45+(lb?.leg?(lb.leg.y+5)*.18:0);line(ctx,sign*5,hipY+1,kneeX,kneeY,'#263c43',7);circle(ctx,kneeX,kneeY,3.2,'#82948b');line(ctx,kneeX,kneeY,footX,footY-2,'#354d50',6);ellipse(ctx,footX+fx*1.5,footY+1,4.8,2.7,'#c7c6a6');line(ctx,footX-3,footY+2,footX+3,footY+2,'#283e40',1.4);}
  const armPose=sign=>{const shoulder={x:sign*(bodyWidth+1),y:shoulderY+4};let hand={x:sign*(15+Math.abs(fx)*2),y:hipY+4-sign*Math.sin(m.phase)*walk*4};
   if(sign===side&&p.attackAnim>0){const sweep=a+(attackT-.5)*(p.weapon===1?2.6:2.0)*(p.combo%2?-1:1);hand={x:Math.cos(sweep)*(19+swing*9),y:shoulderY+13+Math.sin(sweep)*12};}
   if(p.parry>0&&sign===-side)hand={x:fx*20-sign*5,y:shoulderY+5+fy*8};
   if(p.weapon===2){hand=sign===side?{x:fx*22+side*6,y:shoulderY+13+fy*11}:{x:fx*(12-swing*8)-side*3,y:shoulderY+14+fy*7};}
   if(p.attackAnim>0&&p.weapon!==2&&pose<0){if(hitPose===1)hand.y-=10*swing;if(hitPose===2)hand={x:fx*(18+17*swing),y:shoulderY+13+fy*12};if(hitPose===3)hand={x:sign*23*Math.cos(attackT*TAU),y:shoulderY+12+Math.sin(attackT*TAU)*10};if(hitPose===4)hand={x:side*9,y:headY-12+45*attackT};}if(p.attackAnim>0&&pose>=0&&p.weapon!==2){if(pose===0&&sign===side)hand={x:Math.cos(a+(attackT-.5)*2.5)*28,y:shoulderY+12+Math.sin(a+(attackT-.5)*2.5)*12};if(pose===1)hand={x:fx*30+sign*4,y:shoulderY+15};if(pose===2)hand={x:sign*27*Math.cos(attackT*TAU),y:shoulderY+12+Math.sin(attackT*TAU)*13};if(pose===3)hand={x:sign*6,y:headY-14+55*attackT};if(pose===4)hand={x:sign*24*Math.cos(attackT*TAU*1.5),y:shoulderY+12+Math.sin(attackT*TAU*1.5)*12};}
   if(p.dodge>0)hand={x:sign*14-fx*9,y:hipY+1-fy*5};
-  if(prep){const v=window.EchoesSkillPrepare.pose(prep,a,prepT,sign,side,shoulderY,headY,prepVariant);hand={x:shoulder.x+(v.hand.x-shoulder.x)*v.q,y:shoulder.y+14+(v.hand.y-shoulder.y-14)*v.q};}return {shoulder,hand,elbow:{x:(shoulder.x+hand.x)*.5+sign*4,y:(shoulder.y+hand.y)*.5+4}};
+  if(prep&&!customLimb){const v=window.EchoesSkillPrepare.pose(prep,a,prepT,sign,side,shoulderY,headY,prepVariant);hand={x:shoulder.x+(v.hand.x-shoulder.x)*v.q,y:shoulder.y+14+(v.hand.y-shoulder.y-14)*v.q};}
+  const special=limbAt(sign);
+  if(special?.hand){const blend=prep?clamp(prepT*2.7,0,1):1;hand={x:hand.x+(special.hand.x-hand.x)*blend,y:hand.y+(special.hand.y-hand.y)*blend};}
+  return {shoulder,hand,elbow:{x:(shoulder.x+hand.x)*.5+sign*4+(special?.elbow?.x||0),y:(shoulder.y+hand.y)*.5+4+(special?.elbow?.y||0)}};
+
  };
  const arm=sign=>{const v=armPose(sign);line(ctx,v.shoulder.x,v.shoulder.y,v.elbow.x,v.elbow.y,'#6e9590',6);circle(ctx,v.elbow.x,v.elbow.y,3,'#b5c9b4');line(ctx,v.elbow.x,v.elbow.y,v.hand.x,v.hand.y,'#4b7470',5);circle(ctx,v.hand.x,v.hand.y,3.1,'#d2c4a2');};
  arm(-side);
@@ -4140,7 +4227,8 @@ function drawPlayer(){
  arm(side);
  const hand=armPose(side).hand;
  if(p.weapon!==2){for(const sign of p.weapon===1?[side,-side]:[side]){const h=armPose(sign).hand,len=p.weapon===1?22:p.weapon===3?42:34,active=p.attackAnim>0;
-  const weaponA=active&&pose===3?-Math.PI/2+attackT*Math.PI:active&&pose===1?a:active?a+(attackT-.5)*2.3*(p.combo%2?-1:1)+(sign!==side?.6:0):-Math.PI/2+side*.22;
+  const specialBlade=customLimb&&sign===side?limbAt(sign)?.swordA:null;
+  const weaponA=specialBlade!=null?specialBlade:active&&pose===3?-Math.PI/2+attackT*Math.PI:active&&pose===1?a:active?a+(attackT-.5)*2.3*(p.combo%2?-1:1)+(sign!==side?.6:0):-Math.PI/2+side*.22;
   const tx=h.x+Math.cos(weaponA)*len,ty=h.y+Math.sin(weaponA)*len*(active?.65:1);line(ctx,h.x,h.y,tx,ty,p.weapon===3?'#7d5e92':'#577a80',p.weapon===3?7:5);line(ctx,h.x+.7,h.y-.7,tx+.7,ty-.7,p.weapon===3?'#f0d7ff':'#dce8d2',p.weapon===3?4:3);const dx=tx-h.x,dy=ty-h.y,n=Math.hypot(dx,dy)||1;line(ctx,h.x-dy/n*5,h.y+dx/n*5,h.x+dy/n*5,h.y-dx/n*5,'#d8bd77',2.6);circle(ctx,h.x,h.y,2.4,'#cbb994');}}
  else{ctx.save();ctx.translate(hand.x,hand.y);ctx.rotate(a+Math.PI/2);ctx.strokeStyle='#d3b77d';ctx.lineWidth=2.7;ctx.beginPath();ctx.moveTo(-2,-17);ctx.quadraticCurveTo(11,0,-2,17);ctx.stroke();ctx.beginPath();ctx.moveTo(-2,-17);ctx.lineTo(-6-swing*6,0);ctx.lineTo(-2,17);ctx.strokeStyle='#d3dec4';ctx.lineWidth=1;ctx.stroke();ctx.restore();}
  if(p.parry>0){const h=armPose(-side).hand;ellipse(ctx,h.x,h.y-3,7,11,'#709d98');polygon(ctx,[[h.x,h.y-14],[h.x+8,h.y-6],[h.x,h.y+8],[h.x-8,h.y-6]],shieldCol,'#d7e6c2',1.7);}
