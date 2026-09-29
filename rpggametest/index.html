@@ -1046,18 +1046,17 @@ function crimsonOutside(x,y,inner=170,outer=290,count=14,inward=false,twist=0){
  const n=options.quality==='low'?Math.ceil(count*.58):count;
  for(let j=0;j<n;j++){const aa=rnd(0,TAU),rr=rnd(inner,outer),px=x+Math.cos(aa)*rr,py=y+Math.sin(aa)*rr,dir=(inward?aa+Math.PI:aa)+twist+rnd(-.38,.38);crimsonEmbers(px,py,dir,1+(j%3===0?1:0),rnd(190,360),.24,rnd(.72,1.12));}
 }
-const CRIMSON1_RX=119,CRIMSON1_RY=90,CRIMSON1_BEAM=388,CRIMSON1_WIDTH=39;
+const CRIMSON1_RX=119,CRIMSON1_RY=119,CRIMSON1_BEAM=388,CRIMSON1_WIDTH=39;
 function crimsonStrokeCircle(cx,cy,rx,ry,aim,power=1){
- // The beam leaves the ellipse at its local bottom: its tangent is perpendicular to the target direction.
- effects.push({type:'crimsonEllipse',x:cx,y:cy,rx,ry,a:aim,t:.38,max:.38});
- const normalX=Math.cos(aim),normalY=Math.sin(aim),tangentX=-normalY,tangentY=normalX;
- // Non-uniform outward flame plumes around the ring; the ellipse's luminous stroke stays dominant.
- const jets=24;for(let j=0;j<jets;j++){
-  const q=j*TAU/jets,tx=Math.cos(q)*rx,ny=Math.sin(q)*ry,
-        px=cx+tangentX*tx+normalX*ny,py=cy+tangentY*tx+normalY*ny;
-  const nx=tangentX*(Math.cos(q)/rx)+normalX*(Math.sin(q)/ry),ny2=tangentY*(Math.cos(q)/rx)+normalY*(Math.sin(q)/ry),
-        out=Math.atan2(ny2,nx),strong=j%7===0||j%7===1;
-  crimsonEmbers(px,py,out+rnd(-.12,.12),strong?5:3,strong?310:235,.27,strong?1.05:.8);
+ // Skill 1 uses a true circle; skill 2's wind-swept oval embers are reused around its edge.
+ const r=rx;
+ effects.push({type:'crimsonEllipse',x:cx,y:cy,rx:r,ry:r,a:0,t:.38,max:.38});
+ const jets=24,low=options.quality==='low';
+ for(let j=0;j<jets;j++){
+  const q=aim+j*TAU/jets,px=cx+Math.cos(q)*r,py=cy+Math.sin(q)*r;
+  const strong=j%7===0||j%7===1,amount=low?(strong?3:1):(strong?6:3);
+  // Same elliptical ember particles and backward-swept trails as Crimson skill 2.
+  crimsonEmbers(px,py,q+rnd(-.18,.18),amount,strong?330:245,.33,strong?1.15:.91);
  }
 }
 function crimsonStrokeLine(x1,y1,x2,y2,a,power=1){
@@ -3726,7 +3725,7 @@ function drawEffects(ground=false){for(const e of effects){const progress=1-e.t/
  if(e.type==='ring'){ctx.strokeStyle=e.color;ctx.lineWidth=2.5*(1-progress)+.5;ctx.beginPath();ctx.arc(e.x,e.y,e.r*(.35+.65*progress),0,TAU);ctx.stroke();}
  if(e.type==='crimsonEllipse'){
   ctx.save();ctx.translate(e.x,e.y);ctx.rotate(e.a-Math.PI/2);ctx.globalCompositeOperation='lighter';ctx.shadowColor='#ff5437';ctx.shadowBlur=20;ctx.lineCap='round';
-  for(const [width,col] of [[12,'#98102d'],[6,'#ff4535'],[2.4,'#ffdfb3']]){ctx.lineWidth=width;ctx.strokeStyle=col;ctx.beginPath();ctx.ellipse(0,0,e.rx,e.ry,0,0,TAU);ctx.stroke();}
+  for(const [width,col] of [[12,'#98102d'],[6,'#ff4535'],[2.4,'#ffdfb3']]){ctx.lineWidth=width;ctx.strokeStyle=col;ctx.beginPath();ctx.arc(0,0,e.rx,0,TAU);ctx.stroke();}
   ctx.restore();
  }
  if(e.type==='crimsonBeam'){
