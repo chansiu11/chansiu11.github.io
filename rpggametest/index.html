@@ -2229,42 +2229,54 @@ function performSwordSkillHit(seq,hitIndex){
  else if(mode==='chaseCombo'){const lateral=(hitIndex===0?-1:hitIndex===1?1:0)*(GALE_SKILLS.has(sk.id)?62:42);moveBody(player,-Math.sin(ang)*lateral,Math.cos(ang)*lateral);meleeHit(reach,cfg.arc[hitIndex],damage,finalHit);}
  else if(mode==='stationaryFlurry'){const target=swordSeqTarget(seq);if(target){const aa=ang+(hitIndex%2?1:-1)*1.05,tx=target.x-Math.cos(aa)*58,ty=target.y-Math.sin(aa)*58;moveBody(player,clamp(tx-player.x,-48,48),clamp(ty-player.y,-48,48));player.facing=Math.atan2(target.y-player.y,target.x-player.x);}meleeHit(reach,cfg.arc[hitIndex],damage,finalHit);}
  else if(mode==='doubleWave'||mode==='crescentRetreat'){meleeHit(reach,cfg.arc[hitIndex],damage*.38,false);const spread=hitIndex===0?-.18:.18;fireProjectile(player.x+Math.cos(ang)*32,player.y+Math.sin(ang)*32,ang+spread,510,damageValue(hitIndex===0?1.0:1.3),'player','wave',3);}
- else if(mode==='crimsonOrbitLine'){
-  const ca2=Math.cos(ang),sa2=Math.sin(ang),tx=-sa2,ty=ca2;
-  if(hitIndex===0){for(const e of combatTargets()){if(e.dead||e.riftSleeping)continue;const c=combatCenter(e),dx=c.x-player.x,dy=c.y-player.y,normal=dx*ca2+dy*sa2,tangent=dx*tx+dy*ty,radius=combatRadius(e);if((tangent/(CRIMSON1_RX+radius))**2+(normal/(CRIMSON1_RY+radius))**2>1)continue;hitEnemyConfirmed(e,damage,false,player,()=>applyEnemyStun(e,e.kind==='boss'?.06:.16));}}
-  else{
-   // Dash begins precisely when the line appears. Both player and line-hit targets travel 48px.
-   seq.crimson1DashLeft=CRIMSON1_DASH_TIME;seq.crimson1DashAngle=ang;
-   // The line stays attached to the original ring, not to the moving player.
-   const x1=seq.originX+ca2*CRIMSON1_RY,y1=seq.originY+sa2*CRIMSON1_RY,x2=x1+ca2*CRIMSON1_BEAM,y2=y1+sa2*CRIMSON1_BEAM,wid=CRIMSON1_WIDTH;
-   for(const e of combatTargets()){
-    if(e.dead||e.riftSleeping)continue;const c=combatCenter(e);
-    if(segmentDistance(c.x,c.y,[x1,y1],[x2,y2])>wid+combatRadius(e))continue;
-    hitEnemyConfirmed(e,damage,true,player,()=>{
-     applyEnemyStun(e,e.kind==='boss'?.12:.36);
-     // The target dummy bypasses normal knockback in hitEnemy, so animate it explicitly.
-     if(e.type==='dummy'){
-      skill2Knocks=skill2Knocks.filter(k=>k.e!==e);
-      skill2Knocks.push({e,startX:e.x,startY:e.y,x:e.x+ca2*CRIMSON1_DASH,y:e.y+sa2*CRIMSON1_DASH,t:CRIMSON1_DASH_TIME,max:CRIMSON1_DASH_TIME,cubic:true});
-     }
-    },{stun:e.kind==='boss'?.12:.36,dx:ca2*CRIMSON1_DASH,dy:sa2*CRIMSON1_DASH,duration:CRIMSON1_DASH_TIME});
-   }
+ else if(mode==='emberFuse'){
+  const f=seq.crimsonFace??seq.facing,ca=Math.cos(f),sa=Math.sin(f),x1=seq.originX,y1=seq.originY,x2=player.x,y2=player.y;
+  for(const e of combatTargets()){if(e.dead||e.riftSleeping)continue;const c=combatCenter(e),rad=combatRadius(e);
+   const inPath=segmentDistance(c.x,c.y,[x1,y1],[x2,y2])<=(hitIndex===0?54:79)+rad;
+   if(!inPath&&!(hitIndex===1&&Math.hypot(c.x-x2,c.y-y2)<110+rad))continue;
+   hitEnemyConfirmed(e,damage,finalHit,player,()=>applyEnemyStun(e,e.kind==='boss'?.08:finalHit?.40:.14));
   }
  }
- else if(mode==='flameMantle'){const r=[150,156,164,174,192][hitIndex]||180;for(const e of combatTargets()){if(e.dead||e.riftSleeping||combatDistance(e,player)>r+combatRadius(e))continue;hitEnemyConfirmed(e,damage,finalHit,player,()=>applyEnemyStun(e,e.kind==='boss'?.05:(finalHit?.42:.10)));}}
- else if(mode==='crimsonSideScorch'){
-  const f=seq.crimsonFace??seq.facing,fx=Math.cos(f),fy=Math.sin(f),nx=-fy,ny=fx;
-  const lead=[96,132,166,205][hitIndex]||166,off=(hitIndex%2?24:-24)*(seq.side||1),cx=player.x+fx*lead+nx*off,cy=player.y+fy*lead+ny*off,r=[80,96,115,146][hitIndex]||120;
-  for(const e of combatTargets())if(!e.dead&&!e.riftSleeping&&combatDistance(e,{x:cx,y:cy})<=r+combatRadius(e))
-   hitEnemyConfirmed(e,damage,finalHit,player,()=>applyEnemyStun(e,e.kind==='boss'?.06:(finalHit?.42:.12)));
+ else if(mode==='scarletHook'){
+  const f=seq.crimsonFace??seq.facing,ca=Math.cos(f),sa=Math.sin(f),centerX=player.x+ca*76,centerY=player.y+sa*76,r=[78,90,115][hitIndex]||90;
+  for(const e of combatTargets()){if(e.dead||e.riftSleeping)continue;const c=combatCenter(e),rad=combatRadius(e),curve=segmentDistance(c.x,c.y,[seq.originX,seq.originY],[player.x,player.y])<rad+54;
+   if(Math.hypot(c.x-centerX,c.y-centerY)>r+rad&&!curve)continue;
+   hitEnemyConfirmed(e,damage,finalHit,player,()=>applyEnemyStun(e,e.kind==='boss'?.08:finalHit?.47:.14));
+  }
  }
- else if(mode==='crimsonSideWall'){
-  meleeHit(reach,cfg.arc[hitIndex],damage*(finalHit?.55:1),false);
-  if(finalHit){const f=seq.crimsonFace??seq.facing,fx=Math.cos(f),fy=Math.sin(f),x1=seq.originX+fx*100,y1=seq.originY+fy*100,x2=player.x+fx*100,y2=player.y+fy*100;
-   for(const e of combatTargets()){if(e.dead||e.riftSleeping)continue;const c=combatCenter(e);if(segmentDistance(c.x,c.y,[x1,y1],[x2,y2])>100+combatRadius(e))continue;
-    hitEnemyConfirmed(e,damage,true,player,()=>applyEnemyStun(e,e.kind==='boss'?.14:.50));}}
+ else if(mode==='butterflyVolley'){
+  const f=seq.crimsonFace??seq.facing,offset=[-.47,.35,-.24,.04][hitIndex]*(seq.side||1),attackA=f+offset,radius=[185,195,205,245][hitIndex],halfArc=[.52,.60,.72,.97][hitIndex];
+  for(const e of combatTargets()){if(e.dead||e.riftSleeping)continue;const c=combatCenter(e),dx=c.x-player.x,dy=c.y-player.y,d=Math.hypot(dx,dy),rad=combatRadius(e);
+   if(d>radius+rad||Math.abs(angleDiff(Math.atan2(dy,dx),attackA))>halfArc+rad/Math.max(60,d))continue;
+   hitEnemyConfirmed(e,damage,finalHit,player,()=>applyEnemyStun(e,e.kind==='boss'?.045:finalHit?.36:.09));
+  }
  }
- else if(mode==='furnaceBloom'){const target=swordSeqTarget(seq),cx=hitIndex<3?player.x:(target?.x??seq.anchorX??player.x+Math.cos(ang)*180),cy=hitIndex<3?player.y:(target?.y??seq.anchorY??player.y+Math.sin(ang)*180);if(hitIndex<3)meleeHit(reach,cfg.arc[hitIndex],damage,false);else{const r=[0,0,0,92,105,118,132,148,205][hitIndex]||120;for(const e of combatTargets()){if(e.dead||e.riftSleeping||combatDistance(e,{x:cx,y:cy})>r+combatRadius(e))continue;hitEnemyConfirmed(e,damage,finalHit,player,()=>{if(hitIndex<8&&e.kind!=='boss'){const c=combatCenter(e),aa=Math.atan2(cy-c.y,cx-c.x),pull=hitIndex===7?38:22;moveBody(e,Math.cos(aa)*pull,Math.sin(aa)*pull);}applyEnemyStun(e,e.kind==='boss'?.10:(finalHit?.85:.16));});}}}
+ else if(mode==='pyreDomino'){
+  const f=seq.crimsonFace??seq.facing,cx=player.x+Math.cos(f)*105,cy=player.y+Math.sin(f)*105;
+  seq.pyreNodes??=[];
+  if(hitIndex<3){
+   seq.pyreNodes.push({x:cx,y:cy});
+   for(const e of combatTargets()){if(e.dead||e.riftSleeping||combatDistance(e,{x:cx,y:cy})>77+combatRadius(e))continue;
+    hitEnemyConfirmed(e,damage,false,player,()=>applyEnemyStun(e,e.kind==='boss'?.045:.10));}
+  }else{
+   const nodes=[...seq.pyreNodes,{x:cx,y:cy}],seen=new Set();
+   for(const e of combatTargets()){if(e.dead||e.riftSleeping||seen.has(e.id))continue;
+    if(nodes.some(n=>combatDistance(e,n)<=103+combatRadius(e))){seen.add(e.id);hitEnemyConfirmed(e,damage,true,player,()=>applyEnemyStun(e,e.kind==='boss'?.14:.48));}}
+  }
+ }
+ else if(mode==='triadPyre'){
+  const vs=seq.triadVertices??crimsonTriadVertices(seq);seq.triadVertices=vs;
+  if(hitIndex<3){
+   const start=hitIndex===0?{x:seq.originX,y:seq.originY}:vs[hitIndex-1],end=vs[hitIndex];
+   for(const e of combatTargets()){if(e.dead||e.riftSleeping)continue;const c=combatCenter(e);
+    if(segmentDistance(c.x,c.y,[start.x,start.y],[end.x,end.y])>90+combatRadius(e))continue;
+    hitEnemyConfirmed(e,damage,false,player,()=>applyEnemyStun(e,e.kind==='boss'?.12:.22));}
+  }else{
+   for(const e of combatTargets()){if(e.dead||e.riftSleeping)continue;const c=combatCenter(e),rad=combatRadius(e);
+    if(!crimsonInTriangle(c.x,c.y,vs,rad+(hitIndex===4?60:12)))continue;
+    hitEnemyConfirmed(e,damage,finalHit,player,()=>applyEnemyStun(e,e.kind==='boss'?.16:finalHit?.83:.32));}
+  }
+ }
  else if(mode==='guardPierce'){meleeHit(reach,.52,damage,true,e=>{applyEnemyStun(e,e.kind==='boss'?.65:1.15);e.poise=(e.poise||0)+45;});}
  else if(mode==='tempest'){meleeHit(reach,TAU,damage,finalHit);}
  else if(mode==='earthSlam'){const cx=player.x+Math.cos(ang)*80,cy=player.y+Math.sin(ang)*80,r=145;for(const e of combatTargets())if(!e.dead&&!e.riftSleeping&&combatDistance(e,{x:cx,y:cy})<r+combatRadius(e))hitEnemy(e,damage,true);}
@@ -2429,56 +2441,37 @@ function updateSwordSkillMotion(seq,sk,dt){
  const cfg=sk.cfg,mode=cfg.mode,t=clamp(seq.elapsed/seq.duration,0,1),a=seq.facing,ca=Math.cos(a),sa=Math.sin(a),side=seq.side||1,target=swordSeqTarget(seq),px0=player.x,py0=player.y;
  player.skillLift=0;
  if(CRIMSON_SKILLS.has(sk.id)){
-  const tc=target?combatCenter(target):null,baseFace=seq.crimsonFace??seq.facing;seq.crimsonFace=baseFace;let face=tc?Math.atan2(tc.y-player.y,tc.x-player.x):baseFace;
-  if(mode==='flameMantle'){
-   const u=t,ca0=Math.cos(baseFace),sa0=Math.sin(baseFace),nx=-sa0,ny=ca0;let tx,ty;
-   if(tc){seq.crimsonBaseX??=tc.x;seq.crimsonBaseY??=tc.y;const bx=seq.crimsonBaseX,by=seq.crimsonBaseY;if(u<.42){const q=u/.42;tx=bx-ca0*(112-40*q)+nx*side*(138-28*q);ty=by-sa0*(112-40*q)+ny*side*(138-28*q);}else if(u<.78){const q=(u-.42)/.36;tx=bx-ca0*(70-10*q)+nx*side*(110-220*q);ty=by-sa0*(70-10*q)+ny*side*(110-220*q);}else{const q=(u-.78)/.22;tx=bx-ca0*(60-18*q)-nx*side*(110-48*q);ty=by-sa0*(60-18*q)-ny*side*(110-48*q);}}
-   else{const forward=165*u,lat=Math.sin(u*Math.PI*2)*105*side;tx=seq.originX+ca0*forward+nx*lat;ty=seq.originY+sa0*forward+ny*lat;}
-   const dx=tx-player.x,dy=ty-player.y,d=Math.hypot(dx,dy)||1,st=Math.min(d,(u<.78?950:720)*dt);moveBody(player,dx/d*st,dy/d*st);face=tc?Math.atan2(tc.y-player.y,tc.x-player.x):Math.atan2(dy,dx);player.skillLift=Math.sin(u*Math.PI)*14;
-   seq.fx-=dt;if(seq.fx<=0){seq.fx=u<.46?.032:u<.72?.070:.028;crimsonTrail(px0,py0,player.x,player.y,u<.46?1.65:u<.72?.82:1.9);const back=Math.atan2(py0-player.y,px0-player.x);crimsonEmbers(player.x,player.y,back,7+(u>.78?6:0),300+(u>.78?120:0),.82,1.05);if(u<.18||u>.76)crimsonOutside(player.x,player.y,110,235,5,false,side*.25);}shake=Math.max(shake,u<.42?6.3:u<.78?4.2:8.2);
-  }else if(mode==='crimsonSideWall'){
-   const u=t,f=baseFace,fx=Math.cos(f),fy=Math.sin(f),nx=-fy,ny=fx,sideNow=crimsonStrafeSide(f,seq.side||1);
-   seq.side=sideNow;
-   const tx=seq.originX+fx*48*u+nx*sideNow*246*u,ty=seq.originY+fy*48*u+ny*sideNow*246*u,dx=tx-player.x,dy=ty-player.y,d=Math.hypot(dx,dy)||1,step=Math.min(d,255*dt);
-   moveBody(player,dx/d*step,dy/d*step);face=tc?Math.atan2(tc.y-player.y,tc.x-player.x):baseFace;
-   player.skillLift=Math.sin(Math.PI*u)*5;
-   seq.fx-=dt;if(seq.fx<=0){seq.fx=.060;crimsonTrail(px0,py0,player.x,player.y,.90);crimsonEmbers(player.x,player.y,f+sideNow*Math.PI/2,6,205,.60,1);}
-   shake=Math.max(shake,5+4*u);
-  }else if(mode==='furnaceBloom'){
-   // Three distinct dash intervals, with visible attack pauses between stages.
-   const ax=Number.isFinite(seq.anchorX)?seq.anchorX:(tc?.x??seq.originX+Math.cos(baseFace)*210),ay=Number.isFinite(seq.anchorY)?seq.anchorY:(tc?.y??seq.originY+Math.sin(baseFace)*210),u=t,ca0=Math.cos(baseFace),sa0=Math.sin(baseFace),nx=-sa0,ny=ca0;
-   const stage=u>=.06&&u<.23?0:u>=.39&&u<.56?1:u>=.75&&u<.92?2:-1;
+  const tc=target?combatCenter(target):null,face=seq.crimsonFace??seq.facing,ca0=Math.cos(face),sa0=Math.sin(face),nx=-sa0,ny=ca0,u=t;seq.crimsonFace=face;
+  const look=tc?Math.atan2(tc.y-player.y,tc.x-player.x):face;
+  const approach=(tx,ty,speed)=>{const dx=tx-player.x,dy=ty-player.y,d=Math.hypot(dx,dy)||1,step=Math.min(d,speed*dt);moveBody(player,dx/d*step,dy/d*step);};
+  if(mode==='emberFuse'){
+   const q=clamp(u/.55,0,1),ease=q*q*(3-2*q);approach(seq.originX+ca0*235*ease,seq.originY+sa0*235*ease,850);
+   if(seq.fx<=0){seq.fx=.060;crimsonFireWake(px0,py0,player.x,player.y,1.05);}seq.fx-=dt;
+   player.skillLift=Math.sin(Math.PI*q)*6;
+  }else if(mode==='scarletHook'){
+   const q=clamp(u/.88,0,1),smooth=q*q*(3-2*q),lateral=(Math.sin(Math.PI*q)*168-q*103)*(seq.side||1);
+   approach(seq.originX+ca0*275*smooth+nx*lateral,seq.originY+sa0*275*smooth+ny*lateral,900);
+   if(seq.fx<=0){seq.fx=.060;crimsonFireWake(px0,py0,player.x,player.y,1.14);}seq.fx-=dt;
+   player.skillLift=Math.sin(Math.PI*q)*11;
+  }else if(mode==='butterflyVolley'||mode==='pyreDomino'){
+   seq.side=crimsonStrafeSide(face,seq.side||1);
+   const domino=mode==='pyreDomino',travel=domino?274:214,forward=domino?45:28,speed=domino?242:215;
+   approach(seq.originX+ca0*forward*u+nx*seq.side*travel*u,seq.originY+sa0*forward*u+ny*seq.side*travel*u,speed);
+   player.skillLift=3+Math.sin(u*Math.PI)*4;
+   if(seq.fx<=0){seq.fx=domino?.095:.072;crimsonEmbers(player.x,player.y,face+seq.side*Math.PI/2,domino?4:3,145,.6,.80);}seq.fx-=dt;
+  }else if(mode==='triadPyre'){
+   const vs=seq.triadVertices??crimsonTriadVertices(seq);seq.triadVertices=vs;
+   const stage=u>=.04&&u<.205?0:u>=.30&&u<.475?1:u>=.56&&u<.745?2:-1;
    if(stage>=0){
-    if(seq.crimsonDashStage!==stage){seq.crimsonDashStage=stage;seq.crimsonDashFromX=player.x;seq.crimsonDashFromY=player.y;}
-    const goals=[[ax-ca0*58+nx*side*165,ay-sa0*58+ny*side*165],[ax+ca0*20-nx*side*168,ay+sa0*20-ny*side*168],[ax+ca0*230,ay+sa0*230]],start=[.06,.39,.75][stage],end=[.23,.56,.92][stage],q=clamp((u-start)/(end-start),0,1),ease=q*q*(3-2*q);
-    const tx=seq.crimsonDashFromX+(goals[stage][0]-seq.crimsonDashFromX)*ease,ty=seq.crimsonDashFromY+(goals[stage][1]-seq.crimsonDashFromY)*ease,dx=tx-player.x,dy=ty-player.y,d=Math.hypot(dx,dy)||1,step=Math.min(d,(stage===2?1800:1300)*dt);
-    moveBody(player,dx/d*step,dy/d*step);face=tc?Math.atan2(tc.y-player.y,tc.x-player.x):baseFace;
-    player.skillLift=Math.sin(q*Math.PI)*(stage===2?22:10);
-    seq.fx-=dt;if(seq.fx<=0){seq.fx=.043;crimsonTrail(px0,py0,player.x,player.y,stage===2?2:1.35);crimsonEmbers(player.x,player.y,Math.atan2(py0-player.y,px0-player.x),stage===2?13:8,stage===2?430:310,.76,stage===2?1.2:1);}
-    shake=Math.max(shake,stage===2?14:8);
-   }else{
-    seq.fx-=dt;if(seq.fx<=0){seq.fx=u>.92?.040:.105;crimsonEmbers(ax,ay,baseFace+rnd(-.75,.75),u>.92?16:6,u>.92?420:220,.80,u>.92?1.35:1);}
-    shake=Math.max(shake,u>.92?16:5);
-   }
-  }else if(mode==='crimsonSideScorch'){
-   const u=t,f=baseFace,fx=Math.cos(f),fy=Math.sin(f),nx=-fy,ny=fx,sideNow=crimsonStrafeSide(f,seq.side||1);
-   seq.side=sideNow;
-   const tx=seq.originX+fx*32*u+nx*sideNow*200*u,ty=seq.originY+fy*32*u+ny*sideNow*200*u,dx=tx-player.x,dy=ty-player.y,d=Math.hypot(dx,dy)||1,step=Math.min(d,225*dt);
-   moveBody(player,dx/d*step,dy/d*step);face=tc?Math.atan2(tc.y-player.y,tc.x-player.x):baseFace;
-   player.skillLift=Math.sin(Math.PI*u)*4;
-   seq.fx-=dt;if(seq.fx<=0){seq.fx=.075;crimsonEmbers(player.x,player.y,f+sideNow*Math.PI/2,4,155,.60,.85);}
-   shake=Math.max(shake,3+3*u);
-  }else if(mode==='crimsonOrbitLine'){
-   // A short forward dash follows the line's appearance; other skill phases remain stationary.
-   if(seq.crimson1DashLeft>0){
-    const moving=Math.min(dt,seq.crimson1DashLeft),da=seq.crimson1DashAngle??seq.facing;
-    moveBody(player,Math.cos(da)*CRIMSON1_DASH*moving/CRIMSON1_DASH_TIME,Math.sin(da)*CRIMSON1_DASH*moving/CRIMSON1_DASH_TIME);
-    seq.crimson1DashLeft=Math.max(0,seq.crimson1DashLeft-moving);
-    player.skillLift=Math.sin((1-seq.crimson1DashLeft/CRIMSON1_DASH_TIME)*Math.PI)*5;
-   }
-   shake=Math.max(shake,t<.45?3.8:6.5);
+    if(seq.triadStage!==stage){seq.triadStage=stage;seq.triadFrom={x:player.x,y:player.y};}
+    const starts=[.04,.30,.56],ends=[.205,.475,.745],q=clamp((u-starts[stage])/(ends[stage]-starts[stage]),0,1),smooth=q*q*(3-2*q),to=vs[stage],from=seq.triadFrom;
+    approach(from.x+(to.x-from.x)*smooth,from.y+(to.y-from.y)*smooth,stage===2?1750:1360);
+    player.skillLift=Math.sin(q*Math.PI)*(stage===2?18:10);
+    if(seq.fx<=0){seq.fx=.054;crimsonFireWake(px0,py0,player.x,player.y,stage===2?1.7:1.23);}seq.fx-=dt;
+   }else{player.skillLift=0;seq.fx-=dt;}
   }
-  player.facing=seq.facing=player.attackAngle=face;
+  if(Math.hypot(player.x-px0,player.y-py0)>12)syncSkillMoveIfNeeded(px0,py0,20,1200);
+  player.facing=seq.facing=player.attackAngle=look;
  }
  if(mode==='boomerangWave'){const end=sk.cfg.dashDuration,step=sk.cfg.dashDistance/end*Math.max(0,Math.min(seq.elapsed,end)-Math.min(Math.max(0,seq.elapsed-dt),end));if(step>0){moveBody(player,ca*step,sa*step);seq.fx-=dt;if(seq.fx<=0){seq.fx=.05;effects.push({type:'line',x:px0,y:py0,x2:player.x,y2:player.y,color:sk.color,t:.13,max:.13});syncSkillMoveIfNeeded(px0,py0,0,360);}if(seq.elapsed>=end)syncSkillMoveIfNeeded(px0,py0,0,360);}}
  if(mode==='galeBlink'&&!seq.galeBlinkDone){
