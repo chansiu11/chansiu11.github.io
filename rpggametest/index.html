@@ -1048,27 +1048,31 @@ function crimsonOutside(x,y,inner=170,outer=290,count=14,inward=false,twist=0){
 }
 const CRIMSON1_RX=119,CRIMSON1_RY=90,CRIMSON1_BEAM=388,CRIMSON1_WIDTH=39;
 function crimsonStrokeCircle(cx,cy,rx,ry,aim,power=1){
- // The beam leaves the ellipse at its local bottom: its tangent is perpendicular to the target direction.
- effects.push({type:'crimsonEllipse',x:cx,y:cy,rx,ry,a:aim,t:.38,max:.38});
- const normalX=Math.cos(aim),normalY=Math.sin(aim),tangentX=-normalY,tangentY=normalX;
- // Non-uniform outward flame plumes around the ring; the ellipse's luminous stroke stays dominant.
- const jets=24;for(let j=0;j<jets;j++){
-  const q=j*TAU/jets,tx=Math.cos(q)*rx,ny=Math.sin(q)*ry,
-        px=cx+tangentX*tx+normalX*ny,py=cy+tangentY*tx+normalY*ny;
-  const nx=tangentX*(Math.cos(q)/rx)+normalX*(Math.sin(q)/ry),ny2=tangentY*(Math.cos(q)/rx)+normalY*(Math.sin(q)/ry),
-        out=Math.atan2(ny2,nx),strong=j%7===0||j%7===1;
-  crimsonEmbers(px,py,out+rnd(-.12,.12),strong?5:3,strong?310:235,.27,strong?1.05:.8);
+ // One persistent ellipse: visible perimeter is sword-bright; the fire billows OUT of it.
+ effects.push({type:'crimsonEllipse',x:cx,y:cy,rx,ry,a:aim,t:.66,max:.66,seed:rnd(0,TAU)});
+ const ca=Math.cos(aim),sa=Math.sin(aim),nx=-sa,ny=ca;
+ const clusters=[{a:-2.55,count:10},{a:-1.35,count:15},{a:-.22,count:20},{a:.74,count:9},{a:1.72,count:16},{a:2.65,count:11}];
+ for(const cl of clusters){
+  for(let j=0;j<cl.count;j++){const q=cl.a+rnd(-.31,.31),u=Math.cos(q)*rx,v=Math.sin(q)*ry;
+   const px=cx+nx*u+ca*v,py=cy+ny*u+sa*v,dx=nx*Math.cos(q)/rx+ca*Math.sin(q)/ry,dy=ny*Math.cos(q)/rx+sa*Math.sin(q)/ry;
+   const out=Math.atan2(dy,dx),sp=rnd(125,330);
+   crimsonEmbers(px,py,out+rnd(-.32,.32),1,sp,.08,rnd(.7,1.18));
+  }
  }
 }
+
 function crimsonStrokeLine(x1,y1,x2,y2,a,power=1){
- effects.push({type:'crimsonBeam',x:x1,y:y1,x2,y2,a,w:CRIMSON1_WIDTH,t:.39,max:.39});
- // Ash trails gather along the sides and behind the line instead of covering its bright center.
- const tangentX=-Math.sin(a),tangentY=Math.cos(a),dx=x2-x1,dy=y2-y1;
- for(let j=1;j<=12;j++){
-  const q=j/13,side=j%2?1:-1,off=rnd(8,20),px=x1+dx*q+tangentX*side*off,py=y1+dy*q+tangentY*side*off;
-  crimsonEmbers(px,py,a+Math.PI+side*rnd(.35,.62),j%4===0?4:2,rnd(130,230),.30,rnd(.6,.9));
- }
+ effects.push({type:'crimsonBeam',x:x1,y:y1,x2,y2,a,w:CRIMSON1_WIDTH,t:.64,max:.64,seed:rnd(0,TAU)});
+ const nx=-Math.sin(a),ny=Math.cos(a),dx=x2-x1,dy=y2-y1;
+ // Uneven embers: start and tip are busy; the middle is intentionally clearer.
+ const bands=[{q:.05,n:14},{q:.18,n:8},{q:.38,n:5},{q:.58,n:9},{q:.82,n:15},{q:.97,n:22}];
+ for(const band of bands){for(let j=0;j<band.n;j++){
+  const q=clamp(band.q+rnd(-.045,.045),0,1),side=j%2?1:-1,off=rnd(12,27)*side,px=x1+dx*q+nx*off,py=y1+dy*q+ny*off;
+  crimsonEmbers(px,py,a+Math.PI+side*rnd(.30,.92),1,rnd(110,300),.10,rnd(.68,1.10));
+ }}
+ for(let j=0;j<12;j++){const off=rnd(-.50,.50),x=x2+nx*off*31,y=y2+ny*off*31;crimsonEmbers(x,y,a+rnd(-1,1),2,rnd(215,445),.22,rnd(.80,1.25));}
 }
+
 function ring(x,y,r,color,t=.5){effects.push({type:'ring',x,y,r,color,t,max:t});}
 let prismCastSerial=0;
 function cancelSwordSkill(preserveFollow=false){activeSwordSkill=null;fourthSkillHold=null;fourthSkillField=null;secondSkillDash=null;secondSkillArmed=false;skillTrayPress=null;standardSkillHold=null;skill2Knocks=[];hiddenSkillEvents=[];hiddenSkillHold=null;if(!preserveFollow)hiddenSkillFollowup=null;if(void3State)endVoid3World();if(player){player.skillKind='';player.skillPose=-1;player.skillLift=0;player.pendingSlam=null;player.cast=0;player.pvpKnock=null;}}
@@ -3725,13 +3729,36 @@ function drawEffects(ground=false){for(const e of effects){const progress=1-e.t/
  if(e.type==='flourish'){ctx.save();ctx.translate(e.x,e.y);ctx.rotate(progress*(e.style%2?-2:2));ctx.globalCompositeOperation='lighter';ctx.strokeStyle=e.color;ctx.lineWidth=3*(1-progress)+1;for(let j=0;j<2;j++){ctx.beginPath();ctx.ellipse(0,0,e.r*(.25+progress*.75)*(1-j*.18),e.r*(.25+progress*.75)*(.55-j*.08),0,0,TAU);ctx.stroke();}for(let j=0;j<8;j++){const a=j*TAU/8,r=e.r*progress;line(ctx,Math.cos(a)*r*.6,Math.sin(a)*r*.6,Math.cos(a)*r,Math.sin(a)*r,e.color,2);circle(ctx,Math.cos(a)*r,Math.sin(a)*r,3*(1-progress)+1,'#fff4d5');}ctx.restore();}
  if(e.type==='ring'){ctx.strokeStyle=e.color;ctx.lineWidth=2.5*(1-progress)+.5;ctx.beginPath();ctx.arc(e.x,e.y,e.r*(.35+.65*progress),0,TAU);ctx.stroke();}
  if(e.type==='crimsonEllipse'){
-  ctx.save();ctx.translate(e.x,e.y);ctx.rotate(e.a-Math.PI/2);ctx.globalCompositeOperation='lighter';ctx.shadowColor='#ff5437';ctx.shadowBlur=20;ctx.lineCap='round';
-  for(const [width,col] of [[12,'#98102d'],[6,'#ff4535'],[2.4,'#ffdfb3']]){ctx.lineWidth=width;ctx.strokeStyle=col;ctx.beginPath();ctx.ellipse(0,0,e.rx,e.ry,0,0,TAU);ctx.stroke();}
+  ctx.save();ctx.translate(e.x,e.y);ctx.rotate(e.a-Math.PI/2);ctx.globalCompositeOperation='lighter';ctx.lineCap='round';
+  const life=clamp(e.t/e.max,0,1),flow=realTime*10+(e.seed||0);
+  ctx.shadowColor='#ff4a27';ctx.shadowBlur=14;
+  for(const [width,col] of [[19,'#7a0b22'],[11,'#eb2338'],[5.5,'#ff793d'],[2.3,'#fff0bd']]){ctx.lineWidth=width;ctx.strokeStyle=col;ctx.beginPath();ctx.ellipse(0,0,e.rx,e.ry,0,0,TAU);ctx.stroke();}
+  // Narrow flame tongues with varied gaps, flaring radially beyond the actual hitbox.
+  ctx.shadowBlur=7;
+  for(let j=0;j<38;j++){const q=j*TAU/38+.035*Math.sin(flow+j),u=e.rx*Math.cos(q),v=e.ry*Math.sin(q),gx=Math.cos(q)/e.rx,gy=Math.sin(q)/e.ry,gl=Math.hypot(gx,gy)||1,ox=gx/gl,oy=gy/gl;
+   const hot=(j%9===0||j%9===1||j%13===3),len=(hot?33:13)+(hot?19:10)*(.5+.5*Math.sin(flow*1.4+j*1.9)),w=hot?8:4;
+   ctx.strokeStyle=j%5===0?'#ffcb76':j%3===0?'#ff5934':'#f52a3e';ctx.lineWidth=w;ctx.beginPath();ctx.moveTo(u,v);
+   ctx.quadraticCurveTo(u+ox*len*.58-oy*(j%2?11:-11),v+oy*len*.58+ox*(j%2?11:-11),u+ox*len,v+oy*len);ctx.stroke();
+  }
   ctx.restore();
  }
  if(e.type==='crimsonBeam'){
-  ctx.save();ctx.globalCompositeOperation='lighter';ctx.lineCap='round';ctx.shadowColor='#ff4c30';ctx.shadowBlur=23;
-  for(const [width,col] of [[e.w+10,'#7c0922'],[e.w*.68,'#ff3b34'],[e.w*.26,'#ff9c55'],[Math.max(2,e.w*.09),'#ffe8bd']]){ctx.lineWidth=width;ctx.strokeStyle=col;ctx.beginPath();ctx.moveTo(e.x,e.y);ctx.lineTo(e.x2,e.y2);ctx.stroke();}
+  ctx.save();ctx.globalCompositeOperation='lighter';ctx.lineCap='round';
+  const ux=Math.cos(e.a),uy=Math.sin(e.a),nx=-uy,ny=ux,dist=Math.hypot(e.x2-e.x,e.y2-e.y),flow=realTime*14+(e.seed||0);
+  ctx.shadowColor='#ff4c30';ctx.shadowBlur=17;
+  // The main stroke remains sharply visible beneath the flame plumes.
+  for(const [width,col] of [[e.w+13,'#7b0822'],[e.w*.95,'#e92339'],[e.w*.52,'#ff6632'],[e.w*.19,'#fff0b9']]){
+   ctx.lineWidth=width;ctx.strokeStyle=col;ctx.beginPath();ctx.moveTo(e.x,e.y);ctx.lineTo(e.x2,e.y2);ctx.stroke();
+  }
+  ctx.shadowBlur=5;
+  for(let j=0;j<41;j++){
+   const q=j/40,edge=j%2?1:-1,hot=j%11<3,len=(hot?39:17)+(hot?23:12)*(.5+.5*Math.sin(flow+j*2.1)),off=edge*(e.w*.45+2),
+         px=e.x+ux*dist*q+nx*off,py=e.y+uy*dist*q+ny*off,dx=nx*edge,dy=ny*edge;
+   ctx.strokeStyle=j%5===0?'#ffde9c':j%3===0?'#ff813b':'#ff2c43';ctx.lineWidth=hot?7:3.5;ctx.beginPath();ctx.moveTo(px,py);
+   ctx.quadraticCurveTo(px+dx*len*.6-ux*len*.36,py+dy*len*.6-uy*len*.36,px+dx*len-ux*len*.22,py+dy*len-uy*len*.22);ctx.stroke();
+  }
+  // Concentrated sword-tip flare, not an evenly distributed particle cloud.
+  ctx.fillStyle='#ffb156';ctx.beginPath();ctx.ellipse(e.x2,e.y2,16,7,e.a,0,TAU);ctx.fill();
   ctx.restore();
  }
  if(e.type==='line')line(ctx,e.x,e.y,e.x2,e.y2,e.color,14*(1-progress)+2);
