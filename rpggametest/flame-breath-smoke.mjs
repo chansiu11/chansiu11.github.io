@@ -26,7 +26,8 @@ for(const c of cases){
   return {name:g.skillInfo(c.slot).name,mode:g.skillInfo(c.slot).cfg.mode,hp:e.hp,skillStarted:!!g.activeSwordSkill};
  },c);
  if(init.mode!==c.mode)throw Error('Wrong form '+c.id+' '+JSON.stringify(init));
- await page.waitForTimeout(c.ms);
+ const elapsedTarget=[.54,1.02,1.00,1.31,5.16][c.slot];
+ await page.waitForFunction(t=>window.__game?.activeSwordSkill?.elapsed>=t,elapsedTarget,{timeout:180000,polling:60});
  const frame=await page.evaluate(()=>{
   const g=window.__game,e=g.enemies.find(e=>e.type==='dummy'),seq=g.activeSwordSkill;
   return {id:seq?.skillId||'',elapsed:seq?.elapsed||0,
