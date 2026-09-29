@@ -37,7 +37,7 @@ for(const c of cases){
    const observeFinale=()=>{
     const seq=g.activeSwordSkill;
     if(seq?.skillId==='meteorBreaker'&&seq.flameCaught&&window.__finaleTrace.length<250)
-     window.__finaleTrace.push({since:seq.elapsed-seq.flameCaughtAt,stage:seq.flameStage,hits:e.testHitCount||0,x:p.x,y:p.y,teleports:seq.flameTeleports||0,vortexFrames:seq.flameVortexFrames||0,vortexX:seq.flameVortexCenterX,vortexY:seq.flameVortexCenterY,vortexR:seq.flameVortexRadius,attackerR:seq.flameVortexAttackerDistance,sprays:seq.flameVortexSprays,fireTongues:seq.flameVortexParticleCount,solidFill:seq.flameVortexSolidFill,playerClear:seq.flameVortexPlayerClear,enemyX:e.x,enemyY:e.y});
+     window.__finaleTrace.push({since:seq.elapsed-seq.flameCaughtAt,stage:seq.flameStage,hits:e.testHitCount||0,x:p.x,y:p.y,teleports:seq.flameTeleports||0,vortexFrames:seq.flameVortexFrames||0,vortexX:seq.flameVortexCenterX,vortexY:seq.flameVortexCenterY,vortexR:seq.flameVortexRadius,attackerR:seq.flameVortexAttackerDistance,sprays:seq.flameVortexSprays,fireTongues:seq.flameVortexParticleCount,solidFill:seq.flameVortexSolidFill,playerClear:seq.flameVortexPlayerClear,spinRate:seq.flameVortexSpinRate,outerCount:seq.flameVortexOuterCount,clearRadius:seq.flameVortexAttackerClearRadius,enemyX:e.x,enemyY:e.y});
     if(!window.__finaleTraceStop)requestAnimationFrame(observeFinale);
    };
    requestAnimationFrame(observeFinale);
@@ -187,7 +187,7 @@ for(const c of cases){
   const centered=trace.filter(p=>p.vortexFrames>=3&&Number.isFinite(p.vortexX)&&Number.isFinite(p.vortexR));
   if(centered.length<10||centered.some(p=>
    Math.abs(p.vortexX-p.enemyX)>4||Math.abs(p.vortexY-p.enemyY)>4||
-   p.vortexR<p.attackerR+100||p.sprays<44||p.fireTongues<176||p.solidFill!==false||p.playerClear!==true))
+   p.vortexR<p.attackerR+100||p.sprays<54||p.fireTongues<202||p.solidFill!==false||p.playerClear!==true||p.spinRate!==41||p.outerCount<148||p.clearRadius<80))
    throw Error('Fifth form vortex must surround the victim, keep the player clear, and add irregular outer flames: '+
     JSON.stringify({samples:centered.length,first:centered[0],last:centered.at(-1)}));
   console.log('Victim-centered dense outer fire, player exclusion, no filled sheet verified:',
