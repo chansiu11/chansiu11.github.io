@@ -1149,7 +1149,7 @@ function crimsonChargeFlames(x,y,r=90,life=.95,power=1){
 
 /* Hongryeon sword-forms: original flame effects driven by the real hitbox, not sprites or beams. */
 const FLAME_BREATH_MODES=new Set(['flameBreathSweep','flameBreathRise','flameBreathCleave','flameBreathWheel','flameBreathFinale']);
-const FLAME_CLEAVE_START_RADIUS=190,FLAME_CLEAVE_LAND_RADIUS=245;
+const FLAME_CLEAVE_START_RADIUS=190,FLAME_CLEAVE_LAND_RADIUS=245,FLAME_RISE_IMPACT_RADIUS=250;
 // Ring effects and the damage check intentionally share these exact radii.
 function flameBreathCleaveCircle(x,y,r,face=0,life=.57,power=1){
  crimsonBladeFire(x,y,face,r,TAU,1,life,.93*power);
@@ -1195,10 +1195,10 @@ function flameBreathSignature(id,index,final,ang,reach,actor=player,ctxInfo=null
    for(let j=-2;j<=2;j++){const a=look+j*.29;crimsonFlameBurst(x+Math.cos(a)*r*.72,y+Math.sin(a)*r*.72,40,.42,.56);}
   }
  }else if(id==='earthRend'){
-  const a=look+side*(index===0?-.35:.17),r=index===0?246:292;
-  flameBreathStroke(x,y,a,r,index===0?1.25:1.77,side,.57,index===0?1.01:1.39);
-  flameBreathPlume(x+Math.cos(a)*r*.43,y+Math.sin(a)*r*.43,a+side*1.10,index===0?154:230,67,.56,index===0?1:1.38);
-  if(final)crimsonFlameBurst(x+Math.cos(a)*r*.66,y+Math.sin(a)*r*.66,77,.55,.88);
+  // The entire finishing strike is circular and centered at the end of the straight dash.
+  flameBreathCleaveCircle(x,y,FLAME_RISE_IMPACT_RADIUS,look,.67,1.35);
+  flameBreathStroke(x,y,look+side*.14,FLAME_RISE_IMPACT_RADIUS,TAU,side,.57,1.16);
+  crimsonEmbers(x,y,look+Math.PI,9,205,.51,.8);
  }else if(id==='quakeRush'){
   if(index===0){
    // Startup ring already appeared at activation. The first hit is its delayed damage frame.
@@ -1499,7 +1499,7 @@ const SWORD_SKILL_LIBRARY=[
  {id:'crescent',name:'초승달 이연참',level:16,price:520,cost:34,cool:9,color:'#b88cff',desc:'뒤로 크게 빠지면서 서로 다른 각도의 초승달 검압 두 개를 연속 발사합니다.',cfg:{duration:.80,hits:[.16,.52],mult:[.90,1.18],arc:[2.4,2.7],reach:[18,22],step:[2,4],mode:'crescentRetreat'}},
  {id:'guardBreak',name:'홍염 횡참',level:20,price:650,cost:28,cool:4.8,color:'#ff782e',desc:'검을 크게 휘둘러 전방에 두 겹의 화염 호를 남기는 2단 발도.',cfg:{duration:.72,hits:[.24,.48],mult:[1.15,.92],arc:[2.12,2.18],reach:[150,166],step:[0,0],mode:'flameBreathSweep'}},
  {id:'tempest',name:'폭풍 검무',level:24,price:780,cost:48,cool:5.4,color:'#ffd95c',desc:'작은 나선 궤도를 직접 돌면서 여섯 번 회전 베기해 주변 적을 휩쓸어갑니다.',cfg:{duration:1.28,hits:[.08,.25,.42,.59,.78,1.02],mult:[.42,.45,.48,.52,.58,.92],arc:[TAU,TAU,TAU,TAU,TAU,TAU],reach:[18,22,26,30,34,42],step:[0,0,0,0,0,0],mode:'tempest'}},
- {id:'earthRend',name:'승염 비상',level:30,price:920,cost:43,cool:7.4,color:'#ff782e',desc:'불꽃을 흘리며 곡선으로 돌진한 뒤 아래에서 위로 끌어올려 베는 상승 연계.',cfg:{duration:1.23,hits:[.42,.91],mult:[.90,1.71],arc:[1.28,1.76],reach:[114,147],step:[0,0],mode:'flameBreathRise'}},
+ {id:'earthRend',name:'승염 비상',level:30,price:920,cost:43,cool:7.4,color:'#ff782e',desc:'첫 순간 빠르게 정면으로 돌진하고 점점 감속해 기존 이동거리 328에 도달한다. 발동 0.5초 뒤 도착 지점에 방패를 관통하는 원형 화염 검격을 일으킨다.',cfg:{duration:.78,hits:[.50],mult:[2.61],arc:[TAU],reach:[250],step:[0],mode:'flameBreathRise'}},
  {id:'dawnArc',name:'여명 검파',level:38,price:1100,cost:58,cool:3.5,color:'#ffd95c',desc:'강한 검압 하나를 발사한 반동으로 몸이 뒤로 밀리는 초장거리 단발기입니다.',cfg:{duration:.72,hits:[.28],mult:[1.15],arc:[1.7],reach:[20],step:[0],mode:'dawnWave'}},
  {id:'thunderDrive',name:'천풍 추살',level:44,price:1280,cost:74,cool:15.8,color:'#61f0c7',desc:'질풍 유파의 궁극기. 장거리 초고속 돌진에 맞는 순간 2번 질풍 점멸처럼 돌진 방향으로 강하게 날아가며, 이후 0.05초마다 총 30회의 추살 연계를 합니다. Lv.100 기준 일반 타격 100, 마지막 타격 200 피해입니다.',cfg:{duration:2.35,hits:Array.from({length:30},(_,i)=>.70+i*.05),mult:Array.from({length:30},(_,i)=>i===29?.38:.20),arc:Array(30).fill(TAU),reach:Array(30).fill(0),step:Array(30).fill(0),mode:'galePursuit'}},
  {id:'meteorBreaker',name:'극홍 · 염화일천',level:52,price:1520,cost:78,cool:19.5,color:'#ff782e',desc:'불꽃을 응축한 뒤 세 방향을 질주해 연속 베고 긴 호흡 끝에 마지막 화염 돌파로 끝내는 궁극기.',cfg:{duration:5.36,hits:[1.34,2.29,3.18,4.55,5.10],mult:[.70,.83,1.04,.76,2.65],arc:[1.62,1.88,2.22,2.16,3.08],reach:[124,142,164,188,214],step:[0,0,0,0,0],mode:'flameBreathFinale'}},
@@ -2423,10 +2423,9 @@ function flameBreathHit(seq,sk,k,damage,finalHit){
    matched=d<r+er&&Math.abs(angleDiff(a,look))<half+er/Math.max(35,d);
    stun=k===0?.12:.28;push=k===0?20:44;
   }else if(mode==='flameBreathRise'){
-   const r=k===0?258:310,half=k===0?.79:1.0;
-   const path=segmentDistance(c.x,c.y,[seq.originX,seq.originY],[player.x,player.y])<87+er;
-   matched=path||(d<r+er&&Math.abs(angleDiff(a,look))<half+er/Math.max(35,d));
-   stun=k===0?.18:.56;push=k===0?40:112;pushA=base+side*.23;
+   // Single radial guard-piercing impact at .50s, after the full 328-unit straight dash.
+   matched=d<=FLAME_RISE_IMPACT_RADIUS+er;
+   stun=.56;push=112;pushA=a;
   }else if(mode==='flameBreathCleave'){
    // The .10s opening ring hits at the origin; .65s landing uses the character's new position.
    const center=k===0?{x:seq.originX,y:seq.originY}:player;
@@ -2461,6 +2460,8 @@ function flameBreathHit(seq,sk,k,damage,finalHit){
    stun:stunSecs,
    dx:Math.cos(pushA)*force,dy:Math.sin(pushA)*force,
    duration:window.EchoesCombat.forceDuration(force),
+   bypassShield:mode==='flameBreathRise',
+   skillId:sk.id,
    shape:'circle',x:c.x,y:c.y,r:Math.max(24,er+10)
   });
  }
@@ -2746,11 +2747,13 @@ function flameBreathMotion(seq,sk,dt,t,target){
   player.skillLift=Math.sin(Math.PI*t)*3;
   seq.fx-=dt;if(seq.fx<=0&&elapsed<.43){seq.fx=.11;crimsonEmbers(player.x+fx*60,player.y+fy*60,f+Math.PI,2,105,.35,.40);}
  }else if(mode==='flameBreathRise'){
-  const q=ease((t-.10)/.62),lateral=side*(Math.sin(Math.PI*q)*103+q*47);
-  approach(seq.originX+fx*328*q+nx*lateral,seq.originY+fy*328*q+ny*lateral,1100);
-  player.skillLift=Math.sin(Math.PI*clamp((t-.14)/.73,0,1))*24;
-  player.facing=seq.facing=target?Math.atan2(target.y-player.y,target.x-player.x):f;
-  trail(.055,1.15);
+  // Fast initial velocity and cubic deceleration along a LOCKED straight heading.
+  // The destination remains 328 units ahead, exactly as the original skill.
+  const q=clamp(elapsed/.50,0,1),progress=1-Math.pow(1-q,3);
+  approach(seq.originX+fx*328*progress,seq.originY+fy*328*progress,2400);
+  player.skillLift=Math.sin(Math.PI*q)*10;
+  player.facing=seq.facing=f;
+  if(elapsed<=.50)trail(.047,1.18);
  }else if(mode==='flameBreathCleave'){
   // At .10 seconds the opening ring deals damage; the jump begins .01 seconds later.
   const q=ease((elapsed-.11)/.39);
@@ -3039,7 +3042,7 @@ function hitEnemy(e,amount,heavy=false,source=player,controlOverride=null){
  const impactOverride=controlOverride&&Object.keys(controlOverride).some(k=>k!=='onHit'&&k!=='skillId')?controlOverride:null;
  if(e.riftSleeping)return false;if(e.dead||(e.type==='finalBoss'&&!e.alert))return false;const serverMob=multiplayerMode&&window.EchoesMulti?.connected&&e.type!=='dummy'&&!e.riftId;
  if(!serverMob&&isTacticalMob(e)&&e.aiDashEvade>0){floating(e.x,e.y-e.r-18,'회피','#bce8e6');ring(e.x,e.y,e.r+14,'#9fdde3',.18);return false;}
- if(!serverMob&&isTacticalMob(e)&&e.guardActive&&source){const incoming=Math.atan2(source.y-e.y,source.x-e.x);if(Math.abs(angleDiff(incoming,e.facing))<1.75){e.guardSawAttack=true;e.flash=.08;ring(e.x,e.y,e.r+17,'#9ddde8',.16);floating(e.x,e.y-e.r-18,'BLOCK','#a9dfe8');sound('block');hitstop=Math.max(hitstop,.018);return false;}}
+ if(!serverMob&&isTacticalMob(e)&&e.guardActive&&source&&!controlOverride?.bypassShield){const incoming=Math.atan2(source.y-e.y,source.x-e.x);if(Math.abs(angleDiff(incoming,e.facing))<1.75){e.guardSawAttack=true;e.flash=.08;ring(e.x,e.y,e.r+17,'#9ddde8',.16);floating(e.x,e.y-e.r-18,'BLOCK','#a9dfe8');sound('block');hitstop=Math.max(hitstop,.018);return false;}}
  const wasPassive=!serverMob&&e.kind!=='boss'&&e.type!=='dummy'&&!e.riftId&&(!e.alert||e.state==='idle'||e.state==='return'),dmg=Math.max(1,Math.round(amount*(e.stun>.4?1.2:1))),hc=combatCenter(e),hitY=e.kind==='boss'?hc.y:e.y-e.r*.4;e.flash=.15;
  if(!controlOverride?.prismCast||realTime-(e._prismImpactAt??-Infinity)>=.07){e._prismImpactAt=realTime; damageFloating(e.x+rnd(-10,10),e.kind==='boss'?hc.y-30:e.y-e.r-18,dmg,source?Math.atan2(hc.y-source.y,hc.x-source.x):0,heavy);burst(hc.x,hitY,heavy?'#f4d892':'#cbdac8',heavy?16:6,heavy?145:85);sound('hit');if(options.shake)shake=Math.max(shake,heavy?5:2);if(!controlOverride?.noHitstop)hitstop=Math.max(hitstop,heavy?.055:.025);}
  if(serverMob){
@@ -3048,7 +3051,7 @@ function hitEnemy(e,amount,heavy=false,source=player,controlOverride=null){
  }
  e.hp-=dmg;recordWorldCombo(dmg);if(wasPassive)e.provoked=true;e.alert=true;e.poise+=heavy?55:14;if(e.type==='dummy'){e.testHitCount=(e.testHitCount||0)+1;e.testDamageTotal=(e.testDamageTotal||0)+dmg;e.hp=e.maxHp;player.training.attack=true;if(e.state==='idle'){e.timer=.8;e.alert=true;}return true;}
  if(e.kind==='boss'){if(e.poise>=130){applyEnemyStun(e,1.7);e.poise=0;floating(e.x,e.y-85,'자세 붕괴','#e7d395',true);sound('parry');}}
- else if(impactOverride){applyEnemyStun(e,impactOverride.stun||0);if(!enemyGuardBlocksControl(e)&&(impactOverride.dx||impactOverride.dy)){skill2Knocks=skill2Knocks.filter(k=>k.e!==e);const max=impactOverride.duration||.38;skill2Knocks.push({e,startX:e.x,startY:e.y,x:e.x+(impactOverride.dx||0),y:e.y+(impactOverride.dy||0),t:max,max,cubic:true});}}
+ else if(impactOverride){applyEnemyStun(e,impactOverride.stun||0);if((impactOverride.bypassShield||!enemyGuardBlocksControl(e))&&(impactOverride.dx||impactOverride.dy)){skill2Knocks=skill2Knocks.filter(k=>k.e!==e);const max=impactOverride.duration||.38;skill2Knocks.push({e,startX:e.x,startY:e.y,x:e.x+(impactOverride.dx||0),y:e.y+(impactOverride.dy||0),t:max,max,cubic:true});}}
  else{applyEnemyStun(e,heavy?.75:.22);if(heavy&&!enemyGuardBlocksControl(e)){const a=Math.atan2(e.y-source.y,e.x-source.x),max=window.EchoesCombat.forceDuration(24);skill2Knocks=skill2Knocks.filter(k=>k.e!==e);skill2Knocks.push({e,startX:e.x,startY:e.y,x:e.x+Math.cos(a)*24,y:e.y+Math.sin(a)*24,t:max,max,cubic:true});}}
  confirmSwordCarryHit(e);if(e.hp<=0)defeatEnemy(e);
  return true;
