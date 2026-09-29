@@ -2418,13 +2418,15 @@ function pullFlameWheelTargets(seq,dt,ox,oy){
   if(e.kind==='boss')continue; // Bosses take later hits without forced body movement.
   const tx=player.x+fx*64,ty=player.y+fy*64;
   if(e.networkPlayer){
-   if(seq.elapsed>=(seq.flameWheelSyncAt||0)){
-    seq.flameWheelSyncAt=seq.elapsed+.065;
+   const times=seq.flameWheelSyncAt??=(Object.create(null));
+   if(seq.elapsed>=(times[id]||0)){
+    times[id]=seq.elapsed+.065;
     worldTargetControl(e.id,{x:tx,y:ty,duration:.12,stun:.22,range:1100});
    }
   }else if(multiplayerMode&&window.EchoesMulti?.connected&&e.type!=='dummy'&&!e.riftId){
-   if(seq.elapsed>=(seq.flameWheelSyncAt||0)){
-    seq.flameWheelSyncAt=seq.elapsed+.065;
+   const times=seq.flameWheelSyncAt??=(Object.create(null));
+   if(seq.elapsed>=(times[id]||0)){
+    times[id]=seq.elapsed+.065;
     window.EchoesMulti.damageMob(e.id,0,{knockbackX:tx-e.x,knockbackY:ty-e.y,duration:.12,stun:.22,replaceForce:true});
    }
   }else{
@@ -2502,13 +2504,21 @@ function flameBreathHit(seq,sk,k,damage,finalHit){
    bypassShield:mode==='flameBreathRise',
    skillId:sk.id,...hitShape
   };
-  if(mode==='flameBreathWheel'&&k<2){
-   control.onHit=()=>{if(activeSwordSkill===seq)(seq.flameWheelCaught??=new Set()).add(e.id);};
+  if(mode==='flameBreathWheel'){
+   control.onHit=()=>{if(activeSwordSkill!==seq)return;
+    if(k<2)(seq.flameWheelCaught??=new Set()).add(e.id);
+    else seq.flameWheelCaught?.delete(e.id);};
   }
   const outcome=hitEnemy(e,damage,finalHit,player,control);
-  if(mode==='flameBreathWheel'&&k<2&&outcome===true){
-   (seq.flameWheelCaught??=new Set()).add(e.id);
-   skill2Knocks=skill2Knocks.filter(knock=>knock.e!==e);
+  if(mode==='flameBreathWheel'&&outcome===true){
+   if(k<2){
+    (seq.flameWheelCaught??=new Set()).add(e.id);
+    skill2Knocks=skill2Knocks.filter(knock=>knock.e!==e);
+   }else{
+    // The final slash releases the target so its original launch isn't
+    // canceled by the next frame of follow-along movement.
+    seq.flameWheelCaught?.delete(e.id);
+   }
   }
  }
 }
