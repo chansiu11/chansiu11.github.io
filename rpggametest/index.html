@@ -2845,7 +2845,7 @@ function styleAdeptExactShapes(e,seq,k){
  if(mode==='scarletHook')return [sector(pose.x,pose.y,pose.a,94+[105,145,178][k],1.5)];
  if(mode==='butterflyVolley')return [sector(pose.x,pose.y,a+[-.47,.35,-.24,.04][k]*(seq.side||1),[185,195,205,245][k],[1.04,1.20,1.44,1.94][k])];
  if(mode==='pyreDomino'){const nodes=[.30,.68,1.04,1.34].map(t=>{const q=t/1.46;return {x:ox+ca*45*q-sa*side*274*q+ca*105,y:oy+sa*45*q+ca*side*274*q+sa*105};});return k<3?[circle(nodes[k].x,nodes[k].y,77)]:nodes.map(n=>circle(n.x,n.y,103));}
- if(mode==='triadPyre'){const vs=crimsonTriadVertices({crimsonFace:a,anchorX:tx,anchorY:ty,side});if(k<3){const from=k===0?{x:ox,y:oy}:vs[k-1],to=vs[k];return [seg(from.x,from.y,to.x,to.y,90)];}return [circle(tx,ty,k===4?235:200)];}
+ if(mode==='triadPyre'){const vs=crimsonTriadVertices({crimsonFace:a,anchorX:tx,anchorY:ty,side});if(k<3){const from=k===0?{x:ox,y:oy}:vs[k-1],to=vs[k];return [seg(from.x,from.y,to.x,to.y,90)];}return [{type:'triangle',vs}];}
  if(mode==='guardPierce')return [sector(pose.x,pose.y,a,reach,.52)];
  if(mode==='tempest')return [circle(pose.x,pose.y,reach)];
  if(mode==='earthSlam')return [circle(pose.x+ca*80,pose.y+sa*80,145)];
@@ -2866,6 +2866,7 @@ function styleAdeptExactShapes(e,seq,k){
  return [sector(pose.x,pose.y,pose.a,reach,arc)];
 }
 function styleAdeptShapeContains(shape,p,r=17){
+ if(shape.type==='triangle')return crimsonInTriangle(p.x,p.y,shape.vs,r);
  if(shape.type==='circle')return Math.hypot(p.x-shape.x,p.y-shape.y)<=shape.r+r;
  if(shape.type==='segment')return segmentDistance(p.x,p.y,[shape.x1,shape.y1],[shape.x2,shape.y2])<=shape.w+r;
  const dx=p.x-shape.x,dy=p.y-shape.y,d=Math.hypot(dx,dy);return d<=shape.r+r&&Math.abs(angleDiff(Math.atan2(dy,dx),shape.a))<=shape.arc/2+r/Math.max(35,d);
@@ -3823,7 +3824,8 @@ function drawStyleAdeptTelegraph(e,progress,color){
  if(shapes.length>24){const step=Math.ceil(shapes.length/24);shapes=shapes.filter((_,i)=>i%step===0||i===shapes.length-1);}
  ctx.save();ctx.lineWidth=1.7;
  for(const s of shapes){ctx.strokeStyle=color;ctx.fillStyle='#ecca791b';
-  if(s.type==='circle'){const rr=s.r+player.r;ctx.beginPath();ctx.arc(s.x,s.y,rr,0,TAU);ctx.fill();ctx.stroke();ctx.fillStyle='#ead18732';ctx.beginPath();ctx.arc(s.x,s.y,rr*progress,0,TAU);ctx.fill();}
+  if(s.type==='triangle'){ctx.beginPath();ctx.moveTo(s.vs[0].x,s.vs[0].y);ctx.lineTo(s.vs[1].x,s.vs[1].y);ctx.lineTo(s.vs[2].x,s.vs[2].y);ctx.closePath();ctx.fill();ctx.stroke();ctx.fillStyle='#ead18732';ctx.beginPath();ctx.moveTo(s.vs[0].x,s.vs[0].y);for(let k=1;k<3;k++){ctx.lineTo(s.vs[0].x+(s.vs[k].x-s.vs[0].x)*progress,s.vs[0].y+(s.vs[k].y-s.vs[0].y)*progress);}ctx.closePath();ctx.fill();}
+  else if(s.type==='circle'){const rr=s.r+player.r;ctx.beginPath();ctx.arc(s.x,s.y,rr,0,TAU);ctx.fill();ctx.stroke();ctx.fillStyle='#ead18732';ctx.beginPath();ctx.arc(s.x,s.y,rr*progress,0,TAU);ctx.fill();}
   else if(s.type==='segment'){const a=Math.atan2(s.y2-s.y1,s.x2-s.x1),len=Math.hypot(s.x2-s.x1,s.y2-s.y1),ww=s.w+player.r;ctx.save();ctx.translate(s.x1,s.y1);ctx.rotate(a);ctx.fillRect(0,-ww,len,ww*2);ctx.strokeRect(0,-ww,len,ww*2);ctx.fillStyle='#ead18732';ctx.fillRect(0,-ww,len*progress,ww*2);ctx.restore();}
   else{const rr=s.r+player.r,aa=Math.min(TAU,s.arc+2*player.r/Math.max(35,s.r));ctx.save();ctx.translate(s.x,s.y);ctx.rotate(s.a);ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,rr,-aa/2,aa/2);ctx.closePath();ctx.fill();ctx.stroke();ctx.fillStyle='#ead18732';ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,rr*progress,-aa/2,aa/2);ctx.closePath();ctx.fill();ctx.restore();}
  }
