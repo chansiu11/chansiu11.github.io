@@ -4624,7 +4624,7 @@ function drawTown(){}
  // irregular fire tongues. Unlike the old renderer, no continuous radial gradient
  // or filled swirl sheets cover the arena; the constantly flying flames conceal
  // the attacker and victim themselves. All random values are generated once.
- const FLAME_FINALE_PARTICLES=Array.from({length:220},(_,i)=>{
+ const FLAME_FINALE_PARTICLES=Array.from({length:340},(_,i)=>{
   let seed=(Math.imul(i+139,1664525)+1013904223)>>>0;
   const rand=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
   return {angle:rand()*TAU,age:rand(),radius:rand(),size:rand(),sway:rand(),speed:.83+rand()*.87};
@@ -4640,26 +4640,36 @@ function drawTown(){}
   const center=target?combatCenter(target):seq.flameImpactPoint;
   if(!center)return;
   const cx=center.x,cy=center.y-18,
-   // Perspective-corrected enclosure: the cloud still covers the blinking attacker.
    attackerX=player.x-cx,attackerY=(player.y-23-cy)/.77,
    attackerDistance=Math.hypot(attackerX,attackerY),
    r=Math.ceil(Math.max(low?248:284,attackerDistance+112)/16)*16,
-   swarmCount=low?78:136,coverCount=low?28:48,sparks=low?28:36,
+   // More OUTER flames and flying embers, with no individual effects attached to the character.
+   // Each pool entry has fixed random values; batching bounds the draw cost on mobile.
+   swarmCount=low?132:248,sparks=low?44:80,
    colors=['#ff7429','#ffc04d','#ff9531','#ffe39a'],
    p=FLAME_FINALE_PARTICLES;
   ctx.save();ctx.translate(cx,cy);ctx.scale(1,.77);
-  // Batch by color. Each tongue is its own short asymmetric flame, not a
-  // wide polygon between adjacent flames. No shadows/gradients/particles to allocate.
+  // A hard exclusion zone keeps the attacker's body and limbs clear.
+  // Flames surround both combatants rather than spawning on the attacker.
+  ctx.beginPath();
+  ctx.rect(-r*1.42,-r*1.42,r*2.84,r*2.84);
+  ctx.moveTo(attackerX+81,attackerY);
+  ctx.arc(attackerX,attackerY,81,0,TAU,true);
+  ctx.clip('evenodd');
+  // Draw hundreds of irregular independent tongues in four COLOR BATCHES.
+  // No filled swirl sheets, gradients, per-frame particle allocation or shadows.
   for(let color=0;color<4;color++){
-   ctx.fillStyle=colors[color];ctx.globalAlpha=(color===3?.91:.79)*fade;
+   ctx.fillStyle=colors[color];ctx.globalAlpha=(color===3?.92:.82)*fade;
    ctx.beginPath();
    for(let i=color;i<swarmCount;i+=4){
     const v=p[i],u=(since*v.speed+v.age)%1,
      angle=v.angle+spin*(.62+v.sway*.37)+u*(seq.side||1)*.55
-       +.16*Math.sin(since*8.4+i*.91),
-     rr=r*(.11+v.radius*.69+u*.19),x=Math.cos(angle)*rr,y=Math.sin(angle)*rr,
+       +.20*Math.sin(since*8.4+i*.91),
+     rr=r*(.35+v.radius*.45+u*.19),
+     x=Math.cos(angle)*rr,y=Math.sin(angle)*rr,
      tangent=angle+(seq.side||1)*(1.07+.35*v.sway)+.38*u,
-     len=r*(.058+.054*v.size)*(1-.45*u),w=r*(.010+.010*v.sway)*(1-.25*u),
+     len=r*(.067+.072*v.size)*(1-.43*u),
+     w=r*(.010+.011*v.sway)*(1-.22*u),
      dx=Math.cos(tangent),dy=Math.sin(tangent),nx=-dy,ny=dx,
      flicker=.65+.35*Math.sin(since*(11+v.speed*7)+i*1.53);
     ctx.moveTo(x-nx*w,y-ny*w);
@@ -4670,41 +4680,20 @@ function drawTown(){}
    }
    ctx.fill();
   }
-  // Two dense pockets of rapidly shedding flames at the TARGET and ATTACKER,
-  // so neither character is plainly visible through a transparent ring interior.
-  for(let color=0;color<4;color++){
-   ctx.globalAlpha=(color===3?.91:.88)*fade;
-   ctx.fillStyle=colors[(color+1)%4];ctx.beginPath();
-   for(let i=color;i<coverCount;i+=4){
-    const v=p[swarmCount+i],u=(since*(1.62+v.speed*.55)+v.age)%1,
-     aroundVictim=i%2===0,bx=aroundVictim?0:attackerX,by=aroundVictim?0:attackerY,
-     a=v.angle-spin*(.83+v.size*.46)+u*(seq.side||1)*.83,
-     rr=(22+v.radius*66)*(1+u*.27),
-     x=bx+Math.cos(a)*rr,y=by+Math.sin(a)*rr,
-     dir=a+(seq.side||1)*(1.20+v.sway*.54),
-     len=(26+v.size*32)*(1-.38*u),w=5+v.sway*7,
-     dx=Math.cos(dir),dy=Math.sin(dir),nx=-dy,ny=dx;
-    ctx.moveTo(x-nx*w,y-ny*w);
-    ctx.quadraticCurveTo(x+dx*len*.40-nx*w,y+dy*len*.40-ny*w,
-     x+dx*len+nx*w*.09,y+dy*len+ny*w*.09);
-    ctx.quadraticCurveTo(x+dx*len*.28+nx*w,y+dy*len*.28+ny*w,x+nx*w,y+ny*w);
-    ctx.closePath();
-   }
-   ctx.fill();
-  }
-  // Fine embers continuously fly off at different speeds and angles.
+  // Increased ember spray follows the same large enemy-centered orbit, not the player.
   for(let color=0;color<3;color++){
    ctx.fillStyle=['#fff1b8','#ffbd54','#ff6b26'][color];
-   ctx.globalAlpha=(.64+.10*color)*fade;ctx.beginPath();
+   ctx.globalAlpha=(.70+.10*color)*fade;ctx.beginPath();
    for(let i=color;i<sparks;i+=3){
-    const v=p[swarmCount+coverCount+i],u=(since*(2.0+v.speed)+v.age)%1,
-     a=v.angle+spin*.53+.24*Math.sin(i*3.7+since*7),
-     rr=r*(.25+v.radius*.44+u*.41),x=Math.cos(a)*rr,y=Math.sin(a)*rr,
-     tip=a+(seq.side||1)*(.70+.55*v.size),l=(5+v.size*10)*(1-u*.44);
+    const v=p[swarmCount+i],u=(since*(2.0+v.speed)+v.age)%1,
+     a=v.angle+spin*.53+.28*Math.sin(i*3.7+since*7),
+     rr=r*(.33+v.radius*.38+u*.34),
+     x=Math.cos(a)*rr,y=Math.sin(a)*rr,
+     tip=a+(seq.side||1)*(.70+.55*v.size),l=(6+v.size*13)*(1-u*.44);
     ctx.moveTo(x,y);
-    ctx.lineTo(x+Math.cos(tip)*l-Math.sin(tip)*1.8,y+Math.sin(tip)*l+Math.cos(tip)*1.8);
+    ctx.lineTo(x+Math.cos(tip)*l-Math.sin(tip)*2.1,y+Math.sin(tip)*l+Math.cos(tip)*2.1);
     ctx.lineTo(x+Math.cos(tip)*l*1.34,y+Math.sin(tip)*l*1.34);
-    ctx.lineTo(x+Math.cos(tip)*l+Math.sin(tip)*1.8,y+Math.sin(tip)*l-Math.cos(tip)*1.8);
+    ctx.lineTo(x+Math.cos(tip)*l+Math.sin(tip)*2.1,y+Math.sin(tip)*l-Math.cos(tip)*2.1);
     ctx.closePath();
    }
    ctx.fill();
@@ -4715,8 +4704,9 @@ function drawTown(){}
    seq.flameVortexCenterX=cx;seq.flameVortexCenterY=cy+18;
    seq.flameVortexRadius=r;seq.flameVortexAttackerDistance=attackerDistance;
    seq.flameVortexSprays=sparks;
-   seq.flameVortexParticleCount=swarmCount+coverCount+sparks;
+   seq.flameVortexParticleCount=swarmCount+sparks;
    seq.flameVortexSolidFill=false;
+   seq.flameVortexPlayerClear=true;
   }
  }
 function drawEffects(ground=false){for(const e of effects){const progress=1-e.t/e.max;if(e.type==='hazard'){if(!ground)continue;ctx.fillStyle='#e39a8327';ctx.strokeStyle='#edab97';ctx.lineWidth=2;ctx.beginPath();ctx.arc(e.x,e.y,e.r,0,TAU);ctx.fill();ctx.stroke();ctx.fillStyle='#eb998842';ctx.beginPath();ctx.arc(e.x,e.y,e.r*progress,0,TAU);ctx.fill();continue;}if(e.type==='crimsonScorch'){
