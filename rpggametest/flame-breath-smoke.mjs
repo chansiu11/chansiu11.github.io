@@ -37,7 +37,7 @@ for(const c of cases){
    const observeFinale=()=>{
     const seq=g.activeSwordSkill;
     if(seq?.skillId==='meteorBreaker'&&seq.flameCaught&&window.__finaleTrace.length<250)
-     window.__finaleTrace.push({since:seq.elapsed-seq.flameCaughtAt,stage:seq.flameStage,hits:e.testHitCount||0});
+     window.__finaleTrace.push({since:seq.elapsed-seq.flameCaughtAt,stage:seq.flameStage,hits:e.testHitCount||0,x:p.x,y:p.y,teleports:seq.flameTeleports||0,vortexFrames:seq.flameVortexFrames||0});
     if(!window.__finaleTraceStop)requestAnimationFrame(observeFinale);
    };
    requestAnimationFrame(observeFinale);
@@ -175,6 +175,15 @@ for(const c of cases){
   const sawExtraCrescents=trace.some(p=>p.since>=2.11&&p.stage>=6);
   const sawRisingCut=trace.some(p=>p.since>=2.43&&p.stage>=7);
   const sawLateFinale=trace.some(p=>p.since>=3.25&&p.stage===8);
+  // The hit-confirmed follow-up stands still between the eight original cuts,
+  // blinking between fixed sword stances under the foreground flame vortex.
+  const teleportCount=Math.max(...trace.map(p=>p.teleports||0),0);
+  const vortexFrames=Math.max(...trace.map(p=>p.vortexFrames||0),0);
+  const slideBetweenCuts=trace.slice(1).filter((p,i)=>p.stage===trace[i].stage&&
+    Math.hypot(p.x-trace[i].x,p.y-trace[i].y)>7);
+  if(teleportCount<6||vortexFrames<15||slideBetweenCuts.length)
+   throw Error('Fifth form must blink between stationary sword strikes inside a persistent vortex: '+
+    JSON.stringify({teleportCount,vortexFrames,slideBetweenCuts:slideBetweenCuts.slice(0,3)}));
   if(end.hits<9||end.damage<=0||!sawOriginalCrosscuts||!sawExtraCrescents||!sawRisingCut||!sawLateFinale)
    throw Error('Extended ultimate must land all eight follow-up hits and its delayed fire seal: '+
     JSON.stringify({end,sawOriginalCrosscuts,sawExtraCrescents,sawRisingCut,sawLateFinale,traceEnd:trace.slice(-5)}));
