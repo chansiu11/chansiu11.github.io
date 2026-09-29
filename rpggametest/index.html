@@ -211,7 +211,7 @@ window.EchoesGaleVortex=GALE_VORTEX;
 // Limb-only anticipation, shared by local and remote world/arena renderers.
 window.EchoesSkillPrepare={
  duration:.2,
- kind(weapon,mode='',slot=0,id=''){mode=String(id||'')+' '+String(mode);if(weapon===2)return 'bow';if(/Slam|Fall|Breaker|Rain|fracture/i.test(mode))return 'overhead';if(/blink|thrust|rush|pierce|dash|Shot|Wave/i.test(mode))return 'thrust';if(/pulse|orbit|tempest|Crescendo|spin|Field/i.test(mode))return 'spin';return slot===4?'overhead':'slash';},
+ kind(weapon,mode='',slot=0,id=''){mode=String(id||'')+' '+String(mode);if(weapon===2)return 'bow';if(/Slam|Fall|Breaker|Rain|fracture|flameBreathCleave/i.test(mode))return 'overhead';if(/blink|thrust|rush|pierce|dash|Shot|Wave/i.test(mode))return 'thrust';if(/pulse|orbit|tempest|Crescendo|spin|Field/i.test(mode))return 'spin';return slot===4?'overhead':'slash';},
  variant(id='',slot=0){let n=slot+31;for(const c of String(id))n=(Math.imul(n,33)+c.charCodeAt(0))>>>0;return (n%997)/996;},
  pose(kind,a,t,sign,side,shoulderY,headY,variant=.5){const u=Math.min(1,Math.max(0,t)),q=u*u*(3-2*u),dx=Math.cos(a),dy=Math.sin(a);let hand;
  if(kind==='bow')hand=sign===side?{x:dx*27+side*6,y:shoulderY+10+dy*10}:{x:-dx*13-side*4,y:shoulderY+9-dy*6};
@@ -1149,6 +1149,22 @@ function crimsonChargeFlames(x,y,r=90,life=.95,power=1){
 
 /* Hongryeon sword-forms: original flame effects driven by the real hitbox, not sprites or beams. */
 const FLAME_BREATH_MODES=new Set(['flameBreathSweep','flameBreathRise','flameBreathCleave','flameBreathWheel','flameBreathFinale']);
+const FLAME_CLEAVE_START_RADIUS=190,FLAME_CLEAVE_LAND_RADIUS=245;
+// Ring effects and the damage check intentionally share these exact radii.
+function flameBreathCleaveCircle(x,y,r,face=0,life=.57,power=1){
+ crimsonBladeFire(x,y,face,r,TAU,1,life,.93*power);
+ crimsonEdgeFlames(x,y,face,r,TAU,1,life*.89,.74*power);
+ const n=options.quality==='low'?6:10;
+ for(let j=0;j<n;j++){
+  const a=face+TAU*(j+rnd(-.16,.16))/n,rr=r*rnd(.47,.70);
+  flameBreathPlume(x+Math.cos(a)*rr,y+Math.sin(a)*rr,a,r*rnd(.36,.56),r*rnd(.19,.30),life*rnd(.68,1.07),power*rnd(.74,1.11));
+ }
+ crimsonFlameBurst(x,y,r*.42,Math.min(life,.51),.72*power);
+ crimsonAshPatch(x,y,r*.73,life*1.46,face);
+ ring(x,y,r,'#ff922f',Math.min(life,.34));
+ crimsonEmbers(x,y,face+Math.PI,options.quality==='low'?7:13,245,.68,.77*power);
+}
+
 function flameBreathPlume(x,y,a,len=165,width=55,life=.39,power=1){
  if(!Number.isFinite(x+y+a+len+width))return;
  effects.push({type:'flameBreathPlume',x,y,a,len,width,power,seed:Math.floor(rnd(1,2147483646)),t:life,max:life});
@@ -1184,12 +1200,13 @@ function flameBreathSignature(id,index,final,ang,reach,actor=player,ctxInfo=null
   flameBreathPlume(x+Math.cos(a)*r*.43,y+Math.sin(a)*r*.43,a+side*1.10,index===0?154:230,67,.56,index===0?1:1.38);
   if(final)crimsonFlameBurst(x+Math.cos(a)*r*.66,y+Math.sin(a)*r*.66,77,.55,.88);
  }else if(id==='quakeRush'){
-  const r=index===0?326:360,a=look+side*(index===0?-.1:.08);
-  flameBreathStroke(x,y,a,r,index===0?1.36:1.49,-side,.58,index===0?1.42:.81);
-  flameBreathPlume(x+Math.cos(a)*r*.47,y+Math.sin(a)*r*.47,a,index===0?218:252,95,.54,index===0?1.18:.79);
-  if(final)for(let j=-1;j<=1;j++){
-   const aa=a+j*.33;
-   crimsonFlameBurst(x+Math.cos(aa)*r*.61,y+Math.sin(aa)*r*.61,52,.36,.64);
+  if(index===0){
+   // The first damaging ring is emitted during startup; no duplicate full circle.
+   crimsonEmbers(x,y,look+Math.PI,7,230,.45,.69);
+  }else{
+   flameBreathCleaveCircle(x,y,FLAME_CLEAVE_LAND_RADIUS,look,.79,1.52);
+   flameBreathStroke(x,y,look,345,1.58,-side,.65,1.49);
+   crimsonFlameBurst(x+Math.cos(look)*102,y+Math.sin(look)*102,89,.55,1.22);
   }
  }else if(id==='ironJudgment'){
   const a=f+(index===0?-.58:index===1?1.18:-.28)*side;
@@ -1489,7 +1506,7 @@ const SWORD_SKILL_LIBRARY=[
  {id:'galeOrbit',name:'풍환 폭발',level:10,price:340,cost:39,cool:8,color:'#61f0c7',desc:'0.5초 동안 넓은 풍환으로 주변 적의 이동을 봉쇄하고 부드럽게 중심으로 끌어당깁니다. 적은 스킬을 사용할 수 있으며, 이후 회전하는 원형 폭발로 타격합니다.',cfg:{duration:.78,hits:[.50],mult:[6.45],arc:[TAU],reach:[0],step:[0],mode:'galePulse'}},
  {id:'mirrorStep',name:'거울 걸음',level:8,price:0,cost:30,cool:5,color:'#b88cff',desc:'멀리 있는 적을 포착해 반대편까지 단숨에 파고든 뒤 뒤쪽에서 베는 장거리 추격 돌진기입니다.',cfg:{duration:.55,hits:[.32],mult:[2.25],arc:[1.1],reach:[36],step:[0],mode:'mirrorBackstab'}},
  {id:'lunarBind',name:'월인 결박',level:26,price:0,cost:46,cool:14.8,color:'#b88cff',desc:'표적의 좌우와 뒤로 세 번 순간이동하며 달빛 결계를 이동시켜 적을 구속하고, 마지막 위치에서 월륜 참격으로 마무리합니다.',cfg:{duration:.82,hits:[.50],mult:[2.05],arc:[TAU],reach:[84],step:[0],mode:'lunarPull'}},
- {id:'quakeRush',name:'열하 단공',level:12,price:0,cost:39,cool:7.8,color:'#ff782e',desc:'검을 머리 위로 올린 뒤 강하게 내려쳐 부채꼴 화염 검격과 잔불을 일으킨다.',cfg:{duration:1.12,hits:[.67,.92],mult:[1.43,.70],arc:[1.34,1.48],reach:[174,200],step:[0,0],mode:'flameBreathCleave'}},
+ {id:'quakeRush',name:'열하 단공',level:12,price:0,cost:39,cool:7.8,color:'#ff782e',desc:'발동과 동시에 사방으로 화염이 튀고 원 안의 적에게 피해를 준다. 앞으로 더 멀리 도약해 내려찍고 착지 지점에 2차 원형 화염 피해를 일으킨다.',cfg:{duration:1.16,hits:[.11,.82],mult:[.73,1.52],arc:[TAU,TAU],reach:[190,245],step:[0,0],mode:'flameBreathCleave'}},
  {id:'ironJudgment',name:'유염 회천',level:36,price:0,cost:52,cool:10,color:'#ff782e',desc:'몸을 비틀며 회전 화염으로 앞쪽으로 돌진하고 세 번 베어 주변 적을 밀어낸다.',cfg:{duration:1.53,hits:[.36,.79,1.22],mult:[.65,.82,1.55],arc:[3.85,4.75,5.55],reach:[64,93,120],step:[0,0,0],mode:'flameBreathWheel'}},
  {id:'solarReturn',name:'태양 회귀',level:14,price:0,cost:36,cool:9.4,color:'#ffd95c',desc:'조준 방향으로 빠르게 대시하며 전후방으로 검압을 발사합니다. 적중한 적을 시전자 쪽으로 끌어당깁니다.',cfg:{duration:.66,hits:[.24,.46],mult:[1.0,1.0],arc:[1.5,1.5],reach:[18,18],step:[0,0],dashDistance:360,dashDuration:.30,mode:'boomerangWave'}},
  {id:'prismLance',name:'프리즘 창렬',level:22,price:0,cost:44,cool:15.2,color:'#ffd95c',desc:'5발과 9발의 검압, 마지막 광창을 발사합니다. 투사체가 적중한 적들을 가까운 순서로 빠르게 추격해 대상마다 한 번씩 강한 일격을 가합니다.',cfg:{duration:.62,hits:[.30],mult:[1.0],arc:[1.8],reach:[10],step:[0],mode:'fanLances'}},
@@ -1516,7 +1533,7 @@ const SWORD_SKILL_IDENTITY={
  galeOrbit:{trait:'0.5초 부드러운 흡입 · 적중 후 이동만 봉쇄',fx:'바깥 공기 흡입/중심 압축/원형 폭발'},
  mirrorStep:{trait:'반대편 순간이동 · 후방 단타',fx:'보랏빛 거울 잔상'},
  lunarBind:{trait:'광역 흡인 · 축소 원참',fx:'달빛 수축 고리'},
- quakeRush:{trait:'제자리 내려 베기 · 전방 부채꼴 화염',fx:'높이 치켜든 불꽃이 내려찍히며 바닥에 퍼짐'},
+ quakeRush:{trait:'시전 즉시 주변 화염 원형 피해 · 전방 장거리 도약 · 착지 원형 강타',fx:'몸 주변에서 불꽃이 튀어 오르고 검을 높이 든 채 도약, 착지할 때 화염 고리 폭발'},
  ironJudgment:{trait:'회전 화염 돌진 · 3단 검격 · 범위 넉백',fx:'캐릭터를 감싸는 겹친 원호형 화염 검격'},
  solarReturn:{trait:'전방 대시 · 양방향 검압',fx:'금빛 대시 잔상과 전후 광파'},
  prismLance:{trait:'부채꼴 · 5갈래 검압',fx:'백청 프리즘 선'},
@@ -1530,7 +1547,7 @@ const SWORD_SKILL_IDENTITY={
 const SWORD_STYLE_GROUPS=[
  {id:'gale',name:'질풍 유파',desc:'3열 단거리 검풍·점멸 압송·지연 원폭·전방 파문·적중 연계형 추살 궁극기 중심',skills:['windSlash','flashRush','galeOrbit','starRush','thunderDrive']},
  {id:'moon',name:'월영 유파',desc:'위치 교환·흡인·후퇴 검압·교차 난무 중심',skills:['moonSpin','mirrorStep','crossBloom','crescent','lunarBind']},
- {id:'break',name:'홍련 유파',desc:'화염 호흡에서 영감을 받은 5가지 독자 검형: 홍염 횡참·승염 비상·열하 단공·유염 회천·극홍 염화일천',skills:['guardBreak','earthRend','quakeRush','ironJudgment','meteorBreaker']},
+ {id:'break',name:'홍련 유파',desc:'화염 호흡에서 영감을 받은 5가지 독자 검형: 홍염 횡참·승염 비상·열하 단공(화염 원형 도약)·유염 회천·극홍 염화일천',skills:['guardBreak','earthRend','quakeRush','ironJudgment','meteorBreaker']},
  {id:'dawn',name:'여명 유파',desc:'원거리 검압·회전·다중 발사·낙하 중심',skills:['dawnArc','tempest','skyFall','solarReturn','prismLance']},
  {id:'void',name:'이형 유파',desc:'중력 편향 이동·특이점 돌진·지속 압착·공간 접기·공허 난무 중심',skills:['chainReap','phantomSwap','gravityCut','bladeRain','voidDance']}
 ];
@@ -2137,7 +2154,7 @@ function heldSwordInputAngle(fallback){
 }
 function swordSkillStartVisuals(actor,sk,slot,facing){
  if(!actor||!sk)return;
- if(FLAME_BREATH_MODES.has(sk.cfg?.mode)){crimsonChargeFlames(actor.x,actor.y,sk.id==='meteorBreaker'?83:27,sk.id==='meteorBreaker'?.96:.21,sk.id==='meteorBreaker'?1.16:.46);crimsonEmbers(actor.x,actor.y,facing+Math.PI,sk.id==='meteorBreaker'?10:3,sk.id==='meteorBreaker'?188:83,.64,.62);return;}const cfg=sk.cfg||{},theme=swordStyleFxForSkill(sk.id),x=actor.x,y=actor.y;
+ if(FLAME_BREATH_MODES.has(sk.cfg?.mode)){if(sk.cfg.mode==='flameBreathCleave'){flameBreathCleaveCircle(actor.x,actor.y,FLAME_CLEAVE_START_RADIUS,facing,.69,1.15);if(actor===player)shake=Math.max(shake,7);}crimsonChargeFlames(actor.x,actor.y,sk.id==='meteorBreaker'?83:27,sk.id==='meteorBreaker'?.96:.21,sk.id==='meteorBreaker'?1.16:.46);crimsonEmbers(actor.x,actor.y,facing+Math.PI,sk.id==='meteorBreaker'?10:3,sk.id==='meteorBreaker'?188:83,.64,.62);return;}const cfg=sk.cfg||{},theme=swordStyleFxForSkill(sk.id),x=actor.x,y=actor.y;
  if(sk.holdContinuous){
   if(sk.id==='gravityCut'){effects.push({type:'riftCut',x:x+Math.cos(facing)*65,y:y+Math.sin(facing)*65,a:facing+.55,len:145,width:18,color:theme.main,t:.28,max:.28});effects.push({type:'line',x:x-Math.cos(facing)*35,y:y-Math.sin(facing)*35,x2:x+Math.cos(facing)*105,y2:y+Math.sin(facing)*105,color:theme.sub,t:.24,max:.24});}
   else ring(x,y,38,theme.main,.28);
@@ -2411,9 +2428,12 @@ function flameBreathHit(seq,sk,k,damage,finalHit){
    matched=path||(d<r+er&&Math.abs(angleDiff(a,look))<half+er/Math.max(35,d));
    stun=k===0?.18:.56;push=k===0?40:112;pushA=base+side*.23;
   }else if(mode==='flameBreathCleave'){
-   const r=k===0?328:355,half=k===0?.74:.82;
-   matched=d<r+er&&Math.abs(angleDiff(a,look))<half+er/Math.max(35,d);
-   stun=k===0?.42:.21;push=k===0?85:45;
+   const center=k===0?{x:seq.originX,y:seq.originY}:player;
+   const r=k===0?FLAME_CLEAVE_START_RADIUS:FLAME_CLEAVE_LAND_RADIUS;
+   const rx=c.x-center.x,ry=c.y-center.y;
+   matched=Math.hypot(rx,ry)<=r+er;
+   stun=k===0?.19:.53;push=k===0?24:126;
+   pushA=Math.atan2(ry,rx);
   }else if(mode==='flameBreathWheel'){
    const r=[190,230,270][k],face=base+side*k*.72,half=[2.02,2.50,3.05][k];
    matched=d<r+er&&Math.abs(angleDiff(a,face))<half+er/Math.max(35,d);
@@ -2731,11 +2751,14 @@ function flameBreathMotion(seq,sk,dt,t,target){
   player.facing=seq.facing=target?Math.atan2(target.y-player.y,target.x-player.x):f;
   trail(.055,1.15);
  }else if(mode==='flameBreathCleave'){
-  if(elapsed<.32){seq.fx-=dt;if(seq.fx<=0){seq.fx=.16;crimsonEmbers(player.x+fx*23,player.y+fy*23,f+Math.PI,3,103,.44,.44);}}
-  const q=ease((t-.35)/.37);
-  approach(seq.originX+fx*70*q,seq.originY+fy*70*q,285);
-  player.skillLift=t<.59?23*Math.sin(Math.PI*Math.min(1,t/.59)):Math.max(0,23*(1-(t-.59)/.23));
+  // Forward leap now aims 225 world units, up from the previous 70.
+  const q=ease((t-.25)/.40);
+  approach(seq.originX+fx*225*q,seq.originY+fy*225*q,760);
+  const jump=clamp((t-.24)/.52,0,1);
+  player.skillLift=Math.sin(Math.PI*jump)*62;
   player.facing=seq.facing=f;
+  if(jump>0&&jump<1&&Math.hypot(player.x-ox,player.y-oy)>5)trail(.066,1.05);
+  else if(elapsed<.27){seq.fx-=dt;if(seq.fx<=0){seq.fx=.12;crimsonEmbers(player.x,player.y,f+Math.PI,4,163,.49,.57);}}
  }else if(mode==='flameBreathWheel'){
   const q=ease((t-.09)/.76),sideArc=side*Math.sin(q*Math.PI*2)*35;
   approach(seq.originX+fx*338*q+nx*sideArc,seq.originY+fy*338*q+ny*sideArc,950);
