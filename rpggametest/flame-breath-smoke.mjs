@@ -37,7 +37,7 @@ for(const c of cases){
    const observeFinale=()=>{
     const seq=g.activeSwordSkill;
     if(seq?.skillId==='meteorBreaker'&&seq.flameCaught&&window.__finaleTrace.length<250)
-     window.__finaleTrace.push({since:seq.elapsed-seq.flameCaughtAt,stage:seq.flameStage,hits:e.testHitCount||0,x:p.x,y:p.y,teleports:seq.flameTeleports||0,vortexFrames:seq.flameVortexFrames||0,vortexX:seq.flameVortexCenterX,vortexY:seq.flameVortexCenterY,vortexR:seq.flameVortexRadius,attackerR:seq.flameVortexAttackerDistance,sprays:seq.flameVortexSprays,enemyX:e.x,enemyY:e.y});
+     window.__finaleTrace.push({since:seq.elapsed-seq.flameCaughtAt,stage:seq.flameStage,hits:e.testHitCount||0,x:p.x,y:p.y,teleports:seq.flameTeleports||0,vortexFrames:seq.flameVortexFrames||0,vortexX:seq.flameVortexCenterX,vortexY:seq.flameVortexCenterY,vortexR:seq.flameVortexRadius,attackerR:seq.flameVortexAttackerDistance,sprays:seq.flameVortexSprays,fireTongues:seq.flameVortexParticleCount,solidFill:seq.flameVortexSolidFill,enemyX:e.x,enemyY:e.y});
     if(!window.__finaleTraceStop)requestAnimationFrame(observeFinale);
    };
    requestAnimationFrame(observeFinale);
@@ -187,10 +187,10 @@ for(const c of cases){
   const centered=trace.filter(p=>p.vortexFrames>=3&&Number.isFinite(p.vortexX)&&Number.isFinite(p.vortexR));
   if(centered.length<10||centered.some(p=>
    Math.abs(p.vortexX-p.enemyX)>4||Math.abs(p.vortexY-p.enemyY)>4||
-   p.vortexR<p.attackerR+100||p.sprays<(c.slot===4?9:1)))
+   p.vortexR<p.attackerR+100||p.sprays<28||p.fireTongues<134||p.solidFill!==false))
    throw Error('Fifth form vortex must be VICTIM-centered, enclose attacker, and spray flame sparks: '+
     JSON.stringify({samples:centered.length,first:centered[0],last:centered.at(-1)}));
-  console.log('Victim-centered wide vortex + attacker enclosure + flame sprays verified:',
+  console.log('Victim-centered irregular fire tongues, no filled sheet, attacker enclosure verified:',
    JSON.stringify({samples:centered.length,radius:centered.at(-1).vortexR,sparks:centered.at(-1).sprays}));
   if(end.hits<9||end.damage<=0||!sawOriginalCrosscuts||!sawExtraCrescents||!sawRisingCut||!sawLateFinale)
    throw Error('Extended ultimate must land all eight follow-up hits and its delayed fire seal: '+
