@@ -1507,7 +1507,7 @@ const SWORD_SKILL_LIBRARY=[
  {id:'mirrorStep',name:'거울 걸음',level:8,price:0,cost:30,cool:5,color:'#b88cff',desc:'멀리 있는 적을 포착해 반대편까지 단숨에 파고든 뒤 뒤쪽에서 베는 장거리 추격 돌진기입니다.',cfg:{duration:.55,hits:[.32],mult:[2.25],arc:[1.1],reach:[36],step:[0],mode:'mirrorBackstab'}},
  {id:'lunarBind',name:'월인 결박',level:26,price:0,cost:46,cool:14.8,color:'#b88cff',desc:'표적의 좌우와 뒤로 세 번 순간이동하며 달빛 결계를 이동시켜 적을 구속하고, 마지막 위치에서 월륜 참격으로 마무리합니다.',cfg:{duration:.82,hits:[.50],mult:[2.05],arc:[TAU],reach:[84],step:[0],mode:'lunarPull'}},
  {id:'quakeRush',name:'열하 단공',level:12,price:0,cost:39,cool:7.8,color:'#ff782e',desc:'발동과 동시에 주변 화염 원으로 공격하고 바로 도약해 적을 내려찍는다. 원형 타격 직후 끊김 없이 앞으로 이동하며 착지 지점에서 추가 화염 피해를 준다.',cfg:{duration:.86,hits:[.10,.65],mult:[.73,1.52],arc:[TAU,TAU],reach:[190,245],step:[0,0],mode:'flameBreathCleave'}},
- {id:'ironJudgment',name:'유염 회천',level:36,price:0,cost:52,cool:10,color:'#ff782e',desc:'몸을 비틀며 회전 화염으로 앞쪽으로 돌진하고 세 번 베어 주변 적을 밀어낸다.',cfg:{duration:1.53,hits:[.36,.79,1.22],mult:[.65,.82,1.55],arc:[3.85,4.75,5.55],reach:[64,93,120],step:[0,0,0],mode:'flameBreathWheel'}},
+ {id:'ironJudgment',name:'유염 회천',level:36,price:0,cost:52,cool:10,color:'#ff782e',desc:'몸을 비틀며 회전 화염으로 앞쪽으로 돌진하고 세 번 베어 주변 적을 밀어낸다.',cfg:{duration:.75,hits:[.18,.375,.58],mult:[.65,.82,1.55],arc:[3.85,4.75,5.55],reach:[64,93,120],step:[0,0,0],mode:'flameBreathWheel'}},
  {id:'solarReturn',name:'태양 회귀',level:14,price:0,cost:36,cool:9.4,color:'#ffd95c',desc:'조준 방향으로 빠르게 대시하며 전후방으로 검압을 발사합니다. 적중한 적을 시전자 쪽으로 끌어당깁니다.',cfg:{duration:.66,hits:[.24,.46],mult:[1.0,1.0],arc:[1.5,1.5],reach:[18,18],step:[0,0],dashDistance:360,dashDuration:.30,mode:'boomerangWave'}},
  {id:'prismLance',name:'프리즘 창렬',level:22,price:0,cost:44,cool:15.2,color:'#ffd95c',desc:'5발과 9발의 검압, 마지막 광창을 발사합니다. 투사체가 적중한 적들을 가까운 순서로 빠르게 추격해 대상마다 한 번씩 강한 일격을 가합니다.',cfg:{duration:.62,hits:[.30],mult:[1.0],arc:[1.8],reach:[10],step:[0],mode:'fanLances'}},
  {id:'skyFall',name:'천광 낙하',level:42,price:0,cost:64,cool:7.8,color:'#ffd95c',desc:'멀리 있는 적을 자동 포착해 크게 도약하며 따라붙은 뒤 목표 지점에 낙하 충격을 일으킵니다.',cfg:{duration:1.0,hits:[.78],mult:[3.25],arc:[TAU],reach:[0],step:[0],mode:'skyFall'}},
@@ -2765,16 +2765,16 @@ function flameBreathMotion(seq,sk,dt,t,target){
    }
   }
  }else if(mode==='flameBreathWheel'){
-  // Keep the two shallow S bends but NEVER ease to zero between hit 2 and hit 3.
-  // Each phase has matching forward/lateral velocity at the .79s seam, so there
-  // is no pause or sharp change of direction as the final rotating slash begins.
-  const rawFirst=clamp((elapsed-.14)/.65,0,1),start=clamp(rawFirst/.10,0,1);
+  // Run the same smooth S-shaped path about 2.1x faster. Attack timings are
+  // compressed to match motion, keeping all three rotating slashes in flight.
+  // The two phases retain matching forward and lateral velocities at .375s.
+  const rawFirst=clamp((elapsed-.065)/.31,0,1),start=clamp(rawFirst/.10,0,1);
   const first=rawFirst<.10?.10*(2*start*start-start*start*start):rawFirst;
-  const rawThird=clamp((elapsed-.79)/.56,0,1),stop=clamp((rawThird-.86)/.14,0,1);
+  const rawThird=clamp((elapsed-.375)/.27,0,1),stop=clamp((rawThird-.86)/.14,0,1);
   const third=rawThird<.86?rawThird:.86+.14*(stop+stop*stop-stop*stop*stop);
   const forward=465*first+400*third;
   const sideArc=side*(100*Math.sin(Math.PI*first)-86*Math.sin(Math.PI*third));
-  approach(seq.originX+fx*forward+nx*sideArc,seq.originY+fy*forward+ny*sideArc,2000);
+  approach(seq.originX+fx*forward+nx*sideArc,seq.originY+fy*forward+ny*sideArc,4600);
   // One more visible sword spin during the third hit, with no gap after the second.
   player.facing=f+side*Math.PI*2.1*(first+third);seq.facing=f;
   player.skillLift=4+Math.sin(Math.PI*first)*10+Math.sin(Math.PI*third)*7;
