@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>RPG Game - 홍련 1번 외형 테스트</title>
+<style>
+:root{color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#0b0d12;color:#f5f5f5;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+#app{width:100%;height:100%;display:grid;grid-template-rows:1fr auto}
+#stageWrap{position:relative;min-height:0;background:radial-gradient(circle at 50% 45%,#1a1e27 0,#10131a 48%,#090b10 100%)}
+canvas{width:100%;height:100%;display:block;touch-action:none}
+.hint{position:absolute;left:12px;top:10px;padding:8px 10px;border-radius:10px;background:#0009;font-size:13px;line-height:1.45;backdrop-filter:blur(6px);pointer-events:none}
+.panel{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:10px 12px;background:#11151ddd;border-top:1px solid #2a303d;backdrop-filter:blur(8px)}
+.control{display:grid;grid-template-columns:auto minmax(90px,150px) auto;gap:7px;align-items:center;font-size:12px}
+.control input{width:100%}
+.value{min-width:42px;text-align:right;color:#ffb07e}
+button{border:0;border-radius:10px;padding:10px 14px;font-weight:700;background:#2a303d;color:#fff;cursor:pointer}
+button.primary{background:linear-gradient(135deg,#d91f3e,#ff6a32);box-shadow:0 0 18px #ff3d3d33}
+button:active{transform:translateY(1px)}
+@media(max-width:720px){
+  .panel{gap:8px;padding:8px}
+  .control{grid-template-columns:auto 100px auto}
+  .hint{font-size:12px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stageWrap">
+    <canvas id="c"></canvas>
+    <div class="hint">적 위치를 클릭/터치해서 이동 · <b>1</b> 또는 아래 버튼으로 스킬 사용<br>원은 캐릭터 중심, 선은 적 방향의 원 둘레에서 시작합니다.</div>
+  </div>
+  <div class="panel">
+    <button class="primary" id="cast">1번 스킬</button>
+    <button id="randomEnemy">적 위치 랜덤</button>
+    <div class="control"><span>원 크기</span><input id="radius" type="range" min="80" max="155" value="120"><span class="value" id="radiusV"></span></div>
+    <div class="control"><span>선 길이</span><input id="lineLen" type="range" min="260" max="560" value="440"><span class="value" id="lineLenV"></span></div>
+    <div class="control"><span>선 굵기</span><input id="lineWidth" type="range" min="6" max="26" value="14"><span class="value" id="lineWidthV"></span></div>
+    <div class="control"><span>불꽃 양</span><input id="embers" type="range" min="10" max="60" value="34"><span class="value" id="embersV"></span></div>
+  </div>
+</div>
+<script>
+const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
+const controls={
+ radius:document.getElementById('radius'),
+ lineLen:document.getElementById('lineLen'),
+ lineWidth:document.getElementById('lineWidth'),
+ embers:document.getElementById('embers')
+};
+const vals={
+ radius:document.getElementById('radiusV'),
+ lineLen:document.getElementById('lineLenV'),
+ lineWidth:document.getElementById('lineWidthV'),
+ embers:document.getElementById('embersV')
+};
+let W=0,H=0,dpr=1,player={x:0,y:0},enemy={x:0,y:0},fx=[],cast=null,last=performance.now();
+
+function resize(){
+ dpr=Math.min(2,window.devicePixelRatio||1);
+ const r=canvas.getBoundingClientRect();W=r.width;H=r.height;
+ canvas.width=Math.max(1,Math.round(W*dpr));canvas.height=Math.max(1,Math.round(H*dpr));
+ ctx.setTransform(dpr,0,0,dpr,0,0);
+ player.x=W*.48;player.y=H*.56;
+ if(!enemy.x&&!enemy.y){enemy.x=W*.73;enemy.y=H*.42}
+}
+window.addEventListener('resize',resize);resize();
+
+function syncLabels(){
+ vals.radius.textContent=controls.radius.value+'px';
+ vals.lineLen.textContent=controls.lineLen.value+'px';
+ vals.lineWidth.textContent=controls.lineWidth.value+'px';
+ vals.embers.textContent=controls.embers.value;
+}
+Object.values(controls).forEach(el=>el.addEventListener('input',syncLabels));syncLabels();
+
+function rnd(a,b){return a+Math.random()*(b-a)}
+function angleToEnemy(){return Math.atan2(enemy.y-player.y,enemy.x-player.x)}
+function spawnEmber(x,y,a,speed=170,life=.45,scale=1){
+ fx.push({type:'ember',x,y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,t:life,max:life,rx:rnd(5,10)*scale,ry:rnd(1.4,3)*scale,a});
+}
+function castSkill(){
+ const a=angleToEnemy(),r=+controls.radius.value,len=+controls.lineLen.value;
+ cast={t:0,duration:.58,a,r,len};
+ // 원 둘레에서 바깥으로 뿜는 불꽃: 균일하지 않게 3개 군집에 더 많이 배치
+ const total=+controls.embers.value;
+ for(let i=0;i<total;i++){
+   const cluster=i%3;
+   const base=[a-.95,a+.15,a+1.8][cluster];
+   const aa=base+rnd(-.65,.65);
+   const rr=r+rnd(-5,7);
+   const px=player.x+Math.cos(aa)*rr,py=player.y+Math.sin(aa)*rr;
+   spawnEmber(px,py,aa+rnd(-.24,.24),rnd(145,310),rnd(.32,.65),rnd(.75,1.1));
+ }
+ // 긴 선 주변 잔여 불꽃
+ const sx=player.x+Math.cos(a)*r,sy=player.y+Math.sin(a)*r;
+ const ex=sx+Math.cos(a)*len,ey=sy+Math.sin(a)*len;
+ const lineCount=Math.round(total*.72),nx=-Math.sin(a),ny=Math.cos(a);
+ for(let i=0;i<lineCount;i++){
+   const q=Math.pow(Math.random(),.85);
+   const off=rnd(-18,18)*(1-q*.45);
+   const px=sx+(ex-sx)*q+nx*off,py=sy+(ey-sy)*q+ny*off;
+   spawnEmber(px,py,a+Math.PI+rnd(-.55,.55),rnd(90,210),rnd(.3,.58),rnd(.62,.95));
+ }
+}
+document.getElementById('cast').onclick=castSkill;
+document.getElementById('randomEnemy').onclick=()=>{
+ enemy.x=rnd(W*.18,W*.88);enemy.y=rnd(H*.14,H*.82);castSkill();
+};
+window.addEventListener('keydown',e=>{if(e.code==='Digit1')castSkill()});
+canvas.addEventListener('pointerdown',e=>{
+ const r=canvas.getBoundingClientRect();enemy.x=e.clientX-r.left;enemy.y=e.clientY-r.top;castSkill();
+});
+
+function drawGrid(){
+ ctx.save();ctx.strokeStyle='#ffffff0b';ctx.lineWidth=1;
+ const step=48;
+ for(let x=(player.x%step);x<W;x+=step){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}
+ for(let y=(player.y%step);y<H;y+=step){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}
+ ctx.restore();
+}
+function drawActor(){
+ const a=angleToEnemy();
+ ctx.save();ctx.translate(player.x,player.y);ctx.rotate(a);
+ ctx.fillStyle='#f0f3ff';ctx.beginPath();ctx.arc(0,0,16,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle='#ff5b3d';ctx.fillRect(7,-3,25,6);
+ ctx.restore();
+ ctx.save();ctx.translate(enemy.x,enemy.y);
+ ctx.shadowColor='#ff3048';ctx.shadowBlur=12;ctx.fillStyle='#7c1729';ctx.beginPath();ctx.arc(0,0,18,0,Math.PI*2);ctx.fill();
+ ctx.shadowBlur=0;ctx.strokeStyle='#ff6b6b';ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,18,0,Math.PI*2);ctx.stroke();ctx.restore();
+}
+function drawSkill(){
+ if(!cast)return;
+ cast.t+=Math.min(.033,(performance.now()-last)/1000);
+ const p=Math.min(1,cast.t/cast.duration),fade=1-Math.max(0,(p-.64)/.36);
+ const a=cast.a,r=cast.r,len=cast.len,w=+controls.lineWidth.value;
+ const sx=player.x+Math.cos(a)*r,sy=player.y+Math.sin(a)*r;
+ const ex=sx+Math.cos(a)*len,ey=sy+Math.sin(a)*len;
+ ctx.save();ctx.globalAlpha=fade;ctx.globalCompositeOperation='lighter';
+ // 원 메인 선: 3겹. 캐릭터 중심.
+ const pulse=1+Math.sin(p*Math.PI)*.035;
+ const rr=r*pulse;
+ ctx.shadowColor='#ff3b35';ctx.shadowBlur=20;
+ ctx.strokeStyle='#8d0d28';ctx.lineWidth=12;ctx.beginPath();ctx.arc(player.x,player.y,rr,0,Math.PI*2);ctx.stroke();
+ ctx.strokeStyle='#ff3d35';ctx.lineWidth=7;ctx.beginPath();ctx.arc(player.x,player.y,rr,0,Math.PI*2);ctx.stroke();
+ ctx.strokeStyle='#ffd09a';ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(player.x,player.y,rr,0,Math.PI*2);ctx.stroke();
+ // 선은 적 방향의 원 둘레에서 시작
+ const grow=Math.min(1,p/.34),gx=sx+(ex-sx)*grow,gy=sy+(ey-sy)*grow;
+ ctx.shadowColor='#ff4b2f';ctx.shadowBlur=24;
+ ctx.strokeStyle='#820d25';ctx.lineWidth=w+10;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(gx,gy);ctx.stroke();
+ ctx.strokeStyle='#ff3b31';ctx.lineWidth=w+3;ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(gx,gy);ctx.stroke();
+ ctx.strokeStyle='#ff9a55';ctx.lineWidth=Math.max(3,w*.48);ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(gx,gy);ctx.stroke();
+ ctx.strokeStyle='#ffe0b5';ctx.lineWidth=Math.max(1.5,w*.15);ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(gx,gy);ctx.stroke();
+ ctx.restore();
+ if(p>=1)cast=null;
+}
+function updateFx(dt){
+ for(const f of fx){f.t-=dt;f.x+=f.vx*dt;f.y+=f.vy*dt;f.vx*=Math.pow(.3,dt);f.vy*=Math.pow(.3,dt);f.a=Math.atan2(f.vy,f.vx)}
+ fx=fx.filter(f=>f.t>0);
+}
+function drawFx(){
+ ctx.save();ctx.globalCompositeOperation='lighter';
+ for(const f of fx){
+   const alpha=Math.max(0,f.t/f.max);
+   ctx.save();ctx.globalAlpha=alpha;ctx.translate(f.x,f.y);ctx.rotate(f.a);
+   ctx.shadowColor='#ff4a32';ctx.shadowBlur=10;
+   ctx.fillStyle='#ff3a34';ctx.beginPath();ctx.ellipse(0,0,f.rx,f.ry,0,0,Math.PI*2);ctx.fill();
+   ctx.fillStyle='#ffd49a';ctx.globalAlpha=alpha*.72;ctx.beginPath();ctx.ellipse(f.rx*.18,0,f.rx*.38,f.ry*.45,0,0,Math.PI*2);ctx.fill();
+   ctx.restore();
+ }
+ ctx.restore();
+}
+function loop(now){
+ const dt=Math.min(.033,(now-last)/1000||.016);last=now;
+ updateFx(dt);
+ ctx.clearRect(0,0,W,H);drawGrid();drawSkill();drawFx();drawActor();
+ requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);castSkill();
+</script>
+</body>
+</html>
