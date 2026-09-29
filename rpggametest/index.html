@@ -1206,11 +1206,12 @@ function flameBreathSignature(id,index,final,ang,reach,actor=player,ctxInfo=null
    flameBreathStroke(x,y,a,350,2.1,-side,.71,1.42);
    flameBreathPlume(x+Math.cos(a)*138,y+Math.sin(a)*138,a,340,100,.67,1.4);
   }else{
-   flameBreathStroke(x,y,a,420,3.1,side,1.04,1.75);
-   flameBreathStroke(x,y,a+side*.31,370,2.55,-side,.88,1.22);
-   flameBreathPlume(x+Math.cos(a)*132,y+Math.sin(a)*132,a,455,176,.97,1.7);
-   crimsonFlameBurst(x+Math.cos(a)*200,y+Math.sin(a)*200,225,.86,1.53);
-   crimsonEmbers(x+Math.cos(a)*220,y+Math.sin(a)*220,a+Math.PI,22,310,1.05,.96);
+   const ix=Number.isFinite(ctxInfo?.flameImpactX)?ctxInfo.flameImpactX:x,iy=Number.isFinite(ctxInfo?.flameImpactY)?ctxInfo.flameImpactY:y;
+   flameBreathStroke(ix,iy,a,420,3.1,side,1.04,1.75);
+   flameBreathStroke(ix,iy,a+side*.31,370,2.55,-side,.88,1.22);
+   flameBreathPlume(ix+Math.cos(a)*132,iy+Math.sin(a)*132,a,455,176,.97,1.7);
+   crimsonFlameBurst(ix+Math.cos(a)*200,iy+Math.sin(a)*200,225,.86,1.53);
+   crimsonEmbers(ix+Math.cos(a)*220,iy+Math.sin(a)*220,a+Math.PI,22,310,1.05,.96);
   }
  }
  if(actor===player)triggerSkillShake(['guardBreak','earthRend','quakeRush','ironJudgment','meteorBreaker'].indexOf(id),id==='meteorBreaker'?(final?1.9:.78):final?1.11:.62);
@@ -2188,6 +2189,26 @@ function stopHeldSwordSkill(slot,interrupted=false){
 function updateUltimateCinematic(seq,sk,dt){
  if(!seq?.ultimate||!sk)return;
  const th=swordStyleFxForSkill(sk.id),p=clamp(seq.elapsed/Math.max(.1,seq.duration),0,1);seq.ultFx-=dt;
+ if(sk.id==='meteorBreaker'&&sk.cfg?.mode==='flameBreathFinale'){
+  // Single original flame-cinema timeline; do not run the old geometric triangle effects.
+  if(seq.ultFx<=0){
+   seq.ultFx=p<.17?.14:p<.62?.18:p<.77?.11:p<.94?.075:.14;
+   const f=seq.flameFinalFace??seq.flameFace??seq.facing;
+   if(seq.elapsed<.92){
+    crimsonEmbers(player.x,player.y,f+Math.PI,5,135,.76,.68);
+   }else if(seq.elapsed>3.32&&seq.elapsed<4.18){
+    crimsonChargeFlames(player.x,player.y,94,.25,1.13);
+    crimsonEmbers(player.x,player.y,f+Math.PI,8,168,.77,.75);
+   }else if(seq.elapsed>=4.18&&seq.elapsed<5.02){
+    const from=seq.flameFrom||{x:player.x,y:player.y},a=seq.flameFinalFace??f;
+    flameBreathPlume(player.x-Math.cos(a)*55,player.y-Math.sin(a)*55,a,218,123,.35,1.22);
+   }
+  }
+  if(seq.elapsed>=4.18&&seq.ultPhase<1){seq.ultPhase=1;shake=Math.max(shake,11);sound('swing');}
+  if(seq.elapsed>=5.02&&seq.ultPhase<2){seq.ultPhase=2;shake=Math.max(shake,20);sound('hit');}
+  return;
+ }
+
  if(sk.id==='thunderDrive'){
   player.skillLift=2+Math.sin(realTime*20)*2;if(seq.ultFx<=0){seq.ultFx=.055;const target=seq.galePursuitTargetId?swordSeqTarget(seq):null;if(target){const a=realTime*9,r=72+Math.sin(realTime*13)*12;effects.push({type:'riftCut',x:target.x+Math.cos(a)*r,y:target.y+Math.sin(a)*r,a:a+Math.PI/2,len:105,width:16,color:th.accent,t:.14,max:.14});ring(target.x,target.y,92,th.main,.13);}else{effects.push({type:'line',x:player.x-Math.cos(seq.facing)*90,y:player.y-Math.sin(seq.facing)*90,x2:player.x,y2:player.y,color:th.main,t:.14,max:.14});}}
   if(seq.galePursuitHit&&seq.ultPhase===0){seq.ultPhase=1;ring(player.x,player.y,145,th.sub,.28);shake=Math.max(shake,7);}
@@ -2234,6 +2255,16 @@ function updateUltimateCinematic(seq,sk,dt){
 }
 function ultimateFinishFx(seq,sk){
  if(!seq?.ultimate||!sk)return;const th=swordStyleFxForSkill(sk.id);
+ if(sk.id==='meteorBreaker'&&sk.cfg?.mode==='flameBreathFinale'){
+  const c=seq.flameFinalImpact||{x:player.x+Math.cos(seq.facing)*155,y:player.y+Math.sin(seq.facing)*155},
+   a=seq.flameFinalFace??seq.flameFace??seq.facing;
+  flameBreathStroke(c.x,c.y,a,372,2.96,seq.side||1,1.01,1.54);
+  flameBreathPlume(c.x-Math.cos(a)*70,c.y-Math.sin(a)*70,a,367,151,.91,1.51);
+  crimsonFlameBurst(c.x,c.y,211,.86,1.45);
+  crimsonEmbers(c.x,c.y,a+Math.PI,18,290,.88,.92);
+  shake=Math.max(shake,20);sound('hit');return;
+ }
+
  if(sk.id==='thunderDrive'){
   const target=seq.galePursuitTargetId?combatTargets().find(e=>e.id===seq.galePursuitTargetId):null,cx=target?.x??player.x,cy=target?.y??player.y;for(let j=0;j<10;j++){const a=j*TAU/10;effects.push({type:'riftCut',x:cx+Math.cos(a)*105,y:cy+Math.sin(a)*105,a:a+Math.PI/2,len:245,width:42,color:j%2?th.sub:th.main,t:.62,max:.62});}effects.push({type:'nova',x:cx,y:cy,r:305,color:th.accent,t:.78,max:.78});effects.push({type:'starSeal',x:cx,y:cy,r:255,color:th.sub,t:.72,max:.72});
  }else if(sk.id==='lunarBind'){
