@@ -2765,12 +2765,12 @@ function flameBreathMotion(seq,sk,dt,t,target){
    }
   }
  }else if(mode==='flameBreathWheel'){
-  // Three unchanged sword hits (.36, .79, 1.22), but keep moving on the third hit.
-  // First two hits trace the upper arc; the third makes a fast opposite-side swoop.
-  // Both arcs join at the same point to form one continuous S-shaped path.
-  const first=ease((t-.09)/.44),third=ease((elapsed-.82)/.46);
-  const forward=465*first+75*third;
-  const sideArc=side*(100*Math.sin(Math.PI*first)-190*Math.sin(Math.PI*third));
+  // Preserve the exact first-to-second-hit trajectory. Starting just before hit two,
+  // continue forward in a long, shallow opposite curve instead of diving sideways.
+  // The overlapping eased phases share a smooth tangent and keep hit three in motion.
+  const first=ease((t-.09)/.44),third=ease((elapsed-.78)/.57);
+  const forward=465*first+260*third;
+  const sideArc=side*(100*Math.sin(Math.PI*first)-76*Math.sin(Math.PI*third));
   approach(seq.originX+fx*forward+nx*sideArc,seq.originY+fy*forward+ny*sideArc,2000);
   // One more visible sword spin during the third hit, with no gap after the second.
   player.facing=f+side*Math.PI*2.1*(first+third);seq.facing=f;
