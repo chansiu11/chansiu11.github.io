@@ -2325,13 +2325,12 @@ function performSwordSkillHit(seq,hitIndex){
  else if(mode==='chaseCombo'){const lateral=(hitIndex===0?-1:hitIndex===1?1:0)*(GALE_SKILLS.has(sk.id)?62:42);moveBody(player,-Math.sin(ang)*lateral,Math.cos(ang)*lateral);meleeHit(reach,cfg.arc[hitIndex],damage,finalHit);}
  else if(mode==='stationaryFlurry'){const target=swordSeqTarget(seq);if(target){const aa=ang+(hitIndex%2?1:-1)*1.05,tx=target.x-Math.cos(aa)*58,ty=target.y-Math.sin(aa)*58;moveBody(player,clamp(tx-player.x,-48,48),clamp(ty-player.y,-48,48));player.facing=Math.atan2(target.y-player.y,target.x-player.x);}meleeHit(reach,cfg.arc[hitIndex],damage,finalHit);}
  else if(mode==='doubleWave'||mode==='crescentRetreat'){meleeHit(reach,cfg.arc[hitIndex],damage*.38,false);const spread=hitIndex===0?-.18:.18;fireProjectile(player.x+Math.cos(ang)*32,player.y+Math.sin(ang)*32,ang+spread,510,damageValue(hitIndex===0?1.0:1.3),'player','wave',3);}
- else if(mode==='emberFuse'){
-  const f=seq.crimsonFace??seq.facing,from={x:seq.originX,y:seq.originY},to={x:player.x,y:player.y};
-  for(const e of combatTargets()){if(e.dead||e.riftSleeping)continue;const c=combatCenter(e),er=combatRadius(e),dx=c.x-player.x,dy=c.y-player.y,d=Math.hypot(dx,dy);
-   const slash=hitIndex===0&&d<=220+er&&Math.abs(angleDiff(Math.atan2(dy,dx),f))<=.90+er/Math.max(35,d);
-   const afterburn=hitIndex===1&&(segmentDistance(c.x,c.y,[from.x,from.y],[to.x,to.y])<=124+er||(d<=210+er&&Math.abs(angleDiff(Math.atan2(dy,dx),f))<=.84+er/Math.max(35,d)));
-   if(!slash&&!afterburn)continue;
-   hitEnemyConfirmed(e,damage,finalHit,player,()=>applyEnemyStun(e,e.kind==='boss'?.07:finalHit?.32:.13));
+ else if(mode==='emberDraw'){
+  const f=seq.crimsonFace??seq.facing,r=hitIndex===0?242:261,half=hitIndex===0?1.06:1.15;
+  for(const e of combatTargets()){if(e.dead||e.riftSleeping)continue;
+   const c=combatCenter(e),er=combatRadius(e),dx=c.x-player.x,dy=c.y-player.y,d=Math.hypot(dx,dy);
+   if(d>r+er||Math.abs(angleDiff(Math.atan2(dy,dx),f))>half+er/Math.max(35,d))continue;
+   hitEnemyConfirmed(e,damage,finalHit,player,()=>applyEnemyStun(e,e.kind==='boss'?.06:finalHit?.25:.10));
   }
  }
  else if(mode==='scarletHook'){
@@ -2341,11 +2340,14 @@ function performSwordSkillHit(seq,hitIndex){
    hitEnemyConfirmed(e,damage,finalHit,player,()=>applyEnemyStun(e,e.kind==='boss'?.09:finalHit?.44:.12));
   }
  }
- else if(mode==='butterflyVolley'){
-  const f=seq.crimsonFace??seq.facing,tc=swordSeqTarget(seq),c=tc?combatCenter(tc):null,look=c?Math.atan2(c.y-player.y,c.x-player.x):f,slashA=look+(seq.side||1)*[-.22,.20,-.16,.08][hitIndex],radius=[210,226,245,280][hitIndex],halfArc=[.69,.78,.91,1.14][hitIndex];
-  for(const e of combatTargets()){if(e.dead||e.riftSleeping)continue;const c=combatCenter(e),dx=c.x-player.x,dy=c.y-player.y,d=Math.hypot(dx,dy),er=combatRadius(e);
-   if(d>radius+er||Math.abs(angleDiff(Math.atan2(dy,dx),slashA))>halfArc+er/Math.max(35,d))continue;
-   hitEnemyConfirmed(e,damage,finalHit,player,()=>applyEnemyStun(e,e.kind==='boss'?.05:finalHit?.39:.11));
+ else if(mode==='cinderCounter'){
+  const counter=!!seq.counterTriggered,a=seq.facing,r=counter?284:205,half=counter?1.12:.80,done=new Set();
+  for(const e of combatTargets()){
+   if(e.dead||e.riftSleeping||done.has(e.id))continue;
+   const c=combatCenter(e),er=combatRadius(e),dx=c.x-player.x,dy=c.y-player.y,d=Math.hypot(dx,dy);
+   if(d>r+er||Math.abs(angleDiff(Math.atan2(dy,dx),a))>half+er/Math.max(35,d))continue;
+   done.add(e.id);const force=counter?180:24,stun=counter?.56:.08;
+   hitEnemy(e,damage*(counter?1.32:.42),counter,player,{stun,dx:Math.cos(a)*force,dy:Math.sin(a)*force,duration:window.EchoesCombat.forceDuration(force)});
   }
  }
  else if(mode==='pyreDomino'){
