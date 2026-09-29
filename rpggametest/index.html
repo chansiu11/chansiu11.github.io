@@ -1060,7 +1060,7 @@ function crimsonStrokeCircle(cx,cy,rx,ry,aim,power=1){
  // A real circular attack made of wind-swept fire, not separated ribbon tiles.
  const r=rx,low=options.quality==='low';
  effects.push({type:'crimsonFlameRing',x:cx,y:cy,r,a:aim,seed:Math.floor(rnd(1,2147483646)),t:.48,max:.48});
- const groups=[aim-.38,aim+.82,aim+2.42,aim-2.18],count=low?19:35;
+ const groups=[aim-.38,aim+.82,aim+2.42,aim-2.18],count=low?23:45;
  for(let j=0;j<count;j++){
   const group=j<count*.43?0:j<count*.67?1:j<count*.83?2:3;
   const a=groups[group]+rnd(-.75,.75),rr=r+rnd(-11,11);
@@ -1071,7 +1071,7 @@ function crimsonStrokeLine(x1,y1,x2,y2,a,power=1){
  // Keep the existing straight hit area; only its visual surface becomes burning flame.
  const dx=x2-x1,dy=y2-y1,nx=-Math.sin(a),ny=Math.cos(a);
  effects.push({type:'crimsonFlameSlash',x:x1,y:y1,x2,y2,a,seed:Math.floor(rnd(1,2147483646)),t:.46,max:.46});
- const low=options.quality==='low',steps=low?12:25;
+ const low=options.quality==='low',steps=low?14:30;
  for(let j=0;j<steps;j++){
   const q=(j+rnd(.12,.88))/steps,off=rnd(7,17)*(j%2?-1:1);
   const x=x1+dx*q+nx*off,y=y1+dy*q+ny*off;
@@ -3745,18 +3745,16 @@ function drawEffects(ground=false){for(const e of effects){const progress=1-e.t/
   for(let j=0;j<=seg;j++){const a=phase+j*TAU/seg,rr=r+Math.sin(a*7.1+e.seed)*3+Math.sin(a*12.6+e.seed*.3)*2;const x=Math.cos(a)*rr,y=Math.sin(a)*rr;j?ctx.lineTo(x,y):ctx.moveTo(x,y);}
   ctx.closePath();ctx.stroke();
   ctx.shadowBlur=low?3:9;ctx.lineWidth=10;ctx.strokeStyle='#ff592e';ctx.stroke();
-  // Dense, irregular tongues erupt outward; their angle, length and color differ per cast.
-  const tongues=low?20:35,colors=['#dd2032','#ff352b','#ff5b2e','#ff8438','#ffbd6b'];
-  for(let j=0;j<tongues;j++){
-   const a=rand()<.55?phase+(rand()-.5)*2.65:rand()*TAU;
-   const rr=r+rand()*7-4,da=.055+rand()*.13,reach=18+rand()*42+(j%9===0?24:0),bend=(rand()-.5)*.32;
-   const lx=Math.cos(a-da)*rr,ly=Math.sin(a-da)*rr,rx=Math.cos(a+da)*rr,ry=Math.sin(a+da)*rr;
-   const tipA=a+bend,tipR=rr+reach,tipX=Math.cos(tipA)*tipR,tipY=Math.sin(tipA)*tipR;
-   ctx.fillStyle=colors[Math.floor(rand()*colors.length)];ctx.globalAlpha=(.50+rand()*.43)*(1-progress*.28);
-   ctx.shadowBlur=low?2:7;ctx.beginPath();ctx.moveTo(lx,ly);
-   ctx.quadraticCurveTo(Math.cos(a-da*.45)*(rr+reach*.65),Math.sin(a-da*.45)*(rr+reach*.65),tipX,tipY);
-   ctx.quadraticCurveTo(Math.cos(a+da*.45)*(rr+reach*.4),Math.sin(a+da*.45)*(rr+reach*.4),rx,ry);
-   ctx.closePath();ctx.fill();
+  // Soft oval cinders float away from the ring instead of forming pointed spikes.
+  const flecks=low?23:40,colors=['#dd2032','#ff352b','#ff5b2e','#ff8438','#ffbd6b'];
+  for(let j=0;j<flecks;j++){
+   const a=rand()<.58?phase+(rand()-.5)*2.55:phase+rand()*TAU;
+   const drift=a+(rand()-.5)*.68,distance=8+rand()*36,rr=r+rand()*12-3;
+   const px=Math.cos(a)*rr+Math.cos(drift)*distance,py=Math.sin(a)*rr+Math.sin(drift)*distance;
+   const rx=4+rand()*8,ry=1.2+rand()*2.1,color=colors[Math.floor(rand()*colors.length)];
+   ctx.save();ctx.translate(px,py);ctx.rotate(drift);ctx.globalAlpha=(.52+rand()*.38)*(1-progress*.36);
+   ctx.fillStyle=color;ctx.shadowColor=color;ctx.shadowBlur=low?2:6;
+   ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,TAU);ctx.fill();ctx.restore();
   }
   ctx.globalAlpha=.74*(1-progress*.2);ctx.shadowColor='#ffc175';ctx.shadowBlur=low?2:5;
   for(let j=0;j<(low?5:9);j++){
@@ -3777,9 +3775,9 @@ function drawEffects(ground=false){for(const e of effects){const progress=1-e.t/
    for(let j=0;j<=segments;j++){
     const q=j/segments,x=length*q;
     const envelope=(1-.58*q)*Math.min(1,.38+q*8);
-    const wobble=(rand()-.5)*halfWidth*.56;
+    const wobble=(rand()-.5)*halfWidth*.26;
     top.push([x,-halfWidth*envelope+wobble]);
-    bottom.push([x,halfWidth*envelope+(rand()-.5)*halfWidth*.56]);
+    bottom.push([x,halfWidth*envelope+(rand()-.5)*halfWidth*.26]);
    }
    ctx.beginPath();ctx.moveTo(top[0][0],top[0][1]);
    for(let j=1;j<top.length;j++)ctx.lineTo(top[j][0],top[j][1]);
@@ -3797,15 +3795,15 @@ function drawEffects(ground=false){for(const e of effects){const progress=1-e.t/
    const q=rand()*.90,from=length*q,to=Math.min(length,from+12+rand()*35),y=(rand()-.5)*9;
    ctx.strokeStyle=rand()<.6?'#ffd18b':'#fff1bc';ctx.lineWidth=2+rand()*4;ctx.beginPath();ctx.moveTo(from,y);ctx.lineTo(to,y+(rand()-.5)*7);ctx.stroke();
   }
-  // Flame licks break away along both sides, with different lean and reach.
-  ctx.shadowColor='#ff562c';ctx.shadowBlur=low?2:7;
-  const tongues=low?12:23,colors=['#d51c36','#ff3a2a','#ff652d','#ff923f','#ffd081'];
-  for(let j=0;j<tongues;j++){
-   const q=rand()*.96,x=length*q,side=rand()<.5?-1:1,rootY=side*(8+rand()*10)*(1-q*.35);
-   const lift=10+rand()*28,drift=(rand()-.3)*44;
-   ctx.globalAlpha=(.55+rand()*.42)*(1-progress*.24);ctx.fillStyle=colors[Math.floor(rand()*colors.length)];
-   ctx.beginPath();ctx.moveTo(x-7,rootY);ctx.quadraticCurveTo(x+drift*.35,rootY+side*lift*.72,x+drift,rootY+side*lift);
-   ctx.quadraticCurveTo(x+drift*.65,rootY+side*lift*.23,x+9,rootY-2*side);ctx.closePath();ctx.fill();
+  // Loose, rounded fire embers along both edges; no triangular flame spikes.
+  const flecks=low?19:33,colors=['#d51c36','#ff3a2a','#ff652d','#ff923f','#ffd081'];
+  ctx.shadowColor='#ff562c';ctx.shadowBlur=low?2:6;
+  for(let j=0;j<flecks;j++){
+   const q=(j+.18+rand()*.64)/flecks,x=length*q,side=rand()<.5?-1:1;
+   const y=side*(12+rand()*33)*(1-q*.28),tilt=(rand()-.5)*1.05;
+   const color=colors[Math.floor(rand()*colors.length)];
+   ctx.save();ctx.translate(x,y);ctx.rotate(tilt);ctx.globalAlpha=(.52+rand()*.4)*(1-progress*.3);
+   ctx.shadowColor=color;ctx.fillStyle=color;ctx.beginPath();ctx.ellipse(0,0,5+rand()*10,1.3+rand()*2.6,0,0,TAU);ctx.fill();ctx.restore();
   }
   ctx.restore();
  }
