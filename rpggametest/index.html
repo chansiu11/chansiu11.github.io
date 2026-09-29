@@ -2556,25 +2556,20 @@ function updateSwordSkillMotion(seq,sk,dt){
   seq.crimsonFace=face;
   const look=tc?Math.atan2(tc.y-player.y,tc.x-player.x):face;
   const approach=(tx,ty,speed)=>{const dx=tx-player.x,dy=ty-player.y,d=Math.hypot(dx,dy)||1,step=Math.min(d,speed*dt);moveBody(player,dx/d*step,dy/d*step);};
-  if(mode==='emberFuse'){
-   // 1: deliberate lateral swordwork, never the generic or skill-specific dash.
-   const sideNow=crimsonStrafeSide(face,seq.side||1);seq.side=sideNow;
-   const ease=u*u*(3-2*u);
-   approach(seq.originX+fx*30*ease+nx*sideNow*176*ease,seq.originY+fy*30*ease+ny*sideNow*176*ease,245);
-   player.skillLift=Math.sin(Math.PI*u)*4;
-   if(seq.fx<=0){seq.fx=.105;crimsonEmbers(player.x,player.y,face+sideNow*Math.PI/2,3,125,.72,.65);}seq.fx-=dt;
+  if(mode==='emberDraw'){
+   // Stationary fast slash: a second blaze follows the identical sword arc.
+   player.skillLift=Math.sin(Math.PI*u)*2.4;seq.fx-=dt;
+   if(seq.fx<=0&&u<.62){seq.fx=.115;crimsonEmbers(player.x+fx*86,player.y+fy*86,face+Math.PI,2,102,.41,.39);}
   }else if(mode==='scarletHook'){
    // 2: continuous curved rush through the opponent's flank, with three differently oriented sword cuts.
    const q=clamp((u-.075)/.84,0,1),smooth=q*q*(3-2*q),lateral=(Math.sin(Math.PI*q)*153-q*75)*(seq.side||1);
    approach(seq.originX+fx*350*smooth+nx*lateral,seq.originY+fy*350*smooth+ny*lateral,995);
    player.skillLift=Math.sin(Math.PI*q)*13;
    if(q>0&&q<1){if(seq.fx<=0){seq.fx=.075;crimsonFireWake(px0,py0,player.x,player.y,1.25);}seq.fx-=dt;}
-  }else if(mode==='butterflyVolley'){
-   // 3: mobile sword dance; the player can steer which side the strafe takes.
-   const sideNow=crimsonStrafeSide(face,seq.side||1);seq.side=sideNow;
-   approach(seq.originX+fx*26*u+nx*sideNow*232*u,seq.originY+fy*26*u+ny*sideNow*232*u,224);
-   player.skillLift=4+Math.sin(u*Math.PI)*5;
-   if(seq.fx<=0){seq.fx=.108;crimsonEmbers(player.x,player.y,face+sideNow*Math.PI/2,3,156,.58,.78);}seq.fx-=dt;
+  }else if(mode==='cinderCounter'){
+   // Counter braces without a dash. An actual enemy strike causes the evasive sidestep.
+   seq.fx-=dt;player.skillLift=seq.counterTriggered?Math.sin(Math.PI*u)*8:0;
+   if(seq.fx<=0&&seq.elapsed<.45){seq.fx=.12;crimsonEmbers(player.x+fx*19,player.y+fy*19,face+Math.PI,2,70,.36,.33);}
   }else if(mode==='pyreDomino'){
    // 4: long piercing rush. Three separate cut marks are left along the path before an ending reverse cut.
    const q=clamp((u-.075)/.72,0,1),ease=q*q*(3-2*q);
@@ -2814,6 +2809,19 @@ function updateShield(dt){
  }
 }
 function hitPlayer(damage,source,parryable=true){if(mode!=='play'||(modal&&!source?.pvp)||player.hp<=0||admin.god)return 'ignored';const a=Math.atan2(source.y-player.y,source.x-player.x);
+ // Hongryeon 3: only an actual incoming parryable hit triggers the high-damage counter.
+ const counter=activeSwordSkill;
+ if(counter?.skillId==='quakeRush'&&!counter.counterTriggered&&counter.elapsed<.44&&parryable&&source&&Number.isFinite(source.x)&&Number.isFinite(source.y)&&Math.hypot(source.x-player.x,source.y-player.y)<280){
+  counter.counterTriggered=true;counter.counterTargetId=source.id||null;
+  const ox=player.x,oy=player.y,side=counter.side||1;
+  moveBody(player,-Math.sin(a)*side*82,Math.cos(a)*side*82);
+  counter.facing=player.facing=player.attackAngle=Math.atan2(source.y-player.y,source.x-player.x);
+  counter.elapsed=Math.max(counter.elapsed,.52);player.invuln=Math.max(player.invuln,.38);
+  player.attackAnim=player.attackDuration=.31;player.skillPose=2;
+  crimsonFireWake(ox,oy,player.x,player.y,.72);
+  crimsonChargeFlames(player.x,player.y,28,.29,.75);shake=Math.max(shake,6);
+  return 'dodged';
+ }
  if(player.invuln>0){if(player.dodge>0&&!source.perfectDodged){source.perfectDodged=true;player.stam=Math.min(player.maxStam,player.stam+6+(player.rune==='cycle'?14:0));floating(player.x,player.y-54,'완벽한 대쉬','#abe0cb',true);}return 'dodged';}if(void3State&&beginVoid3WorldEvade(source))return 'dodged';
  if(shieldHeld()&&player.shield>0&&player.shieldBroken<=0&&parryable){const perfect=player.perfectWindow>0;player.perfectWindow=0;player.shieldDelay=1.4;if(perfect){player.shield=Math.max(0,player.shield-4);if(player.shield===0){player.parry=0;player.shieldBroken=0;player.shieldNeedsRelease=true;}player.stam=clamp(player.stam+28,0,player.maxStam);player.invuln=.28;player.parryCd=.22;player.stats.parries++;if(player.rune==='echo')player.riposte=4;player.training.parry=true;floating(player.x,player.y-64,'PERFECT PARRY','#b3e6e0',true);ring(player.x,player.y,100,'#b8f2e5',.5);burst(player.x,player.y,'#d6f5e7',24,190);sound('parry');hitstop=.11;if(options.shake)shake=6;if(source.kind){source.stun=source.kind==='boss'?1.5:2.0;source.state='stunned';source.poise=0;}return 'parried';}const cost=window.EchoesCombat.shieldCost(damage),before=player.shield;player.shield=Math.max(0,before-cost);ring(player.x,player.y,29,'#a4d8e1',.18);if(player.shield>0){sound('block');floating(player.x,player.y-48,'쉴드 −'+Math.ceil(cost),'#adc7ca');return 'blocked';}player.parry=0;player.shieldBroken=0;player.shieldDelay=0;player.shieldNeedsRelease=true;sound('break');floating(player.x,player.y-48,'쉴드 소진','#edc28a');damage*=Math.max(0,1-before/cost);if(damage<=0)return 'blocked';}
  damage=window.EchoesCombat.damageAfterArmor(damage,armorReduction());if(damage>0){if(void3State)endVoid3World();player.hp=Math.max(0,player.hp-damage);if(damage>=player.maxHp*.30)damageFlash=.24;player.hurt=.25;player.invuln=.65;player.comboTimer=0;player.stun=Math.max(player.stun||0,damage>=player.maxHp*.18?.55:.35);cancelSkillPreparationOnStun();player.dodge=0;player.parry=0;player.perfectWindow=0;player.shieldNeedsRelease=true;desktopShield=false;bufferedAction=null;pendingAttack=false;touchSprint=false;damageFloating(player.x,player.y-35,damage,source?Math.atan2(player.y-source.y,player.x-source.x):player.facing,true);burst(player.x,player.y,'#ebbd8d',8,90);sound('hurt');if(options.shake)shake=4;}if(player.hp<=0)showDefeat();return 'hit';}
@@ -4499,7 +4507,7 @@ requestAnimationFrame(frame);const elapsed=Math.max(0,(stamp-lastStamp)/1000);le
  catch(error){recoverGameLoop(error);}
 }
 // QA hooks are enabled only by the local test harness before the page loads.
-if(window.__PLAYTEST__)window.__game={GALE_VORTEX,spawnGaleVortex,updateGaleVortices,get galeVortices(){return galeVortices;},get remoteGaleVortices(){return remoteGaleVortices;},SWORD_SKILL_LIBRARY,SWORD_STYLE_GROUPS,cancelSwordSkill,updateSwordSkill,updateProjectiles,beginHiddenSkillInput,releaseHiddenSkillInput,startHeldSwordSkill,combatTargets,flushWorldCombat,applyWorldCombatResult,bindMultiplayerEvents,worldCombatFields,mergeRemotePlayerState,skillInfo,updateSkill2Knocks,startVoid3World,triggerHiddenFollowup,get multiplayerMode(){return multiplayerMode;},set multiplayerMode(v){multiplayerMode=v;},WORLD,admin,showAdmin,skillInfo,SKILLS,BOSS_PATTERNS,updateCombat,dropLoot,pickupLoot,defeatEnemy,showSkills,showKeySettings,get keybinds(){return {...keybinds};},chooseMusicScene,updateAudio,get audioState(){return {scene:musicScene,step:musicStep,state:audioCtx?.state,master:audioMaster?.gain.value,music:musicBus?.gain.value,sfx:sfxBus?.gain.value};},updateShield,releaseShield,selectLayoutSize,updateCamera,groundRadius,get obstacles(){return obstacles;},get layoutState(){return {editing:layoutEditing,orientation:layoutOrientation(),saved:JSON.parse(JSON.stringify(touchLayouts))};},startLayoutEditor,finishLayoutEditor,applyTouchLayout,moveBody,rebuildBodyGrid,resolveBodyOverlaps,bodyRadius,bodyCenter,combatRadius,combatCenter,addEnemy,animateBody,get touchState(){return {mode:touchMode,stick:stickPointer,attack:touchAttackPointer,origin:{...stickOrigin},sprint:touchSprint,joy:{...joy},aim:{...touchAim},pointers:touchPointers.size,scale:VIEW_SCALE,width:W,height:H};},get options(){return {...options};},get camera(){return {...camera};},get waypoint(){return mapWaypoint;},resetInputs,get player(){return player;},get enemies(){return enemies;},get objects(){return objects;},hitSecretStatue,enterSecretCave,leaveSecretCave,craftHiddenWeapon,get secretQuest(){return {statueHits:player.statueHits,statueBroken:player.statueBroken,fragments:[...player.blueprintFragments],frostCore:player.frostCore,abyssCore:player.abyssCore,complete:blueprintComplete()};},get mode(){return mode;},get modal(){return modal;},get projectiles(){return projectiles;},get effects(){return effects;},get error(){return renderFailed;},get worldTime(){return worldTime;},get fps(){return 1000/frameMs;},get activeRift(){return activeRift;},get lockedTarget(){return lockedTarget;},get bufferedAction(){return bufferedAction;},startRift,showRift,equipRune,cycleLock,cleanupRift,beginNew,closeModal,attack,dash,parry,hitPlayer,hitEnemy,prepareEnemyAttack,executeEnemyAttack,update,updateHUD,saveGame,packSave,loadData,respawn,interact,claimQuest,craft,allocatePerk,fastTravel,skill,solidAt,regionAt,showVictory,showDefeat,showMap,showInventory,showPause,returnTitle,switchWeapon,revealMap,get modalElement(){return $('panel');}};
+if(window.__PLAYTEST__)window.__game={GALE_VORTEX,spawnGaleVortex,updateGaleVortices,get galeVortices(){return galeVortices;},get remoteGaleVortices(){return remoteGaleVortices;},SWORD_SKILL_LIBRARY,SWORD_STYLE_GROUPS,get activeSwordSkill(){return activeSwordSkill;},cancelSwordSkill,updateSwordSkill,updateProjectiles,beginHiddenSkillInput,releaseHiddenSkillInput,startHeldSwordSkill,combatTargets,flushWorldCombat,applyWorldCombatResult,bindMultiplayerEvents,worldCombatFields,mergeRemotePlayerState,skillInfo,updateSkill2Knocks,startVoid3World,triggerHiddenFollowup,get multiplayerMode(){return multiplayerMode;},set multiplayerMode(v){multiplayerMode=v;},WORLD,admin,showAdmin,skillInfo,SKILLS,BOSS_PATTERNS,updateCombat,dropLoot,pickupLoot,defeatEnemy,showSkills,showKeySettings,get keybinds(){return {...keybinds};},chooseMusicScene,updateAudio,get audioState(){return {scene:musicScene,step:musicStep,state:audioCtx?.state,master:audioMaster?.gain.value,music:musicBus?.gain.value,sfx:sfxBus?.gain.value};},updateShield,releaseShield,selectLayoutSize,updateCamera,groundRadius,get obstacles(){return obstacles;},get layoutState(){return {editing:layoutEditing,orientation:layoutOrientation(),saved:JSON.parse(JSON.stringify(touchLayouts))};},startLayoutEditor,finishLayoutEditor,applyTouchLayout,moveBody,rebuildBodyGrid,resolveBodyOverlaps,bodyRadius,bodyCenter,combatRadius,combatCenter,addEnemy,animateBody,get touchState(){return {mode:touchMode,stick:stickPointer,attack:touchAttackPointer,origin:{...stickOrigin},sprint:touchSprint,joy:{...joy},aim:{...touchAim},pointers:touchPointers.size,scale:VIEW_SCALE,width:W,height:H};},get options(){return {...options};},get camera(){return {...camera};},get waypoint(){return mapWaypoint;},resetInputs,get player(){return player;},get enemies(){return enemies;},get objects(){return objects;},hitSecretStatue,enterSecretCave,leaveSecretCave,craftHiddenWeapon,get secretQuest(){return {statueHits:player.statueHits,statueBroken:player.statueBroken,fragments:[...player.blueprintFragments],frostCore:player.frostCore,abyssCore:player.abyssCore,complete:blueprintComplete()};},get mode(){return mode;},get modal(){return modal;},get projectiles(){return projectiles;},get effects(){return effects;},get error(){return renderFailed;},get worldTime(){return worldTime;},get fps(){return 1000/frameMs;},get activeRift(){return activeRift;},get lockedTarget(){return lockedTarget;},get bufferedAction(){return bufferedAction;},startRift,showRift,equipRune,cycleLock,cleanupRift,beginNew,closeModal,attack,dash,parry,hitPlayer,hitEnemy,prepareEnemyAttack,executeEnemyAttack,update,updateHUD,saveGame,packSave,loadData,respawn,interact,claimQuest,craft,allocatePerk,fastTravel,skill,solidAt,regionAt,showVictory,showDefeat,showMap,showInventory,showPause,returnTitle,switchWeapon,revealMap,get modalElement(){return $('panel');}};
 window.EchoesWorldPvpData={
  ruleset:'world-combat-20260926-1', // stable matchmaking compatibility id; combat protocol is validated separately
  combat(){return {maxLevel:MAX_LEVEL,playerHpPerLevel:PLAYER_HP_PER_LEVEL,playerDamagePerLevel:PLAYER_DAMAGE_PER_LEVEL,baseHp:PLAYER_BASE_HP,baseStam:160,staminaPerLevel:3,staminaScale:4.5,baseMove:177,sprintMove:BASE_SPRINT_SPEED,sprintDrain:15,staminaRegenBase:2,staminaRegenPerBreath:.5,staminaRegenScale:4.5,baseShield:100,shieldRegenBase:22,weaponUpgradeMax:WEAPON_UPGRADE_MAX,weaponUpgradeRate:.10,maxDamageReduction:.75};},
