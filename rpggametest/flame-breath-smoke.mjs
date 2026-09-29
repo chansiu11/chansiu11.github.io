@@ -53,21 +53,22 @@ for(const c of cases){
     fx:g.effects.length,types:[...new Set(g.effects.map(f=>f.type))],
     hp:e.hp,hitCount:e.testHitCount||0,damageTotal:e.testDamageTotal||0,hero:{x:g.player.x,y:g.player.y},pageError:g.error};
  });
- await page.screenshot({path:'rpggametest/flame-preview/'+String(c.slot+1)+'-'+c.id+'.png'});
- if(errors.length||frame.pageError)throw Error('Runtime errors '+c.id+': '+errors.join(' | ')+' '+frame.pageError);
- if(frame.hitCount<1||frame.damageTotal<=0)throw Error('No hit registered for '+c.id+' '+JSON.stringify(frame));
- if(c.slot===2&&frame.hitCount<2)throw Error('Opening fire ring or landing attack did not register: '+JSON.stringify(frame));
  if(c.slot===3){
-  await page.waitForFunction(()=>window.__game?.activeSwordSkill?.elapsed>=1.30,{timeout:30000,polling:35});
+  // Check trace before screenshot rendering might advance the game past skill end.
+  await page.waitForFunction(()=>window.__wheelTrace?.some(p=>p.t>=1.28),{timeout:30000,polling:35});
   const trace=await page.evaluate(()=>{window.__wheelTraceStop=true;return window.__wheelTrace||[];});
   if(trace.length<8)throw Error('Missing continuous fourth-form movement trace: '+JSON.stringify(trace));
   const at=t=>trace.reduce((best,p)=>Math.abs(p.t-t)<Math.abs(best.t-t)?p:best,trace[0]);
   const second=at(.82),last=at(1.27),travel=Math.hypot(last.x-second.x,last.y-second.y);
   const ys=trace.map(p=>p.y-trace[0].y),minSide=Math.min(...ys),maxSide=Math.max(...ys);
-  if(travel<100||minSide> -55||maxSide<55)
+  if(travel<140||minSide> -55||maxSide<55||minSide< -120)
    throw Error('Fourth form must move through hit three along both sides of an S curve: '+JSON.stringify({travel,minSide,maxSide,second,last}));
   console.log('Fourth form continuous S-shaped movement verified:',JSON.stringify({travel,minSide,maxSide}));
  }
+ await page.screenshot({path:'rpggametest/flame-preview/'+String(c.slot+1)+'-'+c.id+'.png'});
+ if(errors.length||frame.pageError)throw Error('Runtime errors '+c.id+': '+errors.join(' | ')+' '+frame.pageError);
+ if(frame.hitCount<1||frame.damageTotal<=0)throw Error('No hit registered for '+c.id+' '+JSON.stringify(frame));
+ if(c.slot===2&&frame.hitCount<2)throw Error('Opening fire ring or landing attack did not register: '+JSON.stringify(frame));
  if(!frame.types.some(t=>['flameBreathPlume','crimsonBladeFire','crimsonEdgeFlames','crimsonChargeFlames','crimsonFlameBurst','ember'].includes(t)))throw Error('No real fire graphics '+c.id+' '+JSON.stringify(frame));
  report.push({slot:c.slot,name:init.name,mode:init.mode,hit:true,fx:frame.fx,effects:frame.types,hero:frame.hero});
  console.log(JSON.stringify(report.at(-1)));
