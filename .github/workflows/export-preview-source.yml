@@ -1,0 +1,22 @@
+name: Export preview game source for exact offline render
+on:
+  push:
+    branches:
+      - preview/crimson-skill-captures
+    paths:
+      - '.github/workflows/export-preview-source.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Upload exact standalone game files
+        uses: actions/upload-artifact@v4
+        with:
+          name: standalone-source
+          path: |
+            rpggametest/index.html
+            rpggametest/combat-core.js
