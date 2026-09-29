@@ -2765,12 +2765,15 @@ function flameBreathMotion(seq,sk,dt,t,target){
    }
   }
  }else if(mode==='flameBreathWheel'){
-  // Preserve the exact first-to-second-hit trajectory. Starting just before hit two,
-  // continue forward in a long, shallow opposite curve instead of diving sideways.
-  // The overlapping eased phases share a smooth tangent and keep hit three in motion.
-  const first=ease((t-.09)/.44),third=ease((elapsed-.78)/.57);
-  const forward=465*first+260*third;
-  const sideArc=side*(100*Math.sin(Math.PI*first)-76*Math.sin(Math.PI*third));
+  // Keep the two shallow S bends but NEVER ease to zero between hit 2 and hit 3.
+  // Each phase has matching forward/lateral velocity at the .79s seam, so there
+  // is no pause or sharp change of direction as the final rotating slash begins.
+  const rawFirst=clamp((elapsed-.14)/.65,0,1),start=clamp(rawFirst/.10,0,1);
+  const first=rawFirst<.10?.10*(2*start*start-start*start*start):rawFirst;
+  const rawThird=clamp((elapsed-.79)/.56,0,1),stop=clamp((rawThird-.86)/.14,0,1);
+  const third=rawThird<.86?rawThird:.86+.14*(stop+stop*stop-stop*stop*stop);
+  const forward=465*first+400*third;
+  const sideArc=side*(100*Math.sin(Math.PI*first)-86*Math.sin(Math.PI*third));
   approach(seq.originX+fx*forward+nx*sideArc,seq.originY+fy*forward+ny*sideArc,2000);
   // One more visible sword spin during the third hit, with no gap after the second.
   player.facing=f+side*Math.PI*2.1*(first+third);seq.facing=f;
