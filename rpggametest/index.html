@@ -1506,7 +1506,7 @@ const SWORD_SKILL_LIBRARY=[
  {id:'galeOrbit',name:'풍환 폭발',level:10,price:340,cost:39,cool:8,color:'#61f0c7',desc:'0.5초 동안 넓은 풍환으로 주변 적의 이동을 봉쇄하고 부드럽게 중심으로 끌어당깁니다. 적은 스킬을 사용할 수 있으며, 이후 회전하는 원형 폭발로 타격합니다.',cfg:{duration:.78,hits:[.50],mult:[6.45],arc:[TAU],reach:[0],step:[0],mode:'galePulse'}},
  {id:'mirrorStep',name:'거울 걸음',level:8,price:0,cost:30,cool:5,color:'#b88cff',desc:'멀리 있는 적을 포착해 반대편까지 단숨에 파고든 뒤 뒤쪽에서 베는 장거리 추격 돌진기입니다.',cfg:{duration:.55,hits:[.32],mult:[2.25],arc:[1.1],reach:[36],step:[0],mode:'mirrorBackstab'}},
  {id:'lunarBind',name:'월인 결박',level:26,price:0,cost:46,cool:14.8,color:'#b88cff',desc:'표적의 좌우와 뒤로 세 번 순간이동하며 달빛 결계를 이동시켜 적을 구속하고, 마지막 위치에서 월륜 참격으로 마무리합니다.',cfg:{duration:.82,hits:[.50],mult:[2.05],arc:[TAU],reach:[84],step:[0],mode:'lunarPull'}},
- {id:'quakeRush',name:'열하 단공',level:12,price:0,cost:39,cool:7.8,color:'#ff782e',desc:'발동과 동시에 사방으로 화염이 튀고 원 안의 적에게 피해를 준다. 앞으로 더 멀리 도약해 내려찍고 착지 지점에 2차 원형 화염 피해를 일으킨다.',cfg:{duration:1.16,hits:[.11,.82],mult:[.73,1.52],arc:[TAU,TAU],reach:[190,245],step:[0,0],mode:'flameBreathCleave'}},
+ {id:'quakeRush',name:'열하 단공',level:12,price:0,cost:39,cool:7.8,color:'#ff782e',desc:'발동과 동시에 사방으로 화염이 튀고 원 안의 적에게 피해를 준다. 앞으로 더 멀리 도약해 내려찍고 착지 지점에 2차 원형 화염 피해를 일으킨다.',cfg:{duration:1.16,hits:[.11,1.05],mult:[.73,1.52],arc:[TAU,TAU],reach:[190,245],step:[0,0],mode:'flameBreathCleave'}},
  {id:'ironJudgment',name:'유염 회천',level:36,price:0,cost:52,cool:10,color:'#ff782e',desc:'몸을 비틀며 회전 화염으로 앞쪽으로 돌진하고 세 번 베어 주변 적을 밀어낸다.',cfg:{duration:1.53,hits:[.36,.79,1.22],mult:[.65,.82,1.55],arc:[3.85,4.75,5.55],reach:[64,93,120],step:[0,0,0],mode:'flameBreathWheel'}},
  {id:'solarReturn',name:'태양 회귀',level:14,price:0,cost:36,cool:9.4,color:'#ffd95c',desc:'조준 방향으로 빠르게 대시하며 전후방으로 검압을 발사합니다. 적중한 적을 시전자 쪽으로 끌어당깁니다.',cfg:{duration:.66,hits:[.24,.46],mult:[1.0,1.0],arc:[1.5,1.5],reach:[18,18],step:[0,0],dashDistance:360,dashDuration:.30,mode:'boomerangWave'}},
  {id:'prismLance',name:'프리즘 창렬',level:22,price:0,cost:44,cool:15.2,color:'#ffd95c',desc:'5발과 9발의 검압, 마지막 광창을 발사합니다. 투사체가 적중한 적들을 가까운 순서로 빠르게 추격해 대상마다 한 번씩 강한 일격을 가합니다.',cfg:{duration:.62,hits:[.30],mult:[1.0],arc:[1.8],reach:[10],step:[0],mode:'fanLances'}},
@@ -2752,14 +2752,14 @@ function flameBreathMotion(seq,sk,dt,t,target){
   trail(.055,1.15);
  }else if(mode==='flameBreathCleave'){
   // Forward leap now aims 225 world units, up from the previous 70.
-  // Begin moving and rising exactly 0.10 seconds after skill activation.
-  const q=ease((elapsed-.10)/.42);
+  // Begin moving and rising exactly 0.50 seconds after skill activation.
+  const q=ease((elapsed-.50)/.42);
   approach(seq.originX+fx*225*q,seq.originY+fy*225*q,760);
-  const jump=clamp((elapsed-.10)/.52,0,1);
+  const jump=clamp((elapsed-.50)/.52,0,1);
   player.skillLift=Math.sin(Math.PI*jump)*62;
   player.facing=seq.facing=f;
   if(jump>0&&jump<1&&Math.hypot(player.x-ox,player.y-oy)>5)trail(.066,1.05);
-  else if(elapsed<.10){seq.fx-=dt;if(seq.fx<=0){seq.fx=.06;crimsonEmbers(player.x,player.y,f+Math.PI,4,163,.49,.57);}}
+  else if(elapsed<.50){seq.fx-=dt;if(seq.fx<=0){seq.fx=.06;crimsonEmbers(player.x,player.y,f+Math.PI,4,163,.49,.57);}}
  }else if(mode==='flameBreathWheel'){
   const q=ease((t-.09)/.76),sideArc=side*Math.sin(q*Math.PI*2)*35;
   approach(seq.originX+fx*338*q+nx*sideArc,seq.originY+fy*338*q+ny*sideArc,950);
