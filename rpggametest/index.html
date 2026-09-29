@@ -2923,11 +2923,11 @@ function styleAdeptExactShapes(e,seq,k){
  if(mode==='moonBurst')return [circle(pose.x,pose.y,reach)];
  if(mode==='stationaryFlurry')return [sector(pose.x,pose.y,pose.a,reach,arc)];
  if(mode==='crescentRetreat'){const spread=k===0?-.18:.18;return [sector(pose.x,pose.y,a,reach,arc),proj(pose.x+ca*32,pose.y+sa*32,a+spread,510)];}
- if(mode==='emberFuse')return k===0?[sector(pose.x,pose.y,a,220,1.8)]:[seg(ox,oy,pose.x,pose.y,124),sector(pose.x,pose.y,a,210,1.68)];
- if(mode==='scarletHook')return [sector(pose.x,pose.y,a+(seq.side||1)*[.23,-1.55,2.32][k],[205,229,262][k],[1.70,1.90,2.08][k])];
+ if(mode==='emberFuse')return k===0?[sector(pose.x,pose.y,seq.facing,220,1.8)]:[seg(ox,oy,pose.x,pose.y,124),sector(pose.x,pose.y,seq.facing,210,1.68)];
+ if(mode==='scarletHook')return [sector(pose.x,pose.y,seq.facing+(seq.side||1)*[.23,-1.55,2.32][k],[205,229,262][k],[1.70,1.90,2.08][k])];
  if(mode==='butterflyVolley'){const look=Math.atan2(ty-pose.y,tx-pose.x);return [sector(pose.x,pose.y,look+(seq.side||1)*[-.22,.20,-.16,.08][k],[210,226,245,280][k],[1.38,1.56,1.82,2.28][k])];}
- if(mode==='pyreDomino'){const f=a,look=Math.atan2(ty-pose.y,tx-pose.x),nodes=[.38,.81,1.26].map(t=>{const q=clamp((t/1.78-.075)/.72,0,1),ease=q*q*(3-2*q),x=ox+ca*474*ease+ca*92,y=oy+sa*474*ease+sa*92;return {x,y};});if(k<3)return [seg(ox,oy,pose.x+ca*100,pose.y+sa*100,78),sector(pose.x,pose.y,f,186,1.66)];return [...nodes.map(n=>circle(n.x,n.y,127)),sector(pose.x,pose.y,look,255,2.26)];}
- if(mode==='triadPyre'){const vs=crimsonTriadVertices({crimsonFace:a,anchorX:tx,anchorY:ty,side});if(k<3){const from=k===0?{x:ox,y:oy}:vs[k-1],to=vs[k],aa=Math.atan2(ty-to.y,tx-to.x);return [seg(from.x,from.y,to.x,to.y,96),sector(to.x,to.y,aa,k===2?198:170,2.04)];}return [circle(tx,ty,k===3?218:320)];}
+ if(mode==='pyreDomino'){const f=seq.facing,look=Math.atan2(ty-pose.y,tx-pose.x),nodes=[.38,.81,1.26].map(t=>{const q=clamp((t/1.78-.075)/.72,0,1),ease=q*q*(3-2*q),x=ox+ca*474*ease+ca*92,y=oy+sa*474*ease+sa*92;return {x,y};});if(k<3)return [seg(ox,oy,pose.x+ca*100,pose.y+sa*100,78),sector(pose.x,pose.y,f,186,1.66)];return [...nodes.map(n=>circle(n.x,n.y,127)),sector(pose.x,pose.y,look,255,2.26)];}
+ if(mode==='triadPyre'){const vs=crimsonTriadVertices({crimsonFace:seq.facing,anchorX:tx,anchorY:ty,side});if(k<3){const from=k===0?{x:ox,y:oy}:vs[k-1],to=vs[k],aa=Math.atan2(ty-to.y,tx-to.x);return [seg(from.x,from.y,to.x,to.y,96),sector(to.x,to.y,aa,k===2?198:170,2.04)];}return [circle(tx,ty,k===3?218:320)];}
  if(mode==='guardPierce')return [sector(pose.x,pose.y,a,reach,.52)];
  if(mode==='tempest')return [circle(pose.x,pose.y,reach)];
  if(mode==='earthSlam')return [circle(pose.x+ca*80,pose.y+sa*80,145)];
