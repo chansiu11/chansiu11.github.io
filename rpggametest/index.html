@@ -1161,6 +1161,19 @@ function crimsonChargeFlames(x,y,r=90,life=.95,power=1){
 /* Hongryeon sword-forms: original flame effects driven by the real hitbox, not sprites or beams. */
 const FLAME_BREATH_MODES=new Set(['flameBreathSweep','flameBreathRise','flameBreathCleave','flameBreathWheel','flameBreathFinale']);
 const HONGRYEON_STUN_SCALE=2.0; // Longer stun on all five Hongryeon sword forms.
+// Each hit has its own wind-up, blade path, reach, and recovery.
+// These events drive the real sword arm, flame slash and collision TOGETHER;
+// there is no periodic damage ticker independent of an actual cut.
+const FLAME_FINALE_CUTS=Object.freeze([
+ {at:.20,windup:.12,kind:'wide',mult:.72,stun:1.10,reach:190,arc:2.60,side:-28},
+ {at:.55,windup:.19,kind:'reverse',mult:.91,stun:.97,reach:194,arc:2.38,side:34},
+ {at:.73,windup:.075,kind:'thrust',mult:.47,stun:1.02,reach:220,arc:1.19,side:12},
+ {at:1.21,windup:.34,kind:'overhead',mult:.65,stun:1.18,reach:206,arc:1.60,side:-18},
+ {at:1.55,windup:.16,kind:'backhand',mult:.57,stun:1.00,reach:190,arc:2.18,side:36},
+ {at:2.11,windup:.37,kind:'rising',mult:.71,stun:1.31,reach:213,arc:1.86,side:-28},
+ {at:2.43,windup:.14,kind:'cross',mult:.84,stun:1.22,reach:228,arc:2.30,side:15},
+ {at:3.25,windup:.50,kind:'finisher',mult:2.26,stun:.92,reach:211,arc:2.78,side:0}
+]);
 const FLAME_CLEAVE_START_RADIUS=190,FLAME_CLEAVE_LAND_RADIUS=245,FLAME_RISE_IMPACT_RADIUS=250;
 // Ring effects and the damage check intentionally share these exact radii.
 function flameBreathCleaveCircle(x,y,r,face=0,life=.57,power=1,density=1){
@@ -1242,20 +1255,20 @@ function flameBreathSignature(id,index,final,ang,reach,actor=player,ctxInfo=null
    flameBreathStroke(x,y,f,190,1.35,side,.39,1.20);
    flameBreathPlume(x-Math.cos(f)*68,y-Math.sin(f)*68,f,242,104,.46,1.36);
    crimsonFlameBurst(x,y,76,.39,.87);
-  }else if(index>=1&&index<=4){
-   const nextSide=index%2?side:-side,a=f+nextSide*(index>=3?.85:.66);
-   flameBreathStroke(x,y,a,index>=3?250:228,index>=3?2.55:2.30,nextSide,.48,index>=3?1.27:1.19);
-   flameBreathPlume(x-Math.cos(a)*55,y-Math.sin(a)*55,a,210,79,.40,1.07,.64);
-   crimsonEmbers(x,y,a+Math.PI,options.quality==='low'?4:7,201,.45,.73);
-  }else if(index===5||index===6){
-   const cutSide=index===5?-side:side,a=f+cutSide*(index===5?1.06:.94);
-   flameBreathStroke(x,y,a,254,2.48,cutSide,.45,1.20);
-   flameBreathPlume(x-Math.cos(a)*43,y-Math.sin(a)*43,a,188,67,.34,1.02,.58);
-   crimsonEmbers(x,y,a+Math.PI,options.quality==='low'?3:5,165,.39,.63);
-  }else if(index===7){
-   flameBreathStroke(x,y,f-side*.24,282,1.91,-side,.53,1.35);
-   flameBreathPlume(x-Math.cos(f)*59,y-Math.sin(f)*59,f,244,95,.49,1.19,.62);
-   crimsonEmbers(x,y,f+Math.PI,options.quality==='low'?4:7,217,.51,.71);
+  }else if(index>=1&&index<=7){
+   // FX follow the attacker's actual sword reach and a different cut direction
+   // for every strike (not an explosion at the victim on a fixed beat).
+   const cut=FLAME_FINALE_CUTS[index-1];
+   const angles={wide:-.26,reverse:.37,thrust:0,overhead:0,backhand:-.34,rising:.23,cross:-.18};
+   const dir=f+(angles[cut.kind]||0)*side;
+   const flip=['reverse','backhand','cross'].includes(cut.kind)?-side:side;
+   const narrow=cut.kind==='thrust';
+   flameBreathStroke(x,y,dir,cut.reach,cut.arc,flip,narrow?.30:.40,narrow?1.0:1.16);
+   if(cut.kind==='thrust')flameBreathPlume(x+Math.cos(dir)*58,y+Math.sin(dir)*58,dir,150,37,.28,.90,.49);
+   else if(cut.kind==='overhead'||cut.kind==='rising')
+    flameBreathPlume(x+Math.cos(dir)*73,y+Math.sin(dir)*73,dir,169,61,.33,1.09,.58);
+   else crimsonEmbers(x+Math.cos(dir)*88,y+Math.sin(dir)*88,dir+Math.PI,
+      options.quality==='low'?2:4,150,.35,.54);
   }else{
    flameBreathCleaveCircle(x,y,211,f,.87,1.75,.65);
    flameBreathStroke(x,y,f+side*.27,325,2.78,side,.77,1.42);
@@ -1534,7 +1547,7 @@ const SWORD_SKILL_LIBRARY=[
  {id:'earthRend',name:'승염 비상',level:30,price:920,cost:43,cool:7.4,color:'#ff782e',desc:'직선으로 328만큼 빠르게 돌진하며 점차 감속한다. 발동 0.5초 후 도착 지점의 원형 화염과 지나온 직선 경로에 동시에 피해를 주며 방패를 관통한다.',cfg:{duration:.78,hits:[.50],mult:[2.61],arc:[TAU],reach:[250],step:[0],mode:'flameBreathRise'}},
  {id:'dawnArc',name:'여명 검파',level:38,price:1100,cost:58,cool:3.5,color:'#ffd95c',desc:'강한 검압 하나를 발사한 반동으로 몸이 뒤로 밀리는 초장거리 단발기입니다.',cfg:{duration:.72,hits:[.28],mult:[1.15],arc:[1.7],reach:[20],step:[0],mode:'dawnWave'}},
  {id:'thunderDrive',name:'천풍 추살',level:44,price:1280,cost:74,cool:15.8,color:'#61f0c7',desc:'질풍 유파의 궁극기. 장거리 초고속 돌진에 맞는 순간 2번 질풍 점멸처럼 돌진 방향으로 강하게 날아가며, 이후 0.05초마다 총 30회의 추살 연계를 합니다. Lv.100 기준 일반 타격 100, 마지막 타격 200 피해입니다.',cfg:{duration:2.35,hits:Array.from({length:30},(_,i)=>.70+i*.05),mult:Array.from({length:30},(_,i)=>i===29?.38:.20),arc:Array(30).fill(TAU),reach:Array(30).fill(0),step:Array(30).fill(0),mode:'galePursuit'}},
- {id:'meteorBreaker',name:'극홍 · 염화일천',level:52,price:1520,cost:78,cool:19.5,color:'#ff782e',desc:'0.5초 불꽃 차지 후 장거리 초고속 화염 돌진. 적중하면 즉시 정지·기절시키고 교차 검격 네 번에 추가 반월 검격 두 번과 솟구치는 화염 베기를 연계한 뒤 폭염 봉쇄로 마무리한다. 빗나가면 돌진 후 즉시 종료된다.',cfg:{duration:1.65,hits:[],mult:[],arc:[TAU],reach:[0],step:[0],mode:'flameBreathFinale'}},
+ {id:'meteorBreaker',name:'극홍 · 염화일천',level:52,price:1520,cost:78,cool:19.5,color:'#ff782e',desc:'0.5초 차지 후 초고속 화염 돌진. 적중하면 멈춰 기절시키고 횡베기·역베기·찌르기·내려베기·역수 베기·올려베기·교차 베기를 서로 다른 박자로 연계한 뒤, 검을 높이 들어 폭염 참격으로 마무리한다. 빗나가면 돌진 후 즉시 종료된다.',cfg:{duration:1.65,hits:[],mult:[],arc:[TAU],reach:[0],step:[0],mode:'flameBreathFinale'}},
  {id:'galeOrbit',name:'풍환 폭발',level:10,price:340,cost:39,cool:8,color:'#61f0c7',desc:'0.5초 동안 넓은 풍환으로 주변 적의 이동을 봉쇄하고 부드럽게 중심으로 끌어당깁니다. 적은 스킬을 사용할 수 있으며, 이후 회전하는 원형 폭발로 타격합니다.',cfg:{duration:.78,hits:[.50],mult:[6.45],arc:[TAU],reach:[0],step:[0],mode:'galePulse'}},
  {id:'mirrorStep',name:'거울 걸음',level:8,price:0,cost:30,cool:5,color:'#b88cff',desc:'멀리 있는 적을 포착해 반대편까지 단숨에 파고든 뒤 뒤쪽에서 베는 장거리 추격 돌진기입니다.',cfg:{duration:.55,hits:[.32],mult:[2.25],arc:[1.1],reach:[36],step:[0],mode:'mirrorBackstab'}},
  {id:'lunarBind',name:'월인 결박',level:26,price:0,cost:46,cool:14.8,color:'#b88cff',desc:'표적의 좌우와 뒤로 세 번 순간이동하며 달빛 결계를 이동시켜 적을 구속하고, 마지막 위치에서 월륜 참격으로 마무리합니다.',cfg:{duration:.82,hits:[.50],mult:[2.05],arc:[TAU],reach:[84],step:[0],mode:'lunarPull'}},
@@ -3058,7 +3071,7 @@ function updateFlameBreathFinale(seq,sk,dt){
     seq.flameCaught=true;seq.flameCaughtAt=seq.elapsed;
     seq.flameTarget=e;seq.flameTargetId=e.id;seq.flameStage=0;
     // Extend the hit-confirmed combo and real character animation, not the missed dash.
-    seq.duration=seq.elapsed+3.01;
+    seq.duration=seq.elapsed+3.61;
     const followTime=seq.duration-seq.elapsed;
     player.cast=Math.max(player.cast,followTime);
     player.attackCd=Math.max(player.attackCd,followTime);
@@ -3078,71 +3091,66 @@ function updateFlameBreathFinale(seq,sk,dt){
  }
  const since=seq.elapsed-seq.flameCaughtAt;
  const e=seq.flameTarget&&!seq.flameTarget.dead?seq.flameTarget:targets().find(v=>v.id===seq.flameTargetId);
- const c=e?combatCenter(e):seq.flameImpactPoint||{x:player.x+fx*70,y:player.y+fy*70};
+ const c=e?combatCenter(e):seq.flameImpactPoint||{x:player.x+fx*92,y:player.y+fy*92};
  seq.flameImpactPoint={x:c.x,y:c.y};
- player.facing=seq.facing=f;player.skillLift=0;
- const direct=(mult,stun,force=0,heavy=false)=>{
-  if(!e||e.dead||e.riftSleeping)return;
-  hitEnemy(e,damageValue(mult),heavy,player,{stun:e.kind==='boss'?.17*HONGRYEON_STUN_SCALE:stun*HONGRYEON_STUN_SCALE,
-   dx:fx*force,dy:fy*force,duration:force?window.EchoesCombat.forceDuration(force):0,
-   bypassShield:true,skillId:sk.id,shape:'circle',x:c.x,y:c.y,r:85+combatRadius(e)});
+ // Footwork: short alternating steps stay sword-length away from the locked target,
+ // so the blade visibly reaches it instead of firing damage from the original spot.
+ const next=FLAME_FINALE_CUTS[Math.min(seq.flameStage||0,FLAME_FINALE_CUTS.length-1)];
+ const lateral=(seq.side||1)*(next?.side||0);
+ if(e){
+  const tx=c.x-fx*94+nx*lateral,ty=c.y-fy*94+ny*lateral,
+   dx=tx-player.x,dy=ty-player.y,d=Math.hypot(dx,dy);
+  const step=Math.min(d,(next?.kind==='finisher'?120:205)*dt);
+  if(d>1&&step>0){const ox=player.x,oy=player.y;moveBody(player,dx/d*step,dy/d*step);
+   if(Math.hypot(player.x-ox,player.y-oy)>5)syncSkillMoveIfNeeded(ox,oy,18,500);}
+ }
+ player.facing=seq.facing=e?Math.atan2(c.y-player.y,c.x-player.x):f;
+ const strike=(cut,stage)=>{
+  const angle=Math.atan2(c.y-player.y,c.x-player.x),d=Math.hypot(c.x-player.x,c.y-player.y),
+   radius=e?combatRadius(e):0;
+  // Each strike uses the blade's current reach and sector instead of timed proximity damage.
+  // Re-orient toward the caught opponent while stepping around them.
+  const hit=e&&!e.dead&&!e.riftSleeping&&d<=cut.reach+radius&&
+   Math.abs(angleDiff(angle,player.facing))<=cut.arc*.5+radius/Math.max(40,d);
+  const heavy=cut.kind==='overhead'||cut.kind==='rising';
+  if(hit)hitEnemy(e,damageValue(cut.mult),heavy,player,{
+   stun:e.kind==='boss'?.21*HONGRYEON_STUN_SCALE:cut.stun*HONGRYEON_STUN_SCALE,
+   dx:0,dy:0,duration:0,bypassShield:true,skillId:sk.id,
+   shape:'sector',x:player.x,y:player.y,a:player.facing,arc:cut.arc,r:cut.reach
+  });
+  flameBreathSignature(sk.id,stage,false,player.facing,cut.reach,player,{
+   side:seq.side||1,baseFacing:player.facing
+  });
+  player.attackAngle=player.facing;
+  player.attackArc=cut.arc;
+  shake=Math.max(shake,heavy?10:stage===3?5:8);
+  sound('swing');
  };
- if(since>=.20&&seq.flameStage<1){
-  seq.flameStage=1;direct(.72,1.10);
-  flameBreathSignature(sk.id,1,false,f,228,{x:c.x,y:c.y},{side:seq.side||1,baseFacing:f});
-  shake=Math.max(shake,7);
- }
- if(since>=.43&&seq.flameStage<2){
-  seq.flameStage=2;direct(.91,.83);
-  flameBreathSignature(sk.id,2,false,f,228,{x:c.x,y:c.y},{side:seq.side||1,baseFacing:f});
-  shake=Math.max(shake,9);
- }
- if(since>=.76&&seq.flameStage<3){
-  seq.flameStage=3;
-  direct(.47,.92);
-  flameBreathSignature(sk.id,3,false,f,250,{x:c.x,y:c.y},{side:seq.side||1,baseFacing:f});
-  shake=Math.max(shake,8);
- }
- if(since>=1.08&&seq.flameStage<4){
-  seq.flameStage=4;
-  direct(.58,.89);
-  flameBreathSignature(sk.id,4,false,f,250,{x:c.x,y:c.y},{side:seq.side||1,baseFacing:f});
-  shake=Math.max(shake,10);
- }
- if(since>=1.39&&seq.flameStage<5){
-  seq.flameStage=5;direct(.54,1.00);
-  flameBreathSignature(sk.id,5,false,f,254,{x:c.x,y:c.y},{side:seq.side||1,baseFacing:f});
-  shake=Math.max(shake,8);
- }
- if(since>=1.66&&seq.flameStage<6){
-  seq.flameStage=6;direct(.60,1.04);
-  flameBreathSignature(sk.id,6,false,f,254,{x:c.x,y:c.y},{side:seq.side||1,baseFacing:f});
-  shake=Math.max(shake,9);
- }
- if(since>=1.96&&seq.flameStage<7){
-  seq.flameStage=7;direct(.73,1.13);
-  flameBreathSignature(sk.id,7,false,f,282,{x:c.x,y:c.y},{side:seq.side||1,baseFacing:f});
-  shake=Math.max(shake,11);
- }
- if(since>=2.44&&seq.flameStage<8){
-  seq.flameStage=8;
-  // Original area finisher after three extra cuts; a missed dash still skips all follow-ups.
-  const r=211;
+ // Irregular, authored sword swings. The same timeline drives limb wind-up,
+ // weapon angle, hit detection and fire: no artificial interval-based tick.
+ while(seq.flameStage<FLAME_FINALE_CUTS.length&&since>=FLAME_FINALE_CUTS[seq.flameStage].at){
+  const idx=seq.flameStage++,cut=FLAME_FINALE_CUTS[idx];
+  if(cut.kind!=='finisher'){strike(cut,idx+1);continue;}
+  // Only the final heavy overhead slash fans out to nearby enemies.
+  // A missed initial dash never enters this branch.
+  const center=e?combatCenter(e):c,r=cut.reach;
   for(const v of targets()){
-   const vc=combatCenter(v),d=Math.hypot(vc.x-c.x,vc.y-c.y);
-   if(d>r+combatRadius(v))continue;
+   const vc=combatCenter(v),distanceFromImpact=Math.hypot(vc.x-center.x,vc.y-center.y);
+   if(distanceFromImpact>r+combatRadius(v))continue;
    const main=v===e;
-   hitEnemy(v,damageValue(main?2.26:.98),main,player,{
-    stun:v.kind==='boss'?.19*HONGRYEON_STUN_SCALE:(main?.92:.38)*HONGRYEON_STUN_SCALE,
+   hitEnemy(v,damageValue(main?cut.mult:.98),main,player,{
+    stun:v.kind==='boss'?.21*HONGRYEON_STUN_SCALE:(main?cut.stun:.38)*HONGRYEON_STUN_SCALE,
     dx:fx*(main?145:64),dy:fy*(main?145:64),
     duration:window.EchoesCombat.forceDuration(main?145:64),
     bypassShield:true,skillId:sk.id,shape:'circle',x:vc.x,y:vc.y,r:combatRadius(v)+18
    });
   }
-  flameBreathSignature(sk.id,8,true,f,211,{x:c.x,y:c.y},{side:seq.side||1,baseFacing:f});
+  flameBreathSignature(sk.id,idx+1,true,player.facing,r,{x:center.x,y:center.y},{
+   side:seq.side||1,baseFacing:player.facing
+  });
   shake=Math.max(shake,19);sound('hit');
  }
- if(since>=3.01)finish();
+ if(since>=3.61)finish();
 }
 
 function updateSwordSkill(dt){
@@ -4369,6 +4377,57 @@ function hongryeonLimbPose(id,preparing,time,sign,side,a,shoulderY,headY){
    elbow={x:Math.cos(angle+side*.8)*5,y:Math.sin(angle)*4};
    swordA=angle+side*.40;
   }
+ }else if(id==='meteorBreaker'){
+  if(preparing){
+   // Half-second charge: grip behind the shoulder, plant the rear leg.
+   const k=q*q*(3-2*q);
+   hand=s>0?{x:-fx*(9+19*k)+side*10,y:shoulderY+8-14*k}:
+     {x:fx*13-side*4,y:shoulderY+13+8*k};
+   leg=foot((s>0?-13:21)*k,9+4*k);
+   elbow={x:s>0?-fx*5:fx*5,y:-3*k};
+   swordA=a+Math.PI-side*.28;
+  }else if(activeSwordSkill?.skillId==='meteorBreaker'&&!activeSwordSkill.flameCaught){
+   // Dash: forward-pointed sword and alternating sprinting legs.
+   hand=s>0?{x:fx*34+side*6,y:shoulderY+12+fy*6}:
+     {x:-fx*13-side*7,y:shoulderY+17};
+   const stride=Math.sin(time*27+(s>0?0:Math.PI));
+   leg=foot(stride*24,10,Math.max(0,stride)*7);
+   elbow={x:s>0?fx*7:-fx*5,y:0};
+   swordA=a;
+  }else{
+   // Contact is followed by seven differently timed *sword* cuts and a
+   // deliberately long overhead finisher, each with its own arm/leg pose.
+   const elapsed=Math.max(0,time),cut=FLAME_FINALE_CUTS.find(v=>elapsed<=v.at+.055)||
+    FLAME_FINALE_CUTS[FLAME_FINALE_CUTS.length-1];
+   const u=clamp((elapsed-(cut.at-cut.windup))/cut.windup,0,1),
+    strike=u*u*(3-2*u),flip=['reverse','backhand','cross'].includes(cut.kind)?-1:1;
+   const angle=a+side*flip*(-1.54+2.91*strike);
+   if(cut.kind==='thrust'){
+    hand=s>0?{x:-fx*21+fx*58*strike+side*6,y:shoulderY+11-5*strike}:
+     {x:-fx*8-side*7,y:shoulderY+8};
+    swordA=a-side*.12;
+   }else if(cut.kind==='overhead'||cut.kind==='finisher'){
+    hand=s>0?{x:side*7+fx*27*strike,y:headY-24+(shoulderY+58-(headY-24))*strike}:
+     {x:-side*8+fx*13*strike,y:headY-6+(shoulderY+24-(headY-6))*strike};
+    swordA=-Math.PI/2+strike*(a+Math.PI/2+side*.23);
+   }else if(cut.kind==='rising'){
+    hand=s>0?{x:-fx*9+fx*31*strike+side*7,
+     y:shoulderY+40-(headY-19<shoulderY?75:66)*strike}:
+     {x:-fx*7-side*9,y:shoulderY+18-11*strike};
+    swordA=a+side*(1.4-2.5*strike);
+   }else{
+    // Horizontal, reverse, backhand and cross each reverse direction/height.
+    const high=cut.kind==='cross'?-11:cut.kind==='backhand'?14:0;
+    hand=s>0?{x:Math.cos(angle)*30,y:shoulderY+14+high+Math.sin(angle)*16}:
+     {x:-Math.cos(angle)*18,y:shoulderY+15-high*.36-Math.sin(angle)*10};
+    swordA=angle+side*flip*.25;
+   }
+   const step= cut.kind==='thrust'?19:cut.kind==='overhead'?15:
+    cut.kind==='finisher'?23:cut.kind==='rising'?21:17;
+   leg=foot((s>0?step:-step*.72)*strike+(s>0?-8:10)*(1-strike),
+    12+(cut.kind==='finisher'?4:0),s<0?Math.sin(Math.PI*u)*5:0);
+   elbow={x:s>0?fx*6:-fx*5,y:s>0?-4*(1-strike):3*strike};
+  }
  }
  return {hand,leg,elbow,swordA};
 }
@@ -4382,8 +4441,8 @@ function drawPlayer(){
  const m=p.motion||{phase:0,walk:0,facing:p.facing,lean:0},a=m.facing,fx=Math.cos(a),fy=Math.sin(a),back=fy<-.35,side=fx<-.2?-1:1;
  const prep=String(p.skillKind||'').startsWith('prepare:')?String(p.skillKind).slice(8):'',prepT=1-(p.attackAnim||0)/(standardSkillHold?.prepareDuration||window.EchoesSkillPrepare.duration),prepVariant=window.EchoesSkillPrepare.variant(p.weapon===3?'hidden:'+p.skillPose:p.weapon===2?'bow:'+p.skillPose:(p.swordSkills?.[p.skillPose]||p.equippedSwordSkills?.[p.skillPose]||''),p.skillPose);
  const limbId=prep?((standardSkillHold&&standardSkillHold.index===p.skillPose?skillInfo(p.skillPose)?.id:null)||''):activeSwordSkill?.skillId;
- const customLimb=['earthRend','quakeRush','ironJudgment'].includes(limbId)?limbId:null;
- const limbTime=prep?clamp(prepT,0,1):activeSwordSkill?.elapsed||0;
+ const customLimb=['earthRend','quakeRush','ironJudgment','meteorBreaker'].includes(limbId)?limbId:null;
+ const limbTime=prep?clamp(prepT,0,1):activeSwordSkill?.skillId==='meteorBreaker'&&activeSwordSkill.flameCaught?activeSwordSkill.elapsed-activeSwordSkill.flameCaughtAt:activeSwordSkill?.elapsed||0;
  const limbAt=sign=>customLimb?hongryeonLimbPose(customLimb,!!prep,limbTime,sign,side,a,shoulderY,headY):null;
  const walk=prep?0:m.walk,bounce=Math.abs(Math.sin(m.phase))*walk*1.3,attackT=clamp(1-p.attackAnim/(p.attackDuration||.26),0,1),swing=p.attackAnim>0?Math.sin(attackT*Math.PI):0;
  const breath=Math.sin(realTime*2.2)*.35,hipY=-21-bounce,shoulderY=-42-bounce+breath+m.lean*2,headY=shoulderY-14,bodyWidth=10+Math.abs(fy)*2,armor=p.equippedChest==='abyssPlate'?['#553c59','#8f6b91']:p.equippedChest==='frostMail'?['#5e8893','#b8d9df']:p.equippedChest==='knightPlate'?['#596b70','#aeb9b6']:['#709d91','#a2bbae'],helm=p.equippedHead==='voidVisor'?'#5c4770':p.equippedHead==='frostCrown'?'#8fb9bf':p.equippedHead==='ironHelm'?'#79888a':'#8ca99d',shieldCol=p.equippedShield==='astralShield'?'#d4c8ff':p.equippedShield==='frostShield'?'#9bd8e4':p.equippedShield==='ironShield'?'#9aa5a6':'#82bab0';
@@ -4438,7 +4497,7 @@ function drawPlayer(){
  else{ctx.save();ctx.translate(hand.x,hand.y);ctx.rotate(a+Math.PI/2);ctx.strokeStyle='#d3b77d';ctx.lineWidth=2.7;ctx.beginPath();ctx.moveTo(-2,-17);ctx.quadraticCurveTo(11,0,-2,17);ctx.stroke();ctx.beginPath();ctx.moveTo(-2,-17);ctx.lineTo(-6-swing*6,0);ctx.lineTo(-2,17);ctx.strokeStyle='#d3dec4';ctx.lineWidth=1;ctx.stroke();ctx.restore();}
  if(p.parry>0){const h=armPose(-side).hand;ellipse(ctx,h.x,h.y-3,7,11,'#709d98');polygon(ctx,[[h.x,h.y-14],[h.x+8,h.y-6],[h.x,h.y+8],[h.x-8,h.y-6]],shieldCol,'#d7e6c2',1.7);}
  ctx.restore();
- if(p.attackAnim>0&&p.weapon!==2){ctx.save();ctx.translate(p.x,p.y-20);ctx.scale(1,.6);ctx.rotate(p.attackAngle);ctx.globalAlpha=Math.sin(attackT*Math.PI)*.8;ctx.beginPath();ctx.arc(0,0,p.heavy?WEAPONS[p.weapon].reach+20:WEAPONS[p.weapon].reach,-p.attackArc/2+attackT*.35,p.attackArc/2+attackT*.35);ctx.strokeStyle=p.heavy?'#efd593':'#bce9d6';ctx.lineWidth=p.heavy?7:4;ctx.stroke();ctx.restore();}
+ if(p.attackAnim>0&&p.weapon!==2&&customLimb!=='meteorBreaker'){ctx.save();ctx.translate(p.x,p.y-20);ctx.scale(1,.6);ctx.rotate(p.attackAngle);ctx.globalAlpha=Math.sin(attackT*Math.PI)*.8;ctx.beginPath();ctx.arc(0,0,p.heavy?WEAPONS[p.weapon].reach+20:WEAPONS[p.weapon].reach,-p.attackArc/2+attackT*.35,p.attackArc/2+attackT*.35);ctx.strokeStyle=p.heavy?'#efd593':'#bce9d6';ctx.lineWidth=p.heavy?7:4;ctx.stroke();ctx.restore();}
  if(p.parry>0){ctx.strokeStyle=p.perfectWindow>0?'#c8f4e4':'#87ada7';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(p.x+fx*18,p.y-28+fy*10,23,18,0,a-1.2,a+1.2);ctx.stroke();}
  ctx.restore();
 ctx.restore();
