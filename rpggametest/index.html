@@ -612,11 +612,11 @@ function styleAdeptCastRange(cfg,slot=0){
  if(['eventHorizonShear','bladeRain'].includes(mode))return 460;
  if(['fracturePrison','galeCrescendo','skyFall'].includes(mode))return 390;
  if(['holdVortex','holdShadow','void3Trigger'].includes(mode))return 430;
- if(mode==='crimsonOrbitLine')return 590;
- if(mode==='flameMantle')return 260;
- if(mode==='cinderSnare')return 310;
- if(mode==='ashRecall')return 560;
- if(mode==='furnaceBloom')return 520;
+ if(mode==='emberFuse')return 375;
+ if(mode==='scarletHook')return 365;
+ if(mode==='butterflyVolley')return 315;
+ if(mode==='pyreDomino')return 350;
+ if(mode==='triadPyre')return 550;
  return Math.max(150,94+maxReach+70);
 }
 function styleAdeptSeed(id,x,y){let h=2166136261>>>0,text=String(id||'')+'|'+Math.round(x)+'|'+Math.round(y);for(let i=0;i<text.length;i++){h^=text.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
@@ -1364,17 +1364,17 @@ const SWORD_SKILL_LIBRARY=[
  {id:'starRush',name:'풍압 연파',level:18,price:0,cost:49,cool:9.6,color:'#61f0c7',desc:'두 번째 풍압 원을 앞으로 발사합니다. 소용돌이는 5초 동안 천천히 이동하며 적을 반시계방향으로 회전시키고 지속 피해를 줍니다. 사라질 때 바깥으로 날리며 발사 직후 시전자가 자유롭게 행동합니다.',cfg:{duration:.30,hits:[.12],mult:[1],arc:[TAU],reach:[0],step:[0],mode:'galeCrescendo'}},
  {id:'crossBloom',name:'연속 교차 베기',level:13,price:420,cost:40,cool:7.4,color:'#b88cff',desc:'표적의 좌우를 번갈아 밟으며 위치를 바꾸고 일곱 번의 교차 베기를 한 대상 주변에 집중합니다.',cfg:{duration:1.42,hits:[.10,.26,.42,.58,.76,.96,1.20],mult:[.43,.45,.48,.52,.56,.66,1.08],arc:[1.20,1.25,1.30,1.35,1.40,1.50,1.85],reach:[20,20,22,22,24,26,30],step:[0,0,0,0,0,0,4],mode:'stationaryFlurry'}},
  {id:'crescent',name:'초승달 이연참',level:16,price:520,cost:34,cool:9,color:'#b88cff',desc:'뒤로 크게 빠지면서 서로 다른 각도의 초승달 검압 두 개를 연속 발사합니다.',cfg:{duration:.80,hits:[.16,.52],mult:[.90,1.18],arc:[2.4,2.7],reach:[18,22],step:[2,4],mode:'crescentRetreat'}},
- {id:'guardBreak',name:'홍염 궤선',level:20,price:650,cost:0,cool:0,color:'#ff344d',desc:'캐릭터 중심에서 살짝 눌린 홍염 원이 펼쳐지고 적 방향으로 회전한 원의 아래쪽에서 직각으로 긴 화염선이 0.1초 뒤 뻗습니다. 원 테두리에는 바깥으로 분출하는 불꽃이, 선 양옆에는 잔불이 남습니다. 외형 테스트용 재사용 대기시간 없음.',cfg:{duration:.52,hits:[.12,.22],mult:[1.18,2.35],arc:[6.283185307179586,6.283185307179586],reach:[0,0],step:[0,0],mode:'crimsonOrbitLine'}},
+ {id:'guardBreak',name:'폭화 도화선',level:20,price:650,cost:30,cool:4.8,color:'#ff344d',desc:'정면 질주로 불붙은 도화선을 남긴 뒤 지나온 선 전체를 뒤늦게 점화한다.',cfg:{duration:.62,hits:[.18,.46],mult:[.88,1.82],arc:[.88,1.15],reach:[80,120],step:Array(2).fill(0),mode:'emberFuse'}},
  {id:'tempest',name:'폭풍 검무',level:24,price:780,cost:48,cool:5.4,color:'#ffd95c',desc:'작은 나선 궤도를 직접 돌면서 여섯 번 회전 베기해 주변 적을 휩쓸어갑니다.',cfg:{duration:1.28,hits:[.08,.25,.42,.59,.78,1.02],mult:[.42,.45,.48,.52,.58,.92],arc:[TAU,TAU,TAU,TAU,TAU,TAU],reach:[18,22,26,30,34,42],step:[0,0,0,0,0,0],mode:'tempest'}},
- {id:'earthRend',name:'유화 사행',level:30,price:920,cost:46,cool:6.0,color:'#ff344d',desc:'적의 바깥쪽으로 비스듬하게 파고들어 반대 측면까지 S자로 꺾어 돌진합니다. 굽은 경로의 붉은 잔불은 마지막 방향 전환에서 크게 터집니다.',cfg:{duration:1.55,hits:[.14,.42,.72,1.04,1.36],mult:[.40,.44,.48,.54,1.18],arc:[1.2,1.5,1.65,1.8,2.1],reach:[64,68,72,78,90],step:[0,0,0,0,0],mode:'flameMantle'}},
+ {id:'earthRend',name:'홍염 갈퀴',level:30,price:920,cost:46,cool:7.4,color:'#ff344d',desc:'측면으로 크게 휘어 파고들며 갈고리 모양의 화염 경로로 세 번 할퀸다.',cfg:{duration:.96,hits:[.22,.53,.84],mult:[.52,.70,1.58],arc:[1.2,1.5,1.9],reach:[60,78,108],step:Array(3).fill(0),mode:'scarletHook'}},
  {id:'dawnArc',name:'여명 검파',level:38,price:1100,cost:58,cool:3.5,color:'#ffd95c',desc:'강한 검압 하나를 발사한 반동으로 몸이 뒤로 밀리는 초장거리 단발기입니다.',cfg:{duration:.72,hits:[.28],mult:[1.15],arc:[1.7],reach:[20],step:[0],mode:'dawnWave'}},
  {id:'thunderDrive',name:'천풍 추살',level:44,price:1280,cost:74,cool:15.8,color:'#61f0c7',desc:'질풍 유파의 궁극기. 장거리 초고속 돌진에 맞는 순간 2번 질풍 점멸처럼 돌진 방향으로 강하게 날아가며, 이후 0.05초마다 총 30회의 추살 연계를 합니다. Lv.100 기준 일반 타격 100, 마지막 타격 200 피해입니다.',cfg:{duration:2.35,hits:Array.from({length:30},(_,i)=>.70+i*.05),mult:Array.from({length:30},(_,i)=>i===29?.38:.20),arc:Array(30).fill(TAU),reach:Array(30).fill(0),step:Array(30).fill(0),mode:'galePursuit'}},
- {id:'meteorBreaker',name:'홍련 천화',level:52,price:1520,cost:72,cool:17,color:'#ff344d',desc:'세 차례 대각선 질주로 표적의 양옆과 전방을 차례로 가르며 열을 쌓고 사이사이 공격합니다. 마지막 관통 돌진에 이어 지면의 잔화가 거대한 화염 장막으로 솟습니다. 순간이동이나 추격 연타가 아닌 경로형 궁극기입니다.',cfg:{duration:3.05,hits:[.28,.45,.72,1.08,1.36,1.64,1.92,2.38,2.82],mult:[.46,.52,.62,.38,.44,.50,.58,.82,2.45],arc:[1.7,2.1,2.6,2.4,2.4,2.4,2.6,2.6,2.8],reach:[76,88,100,0,0,0,0,0,0],step:[0,0,0,0,0,0,0,0,0],mode:'furnaceBloom'}},
+ {id:'meteorBreaker',name:'삼홍 봉화',level:52,price:1520,cost:78,cool:18,color:'#ff344d',desc:'세 꼭짓점을 따라 세 번 실제로 질주해 화염 삼각형을 그리고 마지막에 내부 열을 모아 거대한 봉화를 솟게 한다.',cfg:{duration:3.0,hits:[.58,1.40,2.20,2.51,2.83],mult:[.55,.72,.92,.73,2.58],arc:[1.4,1.4,1.6,2.4,6.283185307179586],reach:[70,82,100,0,0],step:Array(5).fill(0),mode:'triadPyre'}},
  {id:'galeOrbit',name:'풍환 폭발',level:10,price:340,cost:39,cool:8,color:'#61f0c7',desc:'0.5초 동안 넓은 풍환으로 주변 적의 이동을 봉쇄하고 부드럽게 중심으로 끌어당깁니다. 적은 스킬을 사용할 수 있으며, 이후 회전하는 원형 폭발로 타격합니다.',cfg:{duration:.78,hits:[.50],mult:[6.45],arc:[TAU],reach:[0],step:[0],mode:'galePulse'}},
  {id:'mirrorStep',name:'거울 걸음',level:8,price:0,cost:30,cool:5,color:'#b88cff',desc:'멀리 있는 적을 포착해 반대편까지 단숨에 파고든 뒤 뒤쪽에서 베는 장거리 추격 돌진기입니다.',cfg:{duration:.55,hits:[.32],mult:[2.25],arc:[1.1],reach:[36],step:[0],mode:'mirrorBackstab'}},
  {id:'lunarBind',name:'월인 결박',level:26,price:0,cost:46,cool:14.8,color:'#b88cff',desc:'표적의 좌우와 뒤로 세 번 순간이동하며 달빛 결계를 이동시켜 적을 구속하고, 마지막 위치에서 월륜 참격으로 마무리합니다.',cfg:{duration:.82,hits:[.50],mult:[2.05],arc:[TAU],reach:[84],step:[0],mode:'lunarPull'}},
- {id:'quakeRush',name:'잔염 횡보',level:12,price:0,cost:45,cool:7.8,color:'#ff344d',desc:'상대를 바라보며 옆으로 이동하면서 바닥에 세 차례 불꽃을 일으킵니다. 끌어당기거나 돌진하지 않으며 마지막에는 넓은 불길이 솟습니다.',cfg:{duration:1.10,hits:[.16,.45,.78,1.02],mult:[.35,.45,.62,1.20],arc:[1.35,1.45,1.55,1.7],reach:[130,150,165,185],step:[0,0,0,0],mode:'crimsonSideScorch'}},
- {id:'ironJudgment',name:'화벽 유주',level:36,price:0,cost:56,cool:10.2,color:'#ff344d',desc:'상대 정면을 바라본 채 옆으로 길게 달려가며 네 차례 불꽃 검격을 펼칩니다. 마지막에 지나온 측면 경로에서 넓은 불의 장막이 솟아오릅니다. 순간이동과 돌진은 없습니다.',cfg:{duration:1.25,hits:[.16,.46,.78,1.10],mult:[.50,.68,.90,1.70],arc:[1.3,1.45,1.55,1.8],reach:[70,80,90,115],step:[0,0,0,0],mode:'crimsonSideWall'}},
+ {id:'quakeRush',name:'화접 산화',level:12,price:0,cost:40,cool:6.8,color:'#ff344d',desc:'표적을 보며 좌우로 이동하면서 비대칭 불나비 날개 네 개를 순차적으로 펼친다.',cfg:{duration:1.22,hits:[.19,.48,.79,1.10],mult:[.43,.49,.59,1.04],arc:[.9,1.12,1.3,1.62],reach:[95,118,142,175],step:Array(4).fill(0),mode:'butterflyVolley'}},
+ {id:'ironJudgment',name:'역염 연쇄',level:36,price:0,cost:54,cool:10,color:'#ff344d',desc:'옆으로 달리며 세 개의 잿불 기둥을 심고 마지막에 기둥을 연쇄 폭발시킨다.',cfg:{duration:1.46,hits:[.30,.68,1.04,1.34],mult:[.42,.49,.59,1.83],arc:[1.1,1.1,1.1,1.9],reach:[48,48,48,140],step:Array(4).fill(0),mode:'pyreDomino'}},
  {id:'solarReturn',name:'태양 회귀',level:14,price:0,cost:36,cool:9.4,color:'#ffd95c',desc:'조준 방향으로 빠르게 대시하며 전후방으로 검압을 발사합니다. 적중한 적을 시전자 쪽으로 끌어당깁니다.',cfg:{duration:.66,hits:[.24,.46],mult:[1.0,1.0],arc:[1.5,1.5],reach:[18,18],step:[0,0],dashDistance:360,dashDuration:.30,mode:'boomerangWave'}},
  {id:'prismLance',name:'프리즘 창렬',level:22,price:0,cost:44,cool:15.2,color:'#ffd95c',desc:'5발과 9발의 검압, 마지막 광창을 발사합니다. 투사체가 적중한 적들을 가까운 순서로 빠르게 추격해 대상마다 한 번씩 강한 일격을 가합니다.',cfg:{duration:.62,hits:[.30],mult:[1.0],arc:[1.8],reach:[10],step:[0],mode:'fanLances'}},
  {id:'skyFall',name:'천광 낙하',level:42,price:0,cost:64,cool:7.8,color:'#ffd95c',desc:'멀리 있는 적을 자동 포착해 크게 도약하며 따라붙은 뒤 목표 지점에 낙하 충격을 일으킵니다.',cfg:{duration:1.0,hits:[.78],mult:[3.25],arc:[TAU],reach:[0],step:[0],mode:'skyFall'}},
@@ -1391,17 +1391,17 @@ const SWORD_SKILL_IDENTITY={
  starRush:{trait:'5초 이동형 소용돌이 · 반시계 회전과 지속 피해 · 종료 방출',fx:'청록 나선 풍압륜'},
  crossBloom:{trait:'좌우 위치전환 · 7연 집중',fx:'금빛 잔상 X자 검화'},
  crescent:{trait:'후퇴 사격형 · 쌍검압',fx:'하늘빛 역류 초승달'},
- guardBreak:{trait:'단일 강타 · 긴 경직',fx:'주황 관통 균열'},
+ guardBreak:{trait:'도화선 속공 · 직선 질주 후 지연 점화',fx:'달리며 쌓인 붉은 도화선과 역순 발화'},
  tempest:{trait:'6연 광역 · 회전 폭풍',fx:'민트 소용돌이 층'},
- earthRend:{trait:'도약 착지 · 지면 폭발',fx:'황금 낙하 충격진'},
+ earthRend:{trait:'곡선 갈퀴 질주 · 측면 갈고리',fx:'휘어진 붉은 화염 발톱과 잔불 뿔'},
  dawnArc:{trait:'초장거리 단발 · 대검압',fx:'백금 수평 광파'},
  thunderDrive:{trait:'궁극기 · 장거리 돌진 적중 시 즉시 당김 + 30연타 추살',fx:'장거리 풍속 돌진/0.05초 간격 교차 추살/확정 피니시'},
- meteorBreaker:{trait:'누르는 동안 유지 · 이동형 흡인 검진',fx:'주홍 회전 검진/내부 별궤도'},
+ meteorBreaker:{trait:'세 꼭짓점 질주 · 삼각형 봉화',fx:'삼각 화염 서명과 중앙 봉화 폭발'},
  galeOrbit:{trait:'0.5초 부드러운 흡입 · 적중 후 이동만 봉쇄',fx:'바깥 공기 흡입/중심 압축/원형 폭발'},
  mirrorStep:{trait:'반대편 순간이동 · 후방 단타',fx:'보랏빛 거울 잔상'},
  lunarBind:{trait:'광역 흡인 · 축소 원참',fx:'달빛 수축 고리'},
- quakeRush:{trait:'전진 · 연속 지면 폭발',fx:'주황 파열 흔적'},
- ironJudgment:{trait:'지연형 구속 · 3단 감옥 붕괴 · 방어 파괴',fx:'사방 파쇄 기둥/수축 균열/중앙 붕괴'},
+ quakeRush:{trait:'횡보 불나비 · 비대칭 4연 날개',fx:'잿빛과 금빛의 불나비 화편'},
+ ironJudgment:{trait:'옆걸음 3개 설치 · 연속 기둥 폭발',fx:'탄화된 잿불 표식과 세워지는 화염기둥'},
  solarReturn:{trait:'전방 대시 · 양방향 검압',fx:'금빛 대시 잔상과 전후 광파'},
  prismLance:{trait:'부채꼴 · 5갈래 검압',fx:'백청 프리즘 선'},
  skyFall:{trait:'고도 상승 · 지정 낙하',fx:'천광 착지 원진'},
@@ -1414,7 +1414,7 @@ const SWORD_SKILL_IDENTITY={
 const SWORD_STYLE_GROUPS=[
  {id:'gale',name:'질풍 유파',desc:'3열 단거리 검풍·점멸 압송·지연 원폭·전방 파문·적중 연계형 추살 궁극기 중심',skills:['windSlash','flashRush','galeOrbit','starRush','thunderDrive']},
  {id:'moon',name:'월영 유파',desc:'위치 교환·흡인·후퇴 검압·교차 난무 중심',skills:['moonSpin','mirrorStep','crossBloom','crescent','lunarBind']},
- {id:'break',name:'홍련 유파',desc:'홍염 궤선·S자 사행·삼단 궁극기 돌진 세 기술과 측면 횡보 중 바닥 발화·화염 장막을 펼치는 두 기술. 다섯 기술의 전투 방식과 화염 실루엣이 모두 다른 기동형 유파.',skills:['guardBreak','earthRend','quakeRush','ironJudgment','meteorBreaker']},
+ {id:'break',name:'홍련 유파',desc:'도화선 질주·화염 갈퀴 질주·삼각 봉화 궁극기 3돌진과 불나비 산화·잿불 기둥 연쇄 2횡보로 구성된 독자적인 화염 유파.',skills:['guardBreak','earthRend','quakeRush','ironJudgment','meteorBreaker']},
  {id:'dawn',name:'여명 유파',desc:'원거리 검압·회전·다중 발사·낙하 중심',skills:['dawnArc','tempest','skyFall','solarReturn','prismLance']},
  {id:'void',name:'이형 유파',desc:'중력 편향 이동·특이점 돌진·지속 압착·공간 접기·공허 난무 중심',skills:['chainReap','phantomSwap','gravityCut','bladeRain','voidDance']}
 ];
@@ -1619,7 +1619,7 @@ function balancedSwordSkill(sk,slot=-1){
  }
  if(slot===4&&sk.id==='prismLance'){cfg.hits=[0,cfg.duration*.52,cfg.duration];cfg.finisher={back:120,forward:640,width:46,mult:3.4,stun:.75};}
  if(slot===4&&sk.id==='thunderDrive'){cfg.duration=2.35;cfg.hits=Array.from({length:30},(_,i)=>.70+i*.05);cfg.mult=Array.from({length:30},(_,i)=>i===29?.38:.20);cfg.arc=Array(30).fill(TAU);cfg.reach=Array(30).fill(0);cfg.step=Array(30).fill(0);}
- if(slot===4&&sk.id==='meteorBreaker'){cfg.duration=3.05;cfg.hits=[.28,.45,.72,1.08,1.36,1.64,1.92,2.38,2.82];cfg.mult=[.46,.52,.62,.38,.44,.50,.58,.82,2.45];cfg.arc=[1.7,2.1,2.6,2.4,2.4,2.4,2.6,2.6,2.8];cfg.reach=[103,119,135,0,0,0,0,0,0];cfg.step=Array(9).fill(0);}
+ if(slot===4&&sk.id==='meteorBreaker'){cfg.duration=3;cfg.hits=[.58,1.40,2.20,2.51,2.83];cfg.mult=[.55,.72,.92,.73,2.58];cfg.arc=[1.4,1.4,1.6,2.4,TAU];cfg.reach=[95,111,135,0,0];cfg.step=Array(5).fill(0);}
  if(SWORD_DASH_SKILLS.has(sk.id)){cfg.dashSkill=true;cfg.rangeScale=SWORD_RANGE_SCALE;}
  return {...sk,cool:0,cost:0,holdMax,cfg};
 }
@@ -2126,6 +2126,8 @@ function updateHeldSwordSkill(seq,sk,dt){
  moveSwordCarryTargets(seq,player.x-px0,player.y-py0);
  if(seq.ultimate&&seq.releaseQueued&&seq.elapsed>=SWORD_ULT_HOLD_MIN)stopHeldSwordSkill(seq.slot,false);
 }
+function crimsonTriadVertices(seq,actor=player){const a=seq.crimsonFace??seq.facing,ca=Math.cos(a),sa=Math.sin(a),nx=-sa,ny=ca,side=seq.side||1,cx=Number.isFinite(seq.anchorX)?seq.anchorX:actor.x+ca*235,cy=Number.isFinite(seq.anchorY)?seq.anchorY:actor.y+sa*235;return [{x:cx-ca*95-nx*side*160,y:cy-sa*95-ny*side*160},{x:cx-ca*95+nx*side*160,y:cy-sa*95+ny*side*160},{x:cx+ca*215,y:cy+sa*215}];}
+function crimsonInTriangle(x,y,vs,margin=0){const cross=(a,b)=>(b.x-a.x)*(y-a.y)-(b.y-a.y)*(x-a.x),c=vs.map((v,i)=>cross(v,vs[(i+1)%3])),inside=c.every(v=>v>=0)||c.every(v=>v<=0);return inside||margin>0&&vs.some((v,i)=>segmentDistance(x,y,[v.x,v.y],[vs[(i+1)%3].x,vs[(i+1)%3].y])<=margin);}
 function crimsonSkillAllowsMove(seq=activeSwordSkill){return false;}
 function crimsonStrafeSide(facing,fallback=1){const x=(keys.has('KeyD')||keys.has('ArrowRight')?1:0)-(keys.has('KeyA')||keys.has('ArrowLeft')?1:0)+(joy.active?joy.x:0),y=(keys.has('KeyS')||keys.has('ArrowDown')?1:0)-(keys.has('KeyW')||keys.has('ArrowUp')?1:0)+(joy.active?joy.y:0),cross=Math.cos(facing)*y-Math.sin(facing)*x;return Math.abs(cross)>.22?Math.sign(cross):fallback;}
 function startSwordSkill(slot){
@@ -2139,7 +2141,7 @@ function startSwordSkill(slot){
  const dashCatch=SWORD_DASH_SKILLS.has(sk.id),voidRange=sk.id==='chainReap'?360:sk.id==='phantomSwap'?620:sk.id==='bladeRain'?540:0,crimsonRange=sk.id==='guardBreak'?590:sk.id==='earthRend'?260:sk.id==='quakeRush'?310:sk.id==='ironJudgment'?560:sk.id==='meteorBreaker'?520:0,targetRange=voidRange||crimsonRange||(slot===4?820:(GALE_SKILLS.has(sk.id)?560:(dashCatch?720:300)));
  const motionTarget=(sk.id==='guardBreak'?enemies.find(e=>e.type==='dummy'&&!e.dead):null)||(lockedTarget&&combatTargets().includes(lockedTarget)&&!lockedTarget.dead&&distance(lockedTarget,player)<=targetRange?lockedTarget:combatTargets().filter(e=>!e.dead&&!e.riftSleeping&&!(e.type==='finalBoss'&&!e.alert)&&distance(e,player)<targetRange).sort((a,b)=>distance(a,player)-distance(b,player))[0])||null;
  if((dashCatch||CRIMSON_SKILLS.has(sk.id))&&motionTarget)player.facing=Math.atan2(motionTarget.y-player.y,motionTarget.x-player.x);
- {const anchorMode=['fracturePrison','furnaceBloom'].includes(cfg.mode),anchorDist=cfg.mode==='furnaceBloom'?210:170;
+ {const anchorMode=['fracturePrison','triadPyre'].includes(cfg.mode),anchorDist=cfg.mode==='triadPyre'?235:170;
  activeSwordSkill={slot,skillId:sk.id,elapsed:0,nextHit:0,facing:player.facing,duration:cfg.duration,originX:player.x,originY:player.y,targetId:motionTarget?.id||null,side:crimsonStrafeSide(player.facing,Math.random()<.5?-1:1),fx:0,carryIds:new Set(),dashCatch,ultimate:slot===4,ultPhase:0,ultFx:0,ultMovePhase:0,anchorX:anchorMode?(motionTarget?.x??player.x+Math.cos(player.facing)*anchorDist):null,anchorY:anchorMode?(motionTarget?.y??player.y+Math.sin(player.facing)*anchorDist):null,lastEchoX:player.x,lastEchoY:player.y};}
  sendSharedSkillFx(slot,cfg.mode==='galePulse'?'galeCharge':sk.id,player.weapon,player.facing);
  swordSkillStartVisuals(player,sk,slot,player.facing);if(slot===4)shake=Math.max(shake,9);
