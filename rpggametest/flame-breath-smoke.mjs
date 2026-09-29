@@ -6,7 +6,7 @@ const cases=[
  {slot:1,id:'earthRend',ms:700,mode:'flameBreathRise',hitTimes:1},
  {slot:2,id:'quakeRush',ms:1000,mode:'flameBreathCleave',hitTimes:2},
  {slot:3,id:'ironJudgment',ms:720,mode:'flameBreathWheel',hitTimes:3},
- {slot:4,id:'meteorBreaker',ms:2300,mode:'flameBreathFinale',hitTimes:6}
+ {slot:4,id:'meteorBreaker',ms:3500,mode:'flameBreathFinale',hitTimes:9}
 ];
 await mkdir('rpggametest/flame-preview',{recursive:true});
 const browser=await chromium.launch({headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
@@ -143,14 +143,17 @@ for(const c of cases){
  }
  await page.screenshot({path:'rpggametest/flame-preview/'+String(c.slot+1)+'-'+c.id+'.png'});
  if(c.slot===4){
-  await page.waitForFunction(()=>window.__game?.enemies?.find(e=>e.type==='dummy')?.testHitCount>=6,{timeout:30000,polling:35});
+  await page.waitForFunction(()=>window.__game?.enemies?.find(e=>e.type==='dummy')?.testHitCount>=9,{timeout:30000,polling:35});
   const end=await page.evaluate(()=>{const g=window.__game,e=g.enemies.find(v=>v.type==='dummy');return {hits:e.testHitCount,damage:e.testDamageTotal,x:g.player.x};});
   const trace=await page.evaluate(()=>{window.__finaleTraceStop=true;return window.__finaleTrace||[];});
-  const sawAddedCuts=trace.some(p=>p.since>=1.08&&p.stage>=4);
-  const sawLateFinale=trace.some(p=>p.since>=1.47&&p.stage===5);
-  if(end.hits<6||end.damage<=0||!sawAddedCuts||!sawLateFinale)
-   throw Error('Extended ultimate must land four crosscuts and late finishing seal: '+JSON.stringify({end,sawAddedCuts,sawLateFinale,traceEnd:trace.slice(-5)}));
-  console.log('Fifth form extended four-crosscut finishing seal verified:',JSON.stringify({end,latest:trace.slice(-3)}));
+  const sawOriginalCrosscuts=trace.some(p=>p.since>=1.08&&p.stage>=4);
+  const sawExtraCrescents=trace.some(p=>p.since>=1.66&&p.stage>=6);
+  const sawRisingCut=trace.some(p=>p.since>=1.96&&p.stage>=7);
+  const sawLateFinale=trace.some(p=>p.since>=2.44&&p.stage===8);
+  if(end.hits<9||end.damage<=0||!sawOriginalCrosscuts||!sawExtraCrescents||!sawRisingCut||!sawLateFinale)
+   throw Error('Extended ultimate must land all eight follow-up hits and its delayed fire seal: '+
+    JSON.stringify({end,sawOriginalCrosscuts,sawExtraCrescents,sawRisingCut,sawLateFinale,traceEnd:trace.slice(-5)}));
+  console.log('Fifth form eight follow-up hits and late fire seal verified:',JSON.stringify({end,latest:trace.slice(-3)}));
  }
  if(errors.length||frame.pageError)throw Error('Runtime errors '+c.id+': '+errors.join(' | ')+' '+frame.pageError);
  if(frame.hitCount<1||frame.damageTotal<=0)throw Error('No hit registered for '+c.id+' '+JSON.stringify(frame));
