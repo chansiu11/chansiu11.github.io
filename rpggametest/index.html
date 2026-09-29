@@ -109,7 +109,7 @@ body{position:relative}.touch-mode select,.touch-mode input{font-size:16px}
 <style>#rpgTestBadge{position:fixed;z-index:99999;right:12px;top:12px;padding:7px 10px;border:1px solid #ff6a4d88;border-radius:8px;background:#210c12d9;color:#ffd2c5;font:700 11px system-ui;letter-spacing:.08em;pointer-events:none;box-shadow:0 4px 20px #0008}</style>
 </head>
 <body>
-<div id="rpgTestBadge">RPGGAMETEST · 홍련 5종 실제 플레이 · 3번 자동 반격</div>
+<div id="rpgTestBadge">RPGGAMETEST · 화염 호흡풍 홍련 5검형</div>
 <canvas id="game" aria-label="잔광의 숲 게임 화면"></canvas>
 <div id="hud" class="hidden">
  <div id="brand">ECHOES OF THE WILD · TEST</div>
@@ -1436,17 +1436,17 @@ const SWORD_SKILL_IDENTITY={
  starRush:{trait:'5초 이동형 소용돌이 · 반시계 회전과 지속 피해 · 종료 방출',fx:'청록 나선 풍압륜'},
  crossBloom:{trait:'좌우 위치전환 · 7연 집중',fx:'금빛 잔상 X자 검화'},
  crescent:{trait:'후퇴 사격형 · 쌍검압',fx:'하늘빛 역류 초승달'},
- guardBreak:{trait:'횡보 발도 · 2단 화염 검격과 지나온 경로 점화',fx:'굵기와 크기가 다른 불꽃 혀들이 검 궤적의 가장자리를 감싼다'},
+ guardBreak:{trait:'두 겹 수평 화염 검격 · 잔불 폭발',fx:'주황색과 황금색 불꽃이 겹쳐지는 검의 수평 호'},
  tempest:{trait:'6연 광역 · 회전 폭풍',fx:'민트 소용돌이 층'},
- earthRend:{trait:'측면 곡선 돌진 · 3방향 연계 검격',fx:'굴곡진 화염 꼬리와 서로 다른 방향으로 휘어지는 검불'},
+ earthRend:{trait:'곡선 돌진 · 상승 베기 · 띄우기',fx:'굵은 화염 꼬리와 위로 솟는 불꽃 검흔'},
  dawnArc:{trait:'초장거리 단발 · 대검압',fx:'백금 수평 광파'},
  thunderDrive:{trait:'궁극기 · 장거리 돌진 적중 시 즉시 당김 + 30연타 추살',fx:'장거리 풍속 돌진/0.05초 간격 교차 추살/확정 피니시'},
- meteorBreaker:{trait:'장시간 기모으기 · 세 번 돌진 · 집약 · 대폭발',fx:'응축된 열기와 3개 불꽃 궤적, 최후의 거대한 비정형 업화'},
+ meteorBreaker:{trait:'세 번의 방향 전환 돌진 · 최후의 대형 화염 돌파',fx:'검에서 일어나는 불꽃과 불규칙한 굵은 화염 망토'},
  galeOrbit:{trait:'0.5초 부드러운 흡입 · 적중 후 이동만 봉쇄',fx:'바깥 공기 흡입/중심 압축/원형 폭발'},
  mirrorStep:{trait:'반대편 순간이동 · 후방 단타',fx:'보랏빛 거울 잔상'},
  lunarBind:{trait:'광역 흡인 · 축소 원참',fx:'달빛 수축 고리'},
- quakeRush:{trait:'측면 횡보 · 네 번의 교차 화염 검무',fx:'화염 경계에서 분리되는 작은 불꽃과 흩날리는 잔불'},
- ironJudgment:{trait:'직선 관통 돌진 · 검흔 3개와 역방향 검격',fx:'장거리 유성 잔불과 지연 발화하는 세 개의 검흔'},
+ quakeRush:{trait:'제자리 내려 베기 · 전방 부채꼴 화염',fx:'높이 치켜든 불꽃이 내려찍히며 바닥에 퍼짐'},
+ ironJudgment:{trait:'회전 화염 돌진 · 3단 검격 · 범위 넉백',fx:'캐릭터를 감싸는 겹친 원호형 화염 검격'},
  solarReturn:{trait:'전방 대시 · 양방향 검압',fx:'금빛 대시 잔상과 전후 광파'},
  prismLance:{trait:'부채꼴 · 5갈래 검압',fx:'백청 프리즘 선'},
  skyFall:{trait:'고도 상승 · 지정 낙하',fx:'천광 착지 원진'},
@@ -1459,7 +1459,7 @@ const SWORD_SKILL_IDENTITY={
 const SWORD_STYLE_GROUPS=[
  {id:'gale',name:'질풍 유파',desc:'3열 단거리 검풍·점멸 압송·지연 원폭·전방 파문·적중 연계형 추살 궁극기 중심',skills:['windSlash','flashRush','galeOrbit','starRush','thunderDrive']},
  {id:'moon',name:'월영 유파',desc:'위치 교환·흡인·후퇴 검압·교차 난무 중심',skills:['moonSpin','mirrorStep','crossBloom','crescent','lunarBind']},
- {id:'break',name:'홍련 유파',desc:'잔화 일섬(2단 발도)·적련 유성(곡선 돌진)·회신 역화(반격)·염맥 관통(정면 관통)·종염 삼천화(3단 돌진 궁극기)',skills:['guardBreak','earthRend','quakeRush','ironJudgment','meteorBreaker']},
+ {id:'break',name:'홍련 유파',desc:'화염 호흡에서 영감을 받은 5가지 독자 검형: 홍염 횡참·승염 비상·열하 단공·유염 회천·극홍 염화일천',skills:['guardBreak','earthRend','quakeRush','ironJudgment','meteorBreaker']},
  {id:'dawn',name:'여명 유파',desc:'원거리 검압·회전·다중 발사·낙하 중심',skills:['dawnArc','tempest','skyFall','solarReturn','prismLance']},
  {id:'void',name:'이형 유파',desc:'중력 편향 이동·특이점 돌진·지속 압착·공간 접기·공허 난무 중심',skills:['chainReap','phantomSwap','gravityCut','bladeRain','voidDance']}
 ];
@@ -1467,7 +1467,7 @@ const SWORD_DAMAGE_BALANCE=Object.freeze({
  // 1번: 짧은 쿨/기본기, 2번: 이동·연계, 3번: 핵심기, 4번: 상급기, 5번: 궁극기
  windSlash:.85,flashRush:.90,galeOrbit:.52,starRush:1.05,thunderDrive:.90,
  moonSpin:1.05,mirrorStep:.95,crossBloom:.95,crescent:1.25,lunarBind:.95,
- guardBreak:.89,earthRend:.93,quakeRush:1.07,ironJudgment:1.05,meteorBreaker:.82,
+ guardBreak:.90,earthRend:.92,quakeRush:1.01,ironJudgment:.95,meteorBreaker:.83,
  dawnArc:1.45,tempest:.75,skyFall:.95,solarReturn:1.15,prismLance:.58,
  chainReap:1.00,phantomSwap:.65,gravityCut:.75,bladeRain:1.15,voidDance:.32
 });
@@ -1476,7 +1476,7 @@ window.EchoesSwordBalance=SWORD_DAMAGE_BALANCE;
 const SWORD_STYLE_FX={
  gale:{main:'#61f0c7',sub:'#eafff8',accent:'#2ec9ff',dark:'#168f86'},
  moon:{main:'#b88cff',sub:'#f4efff',accent:'#7fa7ff',dark:'#7153ba'},
- break:{main:'#ff344d',sub:'#ffd0c8',accent:'#ff7a3d',dark:'#8b1027'},
+ break:{main:'#ff782e',sub:'#ffda83',accent:'#e7411b',dark:'#78221a'},
  dawn:{main:'#ffd95c',sub:'#fffbe8',accent:'#fff29a',dark:'#c59c2b'},
  void:{main:'#a76cff',sub:'#f1e6ff',accent:'#ff63d8',dark:'#5e35a5'}
 };
@@ -1704,7 +1704,7 @@ function balancedSwordSkill(sk,slot=-1){
  }
  if(slot===4&&sk.id==='prismLance'){cfg.hits=[0,cfg.duration*.52,cfg.duration];cfg.finisher={back:120,forward:640,width:46,mult:3.4,stun:.75};}
  if(slot===4&&sk.id==='thunderDrive'){cfg.duration=2.35;cfg.hits=Array.from({length:30},(_,i)=>.70+i*.05);cfg.mult=Array.from({length:30},(_,i)=>i===29?.38:.20);cfg.arc=Array(30).fill(TAU);cfg.reach=Array(30).fill(0);cfg.step=Array(30).fill(0);}
- if(slot===4&&sk.id==='meteorBreaker'){cfg.duration=5.20;cfg.hits=[1.38,2.38,3.35,4.36,4.96];cfg.mult=[.63,.82,1.14,1.02,2.62];cfg.arc=[1.75,1.86,2.10,2.80,TAU];cfg.reach=[142,158,186,0,0];cfg.step=Array(5).fill(0);}
+ if(slot===4&&sk.id==='meteorBreaker'){cfg.duration=5.36;cfg.hits=[1.34,2.29,3.18,4.55,5.10];cfg.mult=[.70,.83,1.04,.76,2.65];cfg.arc=[1.62,1.88,2.22,2.16,3.08];cfg.reach=[124,142,164,188,214];cfg.step=Array(5).fill(0);}
  if(SWORD_DASH_SKILLS.has(sk.id)){cfg.dashSkill=true;cfg.rangeScale=SWORD_RANGE_SCALE;}
  return {...sk,cool:0,cost:0,holdMax,cfg};
 }
@@ -2237,7 +2237,7 @@ function startSwordSkill(slot){
  const dashCatch=SWORD_DASH_SKILLS.has(sk.id),voidRange=sk.id==='chainReap'?360:sk.id==='phantomSwap'?620:sk.id==='bladeRain'?540:0,crimsonRange=sk.id==='guardBreak'?330:sk.id==='earthRend'?440:sk.id==='quakeRush'?330:sk.id==='ironJudgment'?480:sk.id==='meteorBreaker'?670:0,targetRange=voidRange||crimsonRange||(slot===4?820:(GALE_SKILLS.has(sk.id)?560:(dashCatch?720:300)));
  const motionTarget=(lockedTarget&&combatTargets().includes(lockedTarget)&&!lockedTarget.dead&&distance(lockedTarget,player)<=targetRange?lockedTarget:combatTargets().filter(e=>!e.dead&&!e.riftSleeping&&!(e.type==='finalBoss'&&!e.alert)&&distance(e,player)<targetRange).sort((a,b)=>distance(a,player)-distance(b,player))[0])||null;
  if((dashCatch||CRIMSON_SKILLS.has(sk.id))&&motionTarget)player.facing=Math.atan2(motionTarget.y-player.y,motionTarget.x-player.x);
- {const anchorMode=['fracturePrison','triadPyre'].includes(cfg.mode),anchorDist=cfg.mode==='triadPyre'?235:170;
+ {const anchorMode=['fracturePrison','triadPyre','flameBreathFinale'].includes(cfg.mode),anchorDist=cfg.mode==='flameBreathFinale'?360:cfg.mode==='triadPyre'?235:170;
  activeSwordSkill={slot,skillId:sk.id,elapsed:0,nextHit:0,facing:player.facing,duration:cfg.duration,originX:player.x,originY:player.y,targetId:motionTarget?.id||null,side:crimsonStrafeSide(player.facing,Math.random()<.5?-1:1),fx:0,carryIds:new Set(),dashCatch,ultimate:slot===4,ultPhase:0,ultFx:0,ultMovePhase:0,anchorX:anchorMode?(motionTarget?.x??player.x+Math.cos(player.facing)*anchorDist):null,anchorY:anchorMode?(motionTarget?.y??player.y+Math.sin(player.facing)*anchorDist):null,lastEchoX:player.x,lastEchoY:player.y};}
  sendSharedSkillFx(slot,cfg.mode==='galePulse'?'galeCharge':sk.id,player.weapon,player.facing);
  swordSkillStartVisuals(player,sk,slot,player.facing);if(slot===4)shake=Math.max(shake,9);
