@@ -4624,7 +4624,7 @@ function drawTown(){}
  // irregular fire tongues. Unlike the old renderer, no continuous radial gradient
  // or filled swirl sheets cover the arena; the constantly flying flames conceal
  // the attacker and victim themselves. All random values are generated once.
- const FLAME_FINALE_PARTICLES=Array.from({length:400},(_,i)=>{
+ const FLAME_FINALE_PARTICLES=Array.from({length:1100},(_,i)=>{
   let seed=(Math.imul(i+139,1664525)+1013904223)>>>0;
   const rand=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
   return {angle:rand()*TAU,age:rand(),radius:rand(),size:rand(),sway:rand(),speed:.83+rand()*.87};
@@ -4635,7 +4635,7 @@ function drawTown(){}
   const since=seq.elapsed-seq.flameCaughtAt,
    fade=clamp(since/.17,0,1)*clamp((3.61-since)/.30,0,1);
   if(fade<=0)return;
-  const low=options.quality==='low',spin=since*41.0*(seq.side||1); // Outer vortex now rotates precisely 10x faster
+  const low=options.quality==='low',spin=since*410.0*(seq.side||1); // 10x the preceding 41 rad/s effect
   const target=seq.flameTarget&&!seq.flameTarget.dead?seq.flameTarget:null;
   const center=target?combatCenter(target):seq.flameImpactPoint;
   if(!center)return;
@@ -4643,20 +4643,16 @@ function drawTown(){}
    attackerX=player.x-cx,attackerY=(player.y-23-cy)/.77,
    attackerDistance=Math.hypot(attackerX,attackerY),
    r=Math.ceil(Math.max(low?248:284,attackerDistance+112)/16)*16,
-   // More OUTER flames and flying embers, with no individual effects attached to the character.
-   // Each pool entry has fixed random values; batching bounds the draw cost on mobile.
-   swarmCount=low?148:280,sparks=low?54:92,
+   // Three times as many irregular tongues and ember streaks; all positions
+   // come from one preallocated pool and six batched fill paths.
+   swarmCount=low?340:780,sparks=low?118:260,
    colors=['#ff7429','#ffc04d','#ff9531','#ffe39a'],
    p=FLAME_FINALE_PARTICLES;
   ctx.save();ctx.translate(cx,cy);ctx.scale(1,.77);
-  // A hard exclusion zone keeps the attacker's body and limbs clear.
-  // Flames surround both combatants rather than spawning on the attacker.
-  ctx.beginPath();
-  ctx.rect(-r*1.42,-r*1.42,r*2.84,r*2.84);
-  ctx.moveTo(attackerX+81,attackerY);
-  ctx.arc(attackerX,attackerY,81,0,TAU,true);
-  ctx.clip('evenodd');
-  // Draw hundreds of irregular independent tongues in four COLOR BATCHES.
+  // Do NOT clip a hole around the attacker. The vortex is rendered BEFORE
+  // characters, so tongues fly behind their silhouettes without vanishing
+  // abruptly when the rotating arc crosses either combatant.
+  // Draw independent tongues in four color batches without solid ring fills.
   // No filled swirl sheets, gradients, per-frame particle allocation or shadows.
   for(let color=0;color<4;color++){
    ctx.fillStyle=colors[color];ctx.globalAlpha=(color===3?.92:.82)*fade;
@@ -4665,10 +4661,10 @@ function drawTown(){}
     const v=p[i],u=(since*v.speed+v.age)%1,
      angle=v.angle+spin*(.62+v.sway*.37)+u*(seq.side||1)*.55
        +.20*Math.sin(since*8.4+i*.91),
-     rr=r*(.35+v.radius*.45+u*.19),
+     rr=r*(.24+v.radius*.56+u*.20),
      x=Math.cos(angle)*rr,y=Math.sin(angle)*rr,
      tangent=angle+(seq.side||1)*(1.07+.35*v.sway)+.38*u,
-     len=r*(.067+.072*v.size)*(1-.43*u),
+     len=r*(.073+.082*v.size)*(1-.43*u),
      w=r*(.010+.011*v.sway)*(1-.22*u),
      dx=Math.cos(tangent),dy=Math.sin(tangent),nx=-dy,ny=dx,
      flicker=.65+.35*Math.sin(since*(11+v.speed*7)+i*1.53);
@@ -4687,9 +4683,9 @@ function drawTown(){}
    for(let i=color;i<sparks;i+=3){
     const v=p[swarmCount+i],u=(since*(2.0+v.speed)+v.age)%1,
      a=v.angle+spin*.53+.28*Math.sin(i*3.7+since*7),
-     rr=r*(.33+v.radius*.38+u*.34),
+     rr=r*(.26+v.radius*.44+u*.34),
      x=Math.cos(a)*rr,y=Math.sin(a)*rr,
-     tip=a+(seq.side||1)*(.70+.55*v.size),l=(6+v.size*13)*(1-u*.44);
+     tip=a+(seq.side||1)*(.70+.55*v.size),l=(10+v.size*21)*(1-u*.44);
     ctx.moveTo(x,y);
     ctx.lineTo(x+Math.cos(tip)*l-Math.sin(tip)*2.1,y+Math.sin(tip)*l+Math.cos(tip)*2.1);
     ctx.lineTo(x+Math.cos(tip)*l*1.34,y+Math.sin(tip)*l*1.34);
@@ -4707,9 +4703,9 @@ function drawTown(){}
    seq.flameVortexParticleCount=swarmCount+sparks;
    seq.flameVortexSolidFill=false;
    seq.flameVortexPlayerClear=true;
-   seq.flameVortexSpinRate=41;
+   seq.flameVortexSpinRate=410;
    seq.flameVortexOuterCount=swarmCount;
-   seq.flameVortexAttackerClearRadius=81;
+   seq.flameVortexAttackerClearRadius=0; // Character is rendered above the unmasked effect
   }
  }
 function drawEffects(ground=false){for(const e of effects){const progress=1-e.t/e.max;if(e.type==='hazard'){if(!ground)continue;ctx.fillStyle='#e39a8327';ctx.strokeStyle='#edab97';ctx.lineWidth=2;ctx.beginPath();ctx.arc(e.x,e.y,e.r,0,TAU);ctx.fill();ctx.stroke();ctx.fillStyle='#eb998842';ctx.beginPath();ctx.arc(e.x,e.y,e.r*progress,0,TAU);ctx.fill();continue;}if(e.type==='crimsonScorch'){
@@ -5072,11 +5068,14 @@ function drawQuestScreenPings(){
 function render(){ctx.setTransform(DPR,0,0,DPR,0,0);ctx.fillStyle='#192a2c';ctx.fillRect(0,0,W,H);ctx.save();const sx=options.shake?Math.sin(realTime*109)*shake:0,sy=options.shake?Math.cos(realTime*127)*shake*.6:0;ctx.translate(W/2+sx,H/2+sy);ctx.scale(VIEW_SCALE,VIEW_SCALE);ctx.translate(-camera.x,-camera.y);drawGround();drawTown();drawRiftGround();
  const l=camera.x-VIEW_W/2-140,r=camera.x+VIEW_W/2+140,t=camera.y-VIEW_H/2-150,b=camera.y+VIEW_H/2+180;const visible=e=>e.x>l&&e.x<r&&e.y>t&&e.y<b;
  for(const e of enemies)if(!e.dead&&!e.riftSleeping&&visible(e))drawTelegraph(e);drawEffects(true);
+ // The large victim-centered flames rotate underneath both character models,
+ // so no particle disappears at a hard player-shaped clipping boundary.
+ drawFlameFinaleVortex();
  const renderList=[];for(const o of objects)if(visible(o))renderList.push({y:o.y,kind:'object',o});for(const o of candidates(camera.x,camera.y,Math.max(VIEW_W,VIEW_H)/2+240))if(o.type&&visible(o))renderList.push({y:o.y+(o.type==='house'?o.h*.4:0),kind:o.type,o});for(const e of enemies)if(!e.dead&&!e.riftSleeping&&visible(e))renderList.push({y:e.y,kind:'enemy',o:e});if(multiplayerMode)for(const rp of multiRemotePlayers.values()){const x=Number.isFinite(rp.rx)?rp.rx:rp.x,y=Number.isFinite(rp.ry)?rp.ry:rp.y;if(visible({x,y}))renderList.push({y,kind:'remote',o:rp});}renderList.push({y:player.y,kind:'player'});renderList.sort((a,b)=>a.y-b.y);
  for(const d of renderList){if(d.kind==='tree')drawTree(d.o);else if(d.kind==='rock')drawRock(d.o);else if(d.kind==='house')drawHouse(d.o);else if(d.kind==='object')drawObject(d.o);else if(d.kind==='enemy')drawEnemy(d.o);else if(d.kind==='remote')drawRemotePlayer(d.o);else drawPlayer();}
  for(const p of projectiles){if(p._styleCollisionOnly||!visible(p))continue;const color=p.owner==='player'?(p.kind==='arrow'?'#dddcc1':'#c4ecda'):'#edc899';if(p.kind==='orb'||p.kind==='star'){glow(ctx,p.x,p.y,17,color+'30');circle(ctx,p.x,p.y,5,color);circle(ctx,p.x,p.y,2,'#f7f0d4');}else{const len=p.visualLen||(p.kind==='charged'?29:p.kind==='wave'?48:20);line(ctx,p.x-Math.cos(p.a)*len,p.y-Math.sin(p.a)*len,p.x,p.y,color,p.kind==='wave'?6:p.kind==='charged'?4:2);polygon(ctx,[[p.x+Math.cos(p.a)*5,p.y+Math.sin(p.a)*5],[p.x+Math.cos(p.a+2.5)*7,p.y+Math.sin(p.a+2.5)*7],[p.x+Math.cos(p.a-2.5)*7,p.y+Math.sin(p.a-2.5)*7]],color);}}
  for(const p of remoteSkillProjectiles){if(!visible(p))continue;const color=p.color||(p.kind==='arrow'?'#dddcc1':'#c4ecda');if(p.kind==='orb'||p.kind==='star'){glow(ctx,p.x,p.y,17,color+'30');circle(ctx,p.x,p.y,5,color);circle(ctx,p.x,p.y,2,'#f7f0d4');}else{const len=p.visualLen||(p.kind==='charged'?29:p.kind==='wave'?48:20);line(ctx,p.x-Math.cos(p.a)*len,p.y-Math.sin(p.a)*len,p.x,p.y,color,p.kind==='wave'?6:p.kind==='charged'?4:2);polygon(ctx,[[p.x+Math.cos(p.a)*5,p.y+Math.sin(p.a)*5],[p.x+Math.cos(p.a+2.5)*7,p.y+Math.sin(p.a+2.5)*7],[p.x+Math.cos(p.a-2.5)*7,p.y+Math.sin(p.a-2.5)*7]],color);}}
- for(const v of galeVortices)GALE_VORTEX.draw(ctx,v);for(const v of remoteGaleVortices)GALE_VORTEX.draw(ctx,v);drawEffects(false);drawFlameFinaleVortex();drawLockMarker();
+ for(const v of galeVortices)GALE_VORTEX.draw(ctx,v);for(const v of remoteGaleVortices)GALE_VORTEX.draw(ctx,v);drawEffects(false);drawLockMarker();
  if(nearby&&mode==='play'){ctx.strokeStyle='#dcd4a47a';ctx.lineWidth=1;ctx.beginPath();ctx.ellipse(nearby.x,nearby.y+6,28,13,0,0,TAU);ctx.stroke();}
  for(const f of floaters){ctx.globalAlpha=clamp(f.t*2,0,1);if(f.damage){ctx.save();ctx.translate(f.x,f.y);ctx.rotate(f.rot||0);ctx.font='900 '+(f.big?22:16)+'px system-ui';ctx.textAlign='center';ctx.lineWidth=f.big?5:4;ctx.strokeStyle='#391619cc';ctx.strokeText(f.text,0,0);ctx.fillStyle=f.color;ctx.fillText(f.text,0,0);ctx.restore();}else worldText(f.text,f.x,f.y-(1-f.t/f.max)*30,f.color,f.big?18:13);}ctx.globalAlpha=1;
  if(mapWaypoint&&mode==='play'){const d=distance(player,mapWaypoint);if(d<55){mapWaypoint=null;toast('목적지에 도착했습니다.');}else if(visible(mapWaypoint)){const yy=mapWaypoint.y+Math.sin(realTime*3)*5;polygon(ctx,[[mapWaypoint.x,yy-46],[mapWaypoint.x+8,yy-34],[mapWaypoint.x,yy-22],[mapWaypoint.x-8,yy-34]],'#e5c780','#fff0b1',1);ctx.strokeStyle='#ebd18b80';ctx.beginPath();ctx.ellipse(mapWaypoint.x,mapWaypoint.y,21,10,0,0,TAU);ctx.stroke();}}
