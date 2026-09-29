@@ -26,7 +26,7 @@ for(const c of cases){
   return {name:g.skillInfo(c.slot).name,mode:g.skillInfo(c.slot).cfg.mode,hp:e.hp,skillStarted:!!g.activeSwordSkill};
  },c);
  if(init.mode!==c.mode)throw Error('Wrong form '+c.id+' '+JSON.stringify(init));
- const elapsedTarget=[.54,1.02,1.00,1.31,5.16][c.slot];
+ const elapsedTarget=[.42,.68,.77,.91,4.66][c.slot];
  const check=await page.waitForFunction(t=>{const g=window.__game;return g?.activeSwordSkill?.elapsed>=t?'reached':(!g?.activeSwordSkill&&g?.player?.skillPose===-1?'ended':false);},elapsedTarget,{timeout:180000,polling:60});
  if(await check.jsonValue()!=='reached')throw Error('Skill ended before capture: '+c.id);
  const frame=await page.evaluate(()=>{
