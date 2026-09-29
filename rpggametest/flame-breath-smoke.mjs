@@ -27,16 +27,16 @@ for(const c of cases){
  },c);
  if(init.mode!==c.mode)throw Error('Wrong form '+c.id+' '+JSON.stringify(init));
  if(c.slot===2){
-  // The new third form must be harmless while charging and deal damage WHILE airborne.
-  await page.waitForFunction(()=>window.__game?.activeSwordSkill?.elapsed>=.37,{timeout:30000,polling:35});
+  // The restored ring hits at .10s, then the jump begins at .11s without a pause.
+  await page.waitForFunction(()=>window.__game?.activeSwordSkill?.elapsed>=.06,{timeout:30000,polling:35});
   const before=await page.evaluate(()=>{const g=window.__game,e=g.enemies.find(v=>v.type==='dummy');return {elapsed:g.activeSwordSkill?.elapsed,moved:g.player.x-3000,hits:e.testHitCount||0};});
-  if(before.moved>5||before.hits!==0)throw Error('Third form attacked before jumping: '+JSON.stringify(before));
-  await page.waitForFunction(()=>window.__game?.activeSwordSkill?.elapsed>=.80,{timeout:30000,polling:35});
+  if(before.moved>5||before.hits!==0)throw Error('Third form attacked before its opening ring: '+JSON.stringify(before));
+  await page.waitForFunction(()=>window.__game?.activeSwordSkill?.elapsed>=.34,{timeout:30000,polling:35});
   const jumping=await page.evaluate(()=>{const g=window.__game,e=g.enemies.find(v=>v.type==='dummy');return {elapsed:g.activeSwordSkill?.elapsed,moved:g.player.x-3000,lift:g.player.skillLift,hits:e.testHitCount||0,flames:g.effects.filter(v=>['crimsonBladeFire','crimsonEdgeFlames','flameBreathPlume'].includes(v.type)).length};});
-  if(jumping.moved<55||jumping.hits<1||jumping.flames<1)throw Error('Third form is not attacking during the leap: '+JSON.stringify(jumping));
+  if(jumping.moved<40||jumping.hits<1||jumping.flames<1)throw Error('Third form did not hit with its opening ring and jump without a pause: '+JSON.stringify(jumping));
   console.log('Third form charge -> airborne fire hit:',JSON.stringify({before,jumping}));
  }
- const elapsedTarget=[.42,.68,1.09,.91,4.66][c.slot];
+ const elapsedTarget=[.42,.68,.73,.91,4.66][c.slot];
  const check=await page.waitForFunction(t=>{const g=window.__game;return g?.activeSwordSkill?.elapsed>=t?'reached':(!g?.activeSwordSkill&&g?.player?.skillPose===-1?'ended':false);},elapsedTarget,{timeout:180000,polling:60});
  if(await check.jsonValue()!=='reached')throw Error('Skill ended before capture: '+c.id);
  const frame=await page.evaluate(()=>{
@@ -48,7 +48,7 @@ for(const c of cases){
  await page.screenshot({path:'rpggametest/flame-preview/'+String(c.slot+1)+'-'+c.id+'.png'});
  if(errors.length||frame.pageError)throw Error('Runtime errors '+c.id+': '+errors.join(' | ')+' '+frame.pageError);
  if(frame.hitCount<1||frame.damageTotal<=0)throw Error('No hit registered for '+c.id+' '+JSON.stringify(frame));
- if(c.slot===2&&frame.hitCount<2)throw Error('Fire circle or landing area damage did not register: '+JSON.stringify(frame));
+ if(c.slot===2&&frame.hitCount<2)throw Error('Opening fire ring or landing attack did not register: '+JSON.stringify(frame));
  if(!frame.types.some(t=>['flameBreathPlume','crimsonBladeFire','crimsonEdgeFlames','crimsonChargeFlames','crimsonFlameBurst','ember'].includes(t)))throw Error('No real fire graphics '+c.id+' '+JSON.stringify(frame));
  report.push({slot:c.slot,name:init.name,mode:init.mode,hit:true,fx:frame.fx,effects:frame.types,hero:frame.hero});
  console.log(JSON.stringify(report.at(-1)));
