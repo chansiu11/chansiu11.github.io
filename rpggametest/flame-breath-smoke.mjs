@@ -37,7 +37,7 @@ for(const c of cases){
    const observeFinale=()=>{
     const seq=g.activeSwordSkill;
     if(seq?.skillId==='meteorBreaker'&&seq.flameCaught&&window.__finaleTrace.length<250)
-     window.__finaleTrace.push({since:seq.elapsed-seq.flameCaughtAt,stage:seq.flameStage,hits:e.testHitCount||0,x:p.x,y:p.y,teleports:seq.flameTeleports||0,vortexFrames:seq.flameVortexFrames||0,vortexX:seq.flameVortexCenterX,vortexY:seq.flameVortexCenterY,vortexR:seq.flameVortexRadius,attackerR:seq.flameVortexAttackerDistance,sprays:seq.flameVortexSprays,fireTongues:seq.flameVortexParticleCount,solidFill:seq.flameVortexSolidFill,playerClear:seq.flameVortexPlayerClear,spinRate:seq.flameVortexSpinRate,outerCount:seq.flameVortexOuterCount,clearRadius:seq.flameVortexAttackerClearRadius,enemyX:e.x,enemyY:e.y});
+     window.__finaleTrace.push({since:seq.elapsed-seq.flameCaughtAt,stage:seq.flameStage,hits:e.testHitCount||0,x:p.x,y:p.y,teleports:seq.flameTeleports||0,vortexFrames:seq.flameVortexFrames||0,vortexX:seq.flameVortexCenterX,vortexY:seq.flameVortexCenterY,vortexR:seq.flameVortexRadius,attackerR:seq.flameVortexAttackerDistance,sprays:seq.flameVortexSprays,fireTongues:seq.flameVortexParticleCount,solidFill:seq.flameVortexSolidFill,playerClear:seq.flameVortexPlayerClear,aboveCharacters:seq.flameVortexDrawsAboveCharacters,circular:seq.flameVortexIsCircular,arcCount:seq.flameVortexArcCount,shardCount:seq.flameVortexShardCount,spinRate:seq.flameVortexSpinRate,outerCount:seq.flameVortexOuterCount,clearRadius:seq.flameVortexAttackerClearRadius,enemyX:e.x,enemyY:e.y});
     if(!window.__finaleTraceStop)requestAnimationFrame(observeFinale);
    };
    requestAnimationFrame(observeFinale);
@@ -187,10 +187,10 @@ for(const c of cases){
   const centered=trace.filter(p=>p.vortexFrames>=3&&Number.isFinite(p.vortexX)&&Number.isFinite(p.vortexR));
   if(centered.length<10||centered.some(p=>
    Math.abs(p.vortexX-p.enemyX)>4||Math.abs(p.vortexY-p.enemyY)>4||
-   p.vortexR<p.attackerR+100||p.sprays<118||p.fireTongues<458||p.solidFill!==false||p.playerClear!==true||p.spinRate!==410||p.outerCount<340||p.clearRadius!==0))
-   throw Error('Fifth form vortex must surround the victim, keep the player clear, and add irregular outer flames: '+
+   p.vortexR<p.attackerR+156||p.vortexR<320||p.sprays<118||p.fireTongues<458||p.solidFill!==false||p.playerClear!==false||p.aboveCharacters!==true||p.circular!==true||p.arcCount<15||p.shardCount<48||p.spinRate!==410||p.outerCount<340||p.clearRadius!==0))
+   throw Error('Fifth form vortex must circle both fighters above the characters, with curved slashes and shards: '+
     JSON.stringify({samples:centered.length,first:centered[0],last:centered.at(-1)}));
-  console.log('Victim-centered unmasked fast fire behind player, no disappearing flames verified:',
+  console.log('Victim-centered foreground circular fire, curved slashes and shards verified:',
    JSON.stringify({samples:centered.length,radius:centered.at(-1).vortexR,sparks:centered.at(-1).sprays}));
   if(end.hits<9||end.damage<=0||!sawOriginalCrosscuts||!sawExtraCrescents||!sawRisingCut||!sawLateFinale)
    throw Error('Extended ultimate must land all eight follow-up hits and its delayed fire seal: '+
