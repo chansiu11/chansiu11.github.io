@@ -1488,21 +1488,21 @@ function swordSignatureFx(id,hitIndex,finalHit,ang,reach,color,actor=player,cont
    if(hitIndex===0){crimsonStrokeCircle(actor.x,actor.y,CRIMSON1_RX,CRIMSON1_RY,ang,1.2);}
    else{const bx=Number.isFinite(context?.originX)?context.originX:actor.x,by=Number.isFinite(context?.originY)?context.originY:actor.y,x1=bx+ca2*CRIMSON1_RY,y1=by+sa2*CRIMSON1_RY,x2=x1+ca2*CRIMSON1_BEAM,y2=y1+sa2*CRIMSON1_BEAM;crimsonStrokeLine(x1,y1,x2,y2,ang,1.3);}
   }else if(id==='earthRend'){
-   const density=[10,17,8,19,30][hitIndex]||12,aa=ang+Math.PI+(hitIndex%2?.68:-.68);crimsonEmbers(actor.x,actor.y,aa,density,285+hitIndex*34,.86,1.04+hitIndex*.04);
-   if(hitIndex===1||hitIndex===3)crimsonOutside(actor.x,actor.y,125,270,10+hitIndex*2,false,hitIndex%2?.35:-.35);
-   if(finalHit){crimsonImpact(actor.x,actor.y,ang,1.9);crimsonOutside(actor.x,actor.y,190,345,24,false);}
+    const density=[7,10,8,13,17][hitIndex]||8,face=context?.baseFacing??ang,ca=Math.cos(face),sa=Math.sin(face),nx=-sa,ny=ca,side=context?.side||1;crimsonRibbon(actor.x-ca*112-nx*side*38,actor.y-sa*112-ny*side*38,actor.x+ca*55+nx*side*28,actor.y+sa*55+ny*side*28,38+hitIndex*5,.40,'wake');crimsonEmbers(actor.x,actor.y,ang+Math.PI,density,285+hitIndex*34,.78,1.05);
+    if(hitIndex===1||hitIndex===3)crimsonBloom(actor.x,actor.y,82+hitIndex*14,.42,.88);
+    if(finalHit){crimsonBloom(actor.x,actor.y,150,.57,1.08);crimsonEmbers(actor.x,actor.y,face+Math.PI,11,385,.82,1.12);}
   }else if(id==='quakeRush'){
-   const r=[305,270,235,205][hitIndex]||230;for(let j=0;j<4;j++){const aa=j*TAU/4+hitIndex*.53,x=actor.x+Math.cos(aa)*r,y=actor.y+Math.sin(aa)*r;crimsonEmbers(x,y,aa+Math.PI,9+hitIndex*3,310+hitIndex*55,.34,1.08);}crimsonOutside(actor.x,actor.y,260,390,8+hitIndex*3,true,.12);
-   if(finalHit){crimsonImpact(actor.x,actor.y,ang,2.0);crimsonOutside(actor.x,actor.y,235,385,24,false);}
+    const face=context?.baseFacing??ang,ca=Math.cos(face),sa=Math.sin(face),nx=-sa,ny=ca,lead=[96,132,166,205][hitIndex]||166,off=(hitIndex%2?24:-24)*(context?.side||1),cx=actor.x+ca*lead+nx*off,cy=actor.y+sa*lead+ny*off,rad=[75,90,109,145][hitIndex]||100;crimsonBloom(cx,cy,rad,finalHit?.60:.42,finalHit?1.25:.88);for(let j=-1;j<=1;j++)crimsonEmbers(cx+nx*j*rad*.52,cy+ny*j*rad*.52,face+Math.PI,finalHit?6:3,finalHit?350:230,.72,finalHit?1.1:.85);
+    if(finalHit){crimsonEmbers(cx,cy,face+Math.PI,10,345,.78,1.0);}
   }else if(id==='ironJudgment'){
-   const ox=context?.originX??actor.x,oy=context?.originY??actor.y;crimsonTrail(ox,oy,actor.x,actor.y,1.25+hitIndex*.35);crimsonOutside(actor.x,actor.y,90,225,6+hitIndex*2,false,(hitIndex%2?.45:-.45));
-   if(hitIndex===3){crimsonImpact(ox,oy,ang,2.25);crimsonOutside(ox,oy,180,360,26,false);for(let j=0;j<6;j++)crimsonEmbers(ox,oy,ang+j*TAU/6,12,460,.95,1.2);}
+    const ox=context?.originX??actor.x,oy=context?.originY??actor.y,face=context?.baseFacing??ang,ca=Math.cos(face),sa=Math.sin(face),nx=-sa,ny=ca,side=context?.side||1;crimsonRibbon(actor.x+ca*65-nx*side*(50+hitIndex*8),actor.y+sa*65-ny*side*(50+hitIndex*8),actor.x+ca*65+nx*side*(58+hitIndex*12),actor.y+sa*65+ny*side*(58+hitIndex*12),40+hitIndex*4,.40,'wake');crimsonEmbers(actor.x+ca*70,actor.y+sa*70,face+side*Math.PI/2,7+hitIndex*2,250+hitIndex*40,.70,1.0);
+    if(hitIndex===3){crimsonRibbon(ox+ca*110,oy+sa*110,actor.x+ca*110,actor.y+sa*110,116,.78,'wall');crimsonBloom(actor.x+ca*110,actor.y+sa*110,98,.6,1.0);crimsonEmbers(actor.x,actor.y,face+side*Math.PI/2,13,375,.85,1.12);}
   }else{
    const target=context?.target,cx=target?.x??ax,cy=target?.y??ay;
-   if(hitIndex<3){crimsonEmbers(actor.x+Math.cos(ang)*64,actor.y+Math.sin(ang)*64,ang,9+hitIndex*4,270+hitIndex*40,.55,1.0);crimsonOutside(actor.x,actor.y,135,270,6+hitIndex*3,false);effects.push({type:'slash',x:actor.x,y:actor.y,a:ang+(hitIndex-1)*.45,arc:1.55+hitIndex*.32,r:128+hitIndex*18,color:hitIndex===1?'#ffb04a':'#ff3548',t:.20,max:.20});}
-   else if(hitIndex<7){const power=.95+(hitIndex-3)*.24;crimsonImpact(cx,cy,ang,power);crimsonEmbers(cx,cy,ang+hitIndex*.7,15+hitIndex*2,350+hitIndex*24,.92,1.12);crimsonOutside(cx,cy,220,385,10+hitIndex*2,true,hitIndex*.08);}
-   else if(hitIndex===7){crimsonEmbers(cx,cy,ang+Math.PI,10,220,.45,.95);crimsonOutside(cx,cy,250,410,12,true);}
-   else{crimsonImpact(cx,cy,ang,3.5);crimsonOutside(cx,cy,250,560,46,false);for(let j=0;j<10;j++)crimsonEmbers(cx,cy,ang+j*TAU/10,20,690,1.15,1.5);}
+    if(hitIndex<3){crimsonRibbon(actor.x-Math.cos(ang)*105,actor.y-Math.sin(ang)*105,actor.x+Math.cos(ang)*65,actor.y+Math.sin(ang)*65,44+hitIndex*7,.46,'wake');crimsonEmbers(actor.x,actor.y,ang+Math.PI,9+hitIndex*2,310,.72,1.04);}
+    else if(hitIndex<7){const a=context?.baseFacing??ang,nx=-Math.sin(a),ny=Math.cos(a),side=context?.side||1,px=cx+nx*side*(hitIndex%2?65:-65),py=cy+ny*side*(hitIndex%2?65:-65);crimsonBloom(px,py,78+hitIndex*11,.48,.91);crimsonEmbers(px,py,a+Math.PI,8,310,.78,1.0);}
+    else if(hitIndex===7){crimsonBloom(cx,cy,145,.54,1.12);crimsonEmbers(cx,cy,ang+Math.PI,7,225,.45,.95);}
+    else{crimsonBloom(cx,cy,275,.80,1.4);const a=context?.baseFacing??ang,nx=-Math.sin(a),ny=Math.cos(a),ca=Math.cos(a),sa=Math.sin(a);for(let j=-1;j<=1;j++)crimsonRibbon(cx-ca*205+nx*j*80,cy-sa*205+ny*j*80,cx+ca*225+nx*j*80,cy+sa*225+ny*j*80,65,.70,'wall');crimsonEmbers(cx,cy,ang,16,470,.90,1.28);}
   }
   if(actor===player){const shakeScale=id==='meteorBreaker'?(hitIndex===7?.20:hitIndex===8?2.0:hitIndex<3?.55:.95):finalHit?1.28:.62;triggerSkillShake(Math.max(0,slot),shakeScale);}
   return;
@@ -2350,7 +2350,7 @@ function performSwordSkillHit(seq,hitIndex){
  }
  else if(mode==='bladeRain'){for(let j=-4;j<=4;j++)fireProjectile(player.x,player.y,ang+j*.13,520+Math.abs(j)*22,damageValue(.68),'player','wave',2);}
  moveSwordCarryTargets(seq,player.x-px0,player.y-py0);
- swordSignatureFx(sk.id,hitIndex,finalHit,ang,reach,sk.color,player,{anchorX:seq.anchorX,anchorY:seq.anchorY,originX:seq.originX,originY:seq.originY,target:swordSeqTarget(seq),side:seq.side||1});
+ swordSignatureFx(sk.id,hitIndex,finalHit,ang,reach,sk.color,player,{anchorX:seq.anchorX,anchorY:seq.anchorY,originX:seq.originX,originY:seq.originY,target:swordSeqTarget(seq),side:seq.side||1,baseFacing:seq.crimsonFace??seq.facing});
  if(mode==='galePulse')sendSharedSkillFx(seq.slot,sk.id,player.weapon,ang);
  swordUltimateHitVisuals(player,sk,seq.slot,hitIndex,ang,reach);
  if(finalHit){sound('hit');shake=Math.max(shake,seq.ultimate?16:['earthSlam','meteorNova'].includes(mode)?12:['guardPierce','thunderDash','dawnWave'].includes(mode)?8:5);}else sound('swing');
