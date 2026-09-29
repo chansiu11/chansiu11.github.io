@@ -2765,8 +2765,9 @@ function flameBreathMotion(seq,sk,dt,t,target){
    }
   }
  }else if(mode==='flameBreathWheel'){
-  const q=ease((t-.09)/.76),sideArc=side*Math.sin(q*Math.PI*2)*35;
-  approach(seq.originX+fx*338*q+nx*sideArc,seq.originY+fy*338*q+ny*sideArc,950);
+  // Move through the same 338-unit spiral path about 1.5x faster.
+  const q=ease((t-.09)/.50),sideArc=side*Math.sin(q*Math.PI*2)*35;
+  approach(seq.originX+fx*338*q+nx*sideArc,seq.originY+fy*338*q+ny*sideArc,1450);
   // Visually spin the sword-wielding character while collision stays oriented to the original direction.
   player.facing=f+side*Math.PI*2.1*q;seq.facing=f;
   player.skillLift=4+Math.sin(q*Math.PI)*10;
