@@ -963,14 +963,15 @@ function buildTestArena(){
  bodyGridValid=false;camera.x=player.x;camera.y=player.y;
 }
 player=newPlayer();buildTestArena();
+let testCanvasInitialized=false;
 function resize(){
  const nextW=document.documentElement.clientWidth,nextH=Math.round(window.visualViewport?.height||innerHeight);
- if(Math.abs(nextW-W)<2&&Math.abs(nextH-H)<2&&canvas.width&&canvas.height)return;
+ if(testCanvasInitialized&&Math.abs(nextW-W)<2&&Math.abs(nextH-H)<2)return;
  if(Math.abs(nextW-W)>2||(nextW>nextH)!==(W>H)){if(layoutEditing){endLayoutDrag(false);layoutBarDrag=null;$('layoutBar').dataset.positioned='';}resetInputs();}W=nextW;H=nextH;
  document.documentElement.style.setProperty('--app-height',H+'px');
  BASE_VIEW_SCALE=touchMode?(W<H?clamp(W/480,.72,.92):.84):1;VIEW_SCALE=BASE_VIEW_SCALE;VIEW_W=W/VIEW_SCALE;VIEW_H=H/VIEW_SCALE;
  DPR=Math.min(devicePixelRatio||1,options.quality==='low'?1:touchMode?1.25:1.6);
- canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);canvas.style.width='100%';canvas.style.height='100%';ctx.setTransform(DPR,0,0,DPR,0,0);applyTouchLayout();
+ canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);canvas.style.width='100%';canvas.style.height='100%';ctx.setTransform(DPR,0,0,DPR,0,0);applyTouchLayout();testCanvasInitialized=true;
 }
 applyControlMode();addEventListener('resize',resize);window.visualViewport?.addEventListener('resize',resize);resize();
 let audioMaster=null,musicBus=null,sfxBus=null,audioLimiter=null,musicVoice=null,musicScene='',musicStep=0,musicNext=0,audioSceneCheck=0,footstepNext=0;
