@@ -1102,6 +1102,7 @@ function crimsonBloom(x,y,r=112,life=.5,intensity=1){
  effects.push({type:'crimsonScorch',x,y,r:r*.76,w:r*.60,t:life*1.4,max:life*1.4});
 }
 // Distinct original Crimson render primitives: wing-shaped flame, rising embers, and triangular burn seal.
+function crimsonFireWake(x1,y1,x2,y2,scale=1){const d=Math.hypot(x2-x1,y2-y1);if(d<7)return;const a=Math.atan2(y2-y1,x2-x1);crimsonRibbon(x1,y1,x2,y2,32*scale,.32,'wake');crimsonEmbers(x2,y2,a+Math.PI,Math.ceil(4*scale),190+75*scale,.61,Math.min(1.30,scale));}
 function crimsonWingFx(x,y,a,reach=180,side=1,life=.45){
  effects.push({type:'crimsonWing',x,y,a,reach,side,seed:Math.floor(rnd(1,2147483646)),t:life,max:life});
  crimsonEmbers(x+Math.cos(a)*reach*.56,y+Math.sin(a)*reach*.56,a+Math.PI,options.quality==='low'?4:7,235,.75,.96);
