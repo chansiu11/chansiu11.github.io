@@ -1050,8 +1050,8 @@ const CRIMSON1_RX=110,CRIMSON1_RY=110,CRIMSON1_BEAM=168,CRIMSON1_WIDTH=39;
 function crimsonStrokeCircle(cx,cy,rx,ry,aim,power=1){
  // 2번 마지막 검격의 삼중 띠를 원으로 연결한다. 선 쪽에서 불씨가 더 많이 뿜어진다.
  const r=rx,low=options.quality==='low';
- effects.push({type:'crimsonEllipse',x:cx,y:cy,rx:r,ry:r,a:aim,t:.39,max:.39});
- const jets=low?12:18;
+ effects.push({type:'crimsonEllipse',x:cx,y:cy,rx:r,ry:r,a:aim,seed:rnd(0,TAU),t:.39,max:.39});
+ const jets=low?14:21;
  for(let j=0;j<jets;j++){
   const q=aim+j*TAU/jets+rnd(-.035,.035),px=cx+Math.cos(q)*r,py=cy+Math.sin(q)*r;
   const front=(1+Math.cos(q-aim))*.5;
@@ -1063,9 +1063,9 @@ function crimsonStrokeLine(x1,y1,x2,y2,a,power=1){
  // 곡선 참격이 아니라 원 둘레에서 정확히 앞쪽으로 뻗는 곧은 삼중 검격 선.
  // 붉은색·주황색·아이보리색 분리 띠는 2번 마지막 검격과 같은 색상이다.
  const dx=x2-x1,dy=y2-y1,nx=-Math.sin(a),ny=Math.cos(a);
- effects.push({type:'crimsonBeam',x:x1,y:y1,x2,y2,a,t:.36,max:.36});
+ effects.push({type:'crimsonBeam',x:x1,y:y1,x2,y2,a,seed:rnd(0,TAU),t:.36,max:.36});
  // 시작~끝 전체에 균등하게 잔불을 남기고, 지나치게 많던 입자 수는 줄인다.
- const low=options.quality==='low',steps=low?7:11;
+ const low=options.quality==='low',steps=low?8:13;
  for(let j=0;j<steps;j++){
   const q=(j+.5)/steps;
   for(const side of [-1,1]){
@@ -3731,19 +3731,45 @@ function drawEffects(ground=false){for(const e of effects){const progress=1-e.t/
  if(e.type==='flourish'){ctx.save();ctx.translate(e.x,e.y);ctx.rotate(progress*(e.style%2?-2:2));ctx.globalCompositeOperation='lighter';ctx.strokeStyle=e.color;ctx.lineWidth=3*(1-progress)+1;for(let j=0;j<2;j++){ctx.beginPath();ctx.ellipse(0,0,e.r*(.25+progress*.75)*(1-j*.18),e.r*(.25+progress*.75)*(.55-j*.08),0,0,TAU);ctx.stroke();}for(let j=0;j<8;j++){const a=j*TAU/8,r=e.r*progress;line(ctx,Math.cos(a)*r*.6,Math.sin(a)*r*.6,Math.cos(a)*r,Math.sin(a)*r,e.color,2);circle(ctx,Math.cos(a)*r,Math.sin(a)*r,3*(1-progress)+1,'#fff4d5');}ctx.restore();}
  if(e.type==='ring'){ctx.strokeStyle=e.color;ctx.lineWidth=2.5*(1-progress)+.5;ctx.beginPath();ctx.arc(e.x,e.y,e.r*(.35+.65*progress),0,TAU);ctx.stroke();}
  if(e.type==='crimsonEllipse'){
-  ctx.save();ctx.translate(e.x,e.y);ctx.globalCompositeOperation='source-over';ctx.shadowColor='#ff6949';ctx.shadowBlur=4;ctx.lineCap='butt';
-  // 서로 겹치지 않는 3겹 검격: 사진 속 2번 마지막 참격의 색과 두께를 그대로 사용.
-  for(const [offset,width,col] of [[9,6,'#d8233f'],[0,7,'#ff8144'],[-9,3.5,'#e7cca3']]){
-   ctx.lineWidth=width;ctx.strokeStyle=col;ctx.beginPath();ctx.arc(0,0,e.rx+offset,0,TAU);ctx.stroke();
+  ctx.save();ctx.translate(e.x,e.y);ctx.globalCompositeOperation='source-over';ctx.lineCap='round';ctx.shadowColor='#ff6949';ctx.shadowBlur=5;
+  // 기존 원형 판정과 삼중 검격 색은 유지한다. 고정된 시드로 불길처럼 흔들리는 윤곽을 만든다.
+  const seed=e.seed||0,low=options.quality==='low',segments=low?40:64;
+  const wobble=a=>Math.sin(a*7+seed)*2.4+Math.sin(a*15-seed*.74)*1.7+Math.sin(a*27+seed*.63)*.9;
+  // 불꽃 혀가 둘레 바깥으로 불규칙하게 뻗되 주된 원형 궤적은 가리지 않는다.
+  for(let j=0;j<(low?8:13);j++){
+   const a=(j+.18*Math.sin(j*2.7+seed))*TAU/(low?8:13)+seed*.12,r=e.rx+8+wobble(a);
+   const len=12+10*(.5+.5*Math.sin(j*3.7+seed)),ca=Math.cos(a),sa=Math.sin(a),tx=-sa,ty=ca,drift=5*Math.sin(j*2.1+seed);
+   ctx.fillStyle=j%3===0?'#e7cca3':j%2?'#ff8144':'#d8233f';ctx.beginPath();
+   ctx.moveTo(ca*r+tx*4,sa*r+ty*4);
+   ctx.quadraticCurveTo(ca*(r+len*.62)+tx*(drift+4),sa*(r+len*.62)+ty*(drift+4),ca*(r+len)+tx*drift,sa*(r+len)+ty*drift);
+   ctx.quadraticCurveTo(ca*(r+len*.4)+tx*(drift-4),sa*(r+len*.4)+ty*(drift-4),ca*r-tx*4,sa*r-ty*4);ctx.closePath();ctx.fill();
+  }
+  for(const [offset,width,col,roughness] of [[9,6,'#d8233f',1.05],[0,7,'#ff8144',.8],[-9,3.5,'#e7cca3',.45]]){
+   ctx.lineWidth=width;ctx.strokeStyle=col;ctx.beginPath();
+   for(let j=0;j<=segments;j++){const a=j*TAU/segments,r=e.rx+offset+wobble(a)*roughness,x=Math.cos(a)*r,y=Math.sin(a)*r;j?ctx.lineTo(x,y):ctx.moveTo(x,y);}
+   ctx.closePath();ctx.stroke();
   }
   ctx.restore();
  }
  if(e.type==='crimsonBeam'){
-  ctx.save();ctx.globalCompositeOperation='source-over';ctx.lineCap='butt';ctx.shadowColor='#ff6949';ctx.shadowBlur=4;
-  // 세 띠 모두 같은 방향의 직선이며, 반원이나 곡선으로 휘어지지 않는다.
-  const a=Number.isFinite(e.a)?e.a:Math.atan2(e.y2-e.y,e.x2-e.x),nx=-Math.sin(a),ny=Math.cos(a);
-  for(const [offset,width,col] of [[9,6,'#d8233f'],[0,7,'#ff8144'],[-9,3.5,'#e7cca3']]){
-   ctx.lineWidth=width;ctx.strokeStyle=col;ctx.beginPath();ctx.moveTo(e.x+nx*offset,e.y+ny*offset);ctx.lineTo(e.x2+nx*offset,e.y2+ny*offset);ctx.stroke();
+  ctx.save();ctx.globalCompositeOperation='source-over';ctx.lineCap='round';ctx.shadowColor='#ff6949';ctx.shadowBlur=5;
+  // 공격 방향은 직선 그대로 두고, 삼중 검격 띠의 가장자리만 불꽃처럼 불규칙하게 만든다.
+  const a=Number.isFinite(e.a)?e.a:Math.atan2(e.y2-e.y,e.x2-e.x),nx=-Math.sin(a),ny=Math.cos(a),ux=Math.cos(a),uy=Math.sin(a),dx=e.x2-e.x,dy=e.y2-e.y,seed=e.seed||0,low=options.quality==='low';
+  const wobble=q=>(Math.sin(q*21+seed)*2.5+Math.sin(q*49-seed*.72)*1.65+Math.sin(q*77+seed*.64)*.8)*Math.sin(Math.PI*q);
+  // 각 띠 사이에서 불꽃이 바깥으로 솟는 잔여선. 패턴은 시드로 고정하여 화면 깜박임을 막는다.
+  const tongues=low?7:11;
+  for(let j=0;j<tongues;j++){
+   const q=(j+.4+.22*Math.sin(j*2.3+seed))/tongues,side=j%2?1:-1,off=side*(11+(j%3)*2),x=e.x+dx*q+nx*off,y=e.y+dy*q+ny*off;
+   const len=12+9*(.5+.5*Math.sin(j*4.1+seed)),sweep=8+5*Math.sin(j*2.6+seed);
+   ctx.fillStyle=j%3===0?'#e7cca3':j%2?'#ff8144':'#d8233f';ctx.beginPath();
+   ctx.moveTo(x-ux*7,y-uy*7);
+   ctx.quadraticCurveTo(x+nx*side*len*.65-ux*sweep*.55,y+ny*side*len*.65-uy*sweep*.55,x+nx*side*len-ux*sweep,y+ny*side*len-uy*sweep);
+   ctx.quadraticCurveTo(x+nx*side*len*.40+ux*5,y+ny*side*len*.40+uy*5,x+ux*6,y+uy*6);ctx.closePath();ctx.fill();
+  }
+  for(const [offset,width,col,roughness] of [[9,6,'#d8233f',1.12],[0,7,'#ff8144',.8],[-9,3.5,'#e7cca3',.42]]){
+   ctx.lineWidth=width;ctx.strokeStyle=col;ctx.beginPath();const steps=low?16:25;
+   for(let j=0;j<=steps;j++){const q=j/steps,off=offset+wobble(q)*roughness,x=e.x+dx*q+nx*off,y=e.y+dy*q+ny*off;j?ctx.lineTo(x,y):ctx.moveTo(x,y);}
+   ctx.stroke();
   }
   ctx.restore();
  }
