@@ -1160,7 +1160,7 @@ function crimsonChargeFlames(x,y,r=90,life=.95,power=1){
 
 /* Hongryeon sword-forms: original flame effects driven by the real hitbox, not sprites or beams. */
 const FLAME_BREATH_MODES=new Set(['flameBreathSweep','flameBreathRise','flameBreathCleave','flameBreathWheel','flameBreathFinale']);
-const HONGRYEON_STUN_SCALE=1.5; // Increase control duration for all five Hongryeon sword forms.
+const HONGRYEON_STUN_SCALE=2.0; // Longer stun on all five Hongryeon sword forms.
 const FLAME_CLEAVE_START_RADIUS=190,FLAME_CLEAVE_LAND_RADIUS=245,FLAME_RISE_IMPACT_RADIUS=250;
 // Ring effects and the damage check intentionally share these exact radii.
 function flameBreathCleaveCircle(x,y,r,face=0,life=.57,power=1){
@@ -2495,7 +2495,7 @@ function flameBreathHit(seq,sk,k,damage,finalHit){
    }
   }
   if(!matched)continue;
-  const boss=e.kind==='boss',stunSecs=boss?Math.min(.30,stun*.38*HONGRYEON_STUN_SCALE):stun*HONGRYEON_STUN_SCALE,
+  const boss=e.kind==='boss',stunSecs=boss?Math.min(.40,stun*.38*HONGRYEON_STUN_SCALE):stun*HONGRYEON_STUN_SCALE,
    force=boss?0:push;
   const risePath=mode==='flameBreathRise'&&d>FLAME_RISE_IMPACT_RADIUS+er;
   const hitShape=risePath?{shape:'segment',x1:seq.originX,y1:seq.originY,x2:player.x,y2:player.y,r:76}:
