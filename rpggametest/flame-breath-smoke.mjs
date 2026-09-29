@@ -6,7 +6,7 @@ const cases=[
  {slot:1,id:'earthRend',ms:700,mode:'flameBreathRise',hitTimes:1},
  {slot:2,id:'quakeRush',ms:1000,mode:'flameBreathCleave',hitTimes:2},
  {slot:3,id:'ironJudgment',ms:720,mode:'flameBreathWheel',hitTimes:3},
- {slot:4,id:'meteorBreaker',ms:4220,mode:'flameBreathFinale',hitTimes:9}
+ {slot:4,id:'meteorBreaker',ms:4220,mode:'flameBreathFinale',hitTimes:15}
 ];
 await mkdir('rpggametest/flame-preview',{recursive:true});
 const browser=await chromium.launch({headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
@@ -134,7 +134,7 @@ for(const c of cases){
   // Physical sword and both legs must visibly form DIFFERENT poses for the
   // irregularly timed horizontal, reverse, thrust, overhead and rising cuts.
   const swordMoves=await page.evaluate(()=>{
-   const g=window.__game,at=[.20,.55,.73,1.21,1.55,2.11,2.43,3.25];
+   const g=window.__game,at=[.17,.34,.51,.68,.91,1.16,1.33,1.52,1.76,2.01,2.22,2.47,2.76,3.25];
    return at.map(t=>{
     const right=g.hongryeonLimbPose('meteorBreaker',false,t,1,1,0,-42,-56),
      left=g.hongryeonLimbPose('meteorBreaker',false,t,-1,1,0,-42,-56);
@@ -168,20 +168,20 @@ for(const c of cases){
  }
  await page.screenshot({path:'rpggametest/flame-preview/'+String(c.slot+1)+'-'+c.id+'.png'});
  if(c.slot===4){
-  await page.waitForFunction(()=>window.__game?.enemies?.find(e=>e.type==='dummy')?.testHitCount>=9,{timeout:30000,polling:35});
+  await page.waitForFunction(()=>window.__game?.enemies?.find(e=>e.type==='dummy')?.testHitCount>=15,{timeout:30000,polling:35});
   const end=await page.evaluate(()=>{const g=window.__game,e=g.enemies.find(v=>v.type==='dummy');return {hits:e.testHitCount,damage:e.testDamageTotal,x:g.player.x};});
   const trace=await page.evaluate(()=>{window.__finaleTraceStop=true;return window.__finaleTrace||[];});
-  const sawOriginalCrosscuts=trace.some(p=>p.since>=1.21&&p.stage>=4);
-  const sawExtraCrescents=trace.some(p=>p.since>=2.11&&p.stage>=6);
-  const sawRisingCut=trace.some(p=>p.since>=2.43&&p.stage>=7);
-  const sawLateFinale=trace.some(p=>p.since>=3.25&&p.stage===8);
-  // The hit-confirmed follow-up stands still between the eight original cuts,
+  const sawOriginalCrosscuts=trace.some(p=>p.since>=.68&&p.stage>=4);
+  const sawExtraCrescents=trace.some(p=>p.since>=1.76&&p.stage>=9);
+  const sawRisingCut=trace.some(p=>p.since>=2.47&&p.stage>=12);
+  const sawLateFinale=trace.some(p=>p.since>=3.25&&p.stage===14);
+  // The hit-confirmed follow-up stands still between the fourteen new cuts,
   // blinking between fixed sword stances under the foreground flame vortex.
   const teleportCount=Math.max(...trace.map(p=>p.teleports||0),0);
   const vortexFrames=Math.max(...trace.map(p=>p.vortexFrames||0),0);
   const slideBetweenCuts=trace.slice(1).filter((p,i)=>p.stage===trace[i].stage&&
     Math.hypot(p.x-trace[i].x,p.y-trace[i].y)>7);
-  if(teleportCount<6||vortexFrames<15||slideBetweenCuts.length)
+  if(teleportCount<10||vortexFrames<15||slideBetweenCuts.length)
    throw Error('Fifth form must blink between stationary sword strikes inside a persistent vortex: '+
     JSON.stringify({teleportCount,vortexFrames,slideBetweenCuts:slideBetweenCuts.slice(0,3)}));
   const centered=trace.filter(p=>p.vortexFrames>=3&&Number.isFinite(p.vortexX)&&Number.isFinite(p.vortexR));
@@ -192,10 +192,10 @@ for(const c of cases){
     JSON.stringify({samples:centered.length,first:centered[0],last:centered.at(-1)}));
   console.log('Victim-centered foreground circular fire, curved slashes and shards verified:',
    JSON.stringify({samples:centered.length,radius:centered.at(-1).vortexR,sparks:centered.at(-1).sprays}));
-  if(end.hits<9||end.damage<=0||!sawOriginalCrosscuts||!sawExtraCrescents||!sawRisingCut||!sawLateFinale)
-   throw Error('Extended ultimate must land all eight follow-up hits and its delayed fire seal: '+
+  if(end.hits<15||end.damage<=0||!sawOriginalCrosscuts||!sawExtraCrescents||!sawRisingCut||!sawLateFinale)
+   throw Error('Extended ultimate must land all fourteen follow-up hits and its delayed fire seal: '+
     JSON.stringify({end,sawOriginalCrosscuts,sawExtraCrescents,sawRisingCut,sawLateFinale,traceEnd:trace.slice(-5)}));
-  console.log('Fifth form seven uniquely animated slashes and delayed finishing strike verified:',JSON.stringify({end,latest:trace.slice(-3)}));
+  console.log('Fifth form thirteen uniquely timed sword cuts and delayed finishing strike verified:',JSON.stringify({end,latest:trace.slice(-3)}));
  }
  if(errors.length||frame.pageError)throw Error('Runtime errors '+c.id+': '+errors.join(' | ')+' '+frame.pageError);
  if(frame.hitCount<1||frame.damageTotal<=0)throw Error('No hit registered for '+c.id+' '+JSON.stringify(frame));
