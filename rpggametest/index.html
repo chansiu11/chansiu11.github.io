@@ -3988,6 +3988,70 @@ if(e.type==='crimsonFlameBurst'){
   ctx.closePath();ctx.fill();
  }ctx.restore();
 }
+if(e.type==='crimsonEdgeFlames'){
+ // A broken, slightly glowing crown of small fire tongues on the ACTUAL sword hitbox edge.
+ ctx.save();ctx.translate(e.x,e.y);ctx.rotate(e.a);
+ const low=options.quality==='low',r=e.r,arc=e.arc,age=clamp(1-e.t/e.max,0,1),fade=clamp(e.t/e.max,0,1);
+ let seed=e.seed>>>0;const rand=()=>{seed=(Math.imul(1664525,seed)+1013904223)>>>0;return seed/4294967296;};
+ const n=low?9:19,col=['#a92932','#d63530','#f5542b','#ff7430','#ffa250','#ffd18a'];
+ for(let j=0;j<n;j++){
+  if(j%5===3)continue;const theta=-arc*.5+arc*(j+.12+rand()*.77)/n;
+  const rr=r*(.91+(rand()-.5)*.055),w=r*(.011+rand()*.016);
+  const length=r*(.024+rand()*.069)*(.79+.21*Math.sin(age*18+theta*11+j));
+  const x=Math.cos(theta)*rr,y=Math.sin(theta)*rr,tx=-Math.sin(theta),ty=Math.cos(theta);
+  const drift=(e.side||1)*w*(.5+rand()*1.6),tipR=rr+length,tipX=Math.cos(theta)*tipR+tx*drift,tipY=Math.sin(theta)*tipR+ty*drift;
+  const ci=j%6===0?4:Math.floor(rand()*5),c=col[ci];ctx.globalAlpha=fade*(.29+rand()*.39)*Math.min(1.25,e.power||1);
+  ctx.fillStyle=c;ctx.shadowColor=c;ctx.shadowBlur=low?1:4;
+  ctx.beginPath();ctx.moveTo(x-tx*w,y-ty*w);
+  ctx.bezierCurveTo(x+Math.cos(theta)*length*.34-tx*w*.65,y+Math.sin(theta)*length*.34-ty*w*.65,tipX-tx*w*.23,tipY-ty*w*.32,tipX,tipY);
+  ctx.bezierCurveTo(tipX+tx*w*.21,tipY+ty*w*.16,x+Math.cos(theta)*length*.3+tx*w*.7,y+Math.sin(theta)*length*.3+ty*w*.7,x+tx*w,y+ty*w);
+  ctx.closePath();ctx.fill();
+  if(j%4===0){ctx.globalAlpha=fade*.45;ctx.fillStyle='#ffbc70';ctx.shadowBlur=0;ctx.beginPath();ctx.ellipse(tipX+tx*w*.6,tipY+ty*w*.4,w*.31,w*.17,theta,0,TAU);ctx.fill();}
+ }
+ ctx.restore();
+}
+if(e.type==='crimsonDashEdgeFire'){
+ // Disconnected side flames along the dash path; no straight central beam or solid rectangular border.
+ ctx.save();const dx=e.x2-e.x,dy=e.y2-e.y,len=Math.hypot(dx,dy);ctx.translate(e.x,e.y);ctx.rotate(Math.atan2(dy,dx));
+ const low=options.quality==='low',fade=clamp(e.t/e.max,0,1),age=1-fade,w=e.width||48;
+ let seed=e.seed>>>0;const rand=()=>{seed=(Math.imul(1664525,seed)+1013904223)>>>0;return seed/4294967296;};
+ for(const side of [-1,1]){
+  for(let j=0,n=low?5:11;j<n;j++){
+   if(j%6===4)continue;const q=(j+.18+rand()*.66)/n,x=len*q+(rand()-.5)*w*.26,baseY=side*w*(.70+rand()*.23),width=w*(.055+rand()*.11);
+   const height=w*(.17+rand()*.34)*(.86+.14*Math.sin(age*15+j)),tipX=x+height*(.42+rand()*.64),tipY=baseY+side*height*(.46+rand()*.54);
+   const c=j%4===0?'#ffb56e':j%4===1?'#fc6d32':j%4===2?'#d73436':'#f84d2e';
+   ctx.fillStyle=c;ctx.globalAlpha=fade*(.35+rand()*.34)*Math.min(1.2,e.power||1);ctx.shadowColor=c;ctx.shadowBlur=low?2:5;
+   ctx.beginPath();ctx.moveTo(x-width,baseY);
+   ctx.bezierCurveTo(x+height*.38-width,baseY+side*height*.18,tipX-height*.22,tipY-side*height*.31,tipX,tipY);
+   ctx.quadraticCurveTo(x+height*.37+width,baseY+side*height*.31,x+width,baseY);
+   ctx.closePath();ctx.fill();
+   if(j%3===0){ctx.fillStyle='#ffd09a';ctx.globalAlpha*=.56;ctx.shadowBlur=0;ctx.beginPath();ctx.ellipse(tipX+height*.09,tipY,2.3,1.15,0,0,TAU);ctx.fill();}
+  }
+ }
+ ctx.restore();
+}
+if(e.type==='crimsonChargeFlames'){
+ // Converging ember spiral: the first ~1 s of the ultimate has visible anticipation.
+ ctx.save();ctx.translate(e.x,e.y);
+ const low=options.quality==='low',r=e.r,age=clamp(1-e.t/e.max,0,1),fade=clamp(e.t/e.max,0,1);
+ let seed=e.seed>>>0;const rand=()=>{seed=(Math.imul(1664525,seed)+1013904223)>>>0;return seed/4294967296;};
+ ctx.globalCompositeOperation='lighter';
+ const n=low?11:27,cols=['#922434','#cb2b2f','#ef4b29','#ff7e36','#ffb365'];
+ for(let j=0;j<n;j++){
+  const theta=TAU*(j+rand()*.59)/n+age*(1.9+(e.power||1)*.45);
+  const rr=r*(.93-(age*.46)+rand()*.28),size=r*(.050+rand()*.092)*(1+age*.20);
+  const x=Math.cos(theta)*rr,y=Math.sin(theta)*rr,tx=-Math.sin(theta),ty=Math.cos(theta);
+  const tipTheta=theta+(rand()-.5)*.43,tipR=rr-size*(.55+rand()*.8),px=Math.cos(tipTheta)*tipR+tx*size*.39,py=Math.sin(tipTheta)*tipR+ty*size*.39;
+  const c=cols[Math.floor(rand()*cols.length)];ctx.fillStyle=c;ctx.shadowColor=c;ctx.shadowBlur=low?2:9;
+  ctx.globalAlpha=fade*(.40+rand()*.37)*Math.min(1.22,e.power||1);
+  ctx.beginPath();ctx.moveTo(x-tx*size*.57,y-ty*size*.57);
+  ctx.quadraticCurveTo(x-Math.cos(theta)*size*.34-tx*size*.65,y-Math.sin(theta)*size*.34-ty*size*.65,px,py);
+  ctx.quadraticCurveTo(x-Math.cos(theta)*size*.29+tx*size*.47,y-Math.sin(theta)*size*.29+ty*size*.47,x+tx*size*.57,y+ty*size*.57);
+  ctx.closePath();ctx.fill();
+  if(j%3===0){ctx.globalAlpha=fade*.52;ctx.fillStyle='#ffcc88';ctx.beginPath();ctx.ellipse(px,py,size*.17,size*.08,theta,0,TAU);ctx.fill();}
+ }
+ ctx.restore();
+}
 if(e.type==='crimsonWing'){
   ctx.save();ctx.translate(e.x,e.y);ctx.rotate(e.a);ctx.globalCompositeOperation='lighter';
   let seed=e.seed>>>0;const rand=()=>{seed=(Math.imul(1664525,seed)+1013904223)>>>0;return seed/4294967296;};
