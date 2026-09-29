@@ -21,13 +21,14 @@ for(const c of cases){
  const init=await page.evaluate((c)=>{
   const g=window.__game,p=g.player,e=g.enemies.find(e=>e.type==='dummy');
   e.x=p.x+260;e.y=p.y;e.sx=e.x;e.sy=e.y;e.r=25;e.testHitCount=0;e.testDamageTotal=0;e.speed=0;e.damage=0;e.maxHp=e.hp=1e8;e.baseMaxHp=1e8;e.stun=0;
-  p.facing=0;p.stun=0;p.attackCd=0;p.cast=0;p.skillCds.fill(0);
+  g.admin.god=true;p.facing=0;p.stun=0;p.attackCd=0;p.cast=0;p.skillCds.fill(0);
   g.skill(c.slot);
   return {name:g.skillInfo(c.slot).name,mode:g.skillInfo(c.slot).cfg.mode,hp:e.hp,skillStarted:!!g.activeSwordSkill};
  },c);
  if(init.mode!==c.mode)throw Error('Wrong form '+c.id+' '+JSON.stringify(init));
  const elapsedTarget=[.54,1.02,1.00,1.31,5.16][c.slot];
- await page.waitForFunction(t=>window.__game?.activeSwordSkill?.elapsed>=t,elapsedTarget,{timeout:180000,polling:60});
+ const check=await page.waitForFunction(t=>{const g=window.__game;return g?.activeSwordSkill?.elapsed>=t?'reached':(!g?.activeSwordSkill&&g?.player?.skillPose===-1?'ended':false);},elapsedTarget,{timeout:180000,polling:60});
+ if(await check.jsonValue()!=='reached')throw Error('Skill ended before capture: '+c.id);
  const frame=await page.evaluate(()=>{
   const g=window.__game,e=g.enemies.find(e=>e.type==='dummy'),seq=g.activeSwordSkill;
   return {id:seq?.skillId||'',elapsed:seq?.elapsed||0,
