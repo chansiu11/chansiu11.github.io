@@ -1061,11 +1061,16 @@ function crimsonStrokeCircle(cx,cy,rx,ry,aim,power=1){
 }
 function crimsonStrokeLine(x1,y1,x2,y2,a,power=1){
  effects.push({type:'crimsonBeam',x:x1,y:y1,x2,y2,a,w:CRIMSON1_WIDTH,t:.39,max:.39});
- // Ash trails gather along the sides and behind the line instead of covering its bright center.
+ // Both sides receive residual flames from the start to the very tip.
+ // Alternating dense and light patches keeps the sword's bright main line visible.
  const tangentX=-Math.sin(a),tangentY=Math.cos(a),dx=x2-x1,dy=y2-y1;
- for(let j=1;j<=17;j++){
-  const q=j/18,side=j%2?1:-1,off=rnd(8,23),px=x1+dx*q+tangentX*side*off,py=y1+dy*q+tangentY*side*off;
-  crimsonEmbers(px,py,a+Math.PI+side*rnd(.35,.62),j%4===0?6:3,rnd(130,240),.30,rnd(.6,.9));
+ const low=options.quality==='low',steps=low?17:26;
+ for(let j=0;j<=steps;j++){
+  const q=j/steps,patch=j%7,rich=patch===0||patch===1||j===steps;
+  for(const side of [-1,1]){
+   const off=rnd(rich?7:11,rich?19:26),px=x1+dx*q+tangentX*side*off,py=y1+dy*q+tangentY*side*off;
+   crimsonEmbers(px,py,a+Math.PI+side*rnd(.25,.65),low?(rich?4:2):(rich?7:4),rnd(165,285),.35,rnd(.72,1.05));
+  }
  }
 }
 function ring(x,y,r,color,t=.5){effects.push({type:'ring',x,y,r,color,t,max:t});}
