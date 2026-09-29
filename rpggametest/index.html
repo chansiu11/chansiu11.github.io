@@ -4621,8 +4621,9 @@ function drawTelegraph(e){if(e.state!=='windup')return;const styleProgress=clamp
  if(progress>.73){ctx.strokeStyle=danger?'#ffc7b4':'#fff0b5';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,e.r+6,0,TAU);ctx.stroke();}ctx.restore();}
 function drawTown(){}
 // Foreground animation is drawn ONCE per frame, not added to the particle array.
-// The central molten glow deliberately obscures the duelist while the outer flame
-// tongues rotate in opposite directions around the stationary / blinking swordsman.
+// Its fixed center is the struck opponent, and its radius encompasses the attacker
+// even as they blink between sword stances; only a small fixed set of sparks is drawn.
+let flameFinaleVortexGradient=null,flameFinaleVortexGradientRadius=0;
 function drawFlameFinaleVortex(){
  const seq=activeSwordSkill;
  if(seq?.skillId!=='meteorBreaker'||!seq.flameCaught)return;
@@ -4630,15 +4631,27 @@ function drawFlameFinaleVortex(){
   fade=clamp(since/.20,0,1)*clamp((3.61-since)/.26,0,1);
  if(fade<=0)return;
  const low=options.quality==='low',phase=since*4.7*(seq.side||1);
- const cx=player.x,cy=player.y-23,r=low?126:145;
+ const target=seq.flameTarget&&!seq.flameTarget.dead?seq.flameTarget:null;
+ const center=target?combatCenter(target):seq.flameImpactPoint;
+ if(!center)return; // The hit-confirmed vortex never appears without a victim.
+ const cx=center.x,cy=center.y-18;
+ // Compensate for the flattened perspective: the near rim must enclose BOTH actors.
+ const attackerDistance=Math.hypot(player.x-cx,(player.y-23-cy)/.77);
+ const r=Math.ceil(Math.max(low?248:284,attackerDistance+112)/16)*16;
  ctx.save();ctx.translate(cx,cy);ctx.scale(1,.77);
- // One radial gradient and a small, fixed number of curved flame shapes per frame.
- const core=ctx.createRadialGradient(0,0,7,0,0,r*.99);
- core.addColorStop(0,'rgba(255,243,166,.95)');
- core.addColorStop(.30,'rgba(255,157,44,.95)');
- core.addColorStop(.60,'rgba(249,76,19,.86)');
- core.addColorStop(.83,'rgba(176,34,13,.52)');
- core.addColorStop(1,'rgba(125,24,9,0)');
+ // Reuse the one gradient while the radius is unchanged rather than rebuilding it
+ // every frame; the two rotating layers and flying sparks use no particle objects.
+ if(!flameFinaleVortexGradient||flameFinaleVortexGradientRadius!==r){
+  flameFinaleVortexGradientRadius=r;
+  const core=ctx.createRadialGradient(0,0,7,0,0,r*.99);
+  core.addColorStop(0,'rgba(255,243,166,.96)');
+  core.addColorStop(.30,'rgba(255,157,44,.91)');
+  core.addColorStop(.60,'rgba(249,76,19,.79)');
+  core.addColorStop(.83,'rgba(176,34,13,.48)');
+  core.addColorStop(1,'rgba(125,24,9,0)');
+  flameFinaleVortexGradient=core;
+ }
+ const core=flameFinaleVortexGradient;
  ctx.globalAlpha=.82*fade;ctx.fillStyle=core;
  ctx.beginPath();ctx.arc(0,0,r,0,TAU);ctx.fill();
  // Irregular layered fire, not radial beams or 50+ independent heavy plume effects.
@@ -4667,8 +4680,34 @@ function drawFlameFinaleVortex(){
    ctx.closePath();ctx.fill();
   }
  }
+ // Fiery spray: short-lived outward streaks + bright ember heads rotate out of
+ // the victim-centered vortex. Constant draw count, zero per-frame effects.push.
+ const sprays=low?9:17;
+ for(let j=0;j<sprays;j++){
+  const angle=j*TAU/sprays+phase*.58+.21*Math.sin(j*4.12+since*7.5);
+  const flight=(since*2.85+j*.61803398875)%1;
+  const inner=r*(.29+flight*.42),outer=inner+r*(.13+.17*(1-flight));
+  const spin=angle+.20*(seq.side||1)*(1-flight);
+  const sx=Math.cos(angle)*inner,sy=Math.sin(angle)*inner;
+  const tx=Math.cos(spin)*outer,ty=Math.sin(spin)*outer;
+  ctx.globalAlpha=fade*(.42+.52*(1-flight));
+  ctx.strokeStyle=j%4===0?'#fff3b6':j%2===0?'#ffbb4d':'#ff641b';
+  ctx.lineWidth=low?2.8:3.8;
+  ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(sx,sy);
+  ctx.quadraticCurveTo((sx+tx)*.54-Math.sin(spin)*r*.056,
+   (sy+ty)*.54+Math.cos(spin)*r*.056,tx,ty);
+  ctx.stroke();
+  ctx.fillStyle=j%3===0?'#fff4b9':'#ffb347';
+  ctx.beginPath();ctx.ellipse(tx,ty,low?2.7:3.7,low?1.9:2.5,spin,0,TAU);ctx.fill();
+ }
  ctx.restore();
- if(window.__PLAYTEST__)seq.flameVortexFrames=(seq.flameVortexFrames||0)+1;
+ if(window.__PLAYTEST__){
+  seq.flameVortexFrames=(seq.flameVortexFrames||0)+1;
+  seq.flameVortexCenterX=cx;seq.flameVortexCenterY=cy+18;
+  seq.flameVortexRadius=r;seq.flameVortexAttackerDistance=attackerDistance;
+  seq.flameVortexSprays=sprays;
+ }
 }
 function drawEffects(ground=false){for(const e of effects){const progress=1-e.t/e.max;if(e.type==='hazard'){if(!ground)continue;ctx.fillStyle='#e39a8327';ctx.strokeStyle='#edab97';ctx.lineWidth=2;ctx.beginPath();ctx.arc(e.x,e.y,e.r,0,TAU);ctx.fill();ctx.stroke();ctx.fillStyle='#eb998842';ctx.beginPath();ctx.arc(e.x,e.y,e.r*progress,0,TAU);ctx.fill();continue;}if(e.type==='crimsonScorch'){
   if(!ground)continue;ctx.save();ctx.translate(e.x,e.y);const dx=(e.x2??e.x)-e.x,dy=(e.y2??e.y)-e.y,len=Math.hypot(dx,dy);if(len)ctx.rotate(Math.atan2(dy,dx));
