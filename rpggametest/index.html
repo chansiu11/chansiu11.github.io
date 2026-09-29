@@ -3999,7 +3999,7 @@ function recoverGameLoop(error){
  }catch(recoveryError){console.error('Game loop recovery error',recoveryError);}
  if(gameLoopErrorCount===1||now-(player?.lastLoopRecoveryToastAt||0)>2500){if(player)player.lastLoopRecoveryToastAt=now;toast('일시적인 전투 오류를 자동 복구했습니다.');}
 }
-function frame(stamp){startPlay();
+function frame(stamp){
 requestAnimationFrame(frame);const elapsed=Math.max(0,(stamp-lastStamp)/1000);let dt=Math.min(.1,elapsed);lastStamp=stamp;realTime+=dt;updateWorldComboHud();frameMs=frameMs*.96+elapsed*1000*.04;if(mode==='title'&&!$('pvpLayer').classList.contains('hidden'))return;
  try{if(multiplayerMode){updateWorldForce();flushWorldCombat();}updateAudio();if(mode==='title'){camera.x=860+Math.sin(realTime*.045)*70;camera.y=2960+Math.cos(realTime*.04)*45;player.facing=-.7;}if(mode==='play'&&!modal){if(hitstop>0&&!multiplayerMode)hitstop=Math.max(0,hitstop-dt);else{hitstop=0;const steps=Math.max(1,Math.ceil(dt/.033));for(let i=0;i<steps&&mode==='play'&&!modal;i++)update(dt/steps);}}if(!touchMode||options.quality!=='low'||stamp-lastDrawStamp>=32){lastDrawStamp=stamp;render();}}
  catch(error){recoverGameLoop(error);}
