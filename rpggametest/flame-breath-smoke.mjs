@@ -6,7 +6,7 @@ const cases=[
  {slot:1,id:'earthRend',ms:700,mode:'flameBreathRise',hitTimes:1},
  {slot:2,id:'quakeRush',ms:1000,mode:'flameBreathCleave',hitTimes:2},
  {slot:3,id:'ironJudgment',ms:720,mode:'flameBreathWheel',hitTimes:3},
- {slot:4,id:'meteorBreaker',ms:3500,mode:'flameBreathFinale',hitTimes:9}
+ {slot:4,id:'meteorBreaker',ms:4220,mode:'flameBreathFinale',hitTimes:9}
 ];
 await mkdir('rpggametest/flame-preview',{recursive:true});
 const browser=await chromium.launch({headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
@@ -123,7 +123,25 @@ for(const c of cases){
   const state=await page.evaluate(()=>{const g=window.__game;return {caught:!!g.activeSwordSkill?.flameCaught,target:g.activeSwordSkill?.flameTargetId,heroX:g.player.x,hits:g.enemies.find(e=>e.type==='dummy')?.testHitCount||0};});
   if(!state.caught||state.hits<2||Math.abs(state.heroX-3000)>350)
    throw Error('Fifth form did not stop on contact and follow up: '+JSON.stringify(state));
-  console.log('Fifth form collision -> crossfire:',JSON.stringify(state));
+  console.log('Fifth form collision -> authored sword combo:',JSON.stringify(state));
+  // Physical sword and both legs must visibly form DIFFERENT poses for the
+  // irregularly timed horizontal, reverse, thrust, overhead and rising cuts.
+  const swordMoves=await page.evaluate(()=>{
+   const g=window.__game,at=[.20,.55,.73,1.21,1.55,2.11,2.43,3.25];
+   return at.map(t=>{
+    const right=g.hongryeonLimbPose('meteorBreaker',false,t,1,1,0,-42,-56),
+     left=g.hongryeonLimbPose('meteorBreaker',false,t,-1,1,0,-42,-56);
+    return {t,hand:right.hand,otherHand:left.hand,blade:right.swordA,
+     frontFoot:right.leg,backFoot:left.leg};
+   });
+  });
+  const unique=(v)=>new Set(v.map(x=>JSON.stringify(x))).size;
+  const gaps=swordMoves.slice(1).map((v,i)=>Number((v.t-swordMoves[i].t).toFixed(2)));
+  if(unique(swordMoves.map(v=>v.hand))<5||unique(swordMoves.map(v=>v.blade.toFixed(2)))<5||
+     unique(swordMoves.map(v=>v.frontFoot))<4||new Set(gaps).size<5)
+   throw Error('Ultimate needs distinct physical sword methods and irregular timing: '+
+    JSON.stringify({swordMoves,gaps}));
+  console.log('Irregular physical sword slashes and both feet verified:',JSON.stringify({gaps,poses:swordMoves.length}));
  }
  if(c.slot===3){
   // Check trace before screenshot rendering might advance the game past skill end.
@@ -146,14 +164,14 @@ for(const c of cases){
   await page.waitForFunction(()=>window.__game?.enemies?.find(e=>e.type==='dummy')?.testHitCount>=9,{timeout:30000,polling:35});
   const end=await page.evaluate(()=>{const g=window.__game,e=g.enemies.find(v=>v.type==='dummy');return {hits:e.testHitCount,damage:e.testDamageTotal,x:g.player.x};});
   const trace=await page.evaluate(()=>{window.__finaleTraceStop=true;return window.__finaleTrace||[];});
-  const sawOriginalCrosscuts=trace.some(p=>p.since>=1.08&&p.stage>=4);
-  const sawExtraCrescents=trace.some(p=>p.since>=1.66&&p.stage>=6);
-  const sawRisingCut=trace.some(p=>p.since>=1.96&&p.stage>=7);
-  const sawLateFinale=trace.some(p=>p.since>=2.44&&p.stage===8);
+  const sawOriginalCrosscuts=trace.some(p=>p.since>=1.21&&p.stage>=4);
+  const sawExtraCrescents=trace.some(p=>p.since>=2.11&&p.stage>=6);
+  const sawRisingCut=trace.some(p=>p.since>=2.43&&p.stage>=7);
+  const sawLateFinale=trace.some(p=>p.since>=3.25&&p.stage===8);
   if(end.hits<9||end.damage<=0||!sawOriginalCrosscuts||!sawExtraCrescents||!sawRisingCut||!sawLateFinale)
    throw Error('Extended ultimate must land all eight follow-up hits and its delayed fire seal: '+
     JSON.stringify({end,sawOriginalCrosscuts,sawExtraCrescents,sawRisingCut,sawLateFinale,traceEnd:trace.slice(-5)}));
-  console.log('Fifth form eight follow-up hits and late fire seal verified:',JSON.stringify({end,latest:trace.slice(-3)}));
+  console.log('Fifth form seven uniquely animated slashes and delayed finishing strike verified:',JSON.stringify({end,latest:trace.slice(-3)}));
  }
  if(errors.length||frame.pageError)throw Error('Runtime errors '+c.id+': '+errors.join(' | ')+' '+frame.pageError);
  if(frame.hitCount<1||frame.damageTotal<=0)throw Error('No hit registered for '+c.id+' '+JSON.stringify(frame));
