@@ -1165,14 +1165,21 @@ const HONGRYEON_STUN_SCALE=2.0; // Longer stun on all five Hongryeon sword forms
 // These events drive the real sword arm, flame slash and collision TOGETHER;
 // there is no periodic damage ticker independent of an actual cut.
 const FLAME_FINALE_CUTS=Object.freeze([
- {at:.20,windup:.12,kind:'wide',mult:.72,stun:1.10,reach:190,arc:2.60,side:-28},
- {at:.55,windup:.19,kind:'reverse',mult:.91,stun:.97,reach:194,arc:2.38,side:34},
- {at:.73,windup:.075,kind:'thrust',mult:.47,stun:1.02,reach:220,arc:1.19,side:12},
- {at:1.21,windup:.34,kind:'overhead',mult:.65,stun:1.18,reach:206,arc:1.60,side:-18},
- {at:1.55,windup:.16,kind:'backhand',mult:.57,stun:1.00,reach:190,arc:2.18,side:36},
- {at:2.11,windup:.37,kind:'rising',mult:.71,stun:1.31,reach:213,arc:1.86,side:-28},
- {at:2.43,windup:.14,kind:'cross',mult:.84,stun:1.22,reach:228,arc:2.30,side:15},
- {at:3.25,windup:.50,kind:'finisher',mult:2.26,stun:.92,reach:211,arc:2.78,side:0}
+ // Thirteen uneven, physically animated sword cuts in the existing 3.61s follow-up.
+ {at:0.17,windup:0.11,kind:'wide',mult:0.55,stun:1.1,reach:190,arc:2.6,offset:-0.18},
+ {at:0.34,windup:0.1,kind:'reverse',mult:0.58,stun:0.97,reach:194,arc:2.38,offset:0.13},
+ {at:0.51,windup:0.07,kind:'thrust',mult:0.36,stun:1.02,reach:220,arc:1.19,offset:-0.08},
+ {at:0.68,windup:0.11,kind:'cross',mult:0.49,stun:1.1,reach:219,arc:2.22,offset:-0.2},
+ {at:0.91,windup:0.15,kind:'backhand',mult:0.51,stun:1,reach:190,arc:2.18,offset:0.14},
+ {at:1.16,windup:0.17,kind:'overhead',mult:0.65,stun:1.18,reach:206,arc:1.6,offset:0},
+ {at:1.33,windup:0.09,kind:'rising',mult:0.58,stun:1.31,reach:213,arc:1.86,offset:0.17},
+ {at:1.52,windup:0.11,kind:'reverse',mult:0.46,stun:1,reach:205,arc:2.33,offset:-0.22},
+ {at:1.76,windup:0.14,kind:'thrust',mult:0.42,stun:1.07,reach:223,arc:1.16,offset:0.15},
+ {at:2.01,windup:0.15,kind:'wide',mult:0.58,stun:1.08,reach:207,arc:2.54,offset:0.24},
+ {at:2.22,windup:0.12,kind:'backhand',mult:0.48,stun:1.1,reach:199,arc:2.32,offset:-0.19},
+ {at:2.47,windup:0.16,kind:'rising',mult:0.56,stun:1.31,reach:216,arc:1.92,offset:-0.13},
+ {at:2.76,windup:0.21,kind:'cross',mult:0.72,stun:1.26,reach:228,arc:2.46,offset:0.2},
+ {at:3.25,windup:0.34,kind:'finisher',mult:2.26,stun:0.92,reach:211,arc:2.78,offset:0}
 ]);
 const FLAME_CLEAVE_START_RADIUS=190,FLAME_CLEAVE_LAND_RADIUS=245,FLAME_RISE_IMPACT_RADIUS=250;
 // Ring effects and the damage check intentionally share these exact radii.
@@ -1248,27 +1255,27 @@ function flameBreathSignature(id,index,final,ang,reach,actor=player,ctxInfo=null
   flameBreathStroke(x,y,a,index===2?298:230,index===2?5.35:index===1?4.5:3.8,side,.53,index===2?1.38:1.04);
   flameBreathPlume(x,y,a+side*Math.PI/2,120+index*39,58+index*16,.41,.88);
   if(final)crimsonFlameBurst(x+Math.cos(look)*115,y+Math.sin(look)*115,116,.58,1.17);
- }else if(id==='meteorBreaker'){
-  // Contact, four original crosscuts, two extra crescents and one rising
-  // flame cut before the final seal. Lightweight slashes avoid extra full-screen rings.
+  }else if(id==='meteorBreaker'){
   if(index===0){
    flameBreathStroke(x,y,f,190,1.35,side,.39,1.20);
    flameBreathPlume(x-Math.cos(f)*68,y-Math.sin(f)*68,f,242,104,.46,1.36);
    crimsonFlameBurst(x,y,76,.39,.87);
-  }else if(index>=1&&index<=7){
-   // FX follow the attacker's actual sword reach and a different cut direction
-   // for every strike (not an explosion at the victim on a fixed beat).
+  }else if(index>=1&&index<FLAME_FINALE_CUTS.length){
+   // One large sword-shaped flame trail and one sparse plume per actual cut.
+   // The visual reach is enlarged independently of its unchanged melee hitbox.
    const cut=FLAME_FINALE_CUTS[index-1];
    const angles={wide:-.26,reverse:.37,thrust:0,overhead:0,backhand:-.34,rising:.23,cross:-.18};
-   const dir=f+(angles[cut.kind]||0)*side;
+   const dir=f+((angles[cut.kind]||0)+(cut.offset||0))*side;
    const flip=['reverse','backhand','cross'].includes(cut.kind)?-side:side;
-   const narrow=cut.kind==='thrust';
-   flameBreathStroke(x,y,dir,cut.reach,cut.arc,flip,narrow?.30:.40,narrow?1.0:1.16);
-   if(cut.kind==='thrust')flameBreathPlume(x+Math.cos(dir)*58,y+Math.sin(dir)*58,dir,150,37,.28,.90,.49);
-   else if(cut.kind==='overhead'||cut.kind==='rising')
-    flameBreathPlume(x+Math.cos(dir)*73,y+Math.sin(dir)*73,dir,169,61,.33,1.09,.58);
-   else crimsonEmbers(x+Math.cos(dir)*88,y+Math.sin(dir)*88,dir+Math.PI,
-      options.quality==='low'?2:4,150,.35,.54);
+   const narrow=cut.kind==='thrust',heavy=cut.kind==='overhead'||cut.kind==='rising';
+   const visualReach=cut.reach*(narrow?1.37:heavy?1.57:1.54);
+   flameBreathStroke(x,y,dir,visualReach,Math.min(TAU,cut.arc*(narrow?1.10:1.20)),
+      flip,narrow?.30:.43,narrow?1.05:1.20);
+   const o=visualReach*(narrow?.42:.53);
+   flameBreathPlume(x+Math.cos(dir)*o,y+Math.sin(dir)*o,
+      dir+flip*(narrow?.08:.27),visualReach*(narrow?.65:.72),
+      narrow?48:heavy?89:75,narrow?.29:.39,heavy?1.15:1.06,
+      options.quality==='low'?.37:.57);
   }else{
    flameBreathCleaveCircle(x,y,211,f,.87,1.75,.65);
    flameBreathStroke(x,y,f+side*.27,325,2.78,side,.77,1.42);
@@ -1547,7 +1554,7 @@ const SWORD_SKILL_LIBRARY=[
  {id:'earthRend',name:'승염 비상',level:30,price:920,cost:43,cool:7.4,color:'#ff782e',desc:'직선으로 328만큼 빠르게 돌진하며 점차 감속한다. 발동 0.5초 후 도착 지점의 원형 화염과 지나온 직선 경로에 동시에 피해를 주며 방패를 관통한다.',cfg:{duration:.78,hits:[.50],mult:[2.61],arc:[TAU],reach:[250],step:[0],mode:'flameBreathRise'}},
  {id:'dawnArc',name:'여명 검파',level:38,price:1100,cost:58,cool:3.5,color:'#ffd95c',desc:'강한 검압 하나를 발사한 반동으로 몸이 뒤로 밀리는 초장거리 단발기입니다.',cfg:{duration:.72,hits:[.28],mult:[1.15],arc:[1.7],reach:[20],step:[0],mode:'dawnWave'}},
  {id:'thunderDrive',name:'천풍 추살',level:44,price:1280,cost:74,cool:15.8,color:'#61f0c7',desc:'질풍 유파의 궁극기. 장거리 초고속 돌진에 맞는 순간 2번 질풍 점멸처럼 돌진 방향으로 강하게 날아가며, 이후 0.05초마다 총 30회의 추살 연계를 합니다. Lv.100 기준 일반 타격 100, 마지막 타격 200 피해입니다.',cfg:{duration:2.35,hits:Array.from({length:30},(_,i)=>.70+i*.05),mult:Array.from({length:30},(_,i)=>i===29?.38:.20),arc:Array(30).fill(TAU),reach:Array(30).fill(0),step:Array(30).fill(0),mode:'galePursuit'}},
- {id:'meteorBreaker',name:'극홍 · 염화일천',level:52,price:1520,cost:78,cool:19.5,color:'#ff782e',desc:'0.5초 차지 후 초고속 화염 돌진. 적중하면 멈춰 기절시키고 횡베기·역베기·찌르기·내려베기·역수 베기·올려베기·교차 베기를 서로 다른 박자로 연계한 뒤, 검을 높이 들어 폭염 참격으로 마무리한다. 빗나가면 돌진 후 즉시 종료된다.',cfg:{duration:1.65,hits:[],mult:[],arc:[TAU],reach:[0],step:[0],mode:'flameBreathFinale'}},
+ {id:'meteorBreaker',name:'극홍 · 염화일천',level:52,price:1520,cost:78,cool:19.5,color:'#ff782e',desc:'0.5초 차지 후 초고속 화염 돌진. 적중하면 멈춰 기절시키고 횡베기·역베기·찌르기·교차 베기·내려베기·올려베기 등 열세 차례의 검격을 빠르게 연계한 뒤, 검을 높이 들어 폭염 참격으로 마무리한다. 빗나가면 돌진 후 즉시 종료된다.',cfg:{duration:1.65,hits:[],mult:[],arc:[TAU],reach:[0],step:[0],mode:'flameBreathFinale'}},
  {id:'galeOrbit',name:'풍환 폭발',level:10,price:340,cost:39,cool:8,color:'#61f0c7',desc:'0.5초 동안 넓은 풍환으로 주변 적의 이동을 봉쇄하고 부드럽게 중심으로 끌어당깁니다. 적은 스킬을 사용할 수 있으며, 이후 회전하는 원형 폭발로 타격합니다.',cfg:{duration:.78,hits:[.50],mult:[6.45],arc:[TAU],reach:[0],step:[0],mode:'galePulse'}},
  {id:'mirrorStep',name:'거울 걸음',level:8,price:0,cost:30,cool:5,color:'#b88cff',desc:'멀리 있는 적을 포착해 반대편까지 단숨에 파고든 뒤 뒤쪽에서 베는 장거리 추격 돌진기입니다.',cfg:{duration:.55,hits:[.32],mult:[2.25],arc:[1.1],reach:[36],step:[0],mode:'mirrorBackstab'}},
  {id:'lunarBind',name:'월인 결박',level:26,price:0,cost:46,cool:14.8,color:'#b88cff',desc:'표적의 좌우와 뒤로 세 번 순간이동하며 달빛 결계를 이동시켜 적을 구속하고, 마지막 위치에서 월륜 참격으로 마무리합니다.',cfg:{duration:.82,hits:[.50],mult:[2.05],arc:[TAU],reach:[84],step:[0],mode:'lunarPull'}},
@@ -3096,7 +3103,7 @@ function updateFlameBreathFinale(seq,sk,dt){
  // Once the dash connects, do not slide between swings. Each authored cut
  // instantly relocates to a different stance, like a flame-hidden blink strike.
  // Distances stay within the ORIGINAL sword reaches; damage and timings are unchanged.
- const blinkStances=[[-96,-80],[-104,99],[69,-79],[92,75],[-88,-106],[76,96],[-105,-42],[-117,0]];
+ const blinkStances=[[-96,-80],[-104,99],[69,-79],[92,75],[-88,-106],[76,96],[-105,-42],[-97,81],[78,-91],[-112,-62],[91,68],[-84,100],[82,-81],[-103,73],[-117,0]];
  const blinkToCut=(stage)=>{
   if(!e)return;
   const stance=blinkStances[Math.min(stage,blinkStances.length-1)],side=seq.side||1,
@@ -3144,7 +3151,7 @@ function updateFlameBreathFinale(seq,sk,dt){
   if(cut.kind!=='finisher'){strike(cut,idx+1);continue;}
   // Only the final heavy overhead slash fans out to nearby enemies.
   // A missed initial dash never enters this branch.
-  blinkToCut(idx);
+  blinkToCut(idx+1);
   player.facing=seq.facing=e?Math.atan2(c.y-player.y,c.x-player.x):f;
   const center=e?combatCenter(e):c,r=cut.reach;
   for(const v of targets()){
@@ -4408,13 +4415,13 @@ function hongryeonLimbPose(id,preparing,time,sign,side,a,shoulderY,headY){
    elbow={x:s>0?fx*7:-fx*5,y:0};
    swordA=a;
   }else{
-   // Contact is followed by seven differently timed *sword* cuts and a
+   // Contact is followed by thirteen differently timed *sword* cuts and a
    // deliberately long overhead finisher, each with its own arm/leg pose.
    const elapsed=Math.max(0,time),cut=FLAME_FINALE_CUTS.find(v=>elapsed<=v.at+.055)||
     FLAME_FINALE_CUTS[FLAME_FINALE_CUTS.length-1];
    const u=clamp((elapsed-(cut.at-cut.windup))/cut.windup,0,1),
     strike=u*u*(3-2*u),flip=['reverse','backhand','cross'].includes(cut.kind)?-1:1;
-   const angle=a+side*flip*(-1.54+2.91*strike);
+   const angle=a+side*(flip*(-1.54+2.91*strike)+(cut.offset||0));
    if(cut.kind==='thrust'){
     hand=s>0?{x:-fx*21+fx*58*strike+side*6,y:shoulderY+11-5*strike}:
      {x:-fx*8-side*7,y:shoulderY+8};
