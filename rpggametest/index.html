@@ -1084,7 +1084,7 @@ function crimson1CastVisuals(actor,aim){
  crimsonStrokeCircle(actor.x,actor.y,CRIMSON1_RX,CRIMSON1_RY,aim,1.2);
  const start=crimson1LineOrigin(actor.x,actor.y,aim);
  crimsonStrokeLine(start.x,start.y,start.x+Math.cos(aim)*CRIMSON1_BEAM,start.y+Math.sin(aim)*CRIMSON1_BEAM,aim,1.3);
- let seen=0;effects=effects.filter(e=>e.type!=='crimsonSpark'||(++seen<=sparkBudget));
+ const totalSparks=effects.reduce((n,e)=>n+(e.type==='crimsonSpark'),0);let sparkIndex=0;effects=effects.filter(e=>{if(e.type!=='crimsonSpark')return true;const i=sparkIndex++;return totalSparks<=sparkBudget||Math.floor((i+1)*sparkBudget/totalSparks)>Math.floor(i*sparkBudget/totalSparks);});
 }
 function ring(x,y,r,color,t=.5){effects.push({type:'ring',x,y,r,color,t,max:t});}
 let prismCastSerial=0;
