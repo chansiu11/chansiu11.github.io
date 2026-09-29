@@ -2117,7 +2117,7 @@ function updateHeldSwordSkill(seq,sk,dt){
  moveSwordCarryTargets(seq,player.x-px0,player.y-py0);
  if(seq.ultimate&&seq.releaseQueued&&seq.elapsed>=SWORD_ULT_HOLD_MIN)stopHeldSwordSkill(seq.slot,false);
 }
-function crimsonSkillAllowsMove(seq=activeSwordSkill){return !!seq&&['crimsonSideScorch','crimsonSideWall'].includes(swordSkillById(seq.skillId)?.cfg?.mode);}
+function crimsonSkillAllowsMove(seq=activeSwordSkill){return false;}
 function crimsonStrafeSide(facing,fallback=1){const x=(keys.has('KeyD')?1:0)-(keys.has('KeyA')?1:0)+(joy.active?joy.x:0),y=(keys.has('KeyS')?1:0)-(keys.has('KeyW')?1:0)+(joy.active?joy.y:0),cross=Math.cos(facing)*y-Math.sin(facing)*x;return Math.abs(cross)>.22?Math.sign(cross):fallback;}
 function startSwordSkill(slot){
  const sk=skillInfo(slot),cfg=sk?.cfg;
@@ -2241,8 +2241,18 @@ function performSwordSkillHit(seq,hitIndex){
   }
  }
  else if(mode==='flameMantle'){const r=[150,156,164,174,192][hitIndex]||180;for(const e of combatTargets()){if(e.dead||e.riftSleeping||combatDistance(e,player)>r+combatRadius(e))continue;hitEnemyConfirmed(e,damage,finalHit,player,()=>applyEnemyStun(e,e.kind==='boss'?.05:(finalHit?.42:.10)));}}
- else if(mode==='cinderSnare'){const r=[178,198,214,236][hitIndex]||220;for(const e of combatTargets()){if(e.dead||e.riftSleeping||combatDistance(e,player)>r+combatRadius(e))continue;hitEnemyConfirmed(e,damage,finalHit,player,()=>{if(e.kind!=='boss'){const c=combatCenter(e),aa=Math.atan2(player.y-c.y,player.x-c.x),pull=[24,34,46,12][hitIndex]||24;moveBody(e,Math.cos(aa)*pull,Math.sin(aa)*pull);}applyEnemyStun(e,e.kind==='boss'?.06:(finalHit?.48:.14));});}}
- else if(mode==='ashRecall'){meleeHit(reach,cfg.arc[hitIndex],damage,finalHit,e=>{if(finalHit)applyEnemyStun(e,e.kind==='boss'?.16:.55);});}
+ else if(mode==='crimsonSideScorch'){
+  const f=seq.crimsonFace??seq.facing,fx=Math.cos(f),fy=Math.sin(f),nx=-fy,ny=fx;
+  const lead=[96,132,166,205][hitIndex]||166,off=(hitIndex%2?24:-24)*(seq.side||1),cx=player.x+fx*lead+nx*off,cy=player.y+fy*lead+ny*off,r=[80,96,115,146][hitIndex]||120;
+  for(const e of combatTargets())if(!e.dead&&!e.riftSleeping&&combatDistance(e,{x:cx,y:cy})<=r+combatRadius(e))
+   hitEnemyConfirmed(e,damage,finalHit,player,()=>applyEnemyStun(e,e.kind==='boss'?.06:(finalHit?.42:.12)));
+ }
+ else if(mode==='crimsonSideWall'){
+  meleeHit(reach,cfg.arc[hitIndex],damage*(finalHit?.55:1),false);
+  if(finalHit){const f=seq.crimsonFace??seq.facing,fx=Math.cos(f),fy=Math.sin(f),x1=seq.originX+fx*100,y1=seq.originY+fy*100,x2=player.x+fx*100,y2=player.y+fy*100;
+   for(const e of combatTargets()){if(e.dead||e.riftSleeping)continue;const c=combatCenter(e);if(segmentDistance(c.x,c.y,[x1,y1],[x2,y2])>100+combatRadius(e))continue;
+    hitEnemyConfirmed(e,damage,true,player,()=>applyEnemyStun(e,e.kind==='boss'?.14:.50));}}
+ }
  else if(mode==='furnaceBloom'){const target=swordSeqTarget(seq),cx=hitIndex<3?player.x:(target?.x??seq.anchorX??player.x+Math.cos(ang)*180),cy=hitIndex<3?player.y:(target?.y??seq.anchorY??player.y+Math.sin(ang)*180);if(hitIndex<3)meleeHit(reach,cfg.arc[hitIndex],damage,false);else{const r=[0,0,0,92,105,118,132,148,205][hitIndex]||120;for(const e of combatTargets()){if(e.dead||e.riftSleeping||combatDistance(e,{x:cx,y:cy})>r+combatRadius(e))continue;hitEnemyConfirmed(e,damage,finalHit,player,()=>{if(hitIndex<8&&e.kind!=='boss'){const c=combatCenter(e),aa=Math.atan2(cy-c.y,cx-c.x),pull=hitIndex===7?38:22;moveBody(e,Math.cos(aa)*pull,Math.sin(aa)*pull);}applyEnemyStun(e,e.kind==='boss'?.10:(finalHit?.85:.16));});}}}
  else if(mode==='guardPierce'){meleeHit(reach,.52,damage,true,e=>{applyEnemyStun(e,e.kind==='boss'?.65:1.15);e.poise=(e.poise||0)+45;});}
  else if(mode==='tempest'){meleeHit(reach,TAU,damage,finalHit);}
@@ -2415,24 +2425,38 @@ function updateSwordSkillMotion(seq,sk,dt){
    else{const forward=165*u,lat=Math.sin(u*Math.PI*2)*105*side;tx=seq.originX+ca0*forward+nx*lat;ty=seq.originY+sa0*forward+ny*lat;}
    const dx=tx-player.x,dy=ty-player.y,d=Math.hypot(dx,dy)||1,st=Math.min(d,(u<.78?950:720)*dt);moveBody(player,dx/d*st,dy/d*st);face=tc?Math.atan2(tc.y-player.y,tc.x-player.x):Math.atan2(dy,dx);player.skillLift=Math.sin(u*Math.PI)*14;
    seq.fx-=dt;if(seq.fx<=0){seq.fx=u<.46?.032:u<.72?.070:.028;crimsonTrail(px0,py0,player.x,player.y,u<.46?1.65:u<.72?.82:1.9);const back=Math.atan2(py0-player.y,px0-player.x);crimsonEmbers(player.x,player.y,back,7+(u>.78?6:0),300+(u>.78?120:0),.82,1.05);if(u<.18||u>.76)crimsonOutside(player.x,player.y,110,235,5,false,side*.25);}shake=Math.max(shake,u<.42?6.3:u<.78?4.2:8.2);
-  }else if(mode==='ashRecall'){
-   const u=t,ca0=Math.cos(baseFace),sa0=Math.sin(baseFace),nx0=-sa0,ny0=ca0,forward=Math.sin(Math.PI*u)*340,lateral=Math.sin(TAU*u)*150*side,tx=seq.originX+ca0*forward+nx0*lateral,ty=seq.originY+sa0*forward+ny0*lateral,dx=tx-player.x,dy=ty-player.y;
-   moveBody(player,clamp(dx,-1250*dt,1250*dt),clamp(dy,-1250*dt,1250*dt));face=Math.hypot(dx,dy)>2?Math.atan2(dy,dx):(u<.5?baseFace:baseFace+Math.PI);player.skillLift=Math.sin(u*Math.PI)*18;shake=Math.max(shake,7.2);
-   seq.fx-=dt;if(seq.fx<=0){seq.fx=u>.55?.026:.045;crimsonTrail(px0,py0,player.x,player.y,u>.55?1.8:1.25);crimsonEmbers(player.x,player.y,face+Math.PI,8+(u>.55?5:0),290+(u>.55?90:0),.9,1.08);if(u>.55)crimsonOutside(player.x,player.y,95,210,4,false,side*.4);}
+  }else if(mode==='crimsonSideWall'){
+   const u=t,f=baseFace,fx=Math.cos(f),fy=Math.sin(f),nx=-fy,ny=fx,sideNow=crimsonStrafeSide(f,seq.side||1);
+   seq.side=sideNow;
+   const tx=seq.originX+fx*48*u+nx*sideNow*246*u,ty=seq.originY+fy*48*u+ny*sideNow*246*u,dx=tx-player.x,dy=ty-player.y,d=Math.hypot(dx,dy)||1,step=Math.min(d,255*dt);
+   moveBody(player,dx/d*step,dy/d*step);face=tc?Math.atan2(tc.y-player.y,tc.x-player.x):baseFace;
+   player.skillLift=Math.sin(Math.PI*u)*5;
+   seq.fx-=dt;if(seq.fx<=0){seq.fx=.060;crimsonTrail(px0,py0,player.x,player.y,.90);crimsonEmbers(player.x,player.y,f+sideNow*Math.PI/2,6,205,.60,1);}
+   shake=Math.max(shake,5+4*u);
   }else if(mode==='furnaceBloom'){
-   const ax=Number.isFinite(seq.anchorX)?seq.anchorX:(tc?.x??player.x+Math.cos(baseFace)*190),ay=Number.isFinite(seq.anchorY)?seq.anchorY:(tc?.y??player.y+Math.sin(baseFace)*190),u=t,ca0=Math.cos(baseFace),sa0=Math.sin(baseFace),nx=-sa0,ny=ca0;let tx=null,ty=null;
-   if(u<.24){const q=u/.24,oa=baseFace+side*(1.10-.35*q),r=150-32*q;tx=ax+Math.cos(oa)*r;ty=ay+Math.sin(oa)*r;}
-   else if(u>=.66&&u<.80){const q=(u-.66)/.14;tx=ax-ca0*(85+125*q)-nx*side*(45+35*q);ty=ay-sa0*(85+125*q)-ny*side*(45+35*q);}
-   else if(u>=.90){const q=(u-.90)/.10;tx=ax-ca0*(210-395*q);ty=ay-sa0*(210-395*q);}
-   if(tx!=null){const dx=tx-player.x,dy=ty-player.y,d=Math.hypot(dx,dy)||1,st=Math.min(d,(u>=.90?1750:1050)*dt);moveBody(player,dx/d*st,dy/d*st);face=tc?Math.atan2(tc.y-player.y,tc.x-player.x):Math.atan2(dy,dx);player.skillLift=u>=.66&&u<.80?Math.sin((u-.66)/.14*Math.PI)*48:u>=.90?Math.sin((u-.90)/.10*Math.PI)*22:10;}
-   if(u<.30){seq.fx-=dt;if(seq.fx<=0){seq.fx=.055;crimsonTrail(px0,py0,player.x,player.y,1.15);crimsonEmbers(player.x,player.y,face+Math.PI,9,280,.72,1.0);crimsonOutside(player.x,player.y,125,245,4,false);}}
-   else if(u<.66){seq.fx-=dt;if(seq.fx<=0){seq.fx=.045;const aa=realTime*4.7+side,r=88+Math.sin(realTime*7)*24;crimsonEmbers(ax+Math.cos(aa)*r,ay+Math.sin(aa)*r,aa+Math.PI,10,310,.72,1.08);crimsonOutside(ax,ay,215,355,7,true,side*.16);}}
-   else if(u<.80){seq.fx-=dt;if(seq.fx<=0){seq.fx=.030;crimsonTrail(px0,py0,player.x,player.y,1.75);crimsonEmbers(player.x,player.y,face+Math.PI,11,360,.92,1.12);crimsonOutside(ax,ay,235,390,9,true);}}
-   else if(u<.90){seq.fx-=dt;if(seq.fx<=0){seq.fx=.085;crimsonEmbers(ax,ay,face+Math.PI,6,190,.35,.9);crimsonOutside(ax,ay,250,390,5,true);}}
-   else{seq.fx-=dt;if(seq.fx<=0){seq.fx=.018;crimsonTrail(px0,py0,player.x,player.y,2.5);for(let j=0;j<4;j++)crimsonEmbers(ax,ay,face+j*TAU/4,11,470,.86,1.25);crimsonOutside(ax,ay,245,470,15,false,side*.2);}}
-   shake=Math.max(shake,u<.30?6:u<.66?9:u<.80?12:u<.90?4.5:18);
-  }else if(mode==='cinderSnare'){
-   seq.fx-=dt;if(seq.fx<=0){seq.fx=.060;const q=.25+.75*t,r=300-92*q;for(let j=0;j<4;j++){const aa=realTime*2.8+j*TAU/4,x=player.x+Math.cos(aa)*r,y=player.y+Math.sin(aa)*r;crimsonEmbers(x,y,aa+Math.PI,7+(t>.65?3:0),250+120*q,.34,1.0);}crimsonOutside(player.x,player.y,250,365,6,true,side*.15);}shake=Math.max(shake,5+4*t);
+   // Three distinct dash intervals, with visible attack pauses between stages.
+   const ax=Number.isFinite(seq.anchorX)?seq.anchorX:(tc?.x??seq.originX+Math.cos(baseFace)*210),ay=Number.isFinite(seq.anchorY)?seq.anchorY:(tc?.y??seq.originY+Math.sin(baseFace)*210),u=t,ca0=Math.cos(baseFace),sa0=Math.sin(baseFace),nx=-sa0,ny=ca0;
+   const stage=u>=.06&&u<.23?0:u>=.39&&u<.56?1:u>=.75&&u<.92?2:-1;
+   if(stage>=0){
+    if(seq.crimsonDashStage!==stage){seq.crimsonDashStage=stage;seq.crimsonDashFromX=player.x;seq.crimsonDashFromY=player.y;}
+    const goals=[[ax-ca0*58+nx*side*165,ay-sa0*58+ny*side*165],[ax+ca0*20-nx*side*168,ay+sa0*20-ny*side*168],[ax+ca0*230,ay+sa0*230]],start=[.06,.39,.75][stage],end=[.23,.56,.92][stage],q=clamp((u-start)/(end-start),0,1),ease=q*q*(3-2*q);
+    const tx=seq.crimsonDashFromX+(goals[stage][0]-seq.crimsonDashFromX)*ease,ty=seq.crimsonDashFromY+(goals[stage][1]-seq.crimsonDashFromY)*ease,dx=tx-player.x,dy=ty-player.y,d=Math.hypot(dx,dy)||1,step=Math.min(d,(stage===2?1800:1300)*dt);
+    moveBody(player,dx/d*step,dy/d*step);face=tc?Math.atan2(tc.y-player.y,tc.x-player.x):baseFace;
+    player.skillLift=Math.sin(q*Math.PI)*(stage===2?22:10);
+    seq.fx-=dt;if(seq.fx<=0){seq.fx=.043;crimsonTrail(px0,py0,player.x,player.y,stage===2?2:1.35);crimsonEmbers(player.x,player.y,Math.atan2(py0-player.y,px0-player.x),stage===2?13:8,stage===2?430:310,.76,stage===2?1.2:1);}
+    shake=Math.max(shake,stage===2?14:8);
+   }else{
+    seq.fx-=dt;if(seq.fx<=0){seq.fx=u>.92?.040:.105;crimsonEmbers(ax,ay,baseFace+rnd(-.75,.75),u>.92?16:6,u>.92?420:220,.80,u>.92?1.35:1);}
+    shake=Math.max(shake,u>.92?16:5);
+   }
+  }else if(mode==='crimsonSideScorch'){
+   const u=t,f=baseFace,fx=Math.cos(f),fy=Math.sin(f),nx=-fy,ny=fx,sideNow=crimsonStrafeSide(f,seq.side||1);
+   seq.side=sideNow;
+   const tx=seq.originX+fx*32*u+nx*sideNow*200*u,ty=seq.originY+fy*32*u+ny*sideNow*200*u,dx=tx-player.x,dy=ty-player.y,d=Math.hypot(dx,dy)||1,step=Math.min(d,225*dt);
+   moveBody(player,dx/d*step,dy/d*step);face=tc?Math.atan2(tc.y-player.y,tc.x-player.x):baseFace;
+   player.skillLift=Math.sin(Math.PI*u)*4;
+   seq.fx-=dt;if(seq.fx<=0){seq.fx=.075;crimsonEmbers(player.x,player.y,f+sideNow*Math.PI/2,4,155,.60,.85);}
+   shake=Math.max(shake,3+3*u);
   }else if(mode==='crimsonOrbitLine'){
    // A short forward dash follows the line's appearance; other skill phases remain stationary.
    if(seq.crimson1DashLeft>0){
@@ -2739,10 +2763,11 @@ function styleAdeptPredictedPose(e,seq,k){
  else if(mode==='stationaryFlurry'){for(let j=0;j<=k;j++){const aa=a+(j%2?1:-1)*1.05,gx=tx-Math.cos(aa)*58,gy=ty-Math.sin(aa)*58;x+=clamp(gx-x,-48,48);y+=clamp(gy-y,-48,48);const st=Number(cfg.step?.[j])||0;x+=ca*st;y+=sa*st;}face=Math.atan2(ty-y,tx-x);}
  else if(mode==='galePursuit'){const offs=[2.35,-2.35,1.55,-1.55,Math.PI,.85,-.85,2.75,-2.75,0],aa=a+offs[k%offs.length],dist=k===seq.hits.length-1?62:82;x=tx+Math.cos(aa)*dist;y=ty+Math.sin(aa)*dist;face=Math.atan2(ty-y,tx-x);}
  else if(mode==='crescentRetreat'){const back=185*Math.min(t,.24);x=ox-ca*back+ca*step;y=oy-sa*back+sa*step;}
- else if(mode==='crimsonOrbitLine'||mode==='cinderSnare'){x=ox;y=oy;face=Math.atan2(ty-y,tx-x);}
+ else if(mode==='crimsonOrbitLine'){x=ox;y=oy;face=Math.atan2(ty-y,tx-x);}
+ else if(mode==='crimsonSideScorch'){x=ox+ca*32*u-sa*side*200*u;y=oy+sa*32*u+ca*side*200*u;face=Math.atan2(ty-y,tx-x);}
  else if(mode==='flameMantle'){const nx=-sa,ny=ca;if(u<.42){const q=u/.42;x=tx-ca*(112-40*q)+nx*side*(138-28*q);y=ty-sa*(112-40*q)+ny*side*(138-28*q);}else if(u<.78){const q=(u-.42)/.36;x=tx-ca*(70-10*q)+nx*side*(110-220*q);y=ty-sa*(70-10*q)+ny*side*(110-220*q);}else{const q=(u-.78)/.22;x=tx-ca*(60-18*q)-nx*side*(110-48*q);y=ty-sa*(60-18*q)-ny*side*(110-48*q);}face=Math.atan2(ty-y,tx-x);}
- else if(mode==='ashRecall'){const forward=Math.sin(Math.PI*u)*340,lateral=Math.sin(TAU*u)*150*side;x=ox+ca*forward-sa*lateral;y=oy+sa*forward+ca*lateral;face=u<.5?a:a+Math.PI;}
- else if(mode==='furnaceBloom'){const nx=-sa,ny=ca;if(u<.24){const q=u/.24,oa=a+side*(1.10-.35*q),r=150-32*q;x=tx+Math.cos(oa)*r;y=ty+Math.sin(oa)*r;}else if(u>=.66&&u<.80){const q=(u-.66)/.14;x=tx-ca*(85+125*q)-nx*side*(45+35*q);y=ty-sa*(85+125*q)-ny*side*(45+35*q);}else if(u>=.90){const q=(u-.90)/.10;x=tx-ca*(210-395*q);y=ty-sa*(210-395*q);}else{x=ox;y=oy;}face=Math.atan2(ty-y,tx-x);}
+ else if(mode==='crimsonSideWall'){x=ox+ca*48*u-sa*side*246*u;y=oy+sa*48*u+ca*side*246*u;face=Math.atan2(ty-y,tx-x);}
+ else if(mode==='furnaceBloom'){const nx=-sa,ny=ca;if(u<.39){x=tx-ca*58+nx*side*165;y=ty-sa*58+ny*side*165;}else if(u<.75){x=tx+ca*20-nx*side*168;y=ty+sa*20-ny*side*168;}else{x=tx+ca*230;y=ty+sa*230;}face=Math.atan2(ty-y,tx-x);}
  else if(mode==='guardPierce'){const lateral=180*Math.min(t,.20)*side;x=ox-sa*lateral+ca*step;y=oy+ca*lateral+sa*step;}
  else if(mode==='earthSlam'){const fwd=92*Math.min(t,.70)+step;x=ox+ca*fwd;y=oy+sa*fwd;}
  else if(mode==='boomerangWave'){const dur=Math.max(.01,Number(cfg.dashDuration)||.30),dist=(Number(cfg.dashDistance)||360)*clamp(t/dur,0,1);x=ox+ca*dist;y=oy+sa*dist;}
@@ -2774,8 +2799,8 @@ function styleAdeptExactShapes(e,seq,k){
  if(mode==='crescentRetreat'){const spread=k===0?-.18:.18;return [sector(pose.x,pose.y,a,reach,arc),proj(pose.x+ca*32,pose.y+sa*32,a+spread,510)];}
  if(mode==='crimsonOrbitLine'){if(k===0)return [{type:'ellipse',x:pose.x,y:pose.y,rx:CRIMSON1_RX,ry:CRIMSON1_RY,a}];return [seg(pose.x+ca*CRIMSON1_RY,pose.y+sa*CRIMSON1_RY,pose.x+ca*(CRIMSON1_RY+CRIMSON1_BEAM),pose.y+sa*(CRIMSON1_RY+CRIMSON1_BEAM),CRIMSON1_WIDTH)];}
  if(mode==='flameMantle')return [circle(pose.x,pose.y,[150,156,164,174,192][k]||180)];
- if(mode==='cinderSnare')return [circle(pose.x,pose.y,[178,198,214,236][k]||220)];
- if(mode==='ashRecall')return [sector(pose.x,pose.y,pose.a,reach,arc)];
+ if(mode==='crimsonSideScorch'){const lead=[96,132,166,205][k]||166,off=(k%2?24:-24)*(seq.side||1);return [circle(pose.x+ca*lead-sa*off,pose.y+sa*lead+ca*off,[80,96,115,146][k]||120)];}
+ if(mode==='crimsonSideWall'){if(k!==seq.hits.length-1)return [sector(pose.x,pose.y,pose.a,reach,arc)];return [seg(ox+ca*100,oy+sa*100,pose.x+ca*100,pose.y+sa*100,100)];}
  if(mode==='furnaceBloom'){if(k<3)return [sector(pose.x,pose.y,pose.a,reach,arc)];return [circle(tx,ty,[0,0,0,92,105,118,132,148,205][k]||120)];}
  if(mode==='guardPierce')return [sector(pose.x,pose.y,a,reach,.52)];
  if(mode==='tempest')return [circle(pose.x,pose.y,reach)];
