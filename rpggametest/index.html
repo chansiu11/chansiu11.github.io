@@ -2421,7 +2421,7 @@ function performSwordSkillHit(seq,hitIndex){
  captureSwordCarryTargets(seq,ang,reach,cfg.arc[hitIndex]);
  const px0=player.x,py0=player.y,step=cfg.step[hitIndex]||0;if(step)moveBody(player,Math.cos(ang)*step,Math.sin(ang)*step);
  if(FLAME_BREATH_MODES.has(mode))flameBreathHit(seq,sk,hitIndex,damage,finalHit);
- elseif(seq.ultimate&&sk.id==='lunarBind'){
+ else if(seq.ultimate&&sk.id==='lunarBind'){
   const r=[190,245,315][Math.min(hitIndex,2)]||315;
   for(const e of combatTargets()){if(e.dead||e.riftSleeping||combatDistance(e,player)>r+combatRadius(e))continue;hitEnemyConfirmed(e,damage,hitIndex===2,player,()=>{if(e.kind!=='boss'){const pull=Math.max(18,58-hitIndex*12),aa=Math.atan2(player.y-e.y,player.x-e.x);moveBody(e,Math.cos(aa)*pull,Math.sin(aa)*pull);}applyEnemyStun(e,e.kind==='boss'?.18:.45+hitIndex*.2);});}
   for(let j=0;j<5+hitIndex*3;j++){const aa=j*TAU/(5+hitIndex*3)+hitIndex*.3;effects.push({type:'slash',x:player.x,y:player.y,a:aa,arc:1.25,r:r*.72,color:j%2?swordStyleFxForSkill(sk.id).sub:sk.color,t:.26,max:.26});}
@@ -2758,7 +2758,7 @@ function updateSwordSkillMotion(seq,sk,dt){
  const cfg=sk.cfg,mode=cfg.mode,t=clamp(seq.elapsed/seq.duration,0,1),a=seq.facing,ca=Math.cos(a),sa=Math.sin(a),side=seq.side||1,target=swordSeqTarget(seq),px0=player.x,py0=player.y;
  player.skillLift=0;
  if(FLAME_BREATH_MODES.has(mode))flameBreathMotion(seq,sk,dt,t,target);
- elseif(CRIMSON_SKILLS.has(sk.id)){
+ else if(CRIMSON_SKILLS.has(sk.id)){
   const tc=target?combatCenter(target):null,face=seq.crimsonFace??seq.facing,fx=Math.cos(face),fy=Math.sin(face),nx=-fy,ny=fx,u=t;
   seq.crimsonFace=face;
   const look=tc?Math.atan2(tc.y-player.y,tc.x-player.x):face;
@@ -2895,11 +2895,6 @@ function updateSwordSkill(dt){
  if(!isNormalSwordWeapon()||player.hp<=0){finishSwordCarryTargets(activeSwordSkill,true);cancelSwordSkill();return;}
  const seq=activeSwordSkill,sk=balancedSwordSkill(swordSkillById(seq.skillId),seq.slot),cfg=sk?.cfg;if(!cfg){cancelSwordSkill();return;}seq.elapsed+=dt;
  if(seq.chasing){updatePrismWorldChase(seq,dt);return;}
- // Offline visual-test arena: the training dummy strikes during the brief third-skill counter window.
- if(cfg.mode==='cinderCounter'&&!multiplayerMode&&!seq.testCounterStrike&&seq.elapsed>=.16&&seq.elapsed<.34){
-  const testDummy=enemies.find(e=>e.type==='dummy');
-  if(testDummy&&Math.hypot(testDummy.x-player.x,testDummy.y-player.y)<270){seq.testCounterStrike=true;hitPlayer(0,testDummy,true);}
- }
  if(cfg.mode==='galePulse'){if(seq.elapsed<.5)sendSharedSkillFxFrame(seq.slot,'galeCharge',player.weapon,seq.facing,.12);}else sendSharedSkillFxFrame(seq.slot,sk.id,player.weapon,seq.facing,sk.id==='prismLance'?.25:seq.ultimate?.085:.12);
  if(seq.held){updateHeldSwordSkill(seq,sk,dt);if(activeSwordSkill===seq&&(seq.elapsed>=seq.duration||(seq.tapReleaseAt&&seq.elapsed>=seq.tapReleaseAt)))stopHeldSwordSkill(seq.slot,false);return;}
  updateUltimateCinematic(seq,sk,dt);
@@ -3021,19 +3016,6 @@ function updateShield(dt){
  }
 }
 function hitPlayer(damage,source,parryable=true){if(mode!=='play'||(modal&&!source?.pvp)||player.hp<=0||admin.god)return 'ignored';const a=Math.atan2(source.y-player.y,source.x-player.x);
- // Hongryeon 3: only an actual incoming parryable hit triggers the high-damage counter.
- const counter=activeSwordSkill;
- if(counter?.skillId==='quakeRush'&&!counter.counterTriggered&&counter.elapsed<.44&&parryable&&source&&Number.isFinite(source.x)&&Number.isFinite(source.y)&&Math.hypot(source.x-player.x,source.y-player.y)<280){
-  counter.counterTriggered=true;counter.counterTargetId=source.id||null;
-  const ox=player.x,oy=player.y,side=counter.side||1;
-  moveBody(player,-Math.sin(a)*side*82,Math.cos(a)*side*82);
-  counter.facing=player.facing=player.attackAngle=Math.atan2(source.y-player.y,source.x-player.x);
-  counter.elapsed=Math.max(counter.elapsed,.52);player.invuln=Math.max(player.invuln,.38);
-  player.attackAnim=player.attackDuration=.31;player.skillPose=2;
-  crimsonFireWake(ox,oy,player.x,player.y,.72);
-  crimsonChargeFlames(player.x,player.y,28,.29,.75);shake=Math.max(shake,6);
-  return 'dodged';
- }
  if(player.invuln>0){if(player.dodge>0&&!source.perfectDodged){source.perfectDodged=true;player.stam=Math.min(player.maxStam,player.stam+6+(player.rune==='cycle'?14:0));floating(player.x,player.y-54,'완벽한 대쉬','#abe0cb',true);}return 'dodged';}if(void3State&&beginVoid3WorldEvade(source))return 'dodged';
  if(shieldHeld()&&player.shield>0&&player.shieldBroken<=0&&parryable){const perfect=player.perfectWindow>0;player.perfectWindow=0;player.shieldDelay=1.4;if(perfect){player.shield=Math.max(0,player.shield-4);if(player.shield===0){player.parry=0;player.shieldBroken=0;player.shieldNeedsRelease=true;}player.stam=clamp(player.stam+28,0,player.maxStam);player.invuln=.28;player.parryCd=.22;player.stats.parries++;if(player.rune==='echo')player.riposte=4;player.training.parry=true;floating(player.x,player.y-64,'PERFECT PARRY','#b3e6e0',true);ring(player.x,player.y,100,'#b8f2e5',.5);burst(player.x,player.y,'#d6f5e7',24,190);sound('parry');hitstop=.11;if(options.shake)shake=6;if(source.kind){source.stun=source.kind==='boss'?1.5:2.0;source.state='stunned';source.poise=0;}return 'parried';}const cost=window.EchoesCombat.shieldCost(damage),before=player.shield;player.shield=Math.max(0,before-cost);ring(player.x,player.y,29,'#a4d8e1',.18);if(player.shield>0){sound('block');floating(player.x,player.y-48,'쉴드 −'+Math.ceil(cost),'#adc7ca');return 'blocked';}player.parry=0;player.shieldBroken=0;player.shieldDelay=0;player.shieldNeedsRelease=true;sound('break');floating(player.x,player.y-48,'쉴드 소진','#edc28a');damage*=Math.max(0,1-before/cost);if(damage<=0)return 'blocked';}
  damage=window.EchoesCombat.damageAfterArmor(damage,armorReduction());if(damage>0){if(void3State)endVoid3World();player.hp=Math.max(0,player.hp-damage);if(damage>=player.maxHp*.30)damageFlash=.24;player.hurt=.25;player.invuln=.65;player.comboTimer=0;player.stun=Math.max(player.stun||0,damage>=player.maxHp*.18?.55:.35);cancelSkillPreparationOnStun();player.dodge=0;player.parry=0;player.perfectWindow=0;player.shieldNeedsRelease=true;desktopShield=false;bufferedAction=null;pendingAttack=false;touchSprint=false;damageFloating(player.x,player.y-35,damage,source?Math.atan2(player.y-source.y,player.x-source.x):player.facing,true);burst(player.x,player.y,'#ebbd8d',8,90);sound('hurt');if(options.shake)shake=4;}if(player.hp<=0)showDefeat();return 'hit';}
