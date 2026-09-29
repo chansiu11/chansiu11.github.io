@@ -1048,28 +1048,35 @@ function crimsonOutside(x,y,inner=170,outer=290,count=14,inward=false,twist=0){
 }
 const CRIMSON1_RX=110,CRIMSON1_RY=110,CRIMSON1_BEAM=168,CRIMSON1_WIDTH=39;
 function crimsonStrokeCircle(cx,cy,rx,ry,aim,power=1){
- // Skill 1 uses a true circle; skill 2's wind-swept oval embers are reused around its edge.
- const r=rx;
- effects.push({type:'crimsonEllipse',x:cx,y:cy,rx:r,ry:r,a:0,t:.38,max:.38});
- const jets=34,low=options.quality==='low';
+ // 1번 원 둘레에도 2번 마무리의 바람에 휘날리는 잔화 이펙트를 적용한다.
+ const r=rx,low=options.quality==='low';
+ effects.push({type:'crimsonEllipse',x:cx,y:cy,rx:r,ry:r,a:0,t:.40,max:.40});
+ const jets=low?18:28;
  for(let j=0;j<jets;j++){
   const q=aim+j*TAU/jets,px=cx+Math.cos(q)*r,py=cy+Math.sin(q)*r;
-  const strong=j%8===0||j%8===1,amount=low?(strong?4:3):(strong?11:6);
-  // Reuse skill 2's wind-swept elliptical flame particles around the circular edge.
-  crimsonEmbers(px,py,q+rnd(-.20,.20),amount,strong?345:260,.38,strong?1.2:.95);
+  // 2번 마지막 타격처럼 구간별 강약을 주되 원 전체에서 불꽃이 바깥으로 날리게 한다.
+  const strong=j%7===0||j%7===1,amount=strong?(low?6:10):(low?3:5);
+  crimsonEmbers(px,py,q+rnd(-.24,.24),amount,strong?365:285,.44,strong?1.22:1.0);
+  if(strong)crimsonEmbers(px,py,q+rnd(-.36,.36),low?3:5,400,.52,1.05);
  }
 }
 function crimsonStrokeLine(x1,y1,x2,y2,a,power=1){
- effects.push({type:'crimsonBeam',x:x1,y:y1,x2,y2,a,w:CRIMSON1_WIDTH,t:.39,max:.39});
- // Both sides receive residual flames from the start to the very tip.
- // Alternating dense and light patches keeps the sword's bright main line visible.
- const tangentX=-Math.sin(a),tangentY=Math.cos(a),dx=x2-x1,dy=y2-y1;
- const low=options.quality==='low',steps=low?17:26;
+ // 2번 스킬 마지막 참격과 같은 붉은색-주황색-밝은 심지의 검격 선.
+ const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy),nx=-Math.sin(a),ny=Math.cos(a);
+ effects.push({type:'crimsonBeam',x:x1,y:y1,x2,y2,a,w:CRIMSON1_WIDTH,t:.40,max:.40});
+ const segments=options.quality==='low'?3:5,colors=['#ff2445','#ff6b38','#ffd09a'];
+ for(let j=0;j<segments;j++){
+  const q=(j+.5)/segments,cx=x1+dx*q,cy=y1+dy*q;
+  // 직선 자체는 곧게 유지하고 2번 마지막 타격의 겹겹이 빛나는 베기만 사용한다.
+  effects.push({type:'riftCut',x:cx,y:cy,a,len:len/segments+19,width:CRIMSON1_WIDTH*.68,color:colors[j%3],t:.29,max:.29});
+ }
+ // 직선 시작부터 끝까지 불씨가 이어지되, 일정한 띠 대신 군집마다 밀도가 다르다.
+ const low=options.quality==='low',steps=low?12:20;
  for(let j=0;j<=steps;j++){
-  const q=j/steps,patch=j%7,rich=patch===0||patch===1||j===steps;
+  const q=j/steps,rich=j%6===0||j%6===1||j===steps;
   for(const side of [-1,1]){
-   const off=rnd(rich?7:11,rich?19:26),px=x1+dx*q+tangentX*side*off,py=y1+dy*q+tangentY*side*off;
-   crimsonEmbers(px,py,a+Math.PI+side*rnd(.25,.65),low?(rich?4:2):(rich?7:4),rnd(165,285),.35,rnd(.72,1.05));
+   const off=rnd(rich?8:13,rich?20:29),px=x1+dx*q+nx*side*off,py=y1+dy*q+ny*side*off;
+   crimsonEmbers(px,py,a+Math.PI+side*rnd(.32,.72),rich?(low?4:7):(low?2:3),rnd(170,310),.40,rich?1.03:.82);
   }
  }
 }
