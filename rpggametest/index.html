@@ -2469,10 +2469,13 @@ function flameBreathHit(seq,sk,k,damage,finalHit){
    stun=k===0?.19:.53;push=k===0?24:126;
    pushA=Math.atan2(ry,rx);
   }else if(mode==='flameBreathWheel'){
-   const r=[190,230,270][k],face=base+side*k*.72,half=[2.02,2.50,3.05][k];
+   // First-hit only: a wider, invisible collision region also catches enemies
+   // standing close beside or behind the rushing attacker. Visual FX stay unchanged.
+   const r=[265,230,270][k],face=base+side*k*.72,half=[2.02,2.50,3.05][k];
+   const closeToFirst=k===0&&d<=205+er;
    // Confirmed earlier hits stay in the combo even while the attacker advances.
    const carried=seq.flameWheelCaught?.has(e.id);
-   matched=!!carried||(d<r+er&&Math.abs(angleDiff(a,face))<half+er/Math.max(35,d));
+   matched=!!carried||closeToFirst||(d<r+er&&Math.abs(angleDiff(a,face))<half+er/Math.max(35,d));
    stun=k===2?.47:.23;push=k===2?155:0;
    pushA=Math.atan2(c.y-player.y,c.x-player.x);
   }else if(mode==='flameBreathFinale'){
