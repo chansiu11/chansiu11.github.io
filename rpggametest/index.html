@@ -524,7 +524,7 @@ const SIDE_QUESTS=[
 ];
 const TUTORIAL_JOURNEY_ID='tutorialJourney';
 const TUTORIAL_JOURNEY_STEPS=[
- {name:'기본 전투 수련',desc:'마을 수련에서 이동·대쉬·공격·패링을 모두 완료하세요.',gold:150,xp:120,done:()=>player.training.complete,target:()=>{const e=enemies.find(e=>e.type==='dummy');return e?{x:e.x,y:e.y,label:'수련 골렘'}:{x:1050,y:3010,label:'수련장'};}},
+ {name:'기본 전투 수련',desc:'마을 수련에서 이동·대쉬·공격·패링을 모두 완료하세요.',gold:150,xp:120,done:()=>player.training.complete,target:()=>{const e=enemies.find(e=>e.type==='dummy');return e?{x:e.x,y:e.y,label:'PVP 연습 봇'}:{x:1050,y:3010,label:'수련장'};}},
  {name:'첫 실전',desc:'마을 밖 초급 사냥터에서 일반 몬스터 3체를 정화하세요.',gold:180,xp:160,done:()=>player.stats.kills>=3,target:()=>({x:1550,y:2950,label:'초급 사냥터'})},
  {name:'채집과 채광',desc:'푸른 약초를 1번 채집하고 별철 광석을 1번 채광해 탐험 자원을 익히세요.',gold:180,xp:180,done:()=>player.stats.gathers>=1&&player.stats.oreMined>=1,target:()=>{const o=objects.find(o=>(o.type==='herb'&&player.stats.gathers<1||o.type==='ore'&&player.stats.oreMined<1)&&!player.collected.includes(o.id));return o?{x:o.x,y:o.y,label:o.type==='herb'?'푸른 약초':'별철 광석'}:{x:1500,y:2800,label:'채집 지역'};}},
  {name:'귀환 지점 확보',desc:'처음 야영지 외에 야영지 하나를 더 활성화하세요. 여기까지 진행하면 유파를 배울 레벨에 자연스럽게 도달합니다.',gold:220,xp:260,done:()=>player.camps.length>=2,target:()=>{const camp=camps.find(c=>!player.camps.includes(c.id));return camp?{x:camp.x,y:camp.y,label:camp.name}:null;}},
@@ -645,7 +645,7 @@ const ENEMY_TYPES={
  bloodWisp:{name:'적월 부유체',hp:140,speed:91,damage:32,reach:420,wind:.9,color:'#ef8798',xp:70,gold:44,r:18,kind:'ranged'},
  voidKnight:{name:'공허 기사',hp:205,speed:92,damage:39,reach:125,wind:.82,color:'#a67891',xp:82,gold:52,r:23,kind:'slam'},
  styleAdept:{name:'유파 수련자',hp:132,speed:104,damage:26,reach:390,wind:.72,color:'#d8c98f',xp:62,gold:38,r:20,kind:'style'},
- dummy:{name:'수련 골렘',hp:500,speed:0,damage:0,reach:108,wind:1.1,color:'#b6a481',xp:0,gold:0,r:22,kind:'melee'},
+ dummy:{name:'PVP 연습 봇',hp:1000000000,speed:0,damage:0,reach:108,wind:1.1,color:'#b6b7c7',xp:0,gold:0,r:15,kind:'melee'},
  forestBoss:{name:'고목의 수호자',hp:900,speed:62,damage:28,reach:153,wind:1.1,color:'#a8c180',xp:320,gold:190,r:40,kind:'boss',seal:0},
  marshBoss:{name:'유리 날개의 수호자',hp:1080,speed:92,damage:27,reach:175,wind:1,color:'#94d9d7',xp:430,gold:240,r:35,kind:'boss',seal:1},
  plateauBoss:{name:'불씨의 수호자',hp:1320,speed:70,damage:34,reach:174,wind:1.1,color:'#dfb479',xp:560,gold:300,r:41,kind:'boss',seal:2},
@@ -831,7 +831,7 @@ function buildWorld(){
  for(let i=0;i<2100;i++){const x=rnd(45,4755),y=rnd(45,3955);if(waterAt(x,y))continue;decor.push({x,y,reg:regionAt(x,y),variant:Math.floor(rand()*6),size:rnd(.7,1.5),type:rand()<.12?'flower':'grass'});}
  camps.forEach(c=>objects.push({...c,type:'camp',r:25}));
  objects.push({type:'npc',id:'guide',name:'길잡이 린',x:735,y:3040,color:'#d3ba82',r:18},{type:'npc',id:'smith',name:'대장장이 로웬',x:996,y:2880,color:'#cf936b',r:18},{type:'npc',id:'herbalist',name:'약초사 모라',x:584,y:3060,color:'#9dc6a2',r:18},{type:'npc',id:'swordMaster',name:'검술 사범 세린',x:850,y:2915,color:'#b8b9df',r:18});
- addEnemy('dummy',1100,3120,'dummy');
+ addPvpPracticeBot(1100,3120,'dummy');
  const fixedNodes=[[900,3310,'herb'],[1180,3260,'herb'],[1330,3010,'herb'],[1200,2760,'herb'],[1410,3210,'herb'],[1600,3060,'herb'],[1450,2800,'ore'],[1820,3330,'ore']];
  fixedNodes.forEach(([x,y,type],i)=>objects.push({id:'nodeF'+i,type,x,y,r:12}));
  for(let i=0;i<100;i++){let x=rnd(230,4570),y=rnd(200,3800);if(!solidAt(x,y,38)&&!waterAt(x,y,40)&&!arenas.some(a=>distance(a,{x,y})<a.r))objects.push({id:'node'+i,type:rand()<.57?'herb':'ore',x,y,r:12});}
@@ -954,12 +954,23 @@ function buildExpandedWorld(){
  const altar=objects.find(v=>v.id==='altar');if(altar){altar.x=20500;altar.y=3960;}
  spatial.clear();for(const o of obstacles)addSpatial(o);bodyGridValid=false;
 }
+
+// The training target reuses the local dummy collision and hit tracking, but is
+// physically and visually the PVP opponent. Its health is restored on EVERY hit.
+function addPvpPracticeBot(x,y,id){
+ const e=addEnemy('dummy',x,y,id);if(!e)return null;
+ Object.assign(e,{name:'PVP 연습 봇',pvpTrainingBot:true,weapon:0,
+  speed:0,damage:0,facing:Math.PI,r:15,maxHp:1000000000,hp:1000000000,
+  baseMaxHp:1000000000,state:'idle',timer:999999,alert:false,provoked:false,
+  guardActive:false,aiDashEvade:0,stun:0,testHitCount:0,testDamageTotal:0});
+ return e;
+}
 function buildTestArena(){
  obstacles=[];decor=[];objects=[];enemies=[];spatial.clear();projectiles=[];remoteSkillProjectiles=[];effects=[];floaters=[];activeBoss=null;nearby=null;mapWaypoint=null;
  player.x=3000;player.y=3000;player.facing=0;player.level=200;player.difficulty='normal';player.training={move:999,dodge:true,attack:true,parry:true,complete:true};
  player.swordStyle='break';player.learnedSwordSkills=['guardBreak','earthRend','quakeRush','ironJudgment','meteorBreaker'];player.equippedSwordSkills=['guardBreak','earthRend','quakeRush','ironJudgment','meteorBreaker'];player.adminSwordSkills=[...player.equippedSwordSkills];player.weapon=0;player.ownedWeapons=[0];
  recalculateEquipment();player.hp=player.maxHp;player.stam=player.maxStam;player.shield=player.maxShield;player.skillCds=[0,0,0,0,0];player.hiddenSkillCds=[0,0,0,0,0];
- const e=addEnemy('dummy',3210,3000,'testDummy');if(e){e.name='외형 테스트 몬스터';e.speed=0;e.damage=0;e.maxHp=e.hp=999999;e.baseMaxHp=999999;e.state='idle';e.timer=999999;e.alert=false;e.provoked=false;e.stun=0;}
+ addPvpPracticeBot(3210,3000,'testDummy');
  bodyGridValid=false;camera.x=player.x;camera.y=player.y;
 }
 player=newPlayer();buildTestArena();
@@ -3104,7 +3115,27 @@ function hitEnemy(e,amount,heavy=false,source=player,controlOverride=null){
   const a=source?Math.atan2(e.y-source.y,e.x-source.x):e.facing,control={stun:heavy?.75:.22,knockbackX:heavy?Math.cos(a)*24:0,knockbackY:heavy?Math.sin(a)*24:0};if(impactOverride)Object.assign(control,{stun:impactOverride.stun,root:impactOverride.root||0,knockbackX:impactOverride.dx||0,knockbackY:impactOverride.dy||0,duration:impactOverride.duration,prismCast:impactOverride.prismCast});
   if(e.kind==='boss'){recordWorldCombo(dmg);window.EchoesMulti.damageBoss(e.id,dmg,control);}else window.EchoesMulti.damageMob(e.id,dmg,control);confirmSwordCarryHit(e);return true;
  }
- e.hp-=dmg;recordWorldCombo(dmg);if(wasPassive)e.provoked=true;e.alert=true;e.poise+=heavy?55:14;if(e.type==='dummy'){e.testHitCount=(e.testHitCount||0)+1;e.testDamageTotal=(e.testDamageTotal||0)+dmg;e.hp=e.maxHp;player.training.attack=true;if(e.state==='idle'){e.timer=.8;e.alert=true;}return true;}
+ e.hp-=dmg;recordWorldCombo(dmg);if(wasPassive)e.provoked=true;e.alert=true;e.poise+=heavy?55:14;if(e.type==='dummy'){
+  e.testHitCount=(e.testHitCount||0)+1;e.testDamageTotal=(e.testDamageTotal||0)+dmg;
+  e.hp=e.maxHp;player.training.attack=true;
+  if(e.pvpTrainingBot){
+   // Inert training PvP opponent: take the SAME stun and displacement as a player,
+   // never attack, never lose health, and never activate guard/evasion AI.
+   applyEnemyStun(e,impactOverride?.stun??(heavy?.75:.22));
+   const dx=impactOverride?.dx||0,dy=impactOverride?.dy||0;
+   const push=dx||dy?{dx,dy,duration:impactOverride?.duration||.38}:
+    heavy&&source?{dx:(e.x-source.x)*24/Math.max(1,distance(e,source)),
+                     dy:(e.y-source.y)*24/Math.max(1,distance(e,source)),
+                     duration:window.EchoesCombat.forceDuration(24)}:null;
+   if(push){
+    skill2Knocks=skill2Knocks.filter(k=>k.e!==e);
+    skill2Knocks.push({e,startX:e.x,startY:e.y,x:e.x+push.dx,y:e.y+push.dy,
+     t:push.duration,max:push.duration,cubic:true});
+   }
+   return true;
+  }
+  if(e.state==='idle'){e.timer=.8;e.alert=true;}return true;
+ }
  if(e.kind==='boss'){if(e.poise>=130){applyEnemyStun(e,1.7);e.poise=0;floating(e.x,e.y-85,'자세 붕괴','#e7d395',true);sound('parry');}}
  else if(impactOverride){applyEnemyStun(e,impactOverride.stun||0);if((impactOverride.bypassShield||!enemyGuardBlocksControl(e))&&(impactOverride.dx||impactOverride.dy)){skill2Knocks=skill2Knocks.filter(k=>k.e!==e);const max=impactOverride.duration||.38;skill2Knocks.push({e,startX:e.x,startY:e.y,x:e.x+(impactOverride.dx||0),y:e.y+(impactOverride.dy||0),t:max,max,cubic:true});}}
  else{applyEnemyStun(e,heavy?.75:.22);if(heavy&&!enemyGuardBlocksControl(e)){const a=Math.atan2(e.y-source.y,e.x-source.x),max=window.EchoesCombat.forceDuration(24);skill2Knocks=skill2Knocks.filter(k=>k.e!==e);skill2Knocks.push({e,startX:e.x,startY:e.y,x:e.x+Math.cos(a)*24,y:e.y+Math.sin(a)*24,t:max,max,cubic:true});}}
@@ -4299,7 +4330,67 @@ ctx.restore();
   ctx.restore();worldText('기절',p.x,p.y-91,'#f5dda0',11);
  }
 }
-function drawEnemy(e){const {x,y}=e;const motion=e.motion||{phase:0,walk:0,facing:e.facing},stride=Math.sin(motion.phase)*motion.walk*4,bob=e.type==='wisp'?Math.sin(realTime*3+e.sx)*2:Math.abs(Math.sin(motion.phase))*motion.walk*.8;let alpha=1;if(e.type==='finalBoss'&&!e.alert)alpha=.43;ctx.save();ctx.globalAlpha=alpha;ellipse(ctx,x,y+e.r*.5,e.r*1.03,e.r*.4,'#08131c60');ctx.translate(x,y-bob);if(e.flash>0)ctx.filter='brightness(1.55)';
+
+// Exact PVP-duel player silhouette / clothing / sword renderer copied from rpggame,
+// wired to the offline combat dummy. No PVP AI, networking, or server code is imported.
+function drawPvpPracticeBot(e){
+ const speed=Math.hypot(e.x-(e._renderX??e.x),e.y-(e._renderY??e.y));
+ e._renderX=e.x;e._renderY=e.y;
+ const f={...e,weapon:0,a:e.facing,motion:{phase:realTime*10,walk:clamp(speed/9,0,1.3),facing:e.facing,lean:0},
+  chestId:'travelerCoat',headId:'wandererHood',shieldId:'woodenShield',
+  skillPose:-1,skillKind:'',attackAnim:0,attackDuration:.26,dash:0,block:false,
+  skillLift:0,stigmaMarkUntil:0,hp:1,maxHp:1,combo:0,hurt:e.flash>0?e.flash:0};
+ const isMe=false,pvpSwordSkillAt=()=>null,weaponData=[{range:94}];
+ const pCircle=(x,y,r,color)=>circle(ctx,x,y,r,color);
+ const pEllipse=(x,y,rx,ry,color)=>ellipse(ctx,x,y,rx,ry,color);
+ const pLine=(x1,y1,x2,y2,color,w=2)=>line(ctx,x1,y1,x2,y2,color,w);
+ const pPoly=(points,fill,stroke,width)=>polygon(ctx,points,fill,stroke,width);
+ 
+ const prep=String(f.skillKind||'').startsWith('prepare:')?String(f.skillKind).slice(8):'',prepT=1-(f.attackAnim||0)/window.EchoesSkillPrepare.duration,prepVariant=window.EchoesSkillPrepare.variant(f.weapon===3?'hidden:'+f.skillPose:f.weapon===2?'bow:'+f.skillPose:(pvpSwordSkillAt(f.skillPose,f)?.id||''),f.skillPose);
+ const m=f.motion||{phase:0,walk:0,facing:f.a,lean:0},a=m.facing,fxd=Math.cos(a),fyd=Math.sin(a),back=fyd<-.35,side=fxd<-.2?-1:1,walk=prep?0:m.walk;
+ const bounce=Math.abs(Math.sin(m.phase))*walk*1.3,attackT=clamp(1-f.attackAnim/(f.attackDuration||.26),0,1),swing=f.attackAnim>0?Math.sin(attackT*Math.PI):0;
+ const breath=Math.sin(performance.now()*.0022)*.35,hipY=-21-bounce,shoulderY=-42-bounce+breath+m.lean*2,headY=shoulderY-14,bodyWidth=10+Math.abs(fyd)*2;
+ const armor=f.chestId==='abyssPlate'?['#553c59','#8f6b91']:f.chestId==='frostMail'?['#5e8893','#b8d9df']:f.chestId==='knightPlate'?['#596b70','#aeb9b6']:['#709d91','#a2bbae'];
+ const helm=f.headId==='voidVisor'?'#5c4770':f.headId==='frostCrown'?'#8fb9bf':f.headId==='ironHelm'?'#79888a':'#8ca99d',shieldCol=f.shieldId==='astralShield'?'#d4c8ff':f.shieldId==='frostShield'?'#9bd8e4':f.shieldId==='ironShield'?'#9aa5a6':'#82bab0';
+ const pose=f.skillPose>=0&&f.attackAnim>0?f.skillPose:-1;
+ ctx.save();ctx.translate(f.x,f.y);ctx.scale(.76,.76);if(f.skillKind==='void3Evade'){pEllipse(0,3,23,6,'#ae83e088');ctx.restore();return;}pEllipse(0,3,19,7,'#07171c77');ctx.translate(0,-(f.skillLift||0));
+ if(f.dash>0||f.skillKind==='hidden1'||f.skillKind==='hidden4'){for(let i=1;i<=4;i++){ctx.globalAlpha=(5-i)*.09;pLine(-fxd*i*15-8,-fyd*i*15-5,-fxd*(i+1)*15-8,-fyd*(i+1)*15-5,'#b9eadb',4);pLine(-fxd*i*15+8,-fyd*i*15-9,-fxd*(i+1)*15+8,-fyd*(i+1)*15-9,'#dcebbd',3)}ctx.globalAlpha=1}
+ if(f.skillPose>=0&&!prep){const c=f.weapon===3?HIDDEN_SKILLS[f.skillPose]?.color:(pvpSwordSkillAt(f.skillPose,f)?.color||'#e8d399');ctx.globalAlpha=.24;pCircle(0,-24,25+(f.skillPose||0)*2,c||'#fff');ctx.globalAlpha=1}
+ const recoil=f.hurt>0?Math.sin(f.hurt/.24*Math.PI)*2:0;ctx.translate(-fxd*recoil,-fyd*recoil*.4);const capeSway=Math.sin(m.phase-.6)*walk*3-fxd*m.lean*7;
+ pPoly([[-bodyWidth,shoulderY+2],[bodyWidth,shoulderY+2],[15+capeSway,hipY+12],[4+capeSway,hipY+17],[-15+capeSway,hipY+12]],'#245b58','#173d43',1.5);pLine(-12+capeSway,hipY+10,3+capeSway,hipY+15,'#b7b889',1.6);
+ const legs=[-1,1].map(sign=>{const ph=m.phase+(sign===1?Math.PI:0),step=Math.sin(ph)*walk,lift=Math.max(0,Math.cos(ph))*walk*3.5;return {sign,step,lift,footX:sign*5+step*fxd*5,footY:step*fyd*4-lift}}).sort((l,r)=>l.footY-r.footY);
+ if(prep)for(const leg of legs){const v=window.EchoesSkillPrepare.pose(prep,a,prepT,leg.sign,side,shoulderY,headY,prepVariant);leg.footX+=(v.footX-leg.footX)*v.q;leg.footY+=(v.footY-leg.footY)*v.q;leg.lift=3*v.q;}
+ for(const leg of legs){const {sign,step,footX,footY}=leg,kneeX=sign*6+step*fxd*2,kneeY=-10+step*fyd*2-leg.lift*.45;pLine(sign*5,hipY+1,kneeX,kneeY,'#263c43',7);pCircle(kneeX,kneeY,3.2,'#82948b');pLine(kneeX,kneeY,footX,footY-2,'#354d50',6);pEllipse(footX+fxd*1.5,footY+1,4.8,2.7,'#c7c6a6');pLine(footX-3,footY+2,footX+3,footY+2,'#283e40',1.4)}
+ const armPose=sign=>{const shoulder={x:sign*(bodyWidth+1),y:shoulderY+4};let hand={x:sign*(15+Math.abs(fxd)*2),y:hipY+4-sign*Math.sin(m.phase)*walk*4};
+  if(sign===side&&f.attackAnim>0){const sweep=a+(attackT-.5)*(f.weapon===1?2.6:2.0)*(f.combo%2?-1:1);hand={x:Math.cos(sweep)*(19+swing*9),y:shoulderY+13+Math.sin(sweep)*12}}
+  if(f.block&&sign===-side)hand={x:fxd*20-sign*5,y:shoulderY+5+fyd*8};
+  if(f.weapon===2)hand=sign===side?{x:fxd*22+side*6,y:shoulderY+13+fyd*11}:{x:fxd*(12-swing*8)-side*3,y:shoulderY+14+fyd*7};
+  if(f.attackAnim>0&&pose>=0&&f.weapon!==2){if(pose===0&&sign===side)hand={x:Math.cos(a+(attackT-.5)*2.5)*28,y:shoulderY+12+Math.sin(a+(attackT-.5)*2.5)*12};if(pose===1)hand={x:fxd*30+sign*4,y:shoulderY+15};if(pose===2)hand={x:sign*27*Math.cos(attackT*TAU),y:shoulderY+12+Math.sin(attackT*TAU)*13};if(pose===3)hand={x:sign*6,y:headY-14+55*attackT};if(pose===4)hand={x:sign*24*Math.cos(attackT*TAU*1.5),y:shoulderY+12+Math.sin(attackT*TAU*1.5)*12}}
+  if(f.dash>0)hand={x:sign*14-fxd*9,y:hipY+1-fyd*5};if(prep){const v=window.EchoesSkillPrepare.pose(prep,a,prepT,sign,side,shoulderY,headY,prepVariant);hand={x:shoulder.x+(v.hand.x-shoulder.x)*v.q,y:shoulder.y+14+(v.hand.y-shoulder.y-14)*v.q};}return {shoulder,hand,elbow:{x:(shoulder.x+hand.x)*.5+sign*4,y:(shoulder.y+hand.y)*.5+4}};
+ };
+ const arm=sign=>{const v=armPose(sign);pLine(v.shoulder.x,v.shoulder.y,v.elbow.x,v.elbow.y,'#6e9590',6);pCircle(v.elbow.x,v.elbow.y,3,'#b5c9b4');pLine(v.elbow.x,v.elbow.y,v.hand.x,v.hand.y,'#4b7470',5);pCircle(v.hand.x,v.hand.y,3.1,'#d2c4a2')};
+ arm(-side);
+ pPoly([[-bodyWidth,shoulderY],[0,shoulderY-3],[bodyWidth,shoulderY],[8,hipY+2],[-8,hipY+2]],f.hurt>0?'#b8b39b':armor[0],'#284d51',1.8);pPoly([[-bodyWidth+2,shoulderY+2],[0,shoulderY+1],[0,hipY],[-7,hipY]],armor[1]);
+ if(!back)pPoly([[0,shoulderY+4],[6,shoulderY+9],[0,shoulderY+15],[-6,shoulderY+9]],'#c3d3b6','#557777',1);
+ pLine(-8,hipY,8,hipY,'#354a46',4);pPoly([[-2,hipY-2],[2,hipY-2],[2,hipY+2],[-2,hipY+2]],'#d7bb77');
+ for(const sign of [-1,1])pEllipse(sign*bodyWidth,shoulderY+2,5.3,3.5,'#c1d1b9');
+ if(back)pPoly([[-8,shoulderY+2],[8,shoulderY+2],[10+capeSway,hipY+10],[capeSway,hipY+14],[-10+capeSway,hipY+10]],'#397f76','#275850',1);
+ pLine(0,shoulderY-1,0,headY+7,'#c4b89a',5);pEllipse(0,headY,8.8,10,'#d1c8a9');pEllipse(-1,headY-4,9.3,7.4,'#d7e0c8');pPoly([[-9,headY-4],[-8,headY+6],[-4,headY+8],[-5,headY-1]],helm);
+ if(back){pEllipse(0,headY+1,7.8,6.6,'#9cb3a3');pLine(-6,headY+3,6,headY+3,'#6d9189',1.5)}else{const faceX=fxd*3;pEllipse(faceX,headY+2,6.5,4,'#385459');pLine(faceX-4,headY+1,faceX+4,headY+1,'#e5e9c6',1.5)}
+ pLine(-7,shoulderY-1,6,shoulderY-1,'#e0c48a',3);pLine(6,shoulderY,11+capeSway*.5,shoulderY+7,'#c7af76',2.5);
+ arm(side);const hand=armPose(side).hand;
+ if(f.weapon!==2){const h=armPose(side).hand,len=f.weapon===3?42:34,active=f.attackAnim>0,weaponA=active&&pose===3?-Math.PI/2+attackT*Math.PI:active&&pose===1?a:active?a+(attackT-.5)*2.3*(f.combo%2?-1:1):-Math.PI/2+side*.22,tx=h.x+Math.cos(weaponA)*len,ty=h.y+Math.sin(weaponA)*len*(active?.65:1);pLine(h.x,h.y,tx,ty,f.weapon===3?'#7d5e92':'#577a80',f.weapon===3?7:5);pLine(h.x+.7,h.y-.7,tx+.7,ty-.7,f.weapon===3?'#f0d7ff':'#dce8d2',f.weapon===3?4:3);const dx=tx-h.x,dy=ty-h.y,n=Math.hypot(dx,dy)||1;pLine(h.x-dy/n*5,h.y+dx/n*5,h.x+dy/n*5,h.y-dx/n*5,'#d8bd77',2.6);pCircle(h.x,h.y,2.4,'#cbb994')}
+ else{ctx.save();ctx.translate(hand.x,hand.y);ctx.rotate(a+Math.PI/2);ctx.strokeStyle='#d3b77d';ctx.lineWidth=2.7;ctx.beginPath();ctx.moveTo(-2,-17);ctx.quadraticCurveTo(11,0,-2,17);ctx.stroke();ctx.beginPath();ctx.moveTo(-2,-17);ctx.lineTo(-6-swing*6,0);ctx.lineTo(-2,17);ctx.strokeStyle='#d3dec4';ctx.lineWidth=1;ctx.stroke();ctx.restore()}
+ if(f.block){const h=armPose(-side).hand;pEllipse(h.x,h.y-3,7,11,'#709d98');pPoly([[h.x,h.y-14],[h.x+8,h.y-6],[h.x,h.y+8],[h.x-8,h.y-6]],shieldCol,'#d7e6c2',1.7)}
+ if(f.attackAnim>0&&f.weapon!==2){ctx.save();ctx.scale(1,.6);ctx.rotate(a);ctx.globalAlpha=Math.sin(attackT*Math.PI)*.8;ctx.strokeStyle=f.weapon===3?'#f0c9ff':'#bce9d6';ctx.lineWidth=f.weapon===3?7:4;ctx.beginPath();ctx.arc(0,-20,(weaponData[f.weapon]?.range||94)*.72,-1+attackT*.25,1+attackT*.25);ctx.stroke();ctx.restore()}
+ if((f.stigmaMarkUntil||0)>performance.now()){ctx.save();const my=headY-23,spin=performance.now()*.0045;ctx.globalCompositeOperation='lighter';ctx.strokeStyle='#d9a9ff';ctx.lineWidth=2.2;ctx.beginPath();ctx.arc(0,my,17+Math.sin(performance.now()*.01)*2,0,TAU);ctx.stroke();for(let i=0;i<6;i++){const aa=spin+i*TAU/6,r=i%2?11:19;pCircle(Math.cos(aa)*r,my+Math.sin(aa)*r,2.4,i%2?'#ffffff':'#d9a9ff')}ctx.restore()}
+ if((f.stun||0)>0){ctx.save();const sy=headY-19,spin=performance.now()*.005;ctx.strokeStyle='#f0d77c';ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(0,sy,19,7,0,0,TAU);ctx.stroke();for(let i=0;i<3;i++){const aa=spin+i*TAU/3;pCircle(Math.cos(aa)*19,sy+Math.sin(aa)*7,3,i===0?'#fff0a8':'#e3c968')}ctx.restore()}
+ ctx.restore();
+ const hpw=52,hph=6,hpr=clamp(f.hp/Math.max(1,f.maxHp),0,1),hy=f.y-79;ctx.save();ctx.fillStyle='#07141cdd';ctx.fillRect(f.x-hpw/2-1,hy-1,hpw+2,hph+2);ctx.fillStyle=isMe?'#69d78f':'#df756e';ctx.fillRect(f.x-hpw/2,hy,hpw*hpr,hph);ctx.restore();
+
+ worldText('PVP 연습 봇 · HP ∞',e.x,e.y-100,'#efcf9c',12);
+}
+function drawEnemy(e){if(e.pvpTrainingBot){drawPvpPracticeBot(e);return;}const {x,y}=e;const motion=e.motion||{phase:0,walk:0,facing:e.facing},stride=Math.sin(motion.phase)*motion.walk*4,bob=e.type==='wisp'?Math.sin(realTime*3+e.sx)*2:Math.abs(Math.sin(motion.phase))*motion.walk*.8;let alpha=1;if(e.type==='finalBoss'&&!e.alert)alpha=.43;ctx.save();ctx.globalAlpha=alpha;ellipse(ctx,x,y+e.r*.5,e.r*1.03,e.r*.4,'#08131c60');ctx.translate(x,y-bob);if(e.flash>0)ctx.filter='brightness(1.55)';
  if(e.kind==='boss'){const r=e.r;const pal=e.type==='forestBoss'?['#416b51','#77977b','#b3c897']:e.type==='marshBoss'?['#447e88','#8ac1c2','#d5e5d3']:e.type==='plateauBoss'?['#7a6450','#bb9569','#edd69e']:e.type==='frostBoss'?['#42687f','#88bfd8','#d9f4ff']:e.type==='abyssBoss'?['#663545','#ad596d','#ffd0d5']:['#565776','#9a9ab8','#e7e3ca'];
   if(e.type==='marshBoss'){for(const s of [-1,1]){polygon(ctx,[[s*10,-10],[s*70,-37+bob*2],[s*52,-2],[s*78,15],[s*25,18],[s*8,8]],pal[0],pal[1],2);polygon(ctx,[[s*14,-7],[s*65,-33+bob*2],[s*39,-3],[s*58,11],[s*19,10]],pal[1]+'aa');}}
   for(const s of [-1,1]){polygon(ctx,[[s*17,-8],[s*(r+7),-1],[s*(r+10),23],[s*(r-5),29],[s*17,8]],pal[0],pal[1],2);line(ctx,s*13,15,s*17,37+s*stride,pal[0],16);line(ctx,s*17,35+s*stride,s*21,39+s*stride,pal[1],10);}
@@ -4314,7 +4405,7 @@ function drawEnemy(e){const {x,y}=e;const motion=e.motion||{phase:0,walk:0,facin
  ctx.filter='none';ctx.restore();
  if(e.guardActive){ctx.save();ctx.translate(x,y-e.r*.08);ctx.rotate(e.facing);ctx.globalAlpha=.78;ctx.strokeStyle='#9fe5ef';ctx.lineWidth=4;ctx.shadowColor='#7fd8e8';ctx.shadowBlur=12;ctx.beginPath();ctx.arc(0,0,e.r+12,-1.08,1.08);ctx.stroke();ctx.globalAlpha=.22;ctx.lineWidth=9;ctx.beginPath();ctx.arc(0,0,e.r+12,-1.08,1.08);ctx.stroke();ctx.restore();}
  if((e.stun||0)>0){ctx.save();ctx.translate(x,y-e.r-30);ctx.rotate(realTime*3);for(let i=0;i<3;i++){const a=i*TAU/3;circle(ctx,Math.cos(a)*14,Math.sin(a)*5,2,'#e6d694');}ctx.restore();}
- if(e.type==='dummy'){worldText('수련 골렘',x,y-67,'#dbd3b4',11);if(distance(e,player)<210)worldText(e.state==='windup'?(touchMode?'금색이 차오를 때 패링':'금색이 차오를 때 C'):'공격 후 반격에 맞춰 패링',x,y+51,'#e6d5a5',10);}
+ if(e.type==='dummy'){worldText('PVP 연습 봇',x,y-67,'#dbd3b4',11);if(distance(e,player)<210)worldText(e.state==='windup'?(touchMode?'금색이 차오를 때 패링':'금색이 차오를 때 C'):'공격 후 반격에 맞춰 패링',x,y+51,'#e6d5a5',10);}
  else if((e.alert||e.hp<e.maxHp)&&e.kind!=='boss'){worldText('Lv.'+(e.mobLevel||1)+' '+e.name,x,y-e.r-34,'#d7d8c4',9);const ww=40;ctx.fillStyle='#0d1d21';ctx.fillRect(x-ww/2,y-e.r-23,ww,4);ctx.fillStyle='#deba80';ctx.fillRect(x-ww/2,y-e.r-23,ww*e.hp/e.maxHp,4);if((e.stun||0)>0){ctx.fillStyle='#b7dccd';ctx.fillRect(x-ww/2,y-e.r-17,ww*clamp(e.stun/2,0,1),2);}}
 }
 function drawStyleAdeptTelegraph(e,progress,color){
