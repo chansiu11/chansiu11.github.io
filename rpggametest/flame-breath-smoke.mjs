@@ -26,6 +26,16 @@ for(const c of cases){
   return {name:g.skillInfo(c.slot).name,mode:g.skillInfo(c.slot).cfg.mode,hp:e.hp,skillStarted:!!g.activeSwordSkill};
  },c);
  if(init.mode!==c.mode)throw Error('Wrong form '+c.id+' '+JSON.stringify(init));
+ if(c.slot===2){
+  // The new third form must be harmless while charging and deal damage WHILE airborne.
+  await page.waitForFunction(()=>window.__game?.activeSwordSkill?.elapsed>=.37,{timeout:30000,polling:35});
+  const before=await page.evaluate(()=>{const g=window.__game,e=g.enemies.find(v=>v.type==='dummy');return {elapsed:g.activeSwordSkill?.elapsed,moved:g.player.x-3000,hits:e.testHitCount||0};});
+  if(before.moved>5||before.hits!==0)throw Error('Third form attacked before jumping: '+JSON.stringify(before));
+  await page.waitForFunction(()=>window.__game?.activeSwordSkill?.elapsed>=.80,{timeout:30000,polling:35});
+  const jumping=await page.evaluate(()=>{const g=window.__game,e=g.enemies.find(v=>v.type==='dummy');return {elapsed:g.activeSwordSkill?.elapsed,moved:g.player.x-3000,lift:g.player.skillLift,hits:e.testHitCount||0,flames:g.effects.filter(v=>['crimsonBladeFire','crimsonEdgeFlames','flameBreathPlume'].includes(v.type)).length};});
+  if(jumping.moved<55||jumping.hits<1||jumping.flames<1)throw Error('Third form is not attacking during the leap: '+JSON.stringify(jumping));
+  console.log('Third form charge -> airborne fire hit:',JSON.stringify({before,jumping}));
+ }
  const elapsedTarget=[.42,.68,1.09,.91,4.66][c.slot];
  const check=await page.waitForFunction(t=>{const g=window.__game;return g?.activeSwordSkill?.elapsed>=t?'reached':(!g?.activeSwordSkill&&g?.player?.skillPose===-1?'ended':false);},elapsedTarget,{timeout:180000,polling:60});
  if(await check.jsonValue()!=='reached')throw Error('Skill ended before capture: '+c.id);
