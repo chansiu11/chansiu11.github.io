@@ -4025,12 +4025,37 @@ function drawEffects(ground=false){for(const e of effects){const progress=1-e.t/
 if(ground)continue;ctx.save();ctx.globalAlpha=clamp(e.t/e.max,0,1);
  if(e.type==='particle'){circle(ctx,e.x,e.y,e.size,e.color);}
  if(e.type==='ember'){ctx.save();ctx.translate(e.x,e.y);ctx.rotate(Number.isFinite(e.a)?e.a:Math.atan2(e.vy||0,e.vx||1));ctx.globalCompositeOperation='lighter';ctx.shadowColor=e.color;ctx.shadowBlur=10;ctx.fillStyle=e.color;ctx.beginPath();ctx.ellipse(0,0,e.rx||6,e.ry||2,0,0,TAU);ctx.fill();ctx.shadowBlur=4;ctx.fillStyle='#ffe4b8';ctx.globalAlpha*=.72;ctx.beginPath();ctx.ellipse((e.rx||6)*.22,0,(e.rx||6)*.42,(e.ry||2)*.48,0,0,TAU);ctx.fill();ctx.restore();}
+
+ if(e.type==='flameBreathPlume'){
+  // The in-game effect itself: irregular layered flame tongues, not a beam or texture mock-up.
+  const low=options.quality==='low',life=clamp(e.t/e.max,0,1),len=e.len,width=e.width;
+  let seed=e.seed>>>0;const rand=()=>{seed=(Math.imul(1664525,seed)+1013904223)>>>0;return seed/4294967296;};
+  const cols=[['#c63217','#e74419','#fc5c22'],['#f6601e','#ff922a','#ffbd55'],['#ffb84e','#ffd06c','#ffe4a2']];
+  ctx.save();ctx.translate(e.x,e.y);ctx.rotate(e.a);ctx.globalCompositeOperation='lighter';
+  for(let layer=0;layer<3;layer++){
+   const count=low?[7,5,3][layer]:[13,9,5][layer];
+   for(let j=0;j<count;j++){
+    const u=(j+.24+rand()*.57)/count,
+      bx=(u-.54)*len*.88,by=(rand()-.5)*width*.90,
+      l=len*(layer===0?.29:layer===1?.27:.20)*(.65+rand()*.96),
+      w=width*(layer===0?.22:layer===1?.15:.095)*(.62+rand()*.76),
+      bend=(rand()-.5)*width*.8,tipY=by+bend,tipX=bx+l*(.74+.35*life);
+    ctx.globalAlpha=life*(layer===0?.48:layer===1?.67:.72)*Math.min(1.5,e.power||1);
+    const color=cols[layer][Math.floor(rand()*3)];ctx.fillStyle=color;ctx.shadowColor=color;ctx.shadowBlur=low?1:layer===0?9:5;
+    ctx.beginPath();ctx.moveTo(bx-w,by);
+    ctx.bezierCurveTo(bx+l*.22,by-w*.99,bx+l*.55,tipY-w*.67,tipX,tipY);
+    ctx.bezierCurveTo(bx+l*.57,tipY+w*.58,bx+l*.16,by+w*.94,bx+w,by);
+    ctx.quadraticCurveTo(bx,by-w*.14,bx-w,by);ctx.closePath();ctx.fill();
+   }
+  }
+  ctx.restore();
+ }
  if(e.type==='crimsonBladeFire'){
  // Flame tongues follow the blade's swing in irregular lengths; never a solid outline or bright linear beam.
  ctx.save();ctx.translate(e.x,e.y);ctx.rotate(e.a);
  const low=options.quality==='low',r=e.r,arc=e.arc,fade=clamp(e.t/e.max,0,1);
  let seed=e.seed>>>0;const rand=()=>{seed=(Math.imul(1664525,seed)+1013904223)>>>0;return seed/4294967296;};
- const palette=['#84202a','#c92c30','#fa492a','#ff722e','#ff923b','#ffba64'];
+ const palette=['#7e2218','#c94119','#f85920','#ff8d2e','#ffb650','#ffe19a'];
  for(let layer=0;layer<3;layer++){
   const n=low?[12,8,5][layer]:[23,16,9][layer];
   for(let j=0;j<n;j++){
