@@ -1048,37 +1048,38 @@ function crimsonOutside(x,y,inner=170,outer=290,count=14,inward=false,twist=0){
 }
 const CRIMSON1_RX=110,CRIMSON1_RY=110,CRIMSON1_BEAM=168,CRIMSON1_WIDTH=39;
 function crimsonStrokeCircle(cx,cy,rx,ry,aim,power=1){
- // 1번 원 둘레에도 2번 마무리의 바람에 휘날리는 잔화 이펙트를 적용한다.
+ // 원은 선명한 원형 검격으로 유지한다. 선이 이어지는 전방에 불꽃을 모으고 뒤쪽은 잔불만 남긴다.
  const r=rx,low=options.quality==='low';
- effects.push({type:'crimsonEllipse',x:cx,y:cy,rx:r,ry:r,a:0,t:.40,max:.40});
- const jets=low?18:28;
+ effects.push({type:'crimsonEllipse',x:cx,y:cy,rx:r,ry:r,a:0,t:.39,max:.39});
+ const jets=low?22:38;
  for(let j=0;j<jets;j++){
-  const q=aim+j*TAU/jets,px=cx+Math.cos(q)*r,py=cy+Math.sin(q)*r;
-  // 2번 마지막 타격처럼 구간별 강약을 주되 원 전체에서 불꽃이 바깥으로 날리게 한다.
-  const strong=j%7===0||j%7===1,amount=strong?(low?6:10):(low?3:5);
-  crimsonEmbers(px,py,q+rnd(-.24,.24),amount,strong?365:285,.44,strong?1.22:1.0);
-  if(strong)crimsonEmbers(px,py,q+rnd(-.36,.36),low?3:5,400,.52,1.05);
+  const q=aim+j*TAU/jets+ rnd(-.035,.035),px=cx+Math.cos(q)*r,py=cy+Math.sin(q)*r;
+  const front=(1+Math.cos(q-aim))*.5,cluster=(j%9===0||j%9===1)?1.45:1;
+  const amount=Math.max(1,Math.round(((low?2:3)+(low?5:10)*front*front)*cluster));
+  crimsonEmbers(px,py,q+rnd(-.34,.34),amount,225+front*175,.40,.79+front*.42);
+  if(front>.7&&j%3===0)crimsonEmbers(px,py,q+rnd(-.28,.28),low?3:6,405,.37,1.14);
  }
 }
 function crimsonStrokeLine(x1,y1,x2,y2,a,power=1){
- // 2번 스킬 마지막 참격과 같은 붉은색-주황색-밝은 심지의 검격 선.
+ // 2번의 마지막 검격처럼 짧게 겹치는 붉은 참격 자취를 사용한다. 레이저형 crimsonBeam은 쓰지 않는다.
  const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy),nx=-Math.sin(a),ny=Math.cos(a);
- effects.push({type:'crimsonBeam',x:x1,y:y1,x2,y2,a,w:CRIMSON1_WIDTH,t:.40,max:.40});
- const segments=options.quality==='low'?3:5,colors=['#ff2445','#ff6b38','#ffd09a'];
- for(let j=0;j<segments;j++){
-  const q=(j+.5)/segments,cx=x1+dx*q,cy=y1+dy*q;
-  // 직선 자체는 곧게 유지하고 2번 마지막 타격의 겹겹이 빛나는 베기만 사용한다.
-  effects.push({type:'riftCut',x:cx,y:cy,a,len:len/segments+19,width:CRIMSON1_WIDTH*.68,color:colors[j%3],t:.29,max:.29});
+ const low=options.quality==='low',parts=low?3:5,colors=['#ff3049','#ff713c','#ffd2a2'];
+ for(let j=0;j<parts;j++){
+  const q=(j+.5)/parts,x=x1+dx*q,y=y1+dy*q,near=1-q;
+  effects.push({type:'riftCut',x,y,a,len:len/parts+28,width:CRIMSON1_WIDTH*(.62+.18*near),color:colors[j%3],t:.32,max:.32});
  }
- // 직선 시작부터 끝까지 불씨가 이어지되, 일정한 띠 대신 군집마다 밀도가 다르다.
- const low=options.quality==='low',steps=low?12:20;
+ // 불꽃은 원의 앞쪽과 직선 시작점에 밀집하고 끝으로 갈수록 자연스럽게 줄어든다.
+ const steps=low?11:19;
  for(let j=0;j<=steps;j++){
-  const q=j/steps,rich=j%6===0||j%6===1||j===steps;
+  const q=j/steps,near=Math.pow(1-q,1.65),base=low?1:2;
+  const amount=base+Math.round((low?5:10)*near);
   for(const side of [-1,1]){
-   const off=rnd(rich?8:13,rich?20:29),px=x1+dx*q+nx*side*off,py=y1+dy*q+ny*side*off;
-   crimsonEmbers(px,py,a+Math.PI+side*rnd(.32,.72),rich?(low?4:7):(low?2:3),rnd(170,310),.40,rich?1.03:.82);
+   const spread=rnd(6,18)+q*10,x=x1+dx*q+nx*side*spread,y=y1+dy*q+ny*side*spread;
+   crimsonEmbers(x,y,a+Math.PI+side*rnd(.24,.70),amount,rnd(155,295)*(1-.20*q),.42,.76+near*.34);
   }
  }
+ // 불꽃 외곽에 얇게 남는 검격 잔향만 추가한다.
+ crimsonEmbers(x1,y1,a+Math.PI,low?7:16,270,.66,1.06);
 }
 function ring(x,y,r,color,t=.5){effects.push({type:'ring',x,y,r,color,t,max:t});}
 let prismCastSerial=0;
