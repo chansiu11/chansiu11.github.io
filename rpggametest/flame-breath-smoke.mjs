@@ -187,10 +187,10 @@ for(const c of cases){
   const centered=trace.filter(p=>p.vortexFrames>=3&&Number.isFinite(p.vortexX)&&Number.isFinite(p.vortexR));
   if(centered.length<10||centered.some(p=>
    Math.abs(p.vortexX-p.enemyX)>4||Math.abs(p.vortexY-p.enemyY)>4||
-   p.vortexR<p.attackerR+100||p.sprays<54||p.fireTongues<202||p.solidFill!==false||p.playerClear!==true||p.spinRate!==41||p.outerCount<148||p.clearRadius<80))
+   p.vortexR<p.attackerR+100||p.sprays<118||p.fireTongues<458||p.solidFill!==false||p.playerClear!==true||p.spinRate!==410||p.outerCount<340||p.clearRadius!==0))
    throw Error('Fifth form vortex must surround the victim, keep the player clear, and add irregular outer flames: '+
     JSON.stringify({samples:centered.length,first:centered[0],last:centered.at(-1)}));
-  console.log('Victim-centered dense outer fire, player exclusion, no filled sheet verified:',
+  console.log('Victim-centered unmasked fast fire behind player, no disappearing flames verified:',
    JSON.stringify({samples:centered.length,radius:centered.at(-1).vortexR,sparks:centered.at(-1).sprays}));
   if(end.hits<9||end.damage<=0||!sawOriginalCrosscuts||!sawExtraCrescents||!sawRisingCut||!sawLateFinale)
    throw Error('Extended ultimate must land all eight follow-up hits and its delayed fire seal: '+
