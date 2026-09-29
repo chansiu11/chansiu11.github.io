@@ -1146,6 +1146,76 @@ function crimsonDashEdgeFire(x1,y1,x2,y2,width=47,life=.35,power=1){
 function crimsonChargeFlames(x,y,r=90,life=.95,power=1){
  effects.push({type:'crimsonChargeFlames',x,y,r,power,seed:Math.floor(rnd(1,2147483646)),t:life,max:life});
 }
+
+/* Hongryeon sword-forms: original flame effects driven by the real hitbox, not sprites or beams. */
+const FLAME_BREATH_MODES=new Set(['flameBreathSweep','flameBreathRise','flameBreathCleave','flameBreathWheel','flameBreathFinale']);
+function flameBreathPlume(x,y,a,len=165,width=55,life=.39,power=1){
+ if(!Number.isFinite(x+y+a+len+width))return;
+ effects.push({type:'flameBreathPlume',x,y,a,len,width,power,seed:Math.floor(rnd(1,2147483646)),t:life,max:life});
+}
+function flameBreathStroke(x,y,a,r,arc,side=1,life=.46,power=1){
+ crimsonBladeFire(x,y,a,r,arc,side,life,power);
+ crimsonEdgeFlames(x,y,a,r,arc,side,life*.92,.72*power);
+ const tipR=r*.72;
+ for(let j=0;j<(options.quality==='low'?2:4);j++){
+  const aa=a+(j-1.5)*arc/4,rr=tipR*rnd(.77,1.08);
+  crimsonEmbers(x+Math.cos(aa)*rr,y+Math.sin(aa)*rr,aa+Math.PI,2,140+power*65,.64,.75);
+ }
+}
+function flameBreathTrail(x1,y1,x2,y2,power=1){
+ const d=Math.hypot(x2-x1,y2-y1);
+ if(d<5)return;
+ const a=Math.atan2(y2-y1,x2-x1);
+ crimsonDashEdgeFire(x1,y1,x2,y2,30+power*12,.28+.03*power,.78*power);
+ flameBreathPlume(x1+(x2-x1)*.28,y1+(y2-y1)*.28,a,Math.min(180,d+85),24+power*25,.24,power*.73);
+}
+function flameBreathSignature(id,index,final,ang,reach,actor=player,ctxInfo=null){
+ const side=ctxInfo?.side||1,f=ctxInfo?.baseFacing??ang,x=actor.x,y=actor.y,ta=ctxInfo?.target,
+   look=ta?Math.atan2(ta.y-y,ta.x-x):f;
+ if(id==='guardBreak'){
+  const r=index===0?292:316;
+  flameBreathStroke(x,y,look,r,index===0?2.12:2.18,side,index===0?.41:.58,index===0?1.06:1.18);
+  if(index===1){
+   for(let j=-2;j<=2;j++){const a=look+j*.29;crimsonFlameBurst(x+Math.cos(a)*r*.72,y+Math.sin(a)*r*.72,40,.42,.56);}
+  }
+ }else if(id==='earthRend'){
+  const a=look+side*(index===0?-.35:.17),r=index===0?246:292;
+  flameBreathStroke(x,y,a,r,index===0?1.25:1.77,side,.57,index===0?1.01:1.39);
+  flameBreathPlume(x+Math.cos(a)*r*.43,y+Math.sin(a)*r*.43,a+side*1.10,index===0?154:230,67,.56,index===0?1:1.38);
+  if(final)crimsonFlameBurst(x+Math.cos(a)*r*.66,y+Math.sin(a)*r*.66,77,.55,.88);
+ }else if(id==='quakeRush'){
+  const r=index===0?326:360,a=look+side*(index===0?-.1:.08);
+  flameBreathStroke(x,y,a,r,index===0?1.36:1.49,-side,.58,index===0?1.42:.81);
+  flameBreathPlume(x+Math.cos(a)*r*.47,y+Math.sin(a)*r*.47,a,index===0?218:252,95,.54,index===0?1.18:.79);
+  if(final)for(let j=-1;j<=1;j++){
+   const aa=a+j*.33;
+   crimsonFlameBurst(x+Math.cos(aa)*r*.61,y+Math.sin(aa)*r*.61,52,.36,.64);
+  }
+ }else if(id==='ironJudgment'){
+  const a=f+(index===0?-.58:index===1?1.18:-.28)*side;
+  flameBreathStroke(x,y,a,index===2?298:230,index===2?5.35:index===1?4.5:3.8,side,.53,index===2?1.38:1.04);
+  flameBreathPlume(x,y,a+side*Math.PI/2,120+index*39,58+index*16,.41,.88);
+  if(final)crimsonFlameBurst(x+Math.cos(look)*115,y+Math.sin(look)*115,116,.58,1.17);
+ }else if(id==='meteorBreaker'){
+  const a=index===1?look+side*.55:index===2?look-side*.39:look;
+  if(index<3){
+   flameBreathStroke(x,y,a,295+index*35,1.62+index*.26,side,.63,1.18+index*.16);
+   flameBreathPlume(x+Math.cos(a)*97,y+Math.sin(a)*97,a,245+index*43,80+index*9,.63,1.19);
+   crimsonFlameBurst(x+Math.cos(a)*171,y+Math.sin(a)*171,67+index*12,.46,.86);
+  }else if(index===3){
+   flameBreathStroke(x,y,a,350,2.1,-side,.71,1.42);
+   flameBreathPlume(x+Math.cos(a)*138,y+Math.sin(a)*138,a,340,100,.67,1.4);
+  }else{
+   flameBreathStroke(x,y,a,420,3.1,side,1.04,1.75);
+   flameBreathStroke(x,y,a+side*.31,370,2.55,-side,.88,1.22);
+   flameBreathPlume(x+Math.cos(a)*132,y+Math.sin(a)*132,a,455,176,.97,1.7);
+   crimsonFlameBurst(x+Math.cos(a)*200,y+Math.sin(a)*200,225,.86,1.53);
+   crimsonEmbers(x+Math.cos(a)*220,y+Math.sin(a)*220,a+Math.PI,22,310,1.05,.96);
+  }
+ }
+ if(actor===player)triggerSkillShake(['guardBreak','earthRend','quakeRush','ironJudgment','meteorBreaker'].indexOf(id),id==='meteorBreaker'?(final?1.9:.78):final?1.11:.62);
+}
+
 function ring(x,y,r,color,t=.5){effects.push({type:'ring',x,y,r,color,t,max:t});}
 let prismCastSerial=0;
 function cancelSwordSkill(preserveFollow=false){activeSwordSkill=null;fourthSkillHold=null;fourthSkillField=null;secondSkillDash=null;secondSkillArmed=false;skillTrayPress=null;standardSkillHold=null;skill2Knocks=[];hiddenSkillEvents=[];hiddenSkillHold=null;if(!preserveFollow)hiddenSkillFollowup=null;if(void3State)endVoid3World();if(player){player.skillKind='';player.skillPose=-1;player.skillLift=0;player.pendingSlam=null;player.cast=0;player.pvpKnock=null;}}
@@ -1524,6 +1594,7 @@ function showSwordStyleChoice(){
  openPanel('swordStyle',header('SWORD MASTER · LEVEL 5','세린에게 전수받을 유파를 선택하세요',false)+'<p class="lede">첫 여정을 통해 기본기를 익힌 모험가만 유파를 선택할 수 있습니다. <b>한 번 선택하면 일반 플레이에서는 다른 유파로 바꿀 수 없습니다.</b><br>선택 즉시 해당 유파의 첫 검술을 전수받고, 이후 검술도 세린에게 배웁니다.</p><div class="grid two">'+cards+'</div>'+footer('검술 사범 세린과 대화 중 · 선택 후 변경할 수 없습니다.',''),true);
 }
 function swordSignatureFx(id,hitIndex,finalHit,ang,reach,color,actor=player,context=null){
+ if(FLAME_BREATH_MODES.has(swordSkillById(id)?.cfg?.mode)){flameBreathSignature(id,hitIndex,finalHit,ang,reach,actor,context);return;}
  const theme=swordStyleFxForSkill(id);color=theme.main;const sub=theme.sub,accent=theme.accent,dark=theme.dark;
  const x=actor.x+Math.cos(ang)*Math.min(Math.max(reach*.45,28),85),y=actor.y+Math.sin(ang)*Math.min(Math.max(reach*.45,28),85);
  if(CRIMSON_SKILLS.has(id)){
@@ -2064,7 +2135,8 @@ function heldSwordInputAngle(fallback){
  return fallback;
 }
 function swordSkillStartVisuals(actor,sk,slot,facing){
- if(!actor||!sk)return;const cfg=sk.cfg||{},theme=swordStyleFxForSkill(sk.id),x=actor.x,y=actor.y;
+ if(!actor||!sk)return;
+ if(FLAME_BREATH_MODES.has(sk.cfg?.mode)){crimsonChargeFlames(actor.x,actor.y,sk.id==='meteorBreaker'?83:27,sk.id==='meteorBreaker'?.96:.21,sk.id==='meteorBreaker'?1.16:.46);crimsonEmbers(actor.x,actor.y,facing+Math.PI,sk.id==='meteorBreaker'?10:3,sk.id==='meteorBreaker'?188:83,.64,.62);return;}const cfg=sk.cfg||{},theme=swordStyleFxForSkill(sk.id),x=actor.x,y=actor.y;
  if(sk.holdContinuous){
   if(sk.id==='gravityCut'){effects.push({type:'riftCut',x:x+Math.cos(facing)*65,y:y+Math.sin(facing)*65,a:facing+.55,len:145,width:18,color:theme.main,t:.28,max:.28});effects.push({type:'line',x:x-Math.cos(facing)*35,y:y-Math.sin(facing)*35,x2:x+Math.cos(facing)*105,y2:y+Math.sin(facing)*105,color:theme.sub,t:.24,max:.24});}
   else ring(x,y,38,theme.main,.28);
