@@ -20,7 +20,7 @@ for(const c of cases){
  await page.waitForFunction(()=>window.__game?.mode==='play'&&!!window.__game?.enemies?.find(e=>e.type==='dummy'));
  const init=await page.evaluate((c)=>{
   const g=window.__game,p=g.player,e=g.enemies.find(e=>e.type==='dummy');
-  e.x=p.x+260;e.y=p.y;e.sx=e.x;e.sy=e.y;e.r=25;e.speed=0;e.damage=0;e.maxHp=e.hp=1e8;e.baseMaxHp=1e8;e.stun=0;
+  e.x=p.x+260;e.y=p.y;e.sx=e.x;e.sy=e.y;e.r=25;e.testHitCount=0;e.testDamageTotal=0;e.speed=0;e.damage=0;e.maxHp=e.hp=1e8;e.baseMaxHp=1e8;e.stun=0;
   p.facing=0;p.stun=0;p.attackCd=0;p.cast=0;p.skillCds.fill(0);
   g.skill(c.slot);
   return {name:g.skillInfo(c.slot).name,mode:g.skillInfo(c.slot).cfg.mode,hp:e.hp,skillStarted:!!g.activeSwordSkill};
@@ -32,11 +32,11 @@ for(const c of cases){
   const g=window.__game,e=g.enemies.find(e=>e.type==='dummy'),seq=g.activeSwordSkill;
   return {id:seq?.skillId||'',elapsed:seq?.elapsed||0,
     fx:g.effects.length,types:[...new Set(g.effects.map(f=>f.type))],
-    hp:e.hp,hero:{x:g.player.x,y:g.player.y},pageError:g.error};
+    hp:e.hp,hitCount:e.testHitCount||0,damageTotal:e.testDamageTotal||0,hero:{x:g.player.x,y:g.player.y},pageError:g.error};
  });
  await page.screenshot({path:'rpggametest/flame-preview/'+String(c.slot+1)+'-'+c.id+'.png'});
  if(errors.length||frame.pageError)throw Error('Runtime errors '+c.id+': '+errors.join(' | ')+' '+frame.pageError);
- if(frame.hp>=init.hp)throw Error('No hit registered for '+c.id+' '+JSON.stringify(frame));
+ if(frame.hitCount<1||frame.damageTotal<=0)throw Error('No hit registered for '+c.id+' '+JSON.stringify(frame));
  if(!frame.types.some(t=>['flameBreathPlume','crimsonBladeFire','crimsonEdgeFlames','crimsonChargeFlames','crimsonFlameBurst','ember'].includes(t)))throw Error('No real fire graphics '+c.id+' '+JSON.stringify(frame));
  report.push({slot:c.slot,name:init.name,mode:init.mode,hit:true,fx:frame.fx,effects:frame.types,hero:frame.hero});
  console.log(JSON.stringify(report.at(-1)));
