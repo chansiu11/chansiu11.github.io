@@ -46,6 +46,27 @@ for(const c of cases){
   return {name:g.skillInfo(c.slot).name,mode:g.skillInfo(c.slot).cfg.mode,hp:e.hp,skillStarted:!!g.activeSwordSkill};
  },c);
  if(init.mode!==c.mode)throw Error('Wrong form '+c.id+' '+JSON.stringify(init));
+ if([1,2,3].includes(c.slot)){
+  // Character animations must move the actual sword arm AND both legs, not just fire particles.
+  const poses=await page.evaluate(({id,slot})=>{
+   const g=window.__game,a=0,sy=-42,hy=-56;
+   const ready=g.hongryeonLimbPose(id,true,.95,1,1,a,sy,hy);
+   const readyOpposite=g.hongryeonLimbPose(id,true,.95,-1,1,a,sy,hy);
+   const elapsed=slot===1?.45:slot===2?.51:.44;
+   const strike=g.hongryeonLimbPose(id,false,elapsed,1,1,a,sy,hy);
+   const strikeOpposite=g.hongryeonLimbPose(id,false,elapsed,-1,1,a,sy,hy);
+   return {ready,readyOpposite,strike,strikeOpposite};
+  },{id:c.id,slot:c.slot});
+  const moved=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y)>4;
+  if(!moved(poses.ready.hand,poses.strike.hand)||
+     !moved(poses.ready.leg,poses.strike.leg)||
+     !moved(poses.readyOpposite.hand,poses.strikeOpposite.hand)||
+     !moved(poses.readyOpposite.leg,poses.strikeOpposite.leg)||
+     !Number.isFinite(poses.ready.swordA)||!Number.isFinite(poses.strike.swordA))
+   throw Error('Hongryeon limb pose not animated for '+c.id+': '+JSON.stringify(poses));
+  console.log('Ready + active sword, both arms and both legs verified:',c.id);
+ }
+
  if(c.slot===2){
   // Capture after the ring and jump. A separate .06s browser read can overshoot
   // the .10s ring in slow CI and falsely report a failure.
