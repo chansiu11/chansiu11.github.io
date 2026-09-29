@@ -6,7 +6,7 @@ const cases=[
  {slot:1,id:'earthRend',ms:700,mode:'flameBreathRise',hitTimes:1},
  {slot:2,id:'quakeRush',ms:1000,mode:'flameBreathCleave',hitTimes:2},
  {slot:3,id:'ironJudgment',ms:720,mode:'flameBreathWheel',hitTimes:3},
- {slot:4,id:'meteorBreaker',ms:4940,mode:'flameBreathFinale',hitTimes:5}
+ {slot:4,id:'meteorBreaker',ms:1500,mode:'flameBreathFinale',hitTimes:4}
 ];
 await mkdir('rpggametest/flame-preview',{recursive:true});
 const browser=await chromium.launch({headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
@@ -67,6 +67,14 @@ for(const c of cases){
   console.log('Ready + active sword, both arms and both legs verified:',c.id);
  }
 
+ if(c.slot===4){
+  // Only the ultimate gets the requested .50s animation charge; no early dash.
+  await page.waitForFunction(()=>window.__game?.player?.skillKind?.startsWith('prepare:')&&window.__game.player.attackAnim<.28,{timeout:30000,polling:25});
+  const charge=await page.evaluate(()=>{const g=window.__game;return {remaining:g.player.attackAnim,total:g.player.attackDuration,active:!!g.activeSwordSkill};});
+  if(Math.abs(charge.total-.5)>.001||charge.active||charge.remaining<=0)
+   throw Error('Ultimate did not use its full half-second charge: '+JSON.stringify(charge));
+  console.log('Fifth form .5 second preparation verified:',JSON.stringify(charge));
+ }
  if(c.slot===2){
   // Capture after the ring and jump. A separate .06s browser read can overshoot
   // the .10s ring in slow CI and falsely report a failure.
@@ -75,7 +83,7 @@ for(const c of cases){
   if(jumping.moved<40||jumping.hits<1||jumping.flames<1)throw Error('Third form did not hit with its opening ring and jump without a pause: '+JSON.stringify(jumping));
   console.log('Third form opening ring -> uninterrupted jump:',JSON.stringify(jumping));
  }
- const elapsedTarget=[.42,.56,.73,.45,4.66][c.slot];
+ const elapsedTarget=[.42,.56,.73,.45,.41][c.slot];
  const check=await page.waitForFunction(t=>{const g=window.__game;return g?.activeSwordSkill?.elapsed>=t?'reached':(!g?.activeSwordSkill&&g?.player?.skillPose===-1?'ended':false);},elapsedTarget,{timeout:180000,polling:60});
  if(await check.jsonValue()!=='reached'&&c.slot!==1)throw Error('Skill ended before capture: '+c.id);
  const frame=await page.evaluate(()=>{
@@ -94,6 +102,13 @@ for(const c of cases){
    throw Error('Second form must travel straight 328 units, decelerate and hit in a fire ring at .50s: '+JSON.stringify({firstSpeed,lastSpeed,final:d,drift,hitCount:frame.hitCount,types:frame.types}));
   console.log('Second form straight decelerating dash and circular hit verified:',JSON.stringify({firstSpeed,lastSpeed,travel:d.x-trace[0].x,drift}));
  }
+ if(c.slot===4){
+  // Confirm first collision arrests the dash, then crossing cuts and the final seal land.
+  const state=await page.evaluate(()=>{const g=window.__game;return {caught:!!g.activeSwordSkill?.flameCaught,target:g.activeSwordSkill?.flameTargetId,heroX:g.player.x,hits:g.enemies.find(e=>e.type==='dummy')?.testHitCount||0};});
+  if(!state.caught||state.hits<2||Math.abs(state.heroX-3000)>350)
+   throw Error('Fifth form did not stop on contact and follow up: '+JSON.stringify(state));
+  console.log('Fifth form collision -> crossfire:',JSON.stringify(state));
+ }
  if(c.slot===3){
   // Check trace before screenshot rendering might advance the game past skill end.
   await page.waitForFunction(()=>window.__wheelTrace?.some(p=>p.t>=.66),{timeout:30000,polling:35});
@@ -107,6 +122,12 @@ for(const c of cases){
   console.log('Fourth form continuous S-shaped movement verified:',JSON.stringify({travel,minSide,maxSide}));
  }
  await page.screenshot({path:'rpggametest/flame-preview/'+String(c.slot+1)+'-'+c.id+'.png'});
+ if(c.slot===4){
+  await page.waitForFunction(()=>window.__game?.enemies?.find(e=>e.type==='dummy')?.testHitCount>=4,{timeout:30000,polling:35});
+  const end=await page.evaluate(()=>{const g=window.__game,e=g.enemies.find(v=>v.type==='dummy');return {hits:e.testHitCount,damage:e.testDamageTotal,x:g.player.x};});
+  if(end.hits<4||end.damage<=0)throw Error('Ultimate crossed two times but missed final seal: '+JSON.stringify(end));
+  console.log('Fifth form full finishing seal verified:',JSON.stringify(end));
+ }
  if(errors.length||frame.pageError)throw Error('Runtime errors '+c.id+': '+errors.join(' | ')+' '+frame.pageError);
  if(frame.hitCount<1||frame.damageTotal<=0)throw Error('No hit registered for '+c.id+' '+JSON.stringify(frame));
  if(c.slot===2&&frame.hitCount<2)throw Error('Opening fire ring or landing attack did not register: '+JSON.stringify(frame));
@@ -115,5 +136,28 @@ for(const c of cases){
  console.log(JSON.stringify(report.at(-1)));
  await context.close();
 }
+// Separately verify that a dash which strikes absolutely nothing ends WITHOUT cross-slashes.
+{
+ const context=await browser.newContext({viewport:{width:1280,height:760},locale:'ko-KR'});
+ await context.addInitScript(()=>{window.__PLAYTEST__=true;});
+ const page=await context.newPage(),errors=[];
+ page.on('pageerror',e=>errors.push(String(e)));
+ await page.goto(base,{waitUntil:'domcontentloaded',timeout:30000});
+ await page.waitForFunction(()=>window.__game?.mode==='play'&&!!window.__game?.enemies?.find(e=>e.type==='dummy'));
+ await page.evaluate(()=>{
+  const g=window.__game,p=g.player,e=g.enemies.find(v=>v.type==='dummy');
+  e.x=p.x+3200;e.y=p.y+3000;e.sx=e.x;e.sy=e.y;e.speed=0;e.damage=0;
+  e.testHitCount=0;e.testDamageTotal=0;g.admin.god=true;
+  p.stun=0;p.attackCd=0;p.cast=0;p.skillCds.fill(0);p.facing=0;
+  g.skill(4);
+ });
+ await page.waitForFunction(()=>!!window.__game?.activeSwordSkill,{timeout:30000,polling:35});
+ await page.waitForFunction(()=>!window.__game?.activeSwordSkill&&window.__game?.player?.cast===0,{timeout:30000,polling:35});
+ const miss=await page.evaluate(()=>{const g=window.__game,e=g.enemies.find(v=>v.type==='dummy');return {hits:e.testHitCount||0,damage:e.testDamageTotal||0,pose:g.player.skillPose,moved:Math.hypot(g.player.x-3000,g.player.y-3000),pageError:g.error};});
+ if(miss.hits!==0||miss.damage!==0||miss.pose!==-1||miss.moved<350||errors.length||miss.pageError)
+  throw Error('Missed fifth form must rush then exit with no follow-up: '+JSON.stringify({miss,errors}));
+ console.log('Fifth form miss -> full dash and instant exit:',JSON.stringify(miss));
+ await context.close();
+}
 await browser.close();
-console.log('PASSED: five original forms deal damage and render real fire during gameplay.');
+console.log('PASSED: all five forms, ultimate hit-confirm finisher and miss exit.');
