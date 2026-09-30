@@ -1641,7 +1641,7 @@ function setEclipseForm(form,withFx=true){
    const a=player.facing,ca=Math.cos(a),sa=Math.sin(a),nx=-sa,ny=ca;
    for(let j=-2;j<=2;j++)effects.push({type:'line',x:player.x-ca*26+nx*j*7,y:player.y-sa*26+ny*j*7,x2:player.x+ca*78+nx*j*7,y2:player.y+sa*78+ny*j*7,color:j===0?'#FFFFFF':'#BFC7D2',t:.22+Math.abs(j)*.018,max:.30});
   }else{
-   for(let j=0;j<4;j++)effects.push({type:'slash',x:player.x-j*5,y:player.y+j*4,a:player.facing+(j%2?.42:-.42),arc:1.15+j*.12,r:66+j*9,color:j%2?'#151515':'#050505',t:.22+j*.035,max:.34});
+   for(let j=0;j<4;j++)effects.push({type:'slash',x:player.x-j*5,y:player.y+j*4,a:player.facing+(j%2?.42:-.42),arc:1.15+j*.12,r:66+j*9,color:j%2?'#151515':'#050505',innerColor:j%2?'#080808':'#202020',innerAlpha:.72,outerWidth:7,innerWidth:2,innerInset:7,t:.22+j*.035,max:.34});
   }
  }
  updateEclipseTestBadge();updateSkillTray();
