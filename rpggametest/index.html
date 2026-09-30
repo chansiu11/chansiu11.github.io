@@ -970,7 +970,6 @@ function buildTestArena(){
  player.x=3000;player.y=3000;player.facing=0;player.level=200;player.difficulty='normal';player.training={move:999,dodge:true,attack:true,parry:true,complete:true};
  player.swordStyle='eclipse';player.eclipseForm='lunar';player.learnedSwordSkills=['eclipseShift','eclipse2','eclipse3','eclipse4','eclipse5'];player.equippedSwordSkills=['eclipseShift','eclipse2','eclipse3','eclipse4','eclipse5'];player.adminSwordSkills=[...player.equippedSwordSkills];player.weapon=0;player.ownedWeapons=[0];
  recalculateEquipment();player.hp=player.maxHp;player.stam=player.maxStam;player.shield=player.maxShield;player.skillCds=[0,0,0,0,0];player.hiddenSkillCds=[0,0,0,0,0];
- updateEclipseTestBadge();
  addPvpPracticeBot(3210,3000,'testDummy');
  bodyGridValid=false;camera.x=player.x;camera.y=player.y;
 }
@@ -5569,6 +5568,7 @@ window.EchoesWorldPvpData={
  armorReduction(defense,chestLevel){return armorReductionFrom(defense,chestLevel);},
  style(id){const g=swordStyleById(id);return g?{id:g.id,name:g.name,desc:g.desc,skills:[...g.skills]}:null;}
 };
+updateEclipseTestBadge();
 startPlay();
 requestAnimationFrame(frame);
 })();
