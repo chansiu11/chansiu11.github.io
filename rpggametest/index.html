@@ -4163,8 +4163,8 @@ function sendSharedSkillFxFrame(slot,skillId,weapon=player?.weapon,a=player?.fac
 const NET_SKILL_EFFECT_TYPES=new Set(['particle','ring','line','slash','riftCut','nova','starSeal','flourish']);
 function packExactSkillEffect(e){
  if(!e||!NET_SKILL_EFFECT_TYPES.has(e.type))return null;
- const out={type:e.type,color:String(e.color||'#ffffff').slice(0,24)};
- for(const k of ['x','y','x2','y2','vx','vy','t','max','size','r','a','arc','len','width','style'])if(Number.isFinite(Number(e[k])))out[k]=Number(e[k]);
+ const out={type:e.type,color:String(e.color||'#ffffff').slice(0,24)};if(e.innerColor)out.innerColor=String(e.innerColor).slice(0,24);
+ for(const k of ['x','y','x2','y2','vx','vy','t','max','size','r','a','arc','len','width','style','outerWidth','innerWidth','innerInset','innerAlpha'])if(Number.isFinite(Number(e[k])))out[k]=Number(e[k]);
  return out;
 }
 function flushExactSkillVisuals(){
@@ -4181,8 +4181,8 @@ function applyRemoteExactSkillEffects(msg){
  const rp=multiRemotePlayers.get(msg.playerId);if(rp){if(Number(msg.seq)<=(rp.lastExactFxSeq||0))return;if(msg.effects?.length)rp.remoteExactFxUntil=realTime+.8;rp.lastExactFxSeq=Math.max(Number(rp.lastExactFxSeq)||0,Number(msg.seq)||0);}
  for(const raw of Array.isArray(msg.effects)?msg.effects:[]){
   if(!raw||!NET_SKILL_EFFECT_TYPES.has(raw.type))continue;
-  const e={type:raw.type,color:String(raw.color||'#ffffff').slice(0,24),_netSkillFxSent:true,_remoteExact:true};
-  for(const k of ['x','y','x2','y2','vx','vy','t','max','size','r','a','arc','len','width','style'])if(Number.isFinite(Number(raw[k])))e[k]=Number(raw[k]);
+  const e={type:raw.type,color:String(raw.color||'#ffffff').slice(0,24),innerColor:raw.innerColor?String(raw.innerColor).slice(0,24):undefined,_netSkillFxSent:true,_remoteExact:true};
+  for(const k of ['x','y','x2','y2','vx','vy','t','max','size','r','a','arc','len','width','style','outerWidth','innerWidth','innerInset','innerAlpha'])if(Number.isFinite(Number(raw[k])))e[k]=Number(raw[k]);
   if(!Number.isFinite(e.t))e.t=.25;if(!Number.isFinite(e.max))e.max=e.t;
   effects.push(e);
  }
@@ -5287,7 +5287,7 @@ if(e.type==='crimsonWing'){
  if(e.type==='riftCut'){ctx.save();ctx.translate(e.x,e.y);ctx.rotate(e.a);ctx.globalCompositeOperation='lighter';ctx.strokeStyle=e.color;ctx.lineCap='round';ctx.lineWidth=18*(1-progress)+5;ctx.beginPath();ctx.moveTo(-e.len/2,0);ctx.lineTo(e.len/2,0);ctx.stroke();ctx.strokeStyle='#ffffff';ctx.lineWidth=4*(1-progress)+1;ctx.beginPath();ctx.moveTo(-e.len/2,0);ctx.lineTo(e.len/2,0);ctx.stroke();for(let k=-4;k<=4;k++)circle(ctx,k*e.len/10,Math.sin(k*2+progress*10)*8,3,e.color);ctx.restore();}
  if(e.type==='meteor'){ctx.save();ctx.globalCompositeOperation='lighter';const fall=1-progress;line(ctx,e.x+65*fall,e.y-180*fall,e.x,e.y,e.color,18*(1-progress)+4);glow(ctx,e.x,e.y,e.r*.9,e.color+'55');circle(ctx,e.x,e.y,10+e.r*.08,'#fff4d0');ctx.restore();}
  if(e.type==='nova'){ctx.save();ctx.translate(e.x,e.y);ctx.globalCompositeOperation='lighter';ctx.rotate(progress*.9);ctx.strokeStyle=e.color;for(let k=0;k<4;k++){ctx.lineWidth=5-k;ctx.beginPath();ctx.arc(0,0,e.r*(.15+progress*.85)*(1-k*.08),0,TAU);ctx.stroke();}for(let k=0;k<16;k++){const a=k*TAU/16+progress*.5,r=e.r*(.25+.72*progress);line(ctx,Math.cos(a)*e.r*.08,Math.sin(a)*e.r*.08,Math.cos(a)*r,Math.sin(a)*r,k%2?'#ffffff':e.color,3*(1-progress)+1);}glow(ctx,0,0,e.r*.55,e.color+'44');ctx.restore();}
- if(e.type==='slash'){ctx.strokeStyle=e.color;ctx.lineWidth=7;ctx.beginPath();ctx.arc(e.x,e.y,e.r,e.a-e.arc/2,e.a+e.arc/2);ctx.stroke();ctx.strokeStyle='#fff5d8';ctx.lineWidth=2;ctx.beginPath();ctx.arc(e.x,e.y,e.r-7,e.a-e.arc/2+.1,e.a+e.arc/2-.1);ctx.stroke();}ctx.restore();}}
+ if(e.type==='slash'){ctx.strokeStyle=e.color;ctx.lineWidth=Number(e.outerWidth)||7;ctx.beginPath();ctx.arc(e.x,e.y,e.r,e.a-e.arc/2,e.a+e.arc/2);ctx.stroke();ctx.strokeStyle=e.innerColor||'#fff5d8';ctx.lineWidth=Number(e.innerWidth)||2;ctx.globalAlpha=Number.isFinite(Number(e.innerAlpha))?Number(e.innerAlpha):1;ctx.beginPath();ctx.arc(e.x,e.y,Math.max(1,e.r-(Number(e.innerInset)||7)),e.a-e.arc/2+.1,e.a+e.arc/2-.1);ctx.stroke();ctx.globalAlpha=1;}ctx.restore();}}
 function drawRemoteSkillOverlay(rp,x,y,a){
  if(String(rp.skillKind||'').startsWith('prepare:'))return;
  const livePose=Number(rp.skillPose),poseActive=Number.isFinite(livePose)&&livePose>=0,ttl=(Number(rp.remoteSkillVisualUntil)||0)>realTime;
