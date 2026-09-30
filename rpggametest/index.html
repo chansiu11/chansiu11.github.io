@@ -2543,7 +2543,7 @@ function startSwordSkill(slot){
  const sk=skillInfo(slot),cfg=sk?.cfg;
  if(!sk||sk.locked||!cfg||!canAct()||!isNormalSwordWeapon())return false;
  if(!cancelBasicAttackForSkill())return false;
- if(activeSwordSkill||player.exhaust>0||player.cast>0||player.attackCd>0||player.parry>0||player.dodge>0||player.skillCds[slot]>0)return false;
+ if(activeSwordSkill||player.exhaust>0||player.cast>0||player.attackCd>0||player.parry>0||player.dodge>0||eclipseCooldownAt(slot)>0)return false;
  if(!useStam(sk.cost))return false;aim();
  if(cfg.mode==='eclipseShift'){
   const next=eclipseForm()==='solar'?'lunar':'solar';
