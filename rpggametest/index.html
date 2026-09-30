@@ -1678,7 +1678,7 @@ function eclipseTeleportBehindTarget(seq,target){
  moveBody(player,spot.x-player.x,spot.y-player.y);seq.facing=player.facing=player.attackAngle=Math.atan2(tc.y-player.y,tc.x-player.x);
  effects.push({type:'eclipseLunarInk',x:player.x,y:player.y,a:seq.facing,r:206,arc:2.72,color:'#050505',seed:((realTime*100000)|0)^0x5f3759df,t:.42,max:.42,power:1.45});
  for(let j=0;j<7;j++)effects.push({type:'slash',x:player.x-rnd(-18,18),y:player.y+rnd(-18,18),a:seq.facing+(j-3)*.18,arc:.88+j*.06,r:68+j*12,color:j%3===0?'#303030':j%2?'#151515':'#050505',innerColor:j%2?'#080808':'#202020',innerAlpha:.76,t:.18+j*.018,max:.34});
- syncInstantPlayerMove(900);player.invuln=Math.max(player.invuln,.08);eclipseShake(7.5);return true;
+ syncInstantPlayerMove(900);player.invuln=Math.max(player.invuln,.08);eclipseShake(10);return true;
 }
 function eclipseSolarMoonFx(a,heavy=false,phase=0){
  const ca=Math.cos(a),sa=Math.sin(a),nx=-sa,ny=ca,count=heavy?12:8;
@@ -1777,40 +1777,46 @@ function eclipseSkillMotion(seq,sk,dt,t){
  const moveTo=(tx,ty,speed)=>{const dx=tx-player.x,dy=ty-player.y,d=Math.hypot(dx,dy)||1,step=Math.min(d,speed*dt);moveBody(player,dx/d*step,dy/d*step);};
  if(mode==='solarFlashLine'){
   const face=aimFace(),ca=Math.cos(face),sa=Math.sin(face);
-  if(!seq.eclipseDashShake){seq.eclipseDashShake=true;eclipseShake(3.0);}
+  eclipseShake(t<.34?4.4:t<.52?2.8:2.0);
+  if(!seq.eclipseDashShake){seq.eclipseDashShake=true;eclipseShake(4.8);}
   if(t<.34)moveBody(player,ca*1850*dt,sa*1850*dt);
   else if(t<.48)moveBody(player,-ca*160*dt,-sa*160*dt);
   else if(tc){const dx=tc.x-player.x,dy=tc.y-player.y,d=Math.hypot(dx,dy)||1;if(d>110)moveBody(player,dx/d*Math.min(680*dt,d-110),dy/d*Math.min(680*dt,d-110));}
   seq.facing=player.facing=player.attackAngle=face;player.skillLift=Math.sin(Math.min(1,t/.44)*Math.PI)*4;player.invuln=Math.max(player.invuln,.034);
  }else if(mode==='solarFlowChain'){
   const face=aimFace(),ca=Math.cos(face),sa=Math.sin(face),nx=-sa,ny=ca,p=Math.min(3,Math.floor(t*4)),u=t*4-p,curve=[-1,1,1,-1][p]*side;
+  eclipseShake(2.0+Math.abs(Math.sin(u*Math.PI))*1.8);
   const fwd=[440,360,420,300][p],lat=[260,300,220,180][p]*curve*Math.sin(u*Math.PI);
   moveBody(player,(ca*fwd+nx*lat)*dt,(sa*fwd+ny*lat)*dt);
   seq.facing=player.facing=player.attackAngle=face;player.skillLift=2+Math.sin(u*Math.PI)*5;player.invuln=Math.max(player.invuln,.022);
  }else if(mode==='solarFallingCleave'){
   const face=aimFace(),ca=Math.cos(face),sa=Math.sin(face);
-  if(t>=.44&&!seq.eclipseApexShake){seq.eclipseApexShake=true;eclipseShake(4.5);}
+  eclipseShake(t<.28?3.2:t<.60?3.8:5.2);
+  if(t>=.44&&!seq.eclipseApexShake){seq.eclipseApexShake=true;eclipseShake(6.0);}
   if(t<.28)moveBody(player,ca*1120*dt,sa*1120*dt);
   else if(t<.60){moveBody(player,ca*360*dt,sa*360*dt);player.skillLift=Math.sin((t-.28)/.32*Math.PI)*58;}
   else{player.skillLift=Math.max(0,58*(1-(t-.60)/.22));if(tc){const dx=tc.x-player.x,dy=tc.y-player.y,d=Math.hypot(dx,dy)||1;if(d>100)moveBody(player,dx/d*Math.min(520*dt,d-100),dy/d*Math.min(520*dt,d-100));}}
   seq.facing=player.facing=player.attackAngle=face;player.invuln=Math.max(player.invuln,.028);
  }else if(mode==='lunarMistStep'){
   const face=aimFace(),ca=Math.cos(face),sa=Math.sin(face),nx=-sa,ny=ca;
+  eclipseShake(seq.eclipseSlipTeleported?3.8:2.6);
   if(!seq.eclipseSlipTeleported&&t<.24)moveBody(player,(ca*980+nx*side*520)*dt,(sa*980+ny*side*520)*dt);
   else if(!seq.eclipseSlipTeleported&&t<.36)moveBody(player,nx*side*260*dt,ny*side*260*dt);
   seq.facing=player.facing=player.attackAngle=face;player.skillLift=Math.sin(Math.PI*t)*4;player.invuln=Math.max(player.invuln,.032);
  }else if(mode==='lunarSpiralBind'){
-  const face=aimFace();seq.facing=player.facing=player.attackAngle=face;player.skillLift=2+Math.sin(t*Math.PI*3)*4;
+  const face=aimFace();eclipseShake(3.0+Math.abs(Math.sin(t*Math.PI*3))*2.0);seq.facing=player.facing=player.attackAngle=face;player.skillLift=2+Math.sin(t*Math.PI*3)*4;
   if(tc){const dx=tc.x-player.x,dy=tc.y-player.y,d=Math.hypot(dx,dy)||1;if(d>175)moveBody(player,dx/d*Math.min(360*dt,d-175),dy/d*Math.min(360*dt,d-175));}
  }else if(mode==='lunarWildAngles'){
   const face=aimFace(),ca=Math.cos(face),sa=Math.sin(face),nx=-sa,ny=ca,p=Math.min(4,Math.floor(t*5)),u=t*5-p,sg=[1,-1,1,-1,0][p]*side;
-  if(seq.eclipseWildShakePhase!==p){seq.eclipseWildShakePhase=p;eclipseShake([2.0,2.6,3.2,3.8,5.0][p]||2);}
+  eclipseShake(2.4+Math.abs(Math.sin(u*Math.PI))*2.2);
+  if(seq.eclipseWildShakePhase!==p){seq.eclipseWildShakePhase=p;eclipseShake([3.0,3.6,4.2,4.8,6.2][p]||3);}
   if(p<4)moveBody(player,(ca*[520,280,620,300][p]+nx*sg*[700,820,760,860][p])*dt,(sa*[520,280,620,300][p]+ny*sg*[700,820,760,860][p])*dt);
   else if(tc){const dx=tc.x-player.x,dy=tc.y-player.y,d=Math.hypot(dx,dy)||1;if(d>120)moveBody(player,dx/d*Math.min(780*dt,d-120),dy/d*Math.min(780*dt,d-120));}
   seq.facing=player.facing=player.attackAngle=face;player.skillLift=2+Math.sin(u*Math.PI)*6;player.invuln=Math.max(player.invuln,.030);
  }else if(mode==='eclipseMoonChain'){
   const face=aimFace(),ca=Math.cos(face),sa=Math.sin(face),nx=-sa,ny=ca,p=Math.min(9,Math.floor(t*10)),u=t*10-p;
-  if(seq.eclipseUltShakePhase!==p){seq.eclipseUltShakePhase=p;eclipseShake([2.5,3,3.5,4,4.5,5,5.5,6,7,9][p]||3);}
+  eclipseShake(4.0+p*.45+Math.abs(Math.sin(u*Math.PI))*1.8);
+  if(seq.eclipseUltShakePhase!==p){seq.eclipseUltShakePhase=p;eclipseShake([4,4.5,5,5.5,6,6.5,7,8,9,12][p]||4);}
   if(t<.22)moveBody(player,ca*1700*dt,sa*1700*dt);
   else if([2,6].includes(p))moveBody(player,nx*(p===2?1:-1)*side*720*dt,ny*(p===2?1:-1)*side*720*dt);
   else if(p===4){moveBody(player,ca*480*dt,sa*480*dt);player.skillLift=Math.sin(u*Math.PI)*42;}
