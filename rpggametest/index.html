@@ -1547,7 +1547,7 @@ const SWORD_SKILL_LIBRARY=[
  {id:'eclipse2',name:'천식 제2식',level:1,price:0,cost:26,cool:3.8,color:'#a9b9cf',desc:'현재 폼의 제2식.',cfg:{duration:.8,hits:[.2,.6],mult:[.8,1.4],arc:[TAU,TAU],reach:[0,0],step:[0,0],mode:'lunarTideEcho'},formSkill:true},
  {id:'eclipse3',name:'천식 제3식',level:1,price:0,cost:38,cool:5.4,color:'#a9b9cf',desc:'현재 폼의 제3식.',cfg:{duration:.92,hits:[.18,.38,.58,.78],mult:[.58,.58,.64,.82],arc:[TAU,TAU,TAU,TAU],reach:[0,0,0,0],step:[0,0,0,0],mode:'solarDial'},formSkill:true},
  {id:'eclipse4',name:'천식 제4식',level:1,price:0,cost:48,cool:7.4,color:'#a9b9cf',desc:'현재 폼의 제4식.',cfg:{duration:1.12,hits:[.2,.44,.68,.92],mult:[.62,.70,.82,1.24],arc:[TAU,TAU,TAU,TAU],reach:[0,0,0,0],step:[0,0,0,0],mode:'solarCross'},formSkill:true},
- {id:'eclipse5',name:'천체식 · 월식연참',level:1,price:0,cost:72,cool:14.5,color:'#FFFFFF',desc:'폼과 무관하게 일식·월식의 근접 검격을 빠르게 교대하는 공통 궁극기. 초반에만 적에게 붙고 이후에는 제자리 중심 연속검으로 이어집니다.',cfg:{duration:1.82,hits:[.12,.27,.42,.57,.72,.88,1.04,1.20,1.38,1.60],mult:[.24,.27,.30,.33,.36,.40,.44,.50,.62,1.52],arc:[TAU,TAU,TAU,TAU,TAU,TAU,TAU,TAU,TAU,TAU],reach:[0,0,0,0,0,0,0,0,0,0],step:[0,0,0,0,0,0,0,0,0,0],mode:'eclipseMoonChain'},formSkill:true},
+ {id:'eclipse5',name:'천체식 · 월식연참',level:1,price:0,cost:72,cool:14.5,color:'#FFFFFF',desc:'폼과 무관하게 일식·월식의 근접 검격을 빠르게 교대하는 공통 궁극기. 각 타격마다 코로나 절선·초승달 잔흔·동심 월륜·먹빛 월흔이 다르게 겹치고 마지막에는 두 형태가 동시에 중첩됩니다.',cfg:{duration:1.82,hits:[.12,.27,.42,.57,.72,.88,1.04,1.20,1.38,1.60],mult:[.24,.27,.30,.33,.36,.40,.44,.50,.62,1.52],arc:[TAU,TAU,TAU,TAU,TAU,TAU,TAU,TAU,TAU,TAU],reach:[0,0,0,0,0,0,0,0,0,0],step:[0,0,0,0,0,0,0,0,0,0],mode:'eclipseMoonChain'},formSkill:true},
  {id:'windSlash',name:'삼렬 풍도',level:1,price:0,cost:20,cool:3.3,color:'#61f0c7',desc:'길쭉한 검풍 세 개를 좌우로 나란히 발사합니다. 기존보다 약 50% 더 멀리 날아가며 세 검풍이 같은 방향으로 평행하게 전진합니다.',cfg:{duration:.44,hits:[.18],mult:[1.0],arc:[1.4],reach:[0],step:[0],mode:'windShot'}},
  {id:'flashRush',name:'질풍 점멸',level:4,price:180,cost:29,cool:5.2,color:'#61f0c7',desc:'조준 방향 또는 표적을 향해 한 번에 점멸 돌진합니다. 기존보다 약 50% 더 긴 거리를 돌진하며, 경로에 닿은 적을 진행 방향으로 밀어냅니다.',cfg:{duration:.48,hits:[.16],mult:[2.05],arc:[1.35],reach:[0],step:[0],mode:'galeBlink'}},
  {id:'moonSpin',name:'달빛 회전',level:7,price:260,cost:32,cool:3.6,color:'#b88cff',desc:'가까운 적의 옆을 반원으로 돌며 적들을 중심 쪽으로 끌어당긴 뒤 한 번에 베어냅니다.',cfg:{duration:.62,hits:[.26],mult:[1.75],arc:[TAU],reach:[46],step:[0],mode:'moonBurst'}},
@@ -1695,6 +1695,37 @@ function eclipseLunarMoonFx(a,heavy=false,phase=0){
  }
  for(let j=0;j<(heavy?12:8);j++)effects.push({type:'particle',x:player.x+rnd(-38,38),y:player.y+rnd(-38,38),vx:rnd(-120,120),vy:rnd(-120,120),color:j%2?'#151515':'#2A2A2A',t:.22+rnd(0,.14),max:.38,size:rnd(2.2,4.8)});
 }
+function eclipseUltimateLayerFx(k,a){
+ const x=player.x,y=player.y,solar=[0,1,4,5,8,9].includes(k),seed=((realTime*100000)|0)+k*1777;
+ if(solar){
+  const big=k===9,mid=k===5||k===8;
+  effects.push({type:'eclipseSolarShard',x,y,a:a+(k%2?.22:-.18),len:big?430:mid?310:245,width:big?118:mid?82:62,color:'#FFFFFF',t:big?.48:mid?.36:.28,max:big?.48:mid?.36:.28,power:big?2.05:mid?1.5:1.15});
+  ring(x,y,big?255:mid?190:142,'#FFFFFF',big?.52:.34);
+  ring(x,y,big?205:mid?148:102,'#BFC7D2',big?.48:.30);
+  const rays=big?20:mid?14:10;
+  for(let j=0;j<rays;j++){const aa=a+j*TAU/rays+k*.17,r1=big?68:46,r2=big?270:mid?205:160;effects.push({type:'line',x:x+Math.cos(aa)*r1,y:y+Math.sin(aa)*r1,x2:x+Math.cos(aa)*r2,y2:y+Math.sin(aa)*r2,color:j%3===0?'#E8EDF5':'#FFFFFF',t:big?.42:.27,max:big?.42:.27});}
+  const scars=big?12:7;
+  for(let j=0;j<scars;j++){const aa=a+(j-(scars-1)/2)*.19,r=big?125+j*7:80+j*6;effects.push({type:'slash',x,y,a:aa,arc:.50+(j%3)*.08,r,color:j%2?'#FFFFFF':'#BFC7D2',innerColor:'#E8EDF5',innerAlpha:.68,outerWidth:big?5.5:4,innerWidth:1.4,innerInset:4,t:.15+j*.012,max:.30});}
+  if(big){effects.push({type:'nova',x,y,r:330,color:'#FFFFFF',t:.56,max:.56});burst(x,y,'#FFFFFF',30,310);}
+ }else{
+  const big=k===7,mid=k===3||k===6;
+  effects.push({type:'eclipseLunarInk',x,y,a:a+(k%2?.34:-.30),r:big?270:mid?220:178,arc:big?3.05:mid?2.78:2.45,color:'#050505',seed,t:big?.50:mid?.40:.32,max:big?.50:mid?.40:.32,power:big?1.9:mid?1.5:1.2});
+  ring(x,y,big?238:mid?188:142,'#050505',big?.46:.32);
+  ring(x,y,big?182:mid?142:104,'#2A2A2A',big?.42:.28);
+  const scars=big?11:8;
+  for(let j=0;j<scars;j++){const s=j%2?-1:1,aa=a+s*(.24+j*.095)+k*.07,r=(big?115:82)+j*(big?15:12);effects.push({type:'slash',x:x-s*j*5,y:y+j*3,a:aa,arc:.90+(j%4)*.12,r,color:j%3===0?'#303030':j%2?'#151515':'#050505',innerColor:j%2?'#080808':'#202020',innerAlpha:.78,outerWidth:big?8:6.5,innerWidth:2,innerInset:7,t:.18+j*.016,max:.38});}
+  const motes=big?16:10;
+  for(let j=0;j<motes;j++){const aa=j*TAU/motes+k*.11,rr=big?220:160;effects.push({type:'particle',x:x+Math.cos(aa)*rr*.45,y:y+Math.sin(aa)*rr*.45,vx:Math.cos(aa)*rnd(35,110),vy:Math.sin(aa)*rnd(35,110),color:j%2?'#151515':'#2A2A2A',t:.22+rnd(0,.16),max:.40,size:rnd(2.2,4.8)});}
+  if(big)effects.push({type:'starSeal',x,y,r:260,color:'#050505',t:.52,max:.52});
+ }
+ if(k===9){
+  effects.push({type:'eclipseLunarInk',x,y,a:a+Math.PI/2,r:285,arc:3.0,color:'#050505',seed:seed^0x51f15e,t:.58,max:.58,power:1.95});
+  effects.push({type:'starSeal',x,y,r:285,color:'#050505',t:.58,max:.58});
+  for(let j=0;j<4;j++)ring(x,y,105+j*52,j%2?'#050505':'#FFFFFF',.58-j*.05);
+  for(let j=0;j<16;j++){const aa=a+j*TAU/16,inner=54+(j%2)*16,outer=245+(j%3)*18;effects.push({type:'line',x:x+Math.cos(aa)*inner,y:y+Math.sin(aa)*inner,x2:x+Math.cos(aa)*outer,y2:y+Math.sin(aa)*outer,color:j%2?'#FFFFFF':'#2A2A2A',t:.44,max:.44});}
+  burst(x,y,'#151515',24,285);shake=Math.max(shake,16);
+ }
+}
 function eclipseSkillHit(seq,sk,k,damage,finalHit){
  const mode=sk.cfg.mode,a=seq.facing;
  if(mode==='solarFlashLine'){
@@ -1730,9 +1761,9 @@ function eclipseSkillHit(seq,sk,k,damage,finalHit){
  }else if(mode==='eclipseMoonChain'){
   const solar=[0,1,4,5,8,9].includes(k),off=[-.36,.30,.62,-.66,.48,-.42,.72,-.58,.24,0][k]||0;
   eclipseMeleeHit(seq,damage,finalHit,k===9?.84:.12,k===9?350:280,k===9?185:150,off,k===9?120:14);
-  if(solar){eclipseSolarMoonFx(a+off,k===9,k);if(k===9)effects.push({type:'eclipseSolarShard',x:player.x,y:player.y,a:a,len:410,width:108,color:'#FFFFFF',t:.44,max:.44,power:1.95});}
-  else{eclipseLunarMoonFx(a+off,false,k);effects.push({type:'eclipseLunarInk',x:player.x,y:player.y,a:a+off,r:200,arc:2.62,color:'#050505',seed:((realTime*100000)|0)+k*73,t:.34,max:.34,power:1.35});}
-  if(k===9){burst(player.x,player.y,'#FFFFFF',22,220);burst(player.x,player.y,'#151515',22,215);shake=Math.max(shake,15);}
+  if(solar)eclipseSolarMoonFx(a+off,k===9,k);else eclipseLunarMoonFx(a+off,false,k);
+  eclipseUltimateLayerFx(k,a+off);
+  if(k===9){burst(player.x,player.y,'#FFFFFF',22,220);burst(player.x,player.y,'#151515',22,215);shake=Math.max(shake,16);}
  }
 }
 function eclipseSkillMotion(seq,sk,dt,t){
@@ -1791,7 +1822,15 @@ function eclipseSkillMotion(seq,sk,dt,t){
 }
 function eclipseStartVisual(actor,sk,slot,facing){
  const x=actor.x,y=actor.y,mode=sk.cfg?.mode||'';
- if(sk.id==='eclipse5'){effects.push({type:'eclipseSolarShard',x,y,a:facing,len:280,width:74,color:'#FFFFFF',t:.30,max:.30,power:1.4});effects.push({type:'eclipseLunarInk',x,y,a:facing+.28,r:200,arc:2.52,color:'#050505',seed:((realTime*100000)|0),t:.38,max:.38,power:1.4});return;}
+ if(sk.id==='eclipse5'){
+  effects.push({type:'eclipseSolarShard',x,y,a:facing,len:300,width:80,color:'#FFFFFF',t:.32,max:.32,power:1.45});
+  effects.push({type:'eclipseSolarShard',x,y,a:facing+Math.PI/2,len:220,width:58,color:'#BFC7D2',t:.28,max:.28,power:1.15});
+  effects.push({type:'eclipseLunarInk',x,y,a:facing+.28,r:215,arc:2.62,color:'#050505',seed:((realTime*100000)|0),t:.40,max:.40,power:1.45});
+  effects.push({type:'eclipseLunarInk',x,y,a:facing-.55,r:155,arc:1.95,color:'#151515',seed:((realTime*100000)|0)^0x271828,t:.34,max:.34,power:1.05});
+  ring(x,y,185,'#FFFFFF',.36);ring(x,y,138,'#050505',.36);ring(x,y,92,'#BFC7D2',.30);
+  for(let j=0;j<12;j++){const aa=facing+j*TAU/12;effects.push({type:'line',x:x+Math.cos(aa)*52,y:y+Math.sin(aa)*52,x2:x+Math.cos(aa)*185,y2:y+Math.sin(aa)*185,color:j%2?'#FFFFFF':'#2A2A2A',t:.28,max:.28});}
+  effects.push({type:'starSeal',x,y,r:205,color:'#050505',t:.40,max:.40});return;
+ }
  if(mode.startsWith('solar')){
   const len=mode==='solarFlashLine'?270:mode==='solarFallingCleave'?235:210;
   effects.push({type:'eclipseSolarShard',x,y,a:facing,len,width:mode==='solarFallingCleave'?66:58,color:'#FFFFFF',t:.28,max:.28,power:1.25});
