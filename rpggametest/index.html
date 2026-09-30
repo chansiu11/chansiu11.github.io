@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#101b20">
-<title>RPG GAME TEST · 홍련 외형 테스트</title>
+<title>RPG GAME TEST · 천식 이중 폼 테스트</title>
 <style>#accountBar{display:none!important}#title{display:none!important}.slot .cool,.skill-cd.cooling{display:none!important}</style>
 <style>
 :root{--ink:#edf2e9;--muted:#a1b4ae;--gold:#dfbf7b;--teal:#7fdfbf;--panel:rgba(15,26,30,.94);--line:rgba(219,217,181,.19);--red:#ea8b7f;--blue:#98bbdf}
@@ -104,12 +104,12 @@ body{position:relative}.touch-mode select,.touch-mode input{font-size:16px}
 /* rpggametest standalone arena */
 #title,#accountBar,#pvpLayer,#questHud,#training,#eventHud,.hud-menu,#minimapBox{display:none!important}
 #hud{display:block!important}
-#location strong::after{content:" · 홍련 외형 테스트";color:#ff8065;font-size:11px;margin-left:8px}
+#location strong::after{content:" · 천식 이중 폼 테스트";color:#b8c8df;font-size:11px;margin-left:8px}
 </style>
-<style>#rpgTestBadge{position:fixed;z-index:99999;right:12px;top:12px;padding:7px 10px;border:1px solid #ff6a4d88;border-radius:8px;background:#210c12d9;color:#ffd2c5;font:700 11px system-ui;letter-spacing:.08em;pointer-events:none;box-shadow:0 4px 20px #0008}</style>
+<style>#rpgTestBadge{position:fixed;z-index:99999;right:12px;top:12px;padding:7px 10px;border:1px solid #a9b9cf88;border-radius:8px;background:#0f1724e8;color:#eef5ff;font:700 11px system-ui;letter-spacing:.08em;pointer-events:none;box-shadow:0 4px 20px #0008}</style>
 </head>
 <body>
-<div id="rpgTestBadge">RPGGAMETEST · 화염 호흡풍 홍련 5검형</div>
+<div id="rpgTestBadge">RPGGAMETEST · 천식 · 월식 폼</div>
 <canvas id="game" aria-label="잔광의 숲 게임 화면"></canvas>
 <div id="hud" class="hidden">
  <div id="brand">ECHOES OF THE WILD · TEST</div>
@@ -601,7 +601,7 @@ function claimSideQuest(id){const q=sideQuestById(id);if(!q||!player.acceptedSid
 const STYLE_ADEPT_STYLES=[
  {id:'gale',name:'질풍',main:'#61f0c7',sub:'#eafff8',accent:'#2ec9ff',skills:['windSlash','flashRush','galeOrbit','starRush','thunderDrive']},
  {id:'moon',name:'월영',main:'#b88cff',sub:'#f4efff',accent:'#7fa7ff',skills:['moonSpin','mirrorStep','crossBloom','crescent','lunarBind']},
- {id:'break',name:'홍련',main:'#ff344d',sub:'#ffd0c8',accent:'#ff7a3d',skills:['guardBreak','earthRend','quakeRush','ironJudgment','meteorBreaker']},
+ {id:'eclipse',name:'천식',main:'#a9b9cf',sub:'#f5f8ff',accent:'#355276',skills:['eclipseShift','eclipse2','eclipse3','eclipse4','eclipse5']},
  {id:'dawn',name:'여명',main:'#ffd95c',sub:'#fffbe8',accent:'#fff29a',skills:['dawnArc','tempest','skyFall','solarReturn','prismLance']},
  {id:'void',name:'이형',main:'#a76cff',sub:'#f1e6ff',accent:'#ff63d8',skills:['chainReap','phantomSwap','gravityCut','bladeRain','voidDance']}
 ];
@@ -968,8 +968,9 @@ function addPvpPracticeBot(x,y,id){
 function buildTestArena(){
  obstacles=[];decor=[];objects=[];enemies=[];spatial.clear();projectiles=[];remoteSkillProjectiles=[];effects=[];floaters=[];activeBoss=null;nearby=null;mapWaypoint=null;
  player.x=3000;player.y=3000;player.facing=0;player.level=200;player.difficulty='normal';player.training={move:999,dodge:true,attack:true,parry:true,complete:true};
- player.swordStyle='break';player.learnedSwordSkills=['guardBreak','earthRend','quakeRush','ironJudgment','meteorBreaker'];player.equippedSwordSkills=['guardBreak','earthRend','quakeRush','ironJudgment','meteorBreaker'];player.adminSwordSkills=[...player.equippedSwordSkills];player.weapon=0;player.ownedWeapons=[0];
+ player.swordStyle='eclipse';player.eclipseForm='lunar';player.learnedSwordSkills=['eclipseShift','eclipse2','eclipse3','eclipse4','eclipse5'];player.equippedSwordSkills=['eclipseShift','eclipse2','eclipse3','eclipse4','eclipse5'];player.adminSwordSkills=[...player.equippedSwordSkills];player.weapon=0;player.ownedWeapons=[0];
  recalculateEquipment();player.hp=player.maxHp;player.stam=player.maxStam;player.shield=player.maxShield;player.skillCds=[0,0,0,0,0];player.hiddenSkillCds=[0,0,0,0,0];
+ updateEclipseTestBadge();
  addPvpPracticeBot(3210,3000,'testDummy');
  bodyGridValid=false;camera.x=player.x;camera.y=player.y;
 }
@@ -1543,6 +1544,11 @@ const SKILLS=[
  {name:'집중 화살비',level:20,cost:55,cool:11,color:'#ffcaeb',desc:'강한 관통 화살을 집중 발사합니다.'}
 ];
 const SWORD_SKILL_LIBRARY=[
+ {id:'eclipseShift',name:'천식 전환',level:1,price:0,cost:0,cool:.6,color:'#a9b9cf',desc:'일식과 월식 폼을 전환합니다.',cfg:{duration:.18,hits:[],mult:[],arc:[TAU],reach:[0],step:[0],mode:'eclipseShift'},formSkill:true},
+ {id:'eclipse2',name:'천식 제2식',level:1,price:0,cost:26,cool:3.8,color:'#a9b9cf',desc:'현재 폼의 제2식.',cfg:{duration:.8,hits:[.2,.6],mult:[.8,1.4],arc:[TAU,TAU],reach:[0,0],step:[0,0],mode:'lunarTideEcho'},formSkill:true},
+ {id:'eclipse3',name:'천식 제3식',level:1,price:0,cost:38,cool:5.4,color:'#a9b9cf',desc:'현재 폼의 제3식.',cfg:{duration:.92,hits:[.18,.38,.58,.78],mult:[.58,.58,.64,.82],arc:[TAU,TAU,TAU,TAU],reach:[0,0,0,0],step:[0,0,0,0],mode:'solarDial'},formSkill:true},
+ {id:'eclipse4',name:'천식 제4식',level:1,price:0,cost:48,cool:7.4,color:'#a9b9cf',desc:'현재 폼의 제4식.',cfg:{duration:1.12,hits:[.2,.44,.68,.92],mult:[.62,.70,.82,1.24],arc:[TAU,TAU,TAU,TAU],reach:[0,0,0,0],step:[0,0,0,0],mode:'solarCross'},formSkill:true},
+ {id:'eclipse5',name:'천식 궁극',level:1,price:0,cost:66,cool:12.8,color:'#a9b9cf',desc:'현재 폼의 개기식.',cfg:{duration:2.5,hits:[.48,.82,1.16,1.50,2.10],mult:[.44,.52,.62,.78,2.30],arc:[TAU,TAU,TAU,TAU,TAU],reach:[0,0,0,0,0],step:[0,0,0,0,0],mode:'solarTotality'},formSkill:true},
  {id:'windSlash',name:'삼렬 풍도',level:1,price:0,cost:20,cool:3.3,color:'#61f0c7',desc:'길쭉한 검풍 세 개를 좌우로 나란히 발사합니다. 기존보다 약 50% 더 멀리 날아가며 세 검풍이 같은 방향으로 평행하게 전진합니다.',cfg:{duration:.44,hits:[.18],mult:[1.0],arc:[1.4],reach:[0],step:[0],mode:'windShot'}},
  {id:'flashRush',name:'질풍 점멸',level:4,price:180,cost:29,cool:5.2,color:'#61f0c7',desc:'조준 방향 또는 표적을 향해 한 번에 점멸 돌진합니다. 기존보다 약 50% 더 긴 거리를 돌진하며, 경로에 닿은 적을 진행 방향으로 밀어냅니다.',cfg:{duration:.48,hits:[.16],mult:[2.05],arc:[1.35],reach:[0],step:[0],mode:'galeBlink'}},
  {id:'moonSpin',name:'달빛 회전',level:7,price:260,cost:32,cool:3.6,color:'#b88cff',desc:'가까운 적의 옆을 반원으로 돌며 적들을 중심 쪽으로 끌어당긴 뒤 한 번에 베어냅니다.',cfg:{duration:.62,hits:[.26],mult:[1.75],arc:[TAU],reach:[46],step:[0],mode:'moonBurst'}},
@@ -1569,6 +1575,178 @@ const SWORD_SKILL_LIBRARY=[
  {id:'bladeRain',name:'사건선 절단',level:40,price:0,cost:61,cool:10.2,color:'#a76cff',desc:'정면에 서로 평행한 두 공간 균열을 만들고 둘 사이의 공간을 강제로 접습니다. 두 균열이 안쪽으로 좁혀진 뒤 마지막에 중심선이 길게 절단됩니다.',cfg:{duration:1.05,hits:[.18,.52,.88],mult:[.38,.62,2.05],arc:[.72,.72,.82],reach:[220,230,265],step:[0,0,0],mode:'eventHorizonShear'}},
  {id:'voidDance',name:'공허 유영',level:50,price:0,cost:68,cool:16,color:'#a76cff',holdContinuous:true,holdMax:2.6,desc:'여러 적 사이를 빠르게 연쇄 순간이동하며 공간을 절단하고, 마지막 도착 위치에서 남겨둔 균열을 한꺼번에 붕괴시킵니다. Lv.100 기준 각 절단 타격은 70 피해입니다.',cfg:{duration:2.6,hits:[],mult:[],arc:[1.6],reach:[66],step:[0],mode:'holdShadow'}}
 ];
+const ECLIPSE_FORM_COLORS=Object.freeze({
+ solar:{main:'#e2b36c',sub:'#fff0cf',accent:'#2b2018',dark:'#090a0e'},
+ lunar:{main:'#a9b9cf',sub:'#f5f8ff',accent:'#355276',dark:'#101827'}
+});
+const ECLIPSE_FORM_NAMES=Object.freeze({solar:'일식',lunar:'월식'});
+const ECLIPSE_SKILLS=new Set(['eclipseShift','eclipse2','eclipse3','eclipse4','eclipse5']);
+const ECLIPSE_COMBAT_MODES=new Set(['solarCoronaMark','solarDial','solarCross','solarTotality','lunarTideEcho','lunarAnnulus','lunarPhaseScars','lunarTotality']);
+const ECLIPSE_FORM_SKILLS=Object.freeze({
+ solar:Object.freeze({
+  eclipse2:{name:'일식 · 코로나 각인',cost:26,cool:3.8,desc:'전방에 검은 일식 고리를 새긴 뒤 잠시 후 같은 자리를 코로나 테두리가 다시 절단합니다.',cfg:{duration:.76,hits:[.18,.55],mult:[.62,1.58],arc:[TAU,TAU],reach:[0,0],step:[0,0],mode:'solarCoronaMark'}},
+  eclipse3:{name:'일식 · 황도 시계',cost:38,cool:5.4,desc:'시전자는 회전하지 않고 황도 검침 네 개가 서로 다른 방향을 차례로 훑습니다.',cfg:{duration:.92,hits:[.18,.38,.58,.78],mult:[.58,.58,.64,.82],arc:[TAU,TAU,TAU,TAU],reach:[0,0,0,0],step:[0,0,0,0],mode:'solarDial'}},
+  eclipse4:{name:'일식 · 광관 사분',cost:48,cool:7.4,desc:'표적 바깥 네 방향에서 코로나 검선이 북·동·남·서 순으로 중심을 향해 절단합니다.',cfg:{duration:1.12,hits:[.20,.44,.68,.92],mult:[.62,.70,.82,1.24],arc:[TAU,TAU,TAU,TAU],reach:[0,0,0,0],step:[0,0,0,0],mode:'solarCross'}},
+  eclipse5:{name:'개기일식 · 흑양 코로나',cost:66,cool:12.8,desc:'개기일식 중심을 여러 각도의 코로나 검선이 관통하고 마지막에 검은 태양 전체가 붕괴합니다.',cfg:{duration:2.5,hits:[.48,.82,1.16,1.50,2.10],mult:[.44,.52,.62,.78,2.30],arc:[TAU,TAU,TAU,TAU,TAU],reach:[0,0,0,0,0],step:[0,0,0,0,0],mode:'solarTotality'}}
+ }),
+ lunar:Object.freeze({
+  eclipse2:{name:'월식 · 조석 반전',cost:26,cool:3.8,desc:'서로 반대 기울기의 두 은빛 월흔이 같은 지점을 시간차로 교차하며 두 번째 타격이 적을 교차점 쪽으로 당깁니다.',cfg:{duration:.82,hits:[.20,.62],mult:[.82,1.38],arc:[TAU,TAU],reach:[0,0],step:[0,0],mode:'lunarTideEcho'}},
+  eclipse3:{name:'월식 · 만조 경계',cost:38,cool:5.4,desc:'은빛 원환이 바깥으로 밀어낸 뒤 다시 안쪽으로 되감기는 왕복 경계를 만듭니다.',cfg:{duration:.90,hits:[.24,.68],mult:[.86,1.42],arc:[TAU,TAU],reach:[0,0],step:[0,0],mode:'lunarAnnulus'}},
+  eclipse4:{name:'월식 · 삼상 잔흔',cost:48,cool:7.4,desc:'표적에 120도씩 어긋난 세 위상 잔흔을 남기고 순차 실체화해 베어냅니다.',cfg:{duration:1.08,hits:[.22,.50,.80],mult:[.72,.86,1.36],arc:[TAU,TAU,TAU],reach:[0,0,0],step:[0,0,0],mode:'lunarPhaseScars'}},
+  eclipse5:{name:'개기월식 · 오영 월륜',cost:66,cool:12.8,desc:'다섯 단계 월상이 서로 다른 각도로 표적을 절단하고 완성된 월륜이 중심에서 동시에 겹칩니다.',cfg:{duration:2.6,hits:[.42,.78,1.14,1.50,2.18],mult:[.48,.56,.66,.82,2.22],arc:[TAU,TAU,TAU,TAU,TAU],reach:[0,0,0,0,0],step:[0,0,0,0,0],mode:'lunarTotality'}}
+ })
+});
+function eclipseForm(){return player?.eclipseForm==='solar'?'solar':'lunar';}
+function eclipseFormFx(form=eclipseForm()){return ECLIPSE_FORM_COLORS[form]||ECLIPSE_FORM_COLORS.lunar;}
+function eclipseSkillDefinition(base,id,form=eclipseForm()){
+ if(!base||!ECLIPSE_SKILLS.has(id))return base;
+ const th=eclipseFormFx(form);
+ if(id==='eclipseShift'){
+  const next=form==='solar'?'lunar':'solar';
+  return {...base,name:'천식 전환 · '+ECLIPSE_FORM_NAMES[form]+' → '+ECLIPSE_FORM_NAMES[next],color:th.main,desc:'현재 '+ECLIPSE_FORM_NAMES[form]+' 폼. 사용 시 '+ECLIPSE_FORM_NAMES[next]+' 폼으로 전환합니다. 2~5번은 같은 슬롯의 재사용 대기시간을 공유합니다.',cfg:{...base.cfg}};
+ }
+ const data=ECLIPSE_FORM_SKILLS[form]?.[id];
+ return data?{...base,...data,id,color:th.main,formSkill:true,cfg:{...data.cfg,hits:[...(data.cfg.hits||[])],mult:[...(data.cfg.mult||[])],arc:[...(data.cfg.arc||[])],reach:[...(data.cfg.reach||[])],step:[...(data.cfg.step||[])]}}:base;
+}
+function updateEclipseTestBadge(){
+ const b=$('rpgTestBadge');if(!b)return;
+ const form=eclipseForm(),th=eclipseFormFx(form);
+ b.textContent='RPGGAMETEST · 천식 · '+ECLIPSE_FORM_NAMES[form]+' 폼';
+ b.style.borderColor=th.main+'99';b.style.color=th.sub;b.style.background=form==='solar'?'#17120ee8':'#0f1724e8';
+}
+function setEclipseForm(form,withFx=true){
+ if(!player)return;
+ player.eclipseForm=form==='solar'?'solar':'lunar';
+ const th=eclipseFormFx();
+ if(withFx){
+  ring(player.x,player.y,84,th.main,.34);
+  effects.push({type:'starSeal',x:player.x,y:player.y,r:118,color:th.accent,t:.34,max:.34});
+  for(let j=0;j<8;j++){const a=j*TAU/8+(player.eclipseForm==='solar'?0:.20);effects.push({type:'line',x:player.x+Math.cos(a)*24,y:player.y+Math.sin(a)*24,x2:player.x+Math.cos(a)*68,y2:player.y+Math.sin(a)*68,color:j%2?th.sub:th.main,t:.28,max:.28});}
+  burst(player.x,player.y,th.main,14,125);
+ }
+ updateEclipseTestBadge();updateSkillTray();
+}
+function eclipseAnchor(seq,forward=220){
+ if(Number.isFinite(seq?.anchorX)&&Number.isFinite(seq?.anchorY))return {x:seq.anchorX,y:seq.anchorY};
+ const t=swordSeqTarget(seq);if(t){const q=combatCenter(t);return {x:q.x,y:q.y};}
+ const a=seq?.facing??player.facing;
+ return {x:(seq?.originX??player.x)+Math.cos(a)*forward,y:(seq?.originY??player.y)+Math.sin(a)*forward};
+}
+function eclipseStrikeTarget(e,damage,heavy=false,stun=.18,dx=0,dy=0){
+ const s=e.kind==='boss'?stun*.42:stun,force=Math.hypot(dx,dy);
+ return hitEnemy(e,damage,heavy,player,{stun:s,dx,dy,duration:force>1?window.EchoesCombat.forceDuration(force):0});
+}
+function eclipseSegmentHit(x1,y1,x2,y2,width,damage,heavy,stun,forceFn=null){
+ for(const e of combatTargets()){
+  if(e.dead||e.riftSleeping)continue;
+  const cc=combatCenter(e);
+  if(segmentDistance(cc.x,cc.y,[x1,y1],[x2,y2])>width+combatRadius(e))continue;
+  const f=forceFn?forceFn(e,cc):null;
+  eclipseStrikeTarget(e,damage,heavy,stun,f?.dx||0,f?.dy||0);
+ }
+}
+function eclipseCircleHit(cx,cy,r,damage,heavy,stun,forceFn=null,minR=0){
+ for(const e of combatTargets()){
+  if(e.dead||e.riftSleeping)continue;
+  const cc=combatCenter(e),d=Math.hypot(cc.x-cx,cc.y-cy),er=combatRadius(e);
+  if(d>r+er||d<Math.max(0,minR-er))continue;
+  const f=forceFn?forceFn(e,cc,d):null;
+  eclipseStrikeTarget(e,damage,heavy,stun,f?.dx||0,f?.dy||0);
+ }
+}
+function eclipseHitVisual(x,y,a,len,width,form,life=.32){
+ const th=eclipseFormFx(form),nx=-Math.sin(a),ny=Math.cos(a);
+ effects.push({type:'riftCut',x,y,a,len,width,color:th.main,t:life,max:life});
+ effects.push({type:'line',x:x-nx*width*.38,y:y-ny*width*.38,x2:x+nx*width*.38,y2:y+ny*width*.38,color:th.sub,t:life*.72,max:life*.72});
+}
+function eclipseSkillHit(seq,sk,k,damage,finalHit){
+ const mode=sk.cfg.mode,form=mode.startsWith('solar')?'solar':'lunar',th=eclipseFormFx(form),a=seq.facing,ca=Math.cos(a),sa=Math.sin(a),anchor=eclipseAnchor(seq);
+ if(mode==='solarCoronaMark'){
+  const cx=seq.originX+ca*150,cy=seq.originY+sa*150;
+  if(k===0){
+   const nx=-sa,ny=ca;
+   eclipseSegmentHit(cx+nx*155,cy+ny*155,cx-nx*155,cy-ny*155,58,damage,false,.12);
+   eclipseHitVisual(cx,cy,a+Math.PI/2,310,54,form,.34);ring(cx,cy,106,th.accent,.28);
+  }else{
+   eclipseCircleHit(cx,cy,126,damage,true,.48,null,30);
+   ring(cx,cy,126,th.main,.46);ring(cx,cy,72,th.sub,.34);
+   effects.push({type:'nova',x:cx,y:cy,r:148,color:th.accent,t:.36,max:.36});
+  }
+ }else if(mode==='lunarTideEcho'){
+  const cx=seq.originX+ca*150,cy=seq.originY+sa*150,aa=a+(k===0?-.62:.62),dx=Math.cos(aa)*165,dy=Math.sin(aa)*165;
+  eclipseSegmentHit(cx-dx,cy-dy,cx+dx,cy+dy,40,damage,finalHit,k===0?.16:.42,k===1?(e,cc)=>{const vx=cx-cc.x,vy=cy-cc.y,d=Math.hypot(vx,vy)||1;return {dx:vx/d*54,dy:vy/d*54};}:null);
+  eclipseHitVisual(cx,cy,aa,330,38,form,.36);
+  effects.push({type:'slash',x:cx,y:cy,a:aa,arc:2.45,r:128,color:k?th.sub:th.main,t:.34,max:.34});
+ }else if(mode==='solarDial'){
+  const aa=a+[0,Math.PI/2,Math.PI,-Math.PI/2][k],x1=seq.originX+Math.cos(aa)*28,y1=seq.originY+Math.sin(aa)*28,x2=seq.originX+Math.cos(aa)*285,y2=seq.originY+Math.sin(aa)*285;
+  eclipseSegmentHit(x1,y1,x2,y2,48,damage,finalHit,finalHit?.44:.12);
+  eclipseHitVisual((x1+x2)/2,(y1+y2)/2,aa,257,42,form,.30);
+  ring(seq.originX,seq.originY,54+k*20,k%2?th.sub:th.main,.24);
+ }else if(mode==='lunarAnnulus'){
+  const cx=seq.originX+ca*130,cy=seq.originY+sa*130,r=k===0?135:86,thick=k===0?78:92,min=Math.max(0,r-thick);
+  const forceFn=(e,cc)=>{const vx=cc.x-cx,vy=cc.y-cy,n=Math.hypot(vx,vy)||1,dir=k===0?1:-1,force=k===0?58:82;return {dx:vx/n*force*dir,dy:vy/n*force*dir};};
+  eclipseCircleHit(cx,cy,r+thick,damage,finalHit,k===0?.18:.46,forceFn,min);
+  ring(cx,cy,r+thick,th.main,.40);ring(cx,cy,min,th.sub,.40);
+  effects.push({type:'starSeal',x:cx,y:cy,r,color:th.accent,t:.34,max:.34});
+ }else if(mode==='solarCross'){
+  const aa=a+k*Math.PI/2,x1=anchor.x+Math.cos(aa)*290,y1=anchor.y+Math.sin(aa)*290,x2=anchor.x-Math.cos(aa)*30,y2=anchor.y-Math.sin(aa)*30;
+  eclipseSegmentHit(x1,y1,x2,y2,54,damage,finalHit,finalHit?.62:.20);
+  eclipseHitVisual((x1+x2)/2,(y1+y2)/2,aa,320,50,form,.36);
+  ring(anchor.x,anchor.y,74+k*18,k===3?th.sub:th.main,.28);
+ }else if(mode==='lunarPhaseScars'){
+  const aa=a+k*TAU/3,dx=Math.cos(aa)*150,dy=Math.sin(aa)*150;
+  eclipseSegmentHit(anchor.x-dx,anchor.y-dy,anchor.x+dx,anchor.y+dy,46,damage,finalHit,finalHit?.58:.22);
+  eclipseHitVisual(anchor.x,anchor.y,aa,300,42,form,.40);
+  effects.push({type:'slash',x:anchor.x,y:anchor.y,a:aa+Math.PI/2,arc:1.8,r:108+k*18,color:k%2?th.sub:th.main,t:.38,max:.38});
+ }else if(mode==='solarTotality'){
+  if(!finalHit){
+   const aa=a+k*.48,dx=Math.cos(aa)*330,dy=Math.sin(aa)*330;
+   eclipseSegmentHit(anchor.x-dx,anchor.y-dy,anchor.x+dx,anchor.y+dy,58+k*4,damage,false,.22);
+   eclipseHitVisual(anchor.x,anchor.y,aa,660,54+k*4,form,.45);
+   ring(anchor.x,anchor.y,260-k*42,th.main,.42);
+  }else{
+   eclipseCircleHit(anchor.x,anchor.y,205,damage,true,.92);
+   effects.push({type:'nova',x:anchor.x,y:anchor.y,r:245,color:th.main,t:.66,max:.66});
+   effects.push({type:'starSeal',x:anchor.x,y:anchor.y,r:220,color:th.accent,t:.70,max:.70});
+   ring(anchor.x,anchor.y,205,th.sub,.66);burst(anchor.x,anchor.y,th.main,34,260);
+  }
+ }else if(mode==='lunarTotality'){
+  if(!finalHit){
+   const aa=a+[-.9,-.3,.34,.92][k],dx=Math.cos(aa)*280,dy=Math.sin(aa)*280;
+   eclipseSegmentHit(anchor.x-dx,anchor.y-dy,anchor.x+dx,anchor.y+dy,45+k*5,damage,false,.24);
+   eclipseHitVisual(anchor.x,anchor.y,aa,560,42+k*5,form,.44);
+   effects.push({type:'slash',x:anchor.x,y:anchor.y,a:aa+Math.PI/2,arc:2.2,r:140+k*24,color:k%2?th.sub:th.main,t:.40,max:.40});
+  }else{
+   eclipseCircleHit(anchor.x,anchor.y,190,damage,true,.88);
+   for(let j=0;j<5;j++){const aa=j*TAU/5;effects.push({type:'slash',x:anchor.x,y:anchor.y,a:aa,arc:1.4,r:185,color:j%2?th.sub:th.main,t:.62,max:.62});}
+   effects.push({type:'starSeal',x:anchor.x,y:anchor.y,r:210,color:th.accent,t:.70,max:.70});
+   ring(anchor.x,anchor.y,190,th.sub,.70);burst(anchor.x,anchor.y,th.main,30,235);
+  }
+ }
+}
+function eclipseSkillMotion(seq,sk,dt,t){
+ const mode=sk.cfg.mode;if(!ECLIPSE_COMBAT_MODES.has(mode))return;
+ const form=mode.startsWith('solar')?'solar':'lunar',th=eclipseFormFx(form),anchor=eclipseAnchor(seq);
+ seq.fx-=dt;if(seq.fx>0)return;seq.fx=mode.endsWith('Totality')?.075:.13;
+ if(mode==='solarDial'){
+  const aa=seq.facing+t*TAU*1.25;
+  effects.push({type:'line',x:seq.originX,y:seq.originY,x2:seq.originX+Math.cos(aa)*248,y2:seq.originY+Math.sin(aa)*248,color:th.main,t:.16,max:.16});
+ }else if(mode==='lunarAnnulus'){
+  const r=70+Math.sin(t*Math.PI)*125;
+  ring(seq.originX+Math.cos(seq.facing)*130,seq.originY+Math.sin(seq.facing)*130,r,th.main,.16);
+ }else if(mode.endsWith('Totality')){
+  const r=form==='solar'?245-80*t:105+115*t;
+  ring(anchor.x,anchor.y,r,th.main,.18);
+  effects.push({type:'starSeal',x:anchor.x,y:anchor.y,r:Math.max(70,r*.78),color:th.accent,t:.18,max:.18});
+ }
+}
+function eclipseStartVisual(actor,sk,slot,facing){
+ const form=sk.cfg?.mode?.startsWith('solar')?'solar':sk.cfg?.mode?.startsWith('lunar')?'lunar':eclipseForm(),th=eclipseFormFx(form),x=actor.x,y=actor.y;
+ ring(x,y,slot===4?102:48,th.main,slot===4?.48:.28);
+ effects.push({type:'starSeal',x,y,r:slot===4?145:72,color:th.accent,t:slot===4?.50:.30,max:slot===4?.50:.30});
+ for(let j=0;j<(slot===4?10:6);j++){const aa=facing+j*TAU/(slot===4?10:6),r=slot===4?115:62;effects.push({type:'line',x:x+Math.cos(aa)*20,y:y+Math.sin(aa)*20,x2:x+Math.cos(aa)*r,y2:y+Math.sin(aa)*r,color:j%2?th.sub:th.main,t:.24,max:.24});}
+}
+
 const SWORD_SKILL_IDENTITY={
  windSlash:{trait:'3열 · 짧은 사거리 · 평행 장검풍',fx:'나란한 3개의 긴 청록 검풍'},
  flashRush:{trait:'점멸 돌진 · 이동거리 동일 넉백',fx:'청록 점멸선/풍압 폭발'},
@@ -1599,7 +1777,7 @@ const SWORD_SKILL_IDENTITY={
 const SWORD_STYLE_GROUPS=[
  {id:'gale',name:'질풍 유파',desc:'3열 단거리 검풍·점멸 압송·지연 원폭·전방 파문·적중 연계형 추살 궁극기 중심',skills:['windSlash','flashRush','galeOrbit','starRush','thunderDrive']},
  {id:'moon',name:'월영 유파',desc:'위치 교환·흡인·후퇴 검압·교차 난무 중심',skills:['moonSpin','mirrorStep','crossBloom','crescent','lunarBind']},
- {id:'break',name:'홍련 유파',desc:'화염 호흡에서 영감을 받은 5가지 독자 검형: 홍염 횡참·승염 비상·열하 단공(화염 원형 도약)·유염 회천·극홍 염화일천',skills:['guardBreak','earthRend','quakeRush','ironJudgment','meteorBreaker']},
+ {id:'eclipse',name:'천식 유파',desc:'1번으로 일식·월식 폼을 전환하고 2~5번이 폼에 따라 완전히 달라지는 이중 검술. 두 폼은 같은 슬롯의 재사용 대기시간을 공유합니다.',skills:['eclipseShift','eclipse2','eclipse3','eclipse4','eclipse5']},
  {id:'dawn',name:'여명 유파',desc:'원거리 검압·회전·다중 발사·낙하 중심',skills:['dawnArc','tempest','skyFall','solarReturn','prismLance']},
  {id:'void',name:'이형 유파',desc:'중력 편향 이동·특이점 돌진·지속 압착·공간 접기·공허 난무 중심',skills:['chainReap','phantomSwap','gravityCut','bladeRain','voidDance']}
 ];
@@ -1608,6 +1786,7 @@ const SWORD_DAMAGE_BALANCE=Object.freeze({
  windSlash:.85,flashRush:.90,galeOrbit:.52,starRush:1.05,thunderDrive:.90,
  moonSpin:1.05,mirrorStep:.95,crossBloom:.95,crescent:1.25,lunarBind:.95,
  guardBreak:.90,earthRend:.92,quakeRush:1.01,ironJudgment:.95,meteorBreaker:.83,
+ eclipseShift:1,eclipse2:1,eclipse3:1,eclipse4:1,eclipse5:1,
  dawnArc:1.45,tempest:.75,skyFall:.95,solarReturn:1.15,prismLance:.58,
  chainReap:1.00,phantomSwap:.65,gravityCut:.75,bladeRain:1.15,voidDance:.32
 });
@@ -1617,10 +1796,11 @@ const SWORD_STYLE_FX={
  gale:{main:'#61f0c7',sub:'#eafff8',accent:'#2ec9ff',dark:'#168f86'},
  moon:{main:'#b88cff',sub:'#f4efff',accent:'#7fa7ff',dark:'#7153ba'},
  break:{main:'#ff782e',sub:'#ffda83',accent:'#e7411b',dark:'#78221a'},
+ eclipse:{main:'#a9b9cf',sub:'#f5f8ff',accent:'#355276',dark:'#101827'},
  dawn:{main:'#ffd95c',sub:'#fffbe8',accent:'#fff29a',dark:'#c59c2b'},
  void:{main:'#a76cff',sub:'#f1e6ff',accent:'#ff63d8',dark:'#5e35a5'}
 };
-function swordStyleFxForSkill(id){const g=swordStyleForSkill(id);return SWORD_STYLE_FX[g?.id]||{main:'#d7c181',sub:'#ffffff',accent:'#d7c181',dark:'#777777'};}
+function swordStyleFxForSkill(id){if(ECLIPSE_SKILLS.has(id))return eclipseFormFx();const g=swordStyleForSkill(id);return SWORD_STYLE_FX[g?.id]||{main:'#d7c181',sub:'#ffffff',accent:'#d7c181',dark:'#777777'};}
 
 function swordStyleById(id){return SWORD_STYLE_GROUPS.find(g=>g.id===id)||null;}
 function swordStyleForSkill(id){return SWORD_STYLE_GROUPS.find(g=>g.skills.includes(id))||null;}
@@ -1664,6 +1844,7 @@ function showSwordStyleChoice(){
  openPanel('swordStyle',header('SWORD MASTER · LEVEL 5','세린에게 전수받을 유파를 선택하세요',false)+'<p class="lede">첫 여정을 통해 기본기를 익힌 모험가만 유파를 선택할 수 있습니다. <b>한 번 선택하면 일반 플레이에서는 다른 유파로 바꿀 수 없습니다.</b><br>선택 즉시 해당 유파의 첫 검술을 전수받고, 이후 검술도 세린에게 배웁니다.</p><div class="grid two">'+cards+'</div>'+footer('검술 사범 세린과 대화 중 · 선택 후 변경할 수 없습니다.',''),true);
 }
 function swordSignatureFx(id,hitIndex,finalHit,ang,reach,color,actor=player,context=null){
+ if(ECLIPSE_SKILLS.has(id))return;
  if(FLAME_BREATH_MODES.has(swordSkillById(id)?.cfg?.mode)){flameBreathSignature(id,hitIndex,finalHit,ang,reach,actor,context);return;}
  const theme=swordStyleFxForSkill(id);color=theme.main;const sub=theme.sub,accent=theme.accent,dark=theme.dark;
  const x=actor.x+Math.cos(ang)*Math.min(Math.max(reach*.45,28),85),y=actor.y+Math.sin(ang)*Math.min(Math.max(reach*.45,28),85);
@@ -1815,11 +1996,12 @@ function swordSignatureFx(id,hitIndex,finalHit,ang,reach,color,actor=player,cont
  }
  else if(id==='voidDance'){effects.push({type:'starSeal',x:actor.x,y:actor.y,r:72,color,t:.22,max:.22});}
 }
-function swordSkillById(id){return SWORD_SKILL_LIBRARY.find(s=>s.id===id)||null;}
+function swordSkillById(id){const base=SWORD_SKILL_LIBRARY.find(s=>s.id===id)||null;return ECLIPSE_SKILLS.has(id)?eclipseSkillDefinition(base,id):base;}
 const SWORD_RANGE_SCALE=1.35,GALE_SKILLS=new Set(['windSlash','flashRush','starRush','galeOrbit','thunderDrive']),CRIMSON_SKILLS=new Set(['guardBreak','earthRend','quakeRush','ironJudgment','meteorBreaker']),GALE_RANGE_SCALE=1.45,SWORD_DASH_SKILLS=new Set(['flashRush','mirrorStep','skyFall','phantomSwap','earthRend','ironJudgment','meteorBreaker']);
 const SWORD_ULT_DAMAGE_SCALE=1.65,SWORD_ULT_RANGE_SCALE=1.35,SWORD_ULT_MIN_DURATION=1.9,SWORD_ULT_HOLD_MIN=1.25;
 function balancedSwordSkill(sk,slot=-1){
  if(!sk?.cfg)return sk;
+ if(ECLIPSE_SKILLS.has(sk.id)){const cfg={...sk.cfg,hits:[...(sk.cfg.hits||[])],mult:[...(sk.cfg.mult||[])],arc:[...(sk.cfg.arc||[])],reach:[...(sk.cfg.reach||[])],step:[...(sk.cfg.step||[])]};return {...sk,cfg};}
  const cfg={...sk.cfg};let holdMax=sk.holdMax;
  const gale=GALE_SKILLS.has(sk.id),galeScale=gale?GALE_RANGE_SCALE:1;
  if(Array.isArray(cfg.reach))cfg.reach=cfg.reach.map(v=>Math.round(v*SWORD_RANGE_SCALE*galeScale*(slot===4?SWORD_ULT_RANGE_SCALE:1)));
@@ -2197,6 +2379,7 @@ function skill(index=0){
  if(typeof index!=='number')index=0;const sk=skillInfo(index);if(!sk||(!canAct()&&!hiddenFollowReady(index)))return;
  if(sk.locked){toast('이 슬롯에는 검술이 장착되어 있지 않습니다. 스킬 메뉴에서 장착하세요.');return;}
  if(player.weapon!==4&&player.level<sk.level){toast('레벨 '+sk.level+'에 '+sk.name+' 사용 가능');return;}
+ if(sk.id==='eclipseShift'){executeSkillNow(index);return;}
  if(beginStandardSkillInput(index)&&!(sk.holdContinuous||sk.id==='gravityCut'||(player.weapon===3&&index>=2)))releaseStandardSkillInput(index);
 }
 function heldSwordInputAngle(fallback){
@@ -2208,6 +2391,7 @@ function heldSwordInputAngle(fallback){
 }
 function swordSkillStartVisuals(actor,sk,slot,facing){
  if(!actor||!sk)return;
+ if(ECLIPSE_SKILLS.has(sk.id)){eclipseStartVisual(actor,sk,slot,facing);return;}
  if(FLAME_BREATH_MODES.has(sk.cfg?.mode)){if(sk.cfg.mode==='flameBreathCleave'){flameBreathCleaveCircle(actor.x,actor.y,FLAME_CLEAVE_START_RADIUS,facing,.42,1.15);if(actor===player)shake=Math.max(shake,7);}crimsonChargeFlames(actor.x,actor.y,sk.id==='meteorBreaker'?83:27,sk.id==='meteorBreaker'?.29:.21,sk.id==='meteorBreaker'?1.16:.46);crimsonEmbers(actor.x,actor.y,facing+Math.PI,sk.id==='meteorBreaker'?10:3,sk.id==='meteorBreaker'?188:83,.64,.62);return;}const cfg=sk.cfg||{},theme=swordStyleFxForSkill(sk.id),x=actor.x,y=actor.y;
  if(sk.holdContinuous){
   if(sk.id==='gravityCut'){effects.push({type:'riftCut',x:x+Math.cos(facing)*65,y:y+Math.sin(facing)*65,a:facing+.55,len:145,width:18,color:theme.main,t:.28,max:.28});effects.push({type:'line',x:x-Math.cos(facing)*35,y:y-Math.sin(facing)*35,x2:x+Math.cos(facing)*105,y2:y+Math.sin(facing)*105,color:theme.sub,t:.24,max:.24});}
@@ -2229,7 +2413,7 @@ function swordSkillStartVisuals(actor,sk,slot,facing){
  }
 }
 function swordUltimateHitVisuals(actor,sk,slot,hitIndex,ang,reach){
- if(!actor||!sk||slot!==4||sk.id==='thunderDrive')return;const th=swordStyleFxForSkill(sk.id),x=actor.x,y=actor.y;
+ if(!actor||!sk||slot!==4||sk.id==='thunderDrive'||ECLIPSE_SKILLS.has(sk.id))return;const th=swordStyleFxForSkill(sk.id),x=actor.x,y=actor.y;
    if(sk.id==='meteorBreaker')return;
  effects.push({type:'nova',x:x+Math.cos(ang)*Math.min(reach*.45,110),y:y+Math.sin(ang)*Math.min(reach*.45,110),r:105+hitIndex*18,color:th.accent,t:.34,max:.34});
  effects.push({type:'starSeal',x,y,r:125+hitIndex*14,color:th.main,t:.30,max:.30});
@@ -2380,12 +2564,19 @@ function startSwordSkill(slot){
  if(!cancelBasicAttackForSkill())return false;
  if(activeSwordSkill||player.exhaust>0||player.cast>0||player.attackCd>0||player.parry>0||player.dodge>0||player.skillCds[slot]>0)return false;
  if(!useStam(sk.cost))return false;aim();
+ if(cfg.mode==='eclipseShift'){
+  const next=eclipseForm()==='solar'?'lunar':'solar';
+  setEclipseForm(next,true);
+  player.skillCds[slot]=sk.cool*(player.rune==='dawn'?.8:1)*skillCooldownScale();
+  player.skillCd=player.skillCds[0];player.skillPose=slot;player.attackDuration=.18;player.attackAnim=.18;player.attackAngle=player.facing;player.heavy=false;player.attackCd=.12;queuePostSkillMoveLock(.12);
+  sendSharedSkillFx(slot,'eclipseShift',player.weapon,player.facing);sound('swing');updateSkillTray();return true;
+ }
  /* 염섬은 고정 더미가 아닌 현재 조준 대상을 사용한다. */
- player.skillCds[slot]=0;player.skillCd=0;player.skillPose=slot;player.cast=cfg.duration;player.attackDuration=cfg.duration;player.attackAnim=cfg.duration;player.attackAngle=player.facing;player.attackArc=cfg.arc[0];player.heavy=true;player.attackCd=cfg.duration;player.combo=0;player.comboTimer=0;const crimsonFree=false;if(!crimsonFree)queuePostSkillMoveLock(cfg.duration);
+ player.skillCds[slot]=ECLIPSE_SKILLS.has(sk.id)?sk.cool*(player.rune==='dawn'?.8:1)*skillCooldownScale():0;player.skillCd=player.skillCds[0];player.skillPose=slot;player.cast=cfg.duration;player.attackDuration=cfg.duration;player.attackAnim=cfg.duration;player.attackAngle=player.facing;player.attackArc=cfg.arc[0];player.heavy=true;player.attackCd=cfg.duration;player.combo=0;player.comboTimer=0;const crimsonFree=false;if(!crimsonFree)queuePostSkillMoveLock(cfg.duration);
  const dashCatch=SWORD_DASH_SKILLS.has(sk.id),voidRange=sk.id==='chainReap'?360:sk.id==='phantomSwap'?620:sk.id==='bladeRain'?540:0,crimsonRange=sk.id==='guardBreak'?330:sk.id==='earthRend'?440:sk.id==='quakeRush'?330:sk.id==='ironJudgment'?480:sk.id==='meteorBreaker'?1150:0,targetRange=voidRange||crimsonRange||(slot===4?820:(GALE_SKILLS.has(sk.id)?560:(dashCatch?720:300)));
  const motionTarget=(lockedTarget&&combatTargets().includes(lockedTarget)&&!lockedTarget.dead&&distance(lockedTarget,player)<=targetRange?lockedTarget:combatTargets().filter(e=>!e.dead&&!e.riftSleeping&&!(e.type==='finalBoss'&&!e.alert)&&distance(e,player)<targetRange).sort((a,b)=>distance(a,player)-distance(b,player))[0])||null;
  if((dashCatch||CRIMSON_SKILLS.has(sk.id))&&motionTarget)player.facing=Math.atan2(motionTarget.y-player.y,motionTarget.x-player.x);
- {const anchorMode=['fracturePrison','triadPyre','flameBreathFinale'].includes(cfg.mode),anchorDist=cfg.mode==='flameBreathFinale'?360:cfg.mode==='triadPyre'?235:170;
+ {const anchorMode=['fracturePrison','triadPyre','flameBreathFinale','solarCross','lunarPhaseScars','solarTotality','lunarTotality'].includes(cfg.mode),anchorDist=cfg.mode==='flameBreathFinale'?360:cfg.mode==='triadPyre'?235:ECLIPSE_COMBAT_MODES.has(cfg.mode)?220:170;
  activeSwordSkill={slot,skillId:sk.id,elapsed:0,nextHit:0,facing:player.facing,duration:cfg.duration,originX:player.x,originY:player.y,targetId:motionTarget?.id||null,side:crimsonStrafeSide(player.facing,Math.random()<.5?-1:1),fx:0,carryIds:new Set(),dashCatch,ultimate:slot===4,ultPhase:0,ultFx:0,ultMovePhase:0,anchorX:anchorMode?(motionTarget?.x??player.x+Math.cos(player.facing)*anchorDist):null,anchorY:anchorMode?(motionTarget?.y??player.y+Math.sin(player.facing)*anchorDist):null,lastEchoX:player.x,lastEchoY:player.y};}
  sendSharedSkillFx(slot,cfg.mode==='galePulse'?'galeCharge':sk.id,player.weapon,player.facing);
  swordSkillStartVisuals(player,sk,slot,player.facing);if(slot===4)shake=Math.max(shake,9);
@@ -2563,7 +2754,8 @@ function performSwordSkillHit(seq,hitIndex){
  const reach=w.reach+(cfg.reach[hitIndex]||0),finalHit=hitIndex===cfg.hits.length-1,damage=sk.id==='thunderDrive'?gale5Damage(finalHit):damageValue(cfg.mult[hitIndex]||1),mode=cfg.mode;
  captureSwordCarryTargets(seq,ang,reach,cfg.arc[hitIndex]);
  const px0=player.x,py0=player.y,step=cfg.step[hitIndex]||0;if(step)moveBody(player,Math.cos(ang)*step,Math.sin(ang)*step);
- if(FLAME_BREATH_MODES.has(mode))flameBreathHit(seq,sk,hitIndex,damage,finalHit);
+ if(ECLIPSE_COMBAT_MODES.has(mode))eclipseSkillHit(seq,sk,hitIndex,damage,finalHit);
+ else if(FLAME_BREATH_MODES.has(mode))flameBreathHit(seq,sk,hitIndex,damage,finalHit);
  else if(seq.ultimate&&sk.id==='lunarBind'){
   const r=[190,245,315][Math.min(hitIndex,2)]||315;
   for(const e of combatTargets()){if(e.dead||e.riftSleeping||combatDistance(e,player)>r+combatRadius(e))continue;hitEnemyConfirmed(e,damage,hitIndex===2,player,()=>{if(e.kind!=='boss'){const pull=Math.max(18,58-hitIndex*12),aa=Math.atan2(player.y-e.y,player.x-e.x);moveBody(e,Math.cos(aa)*pull,Math.sin(aa)*pull);}applyEnemyStun(e,e.kind==='boss'?.18:.45+hitIndex*.2);});}
@@ -2885,6 +3077,7 @@ function flameBreathMotion(seq,sk,dt,t,target){
 function updateSwordSkillMotion(seq,sk,dt){
  const cfg=sk.cfg,mode=cfg.mode,t=clamp(seq.elapsed/seq.duration,0,1),a=seq.facing,ca=Math.cos(a),sa=Math.sin(a),side=seq.side||1,target=swordSeqTarget(seq),px0=player.x,py0=player.y;
  player.skillLift=0;
+ if(ECLIPSE_SKILLS.has(sk.id))eclipseSkillMotion(seq,sk,dt,t);
  if(FLAME_BREATH_MODES.has(mode))flameBreathMotion(seq,sk,dt,t,target);
  else if(CRIMSON_SKILLS.has(sk.id)){
   const tc=target?combatCenter(target):null,face=seq.crimsonFace??seq.facing,fx=Math.cos(face),fy=Math.sin(face),nx=-fy,ny=fx,u=t;
@@ -4124,7 +4317,7 @@ async function startOnlineWorld(){
  if(!m.state.worldSnapshot?.ready||!Array.isArray(m.state.worldSnapshot?.mobs)||!m.state.worldSnapshot.mobs.length)m.bootstrapWorld(buildServerWorldBootstrap());
  toast('<b>공용 월드 접속</b><br>서버 권한형 동기화 · 난이도 보통 · 접속자 '+((m.state.players?.size||0)+1)+'명');if(freshJourney)toast('<b>초보자 전용 퀘스트 · 모험가의 첫 여정</b><br>왼쪽 목표를 차례로 완료하세요. 레벨 5가 되면 검술 사범 세린에게 유파를 전수받을 수 있습니다.');updateHUD();updateFullscreenUI();
 }
-function showPause(){if(mode!=='play')return;openPanel('pause',header('PAUSE','잠시 쉬어가기')+`<div class="grid two"><div class="card"><h3>여정 관리</h3><div class="stat-row"><span>진행</span><b>레벨 ${player.level} · ${Math.floor(player.playtime/60)}분</b></div><p><b>홍련 외형 테스트 전용</b><br>로그인·회원가입·온라인 연동 없이 평지에서 스킬, 이동, 대쉬, 쉴드를 연습합니다. 실제 게임의 계정이나 진행 상황은 변경되지 않습니다.</p><div class="actions"><button data-action="returnTitle">테스트 초기화</button></div></div><div class="card"><h3>설정</h3><button data-action="keys">컴퓨터 키 설정</button><button data-action="skills">스킬·연격 안내</button><button data-action="editLayout" style="margin-bottom:12px">버튼 위치 설정</button><label class="check">조작 방식<select id="controlOpt"><option value="auto" ${options.controlMode==='auto'?'selected':''}>기기에 맞게 자동</option><option value="touch" ${options.controlMode==='touch'?'selected':''}>터치 버튼</option><option value="keyboard" ${options.controlMode==='keyboard'?'selected':''}>키보드·마우스</option></select></label>${fullscreenAvailable()?'<button data-action="fullscreen" style="margin:12px 0">'+(fullscreenActive()?'전체화면 종료':'전체화면 전환')+'</button>':''}<h3 style="margin-top:24px">소리</h3><p>음악과 효과음 출력이 이전보다 크게 조정되었습니다. 높은 음량에서도 찢어짐을 줄이도록 출력 제한기를 적용합니다.</p><label class="check">소리 켜기<input type="checkbox" id="soundOpt" ${options.sound?'checked':''}></label><label class="check">전체 음량<input type="range" id="volumeOpt" min="0" max="1" step="0.05" value="${options.volume}"></label><label class="check">배경음악<input type="range" id="musicVolumeOpt" aria-label="배경음악 음량" min="0" max="1" step="0.05" value="${options.musicVolume}"></label><label class="check">효과음<input type="range" id="sfxVolumeOpt" aria-label="효과음 음량" min="0" max="1" step="0.05" value="${options.sfxVolume}"></label><button data-action="soundTest" class="small">효과음 미리 듣기</button><label class="check">화면 흔들림<input type="checkbox" id="shakeOpt" ${options.shake?'checked':''}></label><label class="check">피해 숫자<input type="checkbox" id="numbersOpt" ${options.damageNumbers?'checked':''}></label><label class="check">절전 그래픽<input type="checkbox" id="qualityOpt" ${options.quality==='low'?'checked':''}></label></div></div><div class="tip">오프라인 외형 테스트입니다. 원래 게임의 계정 및 서버에 연결하지 않습니다.</div>`+footer('평지 · 연습용 몬스터 1마리','<button data-action="help">조작법</button><button class="primary" data-action="close">계속하기 →</button>'));}
+function showPause(){if(mode!=='play')return;openPanel('pause',header('PAUSE','잠시 쉬어가기')+`<div class="grid two"><div class="card"><h3>여정 관리</h3><div class="stat-row"><span>진행</span><b>레벨 ${player.level} · ${Math.floor(player.playtime/60)}분</b></div><p><b>천식 이중 폼 테스트 전용</b><br>로그인·회원가입·온라인 연동 없이 평지에서 스킬, 이동, 대쉬, 쉴드를 연습합니다. 실제 게임의 계정이나 진행 상황은 변경되지 않습니다.</p><div class="actions"><button data-action="returnTitle">테스트 초기화</button></div></div><div class="card"><h3>설정</h3><button data-action="keys">컴퓨터 키 설정</button><button data-action="skills">스킬·연격 안내</button><button data-action="editLayout" style="margin-bottom:12px">버튼 위치 설정</button><label class="check">조작 방식<select id="controlOpt"><option value="auto" ${options.controlMode==='auto'?'selected':''}>기기에 맞게 자동</option><option value="touch" ${options.controlMode==='touch'?'selected':''}>터치 버튼</option><option value="keyboard" ${options.controlMode==='keyboard'?'selected':''}>키보드·마우스</option></select></label>${fullscreenAvailable()?'<button data-action="fullscreen" style="margin:12px 0">'+(fullscreenActive()?'전체화면 종료':'전체화면 전환')+'</button>':''}<h3 style="margin-top:24px">소리</h3><p>음악과 효과음 출력이 이전보다 크게 조정되었습니다. 높은 음량에서도 찢어짐을 줄이도록 출력 제한기를 적용합니다.</p><label class="check">소리 켜기<input type="checkbox" id="soundOpt" ${options.sound?'checked':''}></label><label class="check">전체 음량<input type="range" id="volumeOpt" min="0" max="1" step="0.05" value="${options.volume}"></label><label class="check">배경음악<input type="range" id="musicVolumeOpt" aria-label="배경음악 음량" min="0" max="1" step="0.05" value="${options.musicVolume}"></label><label class="check">효과음<input type="range" id="sfxVolumeOpt" aria-label="효과음 음량" min="0" max="1" step="0.05" value="${options.sfxVolume}"></label><button data-action="soundTest" class="small">효과음 미리 듣기</button><label class="check">화면 흔들림<input type="checkbox" id="shakeOpt" ${options.shake?'checked':''}></label><label class="check">피해 숫자<input type="checkbox" id="numbersOpt" ${options.damageNumbers?'checked':''}></label><label class="check">절전 그래픽<input type="checkbox" id="qualityOpt" ${options.quality==='low'?'checked':''}></label></div></div><div class="tip">오프라인 외형 테스트입니다. 원래 게임의 계정 및 서버에 연결하지 않습니다.</div>`+footer('평지 · 연습용 몬스터 1마리','<button data-action="help">조작법</button><button class="primary" data-action="close">계속하기 →</button>'));}
 function showMap(){revealMap();openPanel('map',header('ATLAS','길이 남긴 흔적')+`<div class="map-layout"><div><canvas id="worldMap" width="720" height="300" aria-label="공용 오픈월드 지도"></canvas><p class="lede" style="font-size:11px;margin-bottom:0">지도 클릭: 목적지 설정 · 밝은 영역: 탐험한 곳<br><span style="color:#ffd978">★ 튜토리얼 목표</span> · <span style="color:#d7c181">◇ 야영지</span> · <span style="color:#e8a49a">✦ 수호자</span> · <span style="color:#ace1d0">▲ 현재 위치</span> · <span style="color:#acdae0">○ 균열</span></p></div><div><div class="eyebrow">FIRST JOURNEY</div>${tutorialJourneyClaimed()?'<div class="tip">모험가의 첫 여정 완료</div>':(()=>{const i=tutorialJourneyStep(),st=TUTORIAL_JOURNEY_STEPS[i],t=tutorialJourneyTarget();return `<div class="card selected"><b>${i+1} / ${TUTORIAL_JOURNEY_STEPS.length} · ${st.name}</b><p>${st.desc}</p><button class="small" data-action="tutorialWaypoint">${t?'지도에 목표 표시':'목표 확인'}</button></div>`;})()}<div class="eyebrow" style="margin-top:16px">WAYPOINTS</div><h3 style="font-weight:400">불빛을 따라</h3>${camps.map(c=>`<div class="travel"><div>${c.name}<br><span>${player.camps.includes(c.id)?'활성화됨':'E로 활성화 필요'}</span></div><button class="small" data-action="travel" data-value="${c.id}" ${!player.camps.includes(c.id)?'disabled':''}>이동</button></div>`).join('')}<div class="tip">공용 월드에서는 난이도가 보통으로 고정됩니다.<br>보스는 처치 후 약 3분 뒤 다시 나타납니다.</div><div class="eyebrow" style="margin-top:16px">RIFTS · ${player.rifts.length} / 3</div>${RIFTS.map(r=>`<div class="travel"><div>${r.name}<br><span>${player.rifts.includes(r.id)?'정화 완료':'룬 보상 · 3차 공세'}</span></div><button class="small" data-action="riftWaypoint" data-value="${r.id}">표시</button></div>`).join('')}<button class="small quiet" style="margin-top:12px" data-action="clearWaypoint">목적지 지우기</button></div></div>`+footer('지역별 체력 / 공격력 배율: 숲 1 / 1 · 습지 1.8 / 1.45 · 고원 3.2 / 2 · 폐허 5 / 2.8 · 동쪽 지역은 추가 1.25배. 전투 중 빠른 이동 불가.'),true);drawMap($('worldMap').getContext('2d'),720,300,true);$('worldMap').addEventListener('click',e=>{const r=e.currentTarget.getBoundingClientRect();mapWaypoint={x:clamp((e.clientX-r.left)/r.width*WORLD.w,60,WORLD.w-60),y:clamp((e.clientY-r.top)/r.height*WORLD.h,60,WORLD.h-60)};drawMap($('worldMap').getContext('2d'),720,300,true);toast('지도에 목적지를 표시했습니다.');});}
 function craft(){if(player.herbs<3||player.potions>=8)return;player.herbs-=3;player.potions++;sound('reward');toast('회복약 1개를 제작했습니다.');saveGame(false);showInventory('craft',true);}
 function craftManaPotion(){if(player.herbs<2||player.ore<1||(player.manaPotions||0)>=8)return;player.herbs-=2;player.ore--;player.manaPotions=(player.manaPotions||0)+1;sound('reward');toast('마나 물약 1개를 제작했습니다.');saveGame(false);showInventory('craft',true);}
