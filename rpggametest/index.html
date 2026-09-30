@@ -1575,23 +1575,23 @@ const SWORD_SKILL_LIBRARY=[
  {id:'voidDance',name:'공허 유영',level:50,price:0,cost:68,cool:16,color:'#a76cff',holdContinuous:true,holdMax:2.6,desc:'여러 적 사이를 빠르게 연쇄 순간이동하며 공간을 절단하고, 마지막 도착 위치에서 남겨둔 균열을 한꺼번에 붕괴시킵니다. Lv.100 기준 각 절단 타격은 70 피해입니다.',cfg:{duration:2.6,hits:[],mult:[],arc:[1.6],reach:[66],step:[0],mode:'holdShadow'}}
 ];
 const ECLIPSE_FORM_COLORS=Object.freeze({
- solar:{main:'#FFE45C',sub:'#FFFDF2',accent:'#FF9D1C',dark:'#1A0900'},
- lunar:{main:'#4656A8',sub:'#D8E0FF',accent:'#161C47',dark:'#050714'}
+ solar:{main:'#FFFFFF',sub:'#EAF2FF',accent:'#C9D3E2',dark:'#747D8A'},
+ lunar:{main:'#050505',sub:'#2B2D33',accent:'#0B0C10',dark:'#686B73'}
 });
-const ECLIPSE_ULT_FX=Object.freeze({main:'#F5F7FF',sub:'#FFE45C',accent:'#5968C7',dark:'#080A16'});
+const ECLIPSE_ULT_FX=Object.freeze({main:'#FFFFFF',sub:'#050505',accent:'#AEB6C3',dark:'#111216'});
 const ECLIPSE_FORM_NAMES=Object.freeze({solar:'일식',lunar:'월식'});
 const ECLIPSE_SKILLS=new Set(['eclipseShift','eclipse2','eclipse3','eclipse4','eclipse5']);
-const ECLIPSE_COMBAT_MODES=new Set(['solarBacklightDraw','solarSunspotRite','solarCoronaGates','lunarAfterimageArc','lunarTidalReverse','lunarPhaseBloom','eclipseSyzygy']);
+const ECLIPSE_COMBAT_MODES=new Set(['solarWhiteRush','solarHaloExecution','solarBladeSanctum','lunarShadowCrescent','lunarBlackTide','lunarNightFlow','eclipseSyzygy']);
 const ECLIPSE_FORM_SKILLS=Object.freeze({
  solar:Object.freeze({
-  eclipse2:{name:'일식 · 백양 역광참',cost:27,cool:4.4,desc:'검을 뽑는 순간 백색 역광이 전방을 가르고, 잠시 뒤 처음 검흔의 반대 방향에서 두 번째 코로나 절단이 되돌아옵니다. 돌진 없이 공간 자체가 두 번 베입니다.',cfg:{duration:.78,hits:[.18,.58],mult:[.76,1.42],arc:[TAU,TAU],reach:[0,0],step:[0,0],mode:'solarBacklightDraw'}},
-  eclipse3:{name:'일식 · 흑점 삼중식',cost:40,cool:6.8,desc:'표적 주위 세 지점에 작은 흑점이 차례로 생기고 각 흑점의 밝은 테두리가 안쪽으로 무너집니다. 마지막에는 세 흑점 사이 중심이 한 번 더 절단됩니다.',cfg:{duration:1.06,hits:[.18,.43,.68,.94],mult:[.56,.58,.62,1.34],arc:[TAU,TAU,TAU,TAU],reach:[0,0,0,0],step:[0,0,0,0],mode:'solarSunspotRite'}},
-  eclipse4:{name:'일식 · 팔방 코로나',cost:51,cool:9.2,desc:'표적을 중심으로 밝은 코로나 검문이 사방에 펼쳐진 뒤 서로 다른 각도에서 중심으로 닫힙니다. 마지막 타격은 외곽 광륜까지 함께 수축합니다.',cfg:{duration:1.34,hits:[.20,.44,.68,.92,1.16],mult:[.52,.56,.62,.72,1.52],arc:[TAU,TAU,TAU,TAU,TAU],reach:[0,0,0,0,0],step:[0,0,0,0,0],mode:'solarCoronaGates'}}
+  eclipse2:{name:'일식 · 백광 일섬',cost:28,cool:4.6,desc:'몸 전체가 백색 잔광으로 변하며 전방으로 고속 돌진한다. 이동 경로를 따라 세 번의 발도 검흔이 겹치고 마지막에 긴 백색 횡참이 뒤늦게 폭발한다.',cfg:{duration:.84,hits:[.16,.40,.68],mult:[.62,.72,1.42],arc:[TAU,TAU,TAU],reach:[0,0,0],step:[0,0,0],mode:'solarWhiteRush'}},
+  eclipse3:{name:'일식 · 백륜 처형진',cost:41,cool:6.9,desc:'표적 주위에 여섯 개의 백색 검륜이 떠오른 뒤 시계방향으로 연속 낙하한다. 마지막에는 모든 검륜이 한 점을 향해 동시에 접히며 십자 검광이 터진다.',cfg:{duration:1.18,hits:[.16,.32,.48,.64,.80,1.02],mult:[.34,.38,.42,.46,.52,1.46],arc:[TAU,TAU,TAU,TAU,TAU,TAU],reach:[0,0,0,0,0,0],step:[0,0,0,0,0,0],mode:'solarHaloExecution'}},
+  eclipse4:{name:'일식 · 백야 검성역',cost:53,cool:9.4,desc:'거대한 백색 원환 안에 다수의 검선이 잠깐 정지한 뒤 사방에서 중심을 연속 절단한다. 마지막에는 바닥 전체가 새하얗게 번쩍이며 대형 원형 검폭이 일어난다.',cfg:{duration:1.48,hits:[.20,.40,.60,.80,1.02,1.28],mult:[.40,.44,.48,.54,.64,1.68],arc:[TAU,TAU,TAU,TAU,TAU,TAU],reach:[0,0,0,0,0,0],step:[0,0,0,0,0,0],mode:'solarBladeSanctum'}}
  }),
  lunar:Object.freeze({
-  eclipse2:{name:'월식 · 암월 잔영',cost:24,cool:3.3,desc:'표적 옆에 어두운 월식 잔영 두 개가 서로 다른 높이로 나타나 반대 방향의 초승달 검격을 시간차로 남깁니다. 시전자는 순간이동하지 않습니다.',cfg:{duration:.72,hits:[.18,.50],mult:[.70,1.22],arc:[TAU,TAU],reach:[0,0],step:[0,0],mode:'lunarAfterimageArc'}},
-  eclipse3:{name:'월식 · 조석 반전',cost:36,cool:5.1,desc:'어두운 남청 월륜이 바깥으로 퍼지며 적을 밀고, 은빛 안쪽 고리가 다시 되감기며 중심으로 끌어당깁니다.',cfg:{duration:.92,hits:[.24,.70],mult:[.78,1.34],arc:[TAU,TAU],reach:[0,0],step:[0,0],mode:'lunarTidalReverse'}},
-  eclipse4:{name:'월식 · 삼상 분리참',cost:46,cool:7.6,desc:'표적 주위 세 위상에 어두운 잔상이 먼저 정지한 뒤, 본체와 상관없이 세 검흔이 120도 간격으로 순차 실체화됩니다. 마지막에는 세 흔적이 동시에 중심을 교차합니다.',cfg:{duration:1.20,hits:[.20,.48,.76,1.02],mult:[.56,.66,.78,1.46],arc:[TAU,TAU,TAU,TAU],reach:[0,0,0,0],step:[0,0,0,0],mode:'lunarPhaseBloom'}}
+  eclipse2:{name:'월식 · 흑영 초승참',cost:24,cool:3.4,desc:'시전자 양옆에 검은 잔영이 나타나 서로 반대 방향의 초승달 검격을 베고, 잠시 뒤 두 검흔 사이를 검은 직선 참격이 이어 절단한다.',cfg:{duration:.78,hits:[.16,.42,.66],mult:[.58,.64,1.16],arc:[TAU,TAU,TAU],reach:[0,0,0],step:[0,0,0],mode:'lunarShadowCrescent'}},
+  eclipse3:{name:'월식 · 흑조 역류',cost:37,cool:5.3,desc:'검은 월륜이 크게 팽창하며 적을 바깥으로 밀어낸 뒤, 화면을 덮는 듯한 어두운 고리가 급격히 되감기며 중심으로 끌어당긴다. 마지막 중심에는 검은 세로참이 떨어진다.',cfg:{duration:1.02,hits:[.20,.58,.86],mult:[.66,.78,1.30],arc:[TAU,TAU,TAU],reach:[0,0,0],step:[0,0,0],mode:'lunarBlackTide'}},
+  eclipse4:{name:'월식 · 무월 유영참',cost:48,cool:7.9,desc:'검은 잔상을 길게 끌며 S자 궤도로 전진한다. 이동 중 세 번의 검격이 서로 다른 각도로 지나가고 마지막에는 뒤에 남긴 모든 검흔이 한꺼번에 재생되어 중심을 절단한다.',cfg:{duration:1.30,hits:[.18,.48,.78,1.10],mult:[.50,.58,.70,1.52],arc:[TAU,TAU,TAU,TAU],reach:[0,0,0,0],step:[0,0,0,0],mode:'lunarNightFlow'}}
  })
 });
 function eclipseForm(){return player?.eclipseForm==='solar'?'solar':'lunar';}
@@ -1624,7 +1624,7 @@ function eclipseSkillDefinition(base,id,form=eclipseForm()){
  const th=eclipseFormFx(form);
  if(id==='eclipseShift'){
   const next=form==='solar'?'lunar':'solar';
-  return {...base,name:'천식 전환 · '+ECLIPSE_FORM_NAMES[form]+' → '+ECLIPSE_FORM_NAMES[next],color:th.main,desc:'현재 '+ECLIPSE_FORM_NAMES[form]+' 폼. 2·3·4번은 일식/월식이 서로 다른 재사용 대기시간을 따로 가지며, 5번은 두 폼 공통 궁극기입니다.',cfg:{...base.cfg}};
+  return {...base,name:'천식 전환 · '+ECLIPSE_FORM_NAMES[form]+' → '+ECLIPSE_FORM_NAMES[next],color:th.main,desc:'현재 '+ECLIPSE_FORM_NAMES[form]+' 폼. 일식은 백색 검광, 월식은 검은 검흔으로 표현됩니다. 2·3·4번은 폼별 독립 쿨타임이며 5번은 공통 궁극기입니다.',cfg:{...base.cfg}};
  }
  const data=ECLIPSE_FORM_SKILLS[form]?.[id];
  return data?{...base,...data,id,color:th.main,formSkill:true,cfg:{...data.cfg,hits:[...(data.cfg.hits||[])],mult:[...(data.cfg.mult||[])],arc:[...(data.cfg.arc||[])],reach:[...(data.cfg.reach||[])],step:[...(data.cfg.step||[])]}}:base;
@@ -1632,25 +1632,27 @@ function eclipseSkillDefinition(base,id,form=eclipseForm()){
 function updateEclipseTestBadge(){
  const b=$('rpgTestBadge');if(!b)return;const form=eclipseForm(),th=eclipseFormFx(form);
  b.textContent='RPGGAMETEST · 천식 · '+ECLIPSE_FORM_NAMES[form]+' 폼';
- b.style.borderColor=th.main+'bb';b.style.color=th.sub;b.style.background=form==='solar'?'#3a260adf':'#080a18ee';
+ b.style.borderColor=form==='solar'?'#ffffffdd':'#34353b';b.style.color=form==='solar'?'#ffffff':'#a7a9b0';b.style.background=form==='solar'?'#59616ce8':'#030304f2';
 }
 function setEclipseForm(form,withFx=true){
  if(!player)return;player.eclipseForm=form==='solar'?'solar':'lunar';ensureEclipseCooldowns();const th=eclipseFormFx();
  if(withFx){
   if(player.eclipseForm==='solar'){
-   effects.push({type:'nova',x:player.x,y:player.y,r:126,color:th.sub,t:.34,max:.34});
-   ring(player.x,player.y,92,th.main,.42);ring(player.x,player.y,48,th.dark,.36);
-   for(let j=0;j<10;j++){const a=j*TAU/10,r=82;effects.push({type:'line',x:player.x+Math.cos(a)*42,y:player.y+Math.sin(a)*42,x2:player.x+Math.cos(a)*r,y2:player.y+Math.sin(a)*r,color:j%2?th.sub:th.main,t:.28,max:.28});}
+   effects.push({type:'nova',x:player.x,y:player.y,r:170,color:'#FFFFFF',t:.42,max:.42});
+   ring(player.x,player.y,132,'#FFFFFF',.48);ring(player.x,player.y,88,'#EAF2FF',.44);ring(player.x,player.y,42,'#FFFFFF',.36);
+   for(let j=0;j<16;j++){const a=j*TAU/16,r=122+(j%3)*15;effects.push({type:'line',x:player.x+Math.cos(a)*34,y:player.y+Math.sin(a)*34,x2:player.x+Math.cos(a)*r,y2:player.y+Math.sin(a)*r,color:j%2?'#FFFFFF':'#C9D3E2',t:.34,max:.34});}
+   burst(player.x,player.y,'#FFFFFF',24,185);
   }else{
-   effects.push({type:'starSeal',x:player.x,y:player.y,r:124,color:th.dark,t:.42,max:.42});
-   ring(player.x,player.y,94,th.main,.42);ring(player.x,player.y,58,th.accent,.36);
-   for(let j=0;j<7;j++){const a=j*TAU/7+.25,r=88;effects.push({type:'slash',x:player.x+Math.cos(a)*18,y:player.y+Math.sin(a)*18,a:a+Math.PI/2,arc:1.35,r,color:j%2?th.sub:th.main,t:.30,max:.30});}
+   effects.push({type:'starSeal',x:player.x,y:player.y,r:156,color:'#050505',t:.48,max:.48});
+   ring(player.x,player.y,130,'#2B2D33',.48);ring(player.x,player.y,92,'#050505',.44);ring(player.x,player.y,48,'#686B73',.34);
+   for(let j=0;j<12;j++){const a=j*TAU/12+.18,r=118+(j%2)*22;effects.push({type:'slash',x:player.x+Math.cos(a)*22,y:player.y+Math.sin(a)*22,a:a+Math.PI/2,arc:1.5,r,color:j%3===0?'#686B73':'#050505',t:.36,max:.36});}
+   burst(player.x,player.y,'#2B2D33',20,165);
   }
-  burst(player.x,player.y,th.main,16,135);
+  shake=Math.max(shake,5);
  }
  updateEclipseTestBadge();updateSkillTray();
 }
-function eclipseAnchor(seq,forward=235){
+function eclipseAnchor(seq,forward=250){
  if(Number.isFinite(seq?.anchorX)&&Number.isFinite(seq?.anchorY))return {x:seq.anchorX,y:seq.anchorY};
  const t=swordSeqTarget(seq);if(t){const q=combatCenter(t);return {x:q.x,y:q.y};}
  const a=seq?.facing??player.facing;return {x:(seq?.originX??player.x)+Math.cos(a)*forward,y:(seq?.originY??player.y)+Math.sin(a)*forward};
@@ -1665,70 +1667,117 @@ function eclipseSegmentHit(x1,y1,x2,y2,width,damage,heavy,stun,forceFn=null){
 function eclipseCircleHit(cx,cy,r,damage,heavy,stun,forceFn=null,minR=0){
  for(const e of combatTargets()){if(e.dead||e.riftSleeping)continue;const cc=combatCenter(e),d=Math.hypot(cc.x-cx,cc.y-cy),er=combatRadius(e);if(d>r+er||d<Math.max(0,minR-er))continue;const f=forceFn?forceFn(e,cc,d):null;eclipseStrikeTarget(e,damage,heavy,stun,f?.dx||0,f?.dy||0);}
 }
-function eclipseHitVisual(x,y,a,len,width,theme,life=.34){
+function eclipseHitVisual(x,y,a,len,width,theme,life=.38){
  const th=typeof theme==='string'?eclipseFormFx(theme):theme,nx=-Math.sin(a),ny=Math.cos(a);
- effects.push({type:'riftCut',x,y,a,len,width,color:th.main,t:life,max:life});
- effects.push({type:'line',x:x-nx*width*.34,y:y-ny*width*.34,x2:x+nx*width*.34,y2:y+ny*width*.34,color:th.sub,t:life*.78,max:life*.78});
+ const edge=theme==='lunar'||th===ECLIPSE_FORM_COLORS.lunar?'#6A6D75':th.sub;
+ effects.push({type:'riftCut',x,y,a,len:len+18,width:width+14,color:edge,t:life,max:life});
+ effects.push({type:'riftCut',x,y,a,len,width,color:th.main,t:life*.94,max:life*.94});
+ effects.push({type:'line',x:x-nx*width*.42,y:y-ny*width*.42,x2:x+nx*width*.42,y2:y+ny*width*.42,color:th.sub,t:life*.72,max:life*.72});
+}
+function eclipseRadialBlades(cx,cy,count,r1,r2,theme,life=.32,spin=0){
+ const th=typeof theme==='string'?eclipseFormFx(theme):theme;
+ for(let j=0;j<count;j++){const a=spin+j*TAU/count,x1=cx+Math.cos(a)*r1,y1=cy+Math.sin(a)*r1,x2=cx+Math.cos(a)*r2,y2=cy+Math.sin(a)*r2;effects.push({type:'line',x:x1,y:y1,x2,y2,color:j%3===0?th.sub:th.main,t:life,max:life});}
 }
 function eclipseSkillHit(seq,sk,k,damage,finalHit){
  const mode=sk.cfg.mode,a=seq.facing,ca=Math.cos(a),sa=Math.sin(a),anchor=eclipseAnchor(seq),solar=ECLIPSE_FORM_COLORS.solar,lunar=ECLIPSE_FORM_COLORS.lunar;
- if(mode==='solarBacklightDraw'){
-  const cx=seq.originX+ca*165,cy=seq.originY+sa*165,aa=a+(k===0?Math.PI/2:-Math.PI/2),dx=Math.cos(aa)*180,dy=Math.sin(aa)*180;
-  eclipseSegmentHit(cx-dx,cy-dy,cx+dx,cy+dy,k===0?48:64,damage,finalHit,k===0?.12:.46);
-  eclipseHitVisual(cx,cy,aa,360,k===0?44:58,'solar',.38);if(k===1){effects.push({type:'nova',x:cx,y:cy,r:132,color:solar.sub,t:.34,max:.34});ring(cx,cy,104,solar.dark,.34);}
- }else if(mode==='solarSunspotRite'){
-  const pts=[[-125,-78],[118,-64],[0,126],[0,0]],p=pts[k],nx=-sa,ny=ca,cx=anchor.x+ca*p[0]+nx*p[1],cy=anchor.y+sa*p[0]+ny*p[1],r=k===3?142:88;
-  eclipseCircleHit(cx,cy,r,damage,finalHit,k===3?.58:.18);effects.push({type:'starSeal',x:cx,y:cy,r,color:solar.dark,t:.42,max:.42});ring(cx,cy,r+18,solar.main,.42);ring(cx,cy,Math.max(24,r*.54),solar.sub,.30);
- }else if(mode==='solarCoronaGates'){
-  if(k<4){const aa=a+k*Math.PI/2,x1=anchor.x+Math.cos(aa)*315,y1=anchor.y+Math.sin(aa)*315,x2=anchor.x-Math.cos(aa)*55,y2=anchor.y-Math.sin(aa)*55;eclipseSegmentHit(x1,y1,x2,y2,58,damage,false,.18);eclipseHitVisual((x1+x2)/2,(y1+y2)/2,aa,370,54,'solar',.40);}
-  else{eclipseCircleHit(anchor.x,anchor.y,230,damage,true,.76,null,55);effects.push({type:'nova',x:anchor.x,y:anchor.y,r:260,color:solar.sub,t:.50,max:.50});ring(anchor.x,anchor.y,230,solar.main,.55);ring(anchor.x,anchor.y,75,solar.dark,.45);}
- }else if(mode==='lunarAfterimageArc'){
-  const side=k===0?-1:1,cx=anchor.x-sa*side*112,cy=anchor.y+ca*side*112,aa=a+side*.72,dx=Math.cos(aa)*170,dy=Math.sin(aa)*170;
-  eclipseSegmentHit(cx-dx,cy-dy,cx+dx,cy+dy,42,damage,finalHit,k===0?.12:.38,k===1?(e,cc)=>{const vx=anchor.x-cc.x,vy=anchor.y-cc.y,d=Math.hypot(vx,vy)||1;return {dx:vx/d*38,dy:vy/d*38};}:null);
-  effects.push({type:'slash',x:cx,y:cy,a:aa,arc:2.35,r:146,color:k?lunar.sub:lunar.main,t:.42,max:.42});eclipseHitVisual(cx,cy,aa,340,38,'lunar',.38);
- }else if(mode==='lunarTidalReverse'){
-  const cx=anchor.x,cy=anchor.y,r=k===0?205:132,min=k===0?92:28,forceFn=(e,cc)=>{const vx=cc.x-cx,vy=cc.y-cy,n=Math.hypot(vx,vy)||1,dir=k===0?1:-1,force=k===0?72:96;return {dx:vx/n*force*dir,dy:vy/n*force*dir};};
-  eclipseCircleHit(cx,cy,r,damage,finalHit,k===0?.18:.48,forceFn,min);ring(cx,cy,r,lunar.main,.46);ring(cx,cy,min,lunar.sub,.40);effects.push({type:'starSeal',x:cx,y:cy,r:(r+min)/2,color:lunar.dark,t:.40,max:.40});
- }else if(mode==='lunarPhaseBloom'){
-  if(k<3){const aa=a+k*TAU/3,ox=Math.cos(aa)*138,oy=Math.sin(aa)*138,cx=anchor.x+ox,cy=anchor.y+oy,cutA=aa+Math.PI/2,dx=Math.cos(cutA)*152,dy=Math.sin(cutA)*152;eclipseSegmentHit(cx-dx,cy-dy,cx+dx,cy+dy,42,damage,false,.18);effects.push({type:'slash',x:cx,y:cy,a:cutA,arc:1.9,r:134,color:k%2?lunar.sub:lunar.main,t:.44,max:.44});}
-  else{for(let j=0;j<3;j++){const aa=a+j*TAU/3,dx=Math.cos(aa)*190,dy=Math.sin(aa)*190;eclipseSegmentHit(anchor.x-dx,anchor.y-dy,anchor.x+dx,anchor.y+dy,50,damage/3,true,.58);eclipseHitVisual(anchor.x,anchor.y,aa,380,46,'lunar',.48);}ring(anchor.x,anchor.y,166,lunar.sub,.50);}
+ if(mode==='solarWhiteRush'){
+  const cx=player.x,cy=player.y,aa=a+(k===0?-.28:k===1?.34:Math.PI/2),len=k===2?430:300,dx=Math.cos(aa)*len*.5,dy=Math.sin(aa)*len*.5;
+  eclipseSegmentHit(cx-dx,cy-dy,cx+dx,cy+dy,k===2?72:50,damage,finalHit,k===2?.52:.16);
+  eclipseHitVisual(cx,cy,aa,len,k===2?64:44,'solar',.40);
+  effects.push({type:'nova',x:cx,y:cy,r:k===2?160:92,color:'#FFFFFF',t:.30,max:.30});eclipseRadialBlades(cx,cy,k===2?14:8,28,k===2?150:92,'solar',.28,aa);
+  if(k===2){ring(cx,cy,148,'#FFFFFF',.38);shake=Math.max(shake,8);}else shake=Math.max(shake,4);
+ }else if(mode==='solarHaloExecution'){
+  if(k<5){const aa=a+k*TAU/5+.18,r=170,cx=anchor.x+Math.cos(aa)*r,cy=anchor.y+Math.sin(aa)*r,cut=aa+Math.PI/2,dx=Math.cos(cut)*135,dy=Math.sin(cut)*135;
+   eclipseSegmentHit(cx-dx,cy-dy,cx+dx,cy+dy,44,damage,false,.14);eclipseHitVisual(cx,cy,cut,270,38,'solar',.34);ring(cx,cy,62,'#FFFFFF',.30);burst(cx,cy,'#EAF2FF',8,92);
+  }else{
+   for(const aa of [a,a+Math.PI/2,a+Math.PI/4,a-Math.PI/4]){const dx=Math.cos(aa)*245,dy=Math.sin(aa)*245;eclipseSegmentHit(anchor.x-dx,anchor.y-dy,anchor.x+dx,anchor.y+dy,56,damage/4,true,.56);eclipseHitVisual(anchor.x,anchor.y,aa,490,50,'solar',.48);}
+   effects.push({type:'nova',x:anchor.x,y:anchor.y,r:228,color:'#FFFFFF',t:.52,max:.52});ring(anchor.x,anchor.y,210,'#FFFFFF',.56);eclipseRadialBlades(anchor.x,anchor.y,18,70,230,'solar',.45,a);shake=Math.max(shake,9);
+  }
+ }else if(mode==='solarBladeSanctum'){
+  if(k<5){const aa=a+k*TAU/5+(k%2?.22:-.18),x1=anchor.x+Math.cos(aa)*330,y1=anchor.y+Math.sin(aa)*330,x2=anchor.x-Math.cos(aa)*82,y2=anchor.y-Math.sin(aa)*82;
+   eclipseSegmentHit(x1,y1,x2,y2,64,damage,false,.18);eclipseHitVisual((x1+x2)/2,(y1+y2)/2,aa,420,58,'solar',.43);eclipseRadialBlades(anchor.x,anchor.y,8,118,282,'solar',.24,aa);
+  }else{
+   eclipseCircleHit(anchor.x,anchor.y,270,damage,true,.86,null,35);effects.push({type:'nova',x:anchor.x,y:anchor.y,r:330,color:'#FFFFFF',t:.68,max:.68});
+   for(let j=0;j<3;j++)ring(anchor.x,anchor.y,105+j*72,j%2?'#EAF2FF':'#FFFFFF',.68-j*.05);
+   eclipseRadialBlades(anchor.x,anchor.y,28,38,310,'solar',.58,a);burst(anchor.x,anchor.y,'#FFFFFF',34,310);shake=Math.max(shake,12);
+  }
+ }else if(mode==='lunarShadowCrescent'){
+  if(k<2){const side=k===0?-1:1,cx=anchor.x-sa*side*118,cy=anchor.y+ca*side*118,aa=a+side*.82,dx=Math.cos(aa)*175,dy=Math.sin(aa)*175;
+   eclipseSegmentHit(cx-dx,cy-dy,cx+dx,cy+dy,52,damage,false,.14);effects.push({type:'slash',x:cx,y:cy,a:aa,arc:2.65,r:168,color:'#050505',t:.46,max:.46});effects.push({type:'slash',x:cx,y:cy,a:aa,arc:2.65,r:178,color:'#686B73',t:.30,max:.30});eclipseHitVisual(cx,cy,aa,350,40,'lunar',.38);
+  }else{
+   const aa=a,dx=Math.cos(aa)*235,dy=Math.sin(aa)*235;eclipseSegmentHit(anchor.x-dx,anchor.y-dy,anchor.x+dx,anchor.y+dy,62,damage,true,.42);eclipseHitVisual(anchor.x,anchor.y,aa,470,56,'lunar',.50);ring(anchor.x,anchor.y,150,'#050505',.48);eclipseRadialBlades(anchor.x,anchor.y,12,42,170,'lunar',.40,a);shake=Math.max(shake,7);
+  }
+ }else if(mode==='lunarBlackTide'){
+  if(k<2){const r=k===0?235:145,min=k===0?104:24,forceFn=(e,cc)=>{const vx=cc.x-anchor.x,vy=cc.y-anchor.y,n=Math.hypot(vx,vy)||1,dir=k===0?1:-1,force=k===0?86:124;return {dx:vx/n*force*dir,dy:vy/n*force*dir};};
+   eclipseCircleHit(anchor.x,anchor.y,r,damage,false,k===0?.16:.42,forceFn,min);ring(anchor.x,anchor.y,r,'#050505',.50);ring(anchor.x,anchor.y,r+12,'#686B73',.34);ring(anchor.x,anchor.y,min,'#2B2D33',.42);effects.push({type:'starSeal',x:anchor.x,y:anchor.y,r:(r+min)/2,color:'#050505',t:.46,max:.46});
+  }else{
+   const x=anchor.x,y=anchor.y,dx=0,dy=250;eclipseSegmentHit(x-dx,y-dy,x+dx,y+dy,76,damage,true,.58);eclipseHitVisual(x,y,Math.PI/2,500,68,'lunar',.56);effects.push({type:'nova',x,y,r:188,color:'#050505',t:.52,max:.52});burst(x,y,'#2B2D33',24,210);shake=Math.max(shake,9);
+  }
+ }else if(mode==='lunarNightFlow'){
+  const cx=player.x,cy=player.y,aa=a+(k===0?-.72:k===1?.52:k===2?-.32:Math.PI/2),len=k===3?420:285,dx=Math.cos(aa)*len*.5,dy=Math.sin(aa)*len*.5;
+  eclipseSegmentHit(cx-dx,cy-dy,cx+dx,cy+dy,k===3?70:48,damage,finalHit,k===3?.64:.18);
+  eclipseHitVisual(cx,cy,aa,len,k===3?62:42,'lunar',.43);effects.push({type:'slash',x:cx,y:cy,a:aa,arc:2.1,r:k===3?175:120,color:'#050505',t:.38,max:.38});
+  if(k===3){for(let j=0;j<5;j++){const q=(j-2)*42,nx=-Math.sin(a),ny=Math.cos(a),x=cx+nx*q,y=cy+ny*q;eclipseHitVisual(x,y,a+(j%2?.44:-.44),320,34,'lunar',.48);}ring(cx,cy,188,'#050505',.52);eclipseRadialBlades(cx,cy,16,52,205,'lunar',.44,a);shake=Math.max(shake,10);}
  }else if(mode==='eclipseSyzygy'){
-  if(k===0){eclipseCircleHit(anchor.x,anchor.y,205,damage,false,.16,null,98);ring(anchor.x,anchor.y,205,solar.main,.46);ring(anchor.x,anchor.y,98,solar.dark,.42);}
-  else if(k===1){const aa=a+.78,dx=Math.cos(aa)*280,dy=Math.sin(aa)*280;eclipseSegmentHit(anchor.x-dx,anchor.y-dy,anchor.x+dx,anchor.y+dy,46,damage,false,.20);eclipseHitVisual(anchor.x,anchor.y,aa,560,42,'lunar',.44);}
-  else if(k===2){for(const aa of [a,a+Math.PI/2]){const dx=Math.cos(aa)*300,dy=Math.sin(aa)*300;eclipseSegmentHit(anchor.x-dx,anchor.y-dy,anchor.x+dx,anchor.y+dy,48,damage/2,false,.22);eclipseHitVisual(anchor.x,anchor.y,aa,600,44,'solar',.42);}}
-  else if(k===3){const forceFn=(e,cc)=>{const vx=anchor.x-cc.x,vy=anchor.y-cc.y,d=Math.hypot(vx,vy)||1;return {dx:vx/d*110,dy:vy/d*110};};eclipseCircleHit(anchor.x,anchor.y,225,damage,false,.36,forceFn,35);ring(anchor.x,anchor.y,225,lunar.main,.48);ring(anchor.x,anchor.y,52,lunar.sub,.40);}
-  else if(k===4){for(const aa of [a+.45,a-.45]){const dx=Math.cos(aa)*335,dy=Math.sin(aa)*335;eclipseSegmentHit(anchor.x-dx,anchor.y-dy,anchor.x+dx,anchor.y+dy,56,damage/2,true,.30);eclipseHitVisual(anchor.x,anchor.y,aa,670,52,aa>a?solar:lunar,.48);}}
-  else{eclipseCircleHit(anchor.x,anchor.y,245,damage,true,1.0);effects.push({type:'nova',x:anchor.x,y:anchor.y,r:300,color:solar.sub,t:.72,max:.72});effects.push({type:'starSeal',x:anchor.x,y:anchor.y,r:260,color:lunar.dark,t:.78,max:.78});ring(anchor.x,anchor.y,236,solar.main,.72);ring(anchor.x,anchor.y,176,lunar.main,.72);ring(anchor.x,anchor.y,86,ECLIPSE_ULT_FX.main,.68);burst(anchor.x,anchor.y,solar.main,28,280);burst(anchor.x,anchor.y,lunar.main,28,245);}
+  if(k===0){eclipseCircleHit(anchor.x,anchor.y,230,damage,false,.16,null,94);ring(anchor.x,anchor.y,230,'#FFFFFF',.52);ring(anchor.x,anchor.y,96,'#050505',.50);eclipseRadialBlades(anchor.x,anchor.y,18,58,250,'solar',.40,a);}
+  else if(k===1){for(const aa of [a+.72,a-.72]){const dx=Math.cos(aa)*300,dy=Math.sin(aa)*300;eclipseSegmentHit(anchor.x-dx,anchor.y-dy,anchor.x+dx,anchor.y+dy,48,damage/2,false,.20);eclipseHitVisual(anchor.x,anchor.y,aa,600,44,'lunar',.48);}}
+  else if(k===2){for(const aa of [a,a+Math.PI/2,a+Math.PI/4,a-Math.PI/4]){const dx=Math.cos(aa)*310,dy=Math.sin(aa)*310;eclipseSegmentHit(anchor.x-dx,anchor.y-dy,anchor.x+dx,anchor.y+dy,44,damage/4,false,.22);eclipseHitVisual(anchor.x,anchor.y,aa,620,40,'solar',.44);}}
+  else if(k===3){const forceFn=(e,cc)=>{const vx=anchor.x-cc.x,vy=anchor.y-cc.y,d=Math.hypot(vx,vy)||1;return {dx:vx/d*126,dy:vy/d*126};};eclipseCircleHit(anchor.x,anchor.y,250,damage,false,.38,forceFn,32);ring(anchor.x,anchor.y,250,'#050505',.54);ring(anchor.x,anchor.y,172,'#686B73',.40);}
+  else if(k===4){for(let j=0;j<8;j++){const aa=a+j*TAU/8,dx=Math.cos(aa)*350,dy=Math.sin(aa)*350;eclipseSegmentHit(anchor.x-dx,anchor.y-dy,anchor.x+dx,anchor.y+dy,40,damage/8,true,.28);eclipseHitVisual(anchor.x,anchor.y,aa,700,36,j%2?'lunar':'solar',.50);}}
+  else{eclipseCircleHit(anchor.x,anchor.y,285,damage,true,1.05);effects.push({type:'nova',x:anchor.x,y:anchor.y,r:370,color:'#FFFFFF',t:.82,max:.82});effects.push({type:'starSeal',x:anchor.x,y:anchor.y,r:330,color:'#050505',t:.88,max:.88});for(let j=0;j<4;j++)ring(anchor.x,anchor.y,95+j*70,j%2?'#050505':'#FFFFFF',.82-j*.06);eclipseRadialBlades(anchor.x,anchor.y,36,40,350,ECLIPSE_ULT_FX,.72,a);burst(anchor.x,anchor.y,'#FFFFFF',36,350);burst(anchor.x,anchor.y,'#050505',32,310);shake=Math.max(shake,15);}
  }
 }
 function eclipseSkillMotion(seq,sk,dt,t){
- const mode=sk.cfg.mode;if(!ECLIPSE_COMBAT_MODES.has(mode))return;const anchor=eclipseAnchor(seq),solar=ECLIPSE_FORM_COLORS.solar,lunar=ECLIPSE_FORM_COLORS.lunar;
- seq.fx-=dt;if(seq.fx>0)return;seq.fx=mode==='eclipseSyzygy'?.065:.11;
- if(mode==='solarBacklightDraw'){const aa=seq.facing+(t<.5?Math.PI/2:-Math.PI/2);effects.push({type:'line',x:player.x,y:player.y,x2:player.x+Math.cos(aa)*120,y2:player.y+Math.sin(aa)*120,color:solar.sub,t:.15,max:.15});}
- else if(mode==='solarSunspotRite'){const r=72+Math.sin(t*Math.PI*3)*15;ring(anchor.x,anchor.y,r,solar.main,.16);}
- else if(mode==='solarCoronaGates'){const aa=seq.facing+t*TAU;effects.push({type:'line',x:anchor.x+Math.cos(aa)*270,y:anchor.y+Math.sin(aa)*270,x2:anchor.x+Math.cos(aa)*115,y2:anchor.y+Math.sin(aa)*115,color:solar.sub,t:.16,max:.16});}
- else if(mode==='lunarAfterimageArc'){effects.push({type:'slash',x:anchor.x,y:anchor.y,a:seq.facing+t*1.4-.7,arc:1.25,r:100,color:lunar.main,t:.16,max:.16});}
- else if(mode==='lunarTidalReverse'){const r=90+Math.sin(t*Math.PI)*130;ring(anchor.x,anchor.y,r,lunar.main,.17);}
- else if(mode==='lunarPhaseBloom'){const aa=seq.facing+t*TAU*.8;effects.push({type:'starSeal',x:anchor.x+Math.cos(aa)*112,y:anchor.y+Math.sin(aa)*112,r:48,color:lunar.dark,t:.18,max:.18});}
- else if(mode==='eclipseSyzygy'){const r1=105+Math.sin(t*Math.PI)*125,r2=245-r1*.45;ring(anchor.x,anchor.y,r1,solar.main,.17);ring(anchor.x,anchor.y,r2,lunar.main,.17);effects.push({type:'starSeal',x:anchor.x,y:anchor.y,r:Math.max(72,r2*.72),color:t<.5?solar.dark:lunar.dark,t:.18,max:.18});}
+ const mode=sk.cfg.mode;if(!ECLIPSE_COMBAT_MODES.has(mode))return;const anchor=eclipseAnchor(seq),solar=ECLIPSE_FORM_COLORS.solar,lunar=ECLIPSE_FORM_COLORS.lunar,ox=player.x,oy=player.y;
+ const approach=(tx,ty,speed)=>{const dx=tx-player.x,dy=ty-player.y,d=Math.hypot(dx,dy)||1,step=Math.min(d,speed*dt);moveBody(player,dx/d*step,dy/d*step);};
+ if(mode==='solarWhiteRush'){
+  const q=clamp((t-.04)/.72,0,1),ease=q*q*(3-2*q),face=seq.facing,fx=Math.cos(face),fy=Math.sin(face),nx=-fy,ny=fx,side=(seq.side||1);
+  const forward=465*ease,lateral=side*38*Math.sin(Math.PI*q);
+  approach(seq.originX+fx*forward+nx*lateral,seq.originY+fy*forward+ny*lateral,1300);
+  player.facing=seq.facing=face;player.attackAngle=face;player.skillLift=Math.sin(Math.PI*q)*8;player.invuln=Math.max(player.invuln,.045);
+ }else if(mode==='lunarNightFlow'){
+  const q=clamp((t-.04)/.86,0,1),smooth=q*q*(3-2*q),face=seq.facing,fx=Math.cos(face),fy=Math.sin(face),nx=-fy,ny=fx,side=(seq.side||1);
+  const forward=430*smooth,lateral=side*142*Math.sin(Math.PI*q*2)*(.45+.55*Math.sin(Math.PI*q));
+  approach(seq.originX+fx*forward+nx*lateral,seq.originY+fy*forward+ny*lateral,1080);
+  player.facing=seq.facing=face;player.attackAngle=face;player.skillLift=5+Math.sin(Math.PI*q)*11;player.invuln=Math.max(player.invuln,.04);
+ }
+ if(Math.hypot(player.x-ox,player.y-oy)>5)syncSkillMoveIfNeeded(ox,oy,15,1350);
+ seq.fx-=dt;if(seq.fx>0)return;seq.fx=mode==='eclipseSyzygy'?.045:(mode==='solarWhiteRush'||mode==='lunarNightFlow'?.055:.085);
+ if(mode==='solarWhiteRush'){
+  effects.push({type:'line',x:ox,y:oy,x2:player.x,y2:player.y,color:'#FFFFFF',t:.18,max:.18});
+  const nx=-Math.sin(seq.facing),ny=Math.cos(seq.facing);effects.push({type:'line',x:player.x+nx*26,y:player.y+ny*26,x2:player.x-Math.cos(seq.facing)*110+nx*54,y2:player.y-Math.sin(seq.facing)*110+ny*54,color:'#EAF2FF',t:.16,max:.16});
+  if(Math.random()<.65)ring(player.x,player.y,38+Math.random()*28,'#FFFFFF',.13);
+ }else if(mode==='solarHaloExecution'){
+  const aa=realTime*5.4,rr=175+Math.sin(realTime*7)*10;for(let j=0;j<3;j++){const q=aa+j*TAU/3;ring(anchor.x+Math.cos(q)*rr,anchor.y+Math.sin(q)*rr,45,'#FFFFFF',.16);}eclipseRadialBlades(anchor.x,anchor.y,10,78,225,'solar',.16,aa);
+ }else if(mode==='solarBladeSanctum'){
+  ring(anchor.x,anchor.y,265,'#FFFFFF',.18);ring(anchor.x,anchor.y,190,'#EAF2FF',.16);eclipseRadialBlades(anchor.x,anchor.y,18,98,300,'solar',.17,realTime*1.8);
+ }else if(mode==='lunarShadowCrescent'){
+  const aa=seq.facing+Math.sin(realTime*5)*.7;effects.push({type:'slash',x:anchor.x,y:anchor.y,a:aa,arc:2.3,r:145,color:'#050505',t:.18,max:.18});effects.push({type:'slash',x:anchor.x,y:anchor.y,a:-aa,arc:2.1,r:154,color:'#686B73',t:.14,max:.14});
+ }else if(mode==='lunarBlackTide'){
+  const r=82+Math.sin(t*Math.PI)*175;ring(anchor.x,anchor.y,r,'#050505',.19);ring(anchor.x,anchor.y,r+12,'#686B73',.13);eclipseRadialBlades(anchor.x,anchor.y,12,Math.max(26,r-35),r+28,'lunar',.15,realTime*-.8);
+ }else if(mode==='lunarNightFlow'){
+  effects.push({type:'line',x:ox,y:oy,x2:player.x,y2:player.y,color:'#050505',t:.21,max:.21});
+  effects.push({type:'line',x:ox,y:oy,x2:player.x,y2:player.y,color:'#686B73',t:.11,max:.11});
+  const aa=seq.facing+(seq.side||1)*Math.sin(t*Math.PI*2)*.8;effects.push({type:'slash',x:player.x,y:player.y,a:aa,arc:1.7,r:92,color:'#050505',t:.18,max:.18});
+ }else if(mode==='eclipseSyzygy'){
+  const r1=105+Math.sin(t*Math.PI)*170,r2=290-r1*.48;ring(anchor.x,anchor.y,r1,'#FFFFFF',.17);ring(anchor.x,anchor.y,r2,'#050505',.17);ring(anchor.x,anchor.y,(r1+r2)*.32,'#686B73',.14);eclipseRadialBlades(anchor.x,anchor.y,16,70,300,t<.5?'solar':'lunar',.15,realTime*1.4);
+ }
 }
 function eclipseStartVisual(actor,sk,slot,facing){
  const x=actor.x,y=actor.y;
  if(sk.id==='eclipse5'){
-  const s=ECLIPSE_FORM_COLORS.solar,l=ECLIPSE_FORM_COLORS.lunar;
-  ring(x,y,128,s.main,.52);ring(x,y,92,l.main,.52);effects.push({type:'starSeal',x,y,r:154,color:l.dark,t:.54,max:.54});effects.push({type:'nova',x,y,r:146,color:s.sub,t:.44,max:.44});
-  for(let j=0;j<8;j++){const aa=facing+j*TAU/8,th=j%2?s:l;effects.push({type:'line',x:x+Math.cos(aa)*32,y:y+Math.sin(aa)*32,x2:x+Math.cos(aa)*126,y2:y+Math.sin(aa)*126,color:th.main,t:.34,max:.34});}return;
+  ring(x,y,160,'#FFFFFF',.58);ring(x,y,122,'#050505',.58);ring(x,y,82,'#AEB6C3',.48);effects.push({type:'starSeal',x,y,r:188,color:'#050505',t:.62,max:.62});effects.push({type:'nova',x,y,r:178,color:'#FFFFFF',t:.48,max:.48});eclipseRadialBlades(x,y,24,36,178,ECLIPSE_ULT_FX,.48,facing);burst(x,y,'#FFFFFF',24,210);burst(x,y,'#050505',20,180);shake=Math.max(shake,8);return;
  }
- const form=sk.cfg?.mode?.startsWith('solar')?'solar':'lunar',th=eclipseFormFx(form);
- ring(x,y,slot===3?86:58,th.main,.34);effects.push({type:'starSeal',x,y,r:slot===3?116:78,color:th.dark,t:.34,max:.34});effects.push({type:'nova',x,y,r:slot===3?98:62,color:th.sub,t:.24,max:.24});
+ const form=sk.cfg?.mode?.startsWith('solar')?'solar':'lunar',th=eclipseFormFx(form),large=slot===3;
+ ring(x,y,large?118:82,form==='solar'?'#FFFFFF':'#050505',.40);ring(x,y,large?86:56,form==='solar'?'#EAF2FF':'#686B73',.34);effects.push({type:'starSeal',x,y,r:large?146:104,color:form==='solar'?'#FFFFFF':'#050505',t:.40,max:.40});eclipseRadialBlades(x,y,large?16:10,28,large?138:96,form,.32,facing);burst(x,y,form==='solar'?'#FFFFFF':'#2B2D33',large?18:12,large?155:110);
 }
 
 const SWORD_SKILL_IDENTITY={
  eclipseShift:{trait:'일식/월식 폼 전환 · 2~4 독립 쿨타임',fx:'밝은 코로나와 어두운 월륜이 서로 반전'},
- eclipse2:{trait:'폼별 기본 검술 · 일식 역광 / 월식 잔영',fx:'백색 과노출 검흔 또는 남청 초승달 잔상'},
- eclipse3:{trait:'폼별 핵심 제어 · 흑점 연쇄 / 조석 반전',fx:'밝은 흑점 테두리 또는 확장·수축 월륜'},
- eclipse4:{trait:'폼별 상급 영역기 · 코로나 봉쇄 / 위상 분리',fx:'사방 광문 또는 세 위상 잔흔'},
- eclipse5:{trait:'공통 궁극기 · 일식+월식 동시 중첩',fx:'황금 코로나와 남청 월륜이 동시에 회전·붕괴'},
+ eclipse2:{trait:'일식 직선 발도 돌진 / 월식 흑영 연계참',fx:'순백 고속 잔광 또는 검은 초승달 잔영'},
+ eclipse3:{trait:'일식 검륜 처형진 / 월식 조석 밀기·흡인',fx:'다중 백색 검륜 또는 검은 팽창·수축 월륜'},
+ eclipse4:{trait:'일식 대형 검성역 / 월식 S자 이동 연속참',fx:'순백 다중 공간검 또는 검은 이동 잔상과 재생 검흔'},
+ eclipse5:{trait:'공통 궁극기 · 백색 일식+검은 월식 동시 중첩',fx:'백색 검광과 검은 월륜이 교차한 뒤 대형 동시 붕괴'},
  windSlash:{trait:'3열 · 짧은 사거리 · 평행 장검풍',fx:'나란한 3개의 긴 청록 검풍'},
  flashRush:{trait:'점멸 돌진 · 이동거리 동일 넉백',fx:'청록 점멸선/풍압 폭발'},
  moonSpin:{trait:'반원 궤도 · 흡인 단타',fx:'보랏빛 만월 궤도'},
@@ -1758,7 +1807,7 @@ const SWORD_SKILL_IDENTITY={
 const SWORD_STYLE_GROUPS=[
  {id:'gale',name:'질풍 유파',desc:'3열 단거리 검풍·점멸 압송·지연 원폭·전방 파문·적중 연계형 추살 궁극기 중심',skills:['windSlash','flashRush','galeOrbit','starRush','thunderDrive']},
  {id:'moon',name:'월영 유파',desc:'위치 교환·흡인·후퇴 검압·교차 난무 중심',skills:['moonSpin','mirrorStep','crossBloom','crescent','lunarBind']},
- {id:'eclipse',name:'천식 유파',desc:'1번으로 밝은 일식과 어두운 월식을 전환합니다. 2·3·4번은 폼별 기술과 쿨타임이 각각 따로 돌고, 5번은 폼과 무관하게 일식·월식을 동시에 겹치는 공통 궁극기입니다.',skills:['eclipseShift','eclipse2','eclipse3','eclipse4','eclipse5']},
+ {id:'eclipse',name:'천식 유파',desc:'일식은 순백의 고속 발도와 다중 검광, 월식은 검은 잔영과 곡선 이동참을 사용합니다. 2·3·4번은 폼별 독립 쿨타임이며 5번은 백색 일식과 검은 월식을 동시에 겹치는 공통 궁극기입니다.',skills:['eclipseShift','eclipse2','eclipse3','eclipse4','eclipse5']},
  {id:'dawn',name:'여명 유파',desc:'원거리 검압·회전·다중 발사·낙하 중심',skills:['dawnArc','tempest','skyFall','solarReturn','prismLance']},
  {id:'void',name:'이형 유파',desc:'중력 편향 이동·특이점 돌진·지속 압착·공간 접기·공허 난무 중심',skills:['chainReap','phantomSwap','gravityCut','bladeRain','voidDance']}
 ];
@@ -1777,7 +1826,7 @@ const SWORD_STYLE_FX={
  gale:{main:'#61f0c7',sub:'#eafff8',accent:'#2ec9ff',dark:'#168f86'},
  moon:{main:'#b88cff',sub:'#f4efff',accent:'#7fa7ff',dark:'#7153ba'},
  break:{main:'#ff782e',sub:'#ffda83',accent:'#e7411b',dark:'#78221a'},
- eclipse:{main:'#f5f7ff',sub:'#FFE45C',accent:'#5968C7',dark:'#080A16'},
+ eclipse:{main:'#FFFFFF',sub:'#050505',accent:'#AEB6C3',dark:'#111216'},
  dawn:{main:'#ffd95c',sub:'#fffbe8',accent:'#fff29a',dark:'#c59c2b'},
  void:{main:'#a76cff',sub:'#f1e6ff',accent:'#ff63d8',dark:'#5e35a5'}
 };
@@ -2554,10 +2603,10 @@ function startSwordSkill(slot){
  }
  /* 염섬은 고정 더미가 아닌 현재 조준 대상을 사용한다. */
  if(ECLIPSE_SKILLS.has(sk.id))setEclipseCooldown(slot,sk.cool*(player.rune==='dawn'?.8:1)*skillCooldownScale());else player.skillCds[slot]=0;player.skillCd=eclipseCooldownAt(0);player.skillPose=slot;player.cast=cfg.duration;player.attackDuration=cfg.duration;player.attackAnim=cfg.duration;player.attackAngle=player.facing;player.attackArc=cfg.arc[0];player.heavy=true;player.attackCd=cfg.duration;player.combo=0;player.comboTimer=0;const crimsonFree=false;if(!crimsonFree)queuePostSkillMoveLock(cfg.duration);
- const dashCatch=SWORD_DASH_SKILLS.has(sk.id),voidRange=sk.id==='chainReap'?360:sk.id==='phantomSwap'?620:sk.id==='bladeRain'?540:0,crimsonRange=sk.id==='guardBreak'?330:sk.id==='earthRend'?440:sk.id==='quakeRush'?330:sk.id==='ironJudgment'?480:sk.id==='meteorBreaker'?1150:0,targetRange=voidRange||crimsonRange||(slot===4?820:(GALE_SKILLS.has(sk.id)?560:(dashCatch?720:300)));
+ const dashCatch=SWORD_DASH_SKILLS.has(sk.id),voidRange=sk.id==='chainReap'?360:sk.id==='phantomSwap'?620:sk.id==='bladeRain'?540:0,crimsonRange=sk.id==='guardBreak'?330:sk.id==='earthRend'?440:sk.id==='quakeRush'?330:sk.id==='ironJudgment'?480:sk.id==='meteorBreaker'?1150:0,eclipseRange=cfg.mode==='solarWhiteRush'?620:cfg.mode==='lunarNightFlow'?580:ECLIPSE_COMBAT_MODES.has(cfg.mode)?520:0,targetRange=eclipseRange||voidRange||crimsonRange||(slot===4?820:(GALE_SKILLS.has(sk.id)?560:(dashCatch?720:300)));
  const motionTarget=(lockedTarget&&combatTargets().includes(lockedTarget)&&!lockedTarget.dead&&distance(lockedTarget,player)<=targetRange?lockedTarget:combatTargets().filter(e=>!e.dead&&!e.riftSleeping&&!(e.type==='finalBoss'&&!e.alert)&&distance(e,player)<targetRange).sort((a,b)=>distance(a,player)-distance(b,player))[0])||null;
  if((dashCatch||CRIMSON_SKILLS.has(sk.id))&&motionTarget)player.facing=Math.atan2(motionTarget.y-player.y,motionTarget.x-player.x);
- {const anchorMode=['fracturePrison','triadPyre','flameBreathFinale','solarSunspotRite','solarCoronaGates','lunarAfterimageArc','lunarTidalReverse','lunarPhaseBloom','eclipseSyzygy'].includes(cfg.mode),anchorDist=cfg.mode==='flameBreathFinale'?360:cfg.mode==='triadPyre'?235:ECLIPSE_COMBAT_MODES.has(cfg.mode)?220:170;
+ {const anchorMode=['fracturePrison','triadPyre','flameBreathFinale','solarHaloExecution','solarBladeSanctum','lunarShadowCrescent','lunarBlackTide','eclipseSyzygy'].includes(cfg.mode),anchorDist=cfg.mode==='flameBreathFinale'?360:cfg.mode==='triadPyre'?235:ECLIPSE_COMBAT_MODES.has(cfg.mode)?220:170;
  activeSwordSkill={slot,skillId:sk.id,elapsed:0,nextHit:0,facing:player.facing,duration:cfg.duration,originX:player.x,originY:player.y,targetId:motionTarget?.id||null,side:crimsonStrafeSide(player.facing,Math.random()<.5?-1:1),fx:0,carryIds:new Set(),dashCatch,ultimate:slot===4,ultPhase:0,ultFx:0,ultMovePhase:0,anchorX:anchorMode?(motionTarget?.x??player.x+Math.cos(player.facing)*anchorDist):null,anchorY:anchorMode?(motionTarget?.y??player.y+Math.sin(player.facing)*anchorDist):null,lastEchoX:player.x,lastEchoY:player.y};}
  sendSharedSkillFx(slot,cfg.mode==='galePulse'?'galeCharge':sk.id,player.weapon,player.facing);
  swordSkillStartVisuals(player,sk,slot,player.facing);if(slot===4)shake=Math.max(shake,9);
