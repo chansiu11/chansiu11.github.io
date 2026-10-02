@@ -3112,7 +3112,7 @@ function performSwordSkillHit(seq,hitIndex){
  else if(mode==='dawnReboundZ'){const totalMult=(cfg.mult||[]).reduce((s,v)=>s+(Number(v)||0),0),delayedDamage=damageValue(totalMult,sk.id);if(beginDawnReboundBind(seq,reach,cfg.arc[hitIndex],delayedDamage)>0)seq.nextHit=cfg.hits.length;}
  else if(mode==='earthSlam'){const cx=player.x+Math.cos(ang)*80,cy=player.y+Math.sin(ang)*80,r=145;for(const e of combatTargets())if(!e.dead&&!e.riftSleeping&&combatDistance(e,{x:cx,y:cy})<r+combatRadius(e))hitEnemy(e,damage,true);}
  else if(mode==='dawnWave'){
-  const spread=25*Math.PI/180,dmg=damageValue(1.2825);
+  const spread=25*Math.PI/180,dmg=900;
   for(const aa of [ang-spread,ang,ang+spread])fireProjectile(player.x+Math.cos(aa)*38,player.y+Math.sin(aa)*38,aa,720,dmg,'player','wave',7);
   seq.elapsed=seq.duration;
  }
