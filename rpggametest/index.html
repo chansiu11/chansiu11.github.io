@@ -1556,7 +1556,7 @@ const SWORD_SKILL_LIBRARY=[
  {id:'crossBloom',name:'연속 교차 베기',level:13,price:420,cost:40,cool:7.4,color:'#b88cff',desc:'표적의 좌우를 번갈아 밟으며 위치를 바꾸고 일곱 번의 교차 베기를 한 대상 주변에 집중합니다.',cfg:{duration:1.42,hits:[.10,.26,.42,.58,.76,.96,1.20],mult:[.43,.45,.48,.52,.56,.66,1.08],arc:[1.20,1.25,1.30,1.35,1.40,1.50,1.85],reach:[20,20,22,22,24,26,30],step:[0,0,0,0,0,0,4],mode:'stationaryFlurry'}},
  {id:'crescent',name:'초승달 이연참',level:16,price:520,cost:34,cool:9,color:'#b88cff',desc:'뒤로 크게 빠지면서 서로 다른 각도의 초승달 검압 두 개를 연속 발사합니다.',cfg:{duration:.80,hits:[.16,.52],mult:[.90,1.18],arc:[2.4,2.7],reach:[18,22],step:[2,4],mode:'crescentRetreat'}},
  {id:'guardBreak',name:'홍염 횡참',level:20,price:650,cost:28,cool:4.8,color:'#ff782e',desc:'검을 크게 휘둘러 전방에 두 겹의 화염 호를 남기는 2단 발도.',cfg:{duration:.72,hits:[.24,.48],mult:[1.15,.92],arc:[2.12,2.18],reach:[150,166],step:[0,0],mode:'flameBreathSweep'}},
- {id:'tempest',name:'역광 반섬',level:24,price:780,cost:48,cool:5.4,color:'#ffd95c',desc:'순간이동·회전·표적 주회 없이 첫 칼과 동시에 아주 짧게 뒤로 끊은 뒤, 한 호흡 안에 Z자 세 구간을 초고속으로 꺾어 들어가며 실제 검으로 네 번 벱니다. 각 이동 구간은 얇은 금빛 절단선 여러 겹과 백금 잔상으로 남고 마지막 역베기 순간 하나의 Z자 문양처럼 동시에 점등됩니다.',cfg:{duration:.42,hits:[.030,.100,.190,.320],mult:[.44,.56,.70,1.38],arc:[1.08,1.20,1.36,1.88],reach:[72,86,100,120],step:[0,0,0,0],mode:'dawnReboundZ'}},
+ {id:'tempest',name:'역광 반섬',level:24,price:780,cost:48,cool:5.2,color:'#ffd95c',desc:'발동 순간 정한 방향을 끝까지 유지합니다. 첫 검격과 함께 짧게 뒤로 끊은 뒤 적을 자동 추적하지 않고 고정된 Z자 검로를 초고속으로 세 번 꿰뚫으며 실제 검으로 네 번 벱니다. 지나온 각 구간의 금빛 검흔은 남아 있다가 마지막 역베기와 함께 뒤에서 앞으로 순차 점등됩니다.',cfg:{duration:.42,hits:[.035,.105,.185,.31],mult:[.43,.55,.69,1.40],arc:[1.12,1.24,1.40,2.04],reach:[74,90,104,130],step:[0,0,0,0],mode:'dawnReboundZ'}},
  {id:'earthRend',name:'승염 비상',level:30,price:920,cost:43,cool:7.4,color:'#ff782e',desc:'직선으로 328만큼 빠르게 돌진하며 점차 감속한다. 발동 0.5초 후 도착 지점의 원형 화염과 지나온 직선 경로에 동시에 피해를 주며 방패를 관통한다.',cfg:{duration:.78,hits:[.50],mult:[2.61],arc:[TAU],reach:[250],step:[0],mode:'flameBreathRise'}},
  {id:'dawnArc',name:'여명 검파',level:38,price:1100,cost:58,cool:3.5,color:'#ffd95c',desc:'강한 검압 하나를 발사한 반동으로 몸이 뒤로 밀리는 초장거리 단발기입니다.',cfg:{duration:.72,hits:[.28],mult:[1.15],arc:[1.7],reach:[20],step:[0],mode:'dawnWave'}},
  {id:'thunderDrive',name:'천풍 추살',level:44,price:1280,cost:74,cool:15.8,color:'#61f0c7',desc:'질풍 유파의 궁극기. 장거리 초고속 돌진에 맞는 순간 2번 질풍 점멸처럼 돌진 방향으로 강하게 날아가며, 이후 0.05초마다 총 30회의 추살 연계를 합니다. Lv.100 기준 일반 타격 100, 마지막 타격 200 피해입니다.',cfg:{duration:2.35,hits:Array.from({length:30},(_,i)=>.70+i*.05),mult:Array.from({length:30},(_,i)=>i===29?.38:.20),arc:Array(30).fill(TAU),reach:Array(30).fill(0),step:Array(30).fill(0),mode:'galePursuit'}},
@@ -1566,7 +1566,7 @@ const SWORD_SKILL_LIBRARY=[
  {id:'lunarBind',name:'월인 결박',level:26,price:0,cost:46,cool:14.8,color:'#b88cff',desc:'표적의 좌우와 뒤로 세 번 순간이동하며 달빛 결계를 이동시켜 적을 구속하고, 마지막 위치에서 월륜 참격으로 마무리합니다.',cfg:{duration:.82,hits:[.50],mult:[2.05],arc:[TAU],reach:[84],step:[0],mode:'lunarPull'}},
  {id:'quakeRush',name:'열하 단공',level:12,price:0,cost:39,cool:7.8,color:'#ff782e',desc:'발동과 동시에 주변 화염 원으로 공격하고 바로 도약해 적을 내려찍는다. 원형 타격 직후 끊김 없이 앞으로 이동하며 착지 지점에서 추가 화염 피해를 준다.',cfg:{duration:.86,hits:[.10,.65],mult:[.73,1.52],arc:[TAU,TAU],reach:[190,245],step:[0,0],mode:'flameBreathCleave'}},
  {id:'ironJudgment',name:'유염 회천',level:36,price:0,cost:52,cool:10,color:'#ff782e',desc:'몸을 비틀며 회전 화염으로 앞쪽으로 돌진하고 세 번 베어 주변 적을 밀어낸다.',cfg:{duration:.75,hits:[.18,.375,.58],mult:[.65,.82,1.55],arc:[3.85,4.75,5.55],reach:[64,93,120],step:[0,0,0],mode:'flameBreathWheel'}},
- {id:'solarReturn',name:'일광 제동',level:14,price:0,cost:50,cool:9.4,color:'#ffd95c',desc:'처음 단 한 번만 적을 초고속으로 관통해 지나친 뒤 완전히 급정지합니다. 이후 위치를 바꾸지 않고 즉시 뒤를 돌아 세 번의 역방향 검격을 거의 한자리에서 폭발적으로 이어가며, 마지막에는 처음 지나온 직선 검흔과 세 번의 베기 흔적이 먼 곳부터 타격점까지 역순으로 빨려 들어와 작은 일륜과 함께 붕괴합니다. 순간이동·다각 추격·흡인·투사체를 사용하지 않습니다.',cfg:{duration:.54,hits:[.055,.160,.280,.430],mult:[.56,.66,.84,1.70],arc:[1.00,1.18,1.42,2.12],reach:[80,96,112,142],step:[0,0,0,0],mode:'dawnBrakeFold'}},
+ {id:'solarReturn',name:'일륜 정섬',level:14,price:0,cost:50,cool:9.2,color:'#ffd95c',desc:'이동·돌진·순간이동 없이 한 자리에서 검을 다섯 번 초고속으로 뽑아 베는 여명 전용 발도술입니다. 매 타격의 금빛 검흔이 서로 다른 각도로 공중에 남고, 마지막 다섯 번째 직접 검격과 동시에 모든 검흔이 한 점으로 접혀 태양빛 섬광을 만듭니다. 투사체와 추격 이동은 사용하지 않습니다.',cfg:{duration:.52,hits:[.055,.135,.215,.305,.42],mult:[.40,.48,.58,.72,1.74],arc:[1.04,1.18,1.32,1.52,2.34],reach:[82,94,108,124,158],step:[0,0,0,0,0],mode:'dawnStillSun'}},
  {id:'prismLance',name:'프리즘 창렬',level:22,price:0,cost:44,cool:15.2,color:'#ffd95c',desc:'5발과 9발의 검압, 마지막 광창을 발사합니다. 투사체가 적중한 적들을 가까운 순서로 빠르게 추격해 대상마다 한 번씩 강한 일격을 가합니다.',cfg:{duration:.62,hits:[.30],mult:[1.0],arc:[1.8],reach:[10],step:[0],mode:'fanLances'}},
  {id:'skyFall',name:'천광 낙하',level:42,price:0,cost:64,cool:7.8,color:'#ffd95c',desc:'멀리 있는 적을 자동 포착해 크게 도약하며 따라붙은 뒤 목표 지점에 낙하 충격을 일으킵니다.',cfg:{duration:1.0,hits:[.78],mult:[3.25],arc:[TAU],reach:[0],step:[0],mode:'skyFall'}},
  {id:'chainReap',name:'궤도 편향',level:6,price:0,cost:29,cool:3.6,color:'#a76cff',desc:'중력을 비틀어 적 쪽으로 살짝 미끄러지면서 옆으로 궤도를 틉니다. 짧은 이동 끝에 휘어진 공간선을 따라 베어냅니다.',cfg:{duration:.58,hits:[.18,.44],mult:[.48,1.34],arc:[1.35,2.0],reach:[52,76],step:[0,0],mode:'gravityDrift'}},
@@ -1875,7 +1875,7 @@ const SWORD_SKILL_IDENTITY={
  crossBloom:{trait:'좌우 위치전환 · 7연 집중',fx:'금빛 잔상 X자 검화'},
  crescent:{trait:'후퇴 사격형 · 쌍검압',fx:'하늘빛 역류 초승달'},
  guardBreak:{trait:'두 겹 수평 화염 검격 · 잔불 폭발',fx:'주황색과 황금색 불꽃이 겹쳐지는 검의 수평 호'},
- tempest:{trait:'0.42초 초고속 후퇴 1타 → Z자 3연 · 순간이동/회전/흡인 없음',fx:'Z자 다층 절단문양/백금 잔상/고밀도 빛 파편/마지막 동시 점등'},
+ tempest:{trait:'고정 방향 반동 → 초고속 Z자 3구간 관통 · 자동 추적 없음 · 검로 순차 점등',fx:'금빛 잔광 검로/다층 절단선/백금 점등 파동/검끝 입자'},
  earthRend:{trait:'곡선 돌진 · 상승 베기 · 띄우기',fx:'굵은 화염 꼬리와 위로 솟는 불꽃 검흔'},
  dawnArc:{trait:'초장거리 단발 · 대검압',fx:'백금 수평 광파'},
  thunderDrive:{trait:'궁극기 · 장거리 돌진 적중 시 즉시 당김 + 30연타 추살',fx:'장거리 풍속 돌진/0.05초 간격 교차 추살/확정 피니시'},
@@ -1885,7 +1885,7 @@ const SWORD_SKILL_IDENTITY={
  lunarBind:{trait:'광역 흡인 · 축소 원참',fx:'달빛 수축 고리'},
  quakeRush:{trait:'제자리 원형 화염 타격 직후 대기 없이 도약 · 착지 추가타',fx:'검을 휘두르는 순간 주변 화염이 원형으로 폭발하고 그대로 도약하며 불꽃 꼬리를 남긴다'},
  ironJudgment:{trait:'회전 화염 돌진 · 3단 검격 · 범위 넉백',fx:'캐릭터를 감싸는 겹친 원호형 화염 검격'},
- solarReturn:{trait:'0.54초 1회 관통 → 완전 급정지 → 제자리 역방향 3연 · 직선 검흔 역회수',fx:'초고속 관통광/제자리 다층 역베기/되감기 회랑/소형 일륜 붕괴'},
+ solarReturn:{trait:'완전 제자리 5연 발도 · 이동/추격 없음 · 마지막 검흔 일점 수축',fx:'5방향 금빛 검흔/백금 잔상/수축 일륜/중앙 섬광'},
  prismLance:{trait:'부채꼴 · 5갈래 검압',fx:'백청 프리즘 선'},
  skyFall:{trait:'고도 상승 · 지정 낙하',fx:'천광 착지 원진'},
  chainReap:{trait:'짧은 곡선 이동 · 중력 편향 베기',fx:'휘어진 이동선/궤도 잔광'},
@@ -2058,12 +2058,17 @@ function swordSignatureFx(id,hitIndex,finalHit,ang,reach,color,actor=player,cont
   effects.push({type:'riftCut',x,y,a:ang,len:255,width:34,color,t:.38,max:.38});
   effects.push({type:'nova',x,y,r:68,color:accent,t:.30,max:.30});burst(x,y,color,22,210);
  }else if(id==='tempest'){
-  const flip=hitIndex%2?1:-1,px=actor.x+Math.cos(ang)*Math.min(reach*.36,66),py=actor.y+Math.sin(ang)*Math.min(reach*.36,66),len=[112,140,166,196][hitIndex]||160,cutA=ang+flip*[.90,.54,.74,.26][hitIndex];
-  effects.push({type:'dawnZTrace',x:px,y:py,a:cutA,len:150+hitIndex*36,width:42+hitIndex*8,color,sub,accent,t:.22+hitIndex*.025,max:.22+hitIndex*.025});
-  for(let q=0;q<4;q++)effects.push({type:'dawnEchoCut',x:px-Math.sin(cutA)*(q-1.5)*5,y:py+Math.cos(cutA)*(q-1.5)*5,a:cutA+(q-1.5)*.07,len:len-q*10,spread:12+hitIndex*2,cross:finalHit&&q===1?1:0,color:q%2?sub:color,sub,accent,t:.18+q*.02,max:.18+q*.02});
-  effects.push({type:'slash',x:actor.x,y:actor.y,a:cutA,arc:[.80,.98,1.14,1.56][hitIndex],r:reach+12+hitIndex*4,color:hitIndex%2?accent:color,outerWidth:7+hitIndex,innerWidth:2.5,t:.13,max:.13});
-  for(let j=0;j<20+hitIndex*5;j++){const aa=cutA+rnd(-.92,.92),sp=rnd(290,680);effects.push({type:'particle',x:px,y:py,vx:Math.cos(aa)*sp,vy:Math.sin(aa)*sp,color:j%5===0?sub:j%2?accent:color,t:rnd(.08,.24),max:.24,size:rnd(1.3,3.4)});}
-  if(finalHit){for(let q=0;q<3;q++)effects.push({type:'dawnZTrace',x:px,y:py,a:ang+(q-1)*.18,len:250-q*18,width:74-q*9,color:q===1?sub:color,sub,accent,t:.32+q*.035,max:.32+q*.035});effects.push({type:'nova',x:px,y:py,r:70,color:accent,t:.22,max:.22});burst(px,py,sub,40,420);if(actor===player)shake=Math.max(shake,9);}
+  const flip=hitIndex%2?1:-1,px=actor.x+Math.cos(ang)*Math.min(reach*.42,78),py=actor.y+Math.sin(ang)*Math.min(reach*.42,78),len=[138,184,220,252][hitIndex]||190,cutA=ang+flip*[.84,.50,.70,.30][hitIndex];
+  effects.push({type:'dawnEchoCut',x:px,y:py,a:cutA,len,spread:26+hitIndex*5,cross:finalHit?1:0,color:hitIndex===0?sub:color,sub,accent,t:finalHit?.46:.27,max:finalHit?.46:.27});
+  effects.push({type:'slash',x:actor.x,y:actor.y,a:cutA,arc:[.94,1.20,1.38,1.90][hitIndex],r:reach+24+hitIndex*8,color:hitIndex%2?accent:color,outerWidth:6+hitIndex,innerWidth:2.2,t:.15,max:.15});
+  for(let j=0;j<13+hitIndex*3;j++){const aa=cutA+rnd(-.70,.70),sp=rnd(190,470);effects.push({type:'particle',x:px,y:py,vx:Math.cos(aa)*sp,vy:Math.sin(aa)*sp,color:j%4===0?sub:j%2?accent:color,t:rnd(.13,.31),max:.31,size:rnd(1.7,4.2)});}
+  if(hitIndex>0)effects.push({type:'riftCut',x:px,y:py,a:cutA+Math.PI/2,len:82+hitIndex*30,width:11+hitIndex*3,color:hitIndex%2?sub:accent,t:.16,max:.16});
+  if(finalHit){
+   effects.push({type:'dawnEchoCut',x:px,y:py,a:cutA-Math.PI*.56,len:262,spread:46,cross:1,color:sub,sub:color,accent,t:.46,max:.46});
+   effects.push({type:'dawnZTrace',x:px,y:py,a:ang,len:360,width:118,color,sub,accent,t:.52,max:.52});
+   for(let q=0;q<3;q++)effects.push({type:'dawnZTrace',x:px-Math.cos(ang)*q*18,y:py-Math.sin(ang)*q*18,a:ang+(q-1)*.035,len:330-q*22,width:102-q*12,color:q%2?sub:color,sub,accent,t:.38+q*.04,max:.38+q*.04});
+   effects.push({type:'nova',x:px,y:py,r:96,color:accent,t:.30,max:.30});burst(px,py,sub,52,440);if(actor===player)shake=Math.max(shake,11);
+  }
  }else if(id==='earthRend'){
   effects.push({type:'nova',x,y,r:150,color:accent,t:.55,max:.55});
   for(let j=-4;j<=4;j++)effects.push({type:'line',x,y,x2:x+Math.cos(ang+j*.18)*(120+Math.abs(j)*15),y2:y+Math.sin(ang+j*.18)*(120+Math.abs(j)*15),color:j%2?color:sub,t:.50,max:.50});
@@ -2099,18 +2104,17 @@ function swordSignatureFx(id,hitIndex,finalHit,ang,reach,color,actor=player,cont
   }
  }
  else if(id==='solarReturn'){
-  const target=context?.target,tc=target?combatCenter(target):null,cx=tc?.x??(actor.x+Math.cos(ang)*Math.min(reach*.44,106)),cy=tc?.y??(actor.y+Math.sin(ang)*Math.min(reach*.44,106)),flip=hitIndex%2?1:-1;
-  if(hitIndex===0){
-   const ox=Number.isFinite(context?.originX)?context.originX:actor.x-Math.cos(ang)*360,oy=Number.isFinite(context?.originY)?context.originY:actor.y-Math.sin(ang)*360;
-   effects.push({type:'dawnRewindCorridor',x:ox,y:oy,x2:cx,y2:cy,width:60,color,sub,accent,t:.24,max:.24});
-   for(let q=-1;q<=1;q++)effects.push({type:'dawnEchoCut',x:(actor.x+cx)/2,y:(actor.y+cy)/2,a:ang+q*.045,len:260-q*7,spread:11,cross:0,color:q===0?sub:color,sub,accent,t:.20,max:.20});
-  }else{
-   const aa=ang+flip*[0,.82,.54,.28][hitIndex],len=[0,158,186,218][hitIndex];
-   for(let q=0;q<4;q++)effects.push({type:'dawnEchoCut',x:cx,y:cy,a:aa+(q-1.5)*.08,len:len-q*9,spread:15+hitIndex*3,cross:hitIndex>=2&&q===1?1:0,color:q%2?sub:color,sub,accent,t:.18+q*.02,max:.18+q*.02});
-   effects.push({type:'slash',x:actor.x,y:actor.y,a:aa,arc:.96+hitIndex*.20,r:reach+12,color:hitIndex%2?accent:color,outerWidth:8+hitIndex,innerWidth:2.6,t:.13,max:.13});
+  const base=ang,cx=actor.x+Math.cos(base)*Math.min(72+hitIndex*8,106),cy=actor.y+Math.sin(base)*Math.min(72+hitIndex*8,106),aa=base+[-.74,.62,-.48,.34,0][hitIndex],len=[156,178,202,226,272][hitIndex];
+  effects.push({type:'dawnEchoCut',x:cx,y:cy,a:aa,len,spread:26+hitIndex*5,cross:hitIndex>=2?1:0,color:hitIndex%2?sub:color,sub,accent,t:.30+hitIndex*.035,max:.30+hitIndex*.035});
+  effects.push({type:'riftCut',x:cx,y:cy,a:aa,len:110+hitIndex*22,width:9+hitIndex*2,color:hitIndex%2?accent:sub,t:.18,max:.18});
+  for(let j=0;j<14+hitIndex*3;j++){const pa=aa+rnd(-.78,.78),sp=rnd(210,520);effects.push({type:'particle',x:cx,y:cy,vx:Math.cos(pa)*sp,vy:Math.sin(pa)*sp,color:j%4===0?sub:j%2?accent:color,t:rnd(.15,.34),max:.34,size:rnd(1.7,4.5)});}
+  if(finalHit){
+   for(let q=0;q<5;q++){const qa=base+[-.74,.62,-.48,.34,0][q];effects.push({type:'dawnEchoCut',x:cx,y:cy,a:qa,len:258-q*10,spread:44-q*3,cross:1,color:q%2?sub:color,sub,accent,t:.48+q*.035,max:.48+q*.035});}
+   effects.push({type:'dawnSunFold',x:cx,y:cy,a:base,r:178,color,sub,accent,t:.62,max:.62});
+   effects.push({type:'nova',x:cx,y:cy,r:118,color:accent,t:.34,max:.34});
+   for(let q=0;q<12;q++){const qa=q*TAU/12;effects.push({type:'riftCut',x:cx+Math.cos(qa)*68,y:cy+Math.sin(qa)*68,a:qa+Math.PI/2,len:94,width:13,color:q%2?sub:color,t:.28,max:.28});}
+   burst(cx,cy,sub,46,390);if(actor===player)shake=Math.max(shake,12);
   }
-  for(let j=0;j<24+hitIndex*6;j++){const aa=(hitIndex===0?ang+Math.PI:j*TAU/(24+hitIndex*6))+rnd(-.28,.28),sp=rnd(300,700);effects.push({type:'particle',x:cx,y:cy,vx:Math.cos(aa)*sp,vy:Math.sin(aa)*sp,color:j%5===0?sub:j%2?accent:color,t:rnd(.08,.24),max:.24,size:rnd(1.3,3.6)});}
-  if(finalHit){const ox=Number.isFinite(context?.originX)?context.originX:actor.x-Math.cos(ang)*390,oy=Number.isFinite(context?.originY)?context.originY:actor.y-Math.sin(ang)*390;for(let q=0;q<5;q++)effects.push({type:'dawnEchoCut',x:cx-Math.cos(ang)*q*34,y:cy-Math.sin(ang)*q*34,a:ang+(q%2?1:-1)*(.80-q*.09),len:188-q*10,spread:20+q*2,cross:1,color:q%2?sub:color,sub,accent,t:.28+q*.025,max:.28+q*.025});effects.push({type:'dawnRewindCorridor',x:ox,y:oy,x2:cx,y2:cy,width:78,color,sub,accent,t:.42,max:.42});effects.push({type:'dawnSunFold',x:cx,y:cy,a:ang,r:126,color,sub,accent,t:.38,max:.38});effects.push({type:'dawnSunFold',x:cx,y:cy,a:ang+Math.PI/10,r:84,color:sub,sub:color,accent,t:.30,max:.30});effects.push({type:'nova',x:cx,y:cy,r:86,color:accent,t:.22,max:.22});burst(cx,cy,sub,58,470);if(actor===player)shake=Math.max(shake,12);}
  }
  else if(id==='prismLance'){for(let j=-2;j<=2;j++)effects.push({type:'line',x:actor.x,y:actor.y,x2:actor.x+Math.cos(ang+j*.18)*150,y2:actor.y+Math.sin(ang+j*.18)*150,color:j===0?sub:color,t:.22,max:.22});}
  else if(id==='skyFall'){effects.push({type:'nova',x:actor.x,y:actor.y,r:155,color,t:.5,max:.5});ring(actor.x,actor.y,160,color,.5);}
@@ -3011,7 +3015,7 @@ function performSwordSkillHit(seq,hitIndex){
   }
   
  }
- else if(mode==='dawnBrakeFold'){meleeHit(reach,cfg.arc[hitIndex],damage,finalHit);}
+ else if(mode==='dawnStillSun'){const base=ang,off=[-.16,.18,-.22,.14,0][hitIndex]||0;player.attackAngle=base+off;meleeHit(reach,cfg.arc[hitIndex],damage,finalHit);player.attackAngle=base;}
  else if(mode==='fanLances'){for(let j=-2;j<=2;j++)fireProjectile(player.x,player.y,ang+j*.16,680,damageValue(1.2825,'dawnArc'),'player','wave',2);}
  else if(mode==='skyFall'){const ox=player.x,oy=player.y,cx=player.x+Math.cos(ang)*105,cy=player.y+Math.sin(ang)*105,r=145;moveBody(player,Math.cos(ang)*90,Math.sin(ang)*90);syncSkillMoveIfNeeded(ox,oy,24,460);for(const e of combatTargets())if(!e.dead&&!e.riftSleeping&&combatDistance(e,{x:cx,y:cy})<r+combatRadius(e))hitEnemy(e,damage,true);ring(cx,cy,r,sk.color,.5);}
  else if(mode==='gravityDrift'){
@@ -3307,46 +3311,24 @@ function updateSwordSkillMotion(seq,sk,dt){
  else if(mode==='dawnReboundZ'){
   const tar=swordSeqTarget(seq),tc=tar?combatCenter(tar):null;
   if(!Number.isFinite(seq.dawnBaseFace)){seq.dawnBaseFace=tc?Math.atan2(tc.y-(seq.originY??player.y),tc.x-(seq.originX??player.x)):seq.facing;}
-  const base=seq.dawnBaseFace,bc=Math.cos(base),bs=Math.sin(base),nx=-bs,ny=bc,stage=t<.13?0:t<.38?1:t<.64?2:3,sg=side;
-  const originX=seq.originX??player.x,originY=seq.originY??player.y;
-  let tx=originX,ty=originY,look=base;
-  if(stage===0){const q=clamp(t/.13,0,1);tx=originX-bc*(58*q);ty=originY-bs*(58*q);}
-  else{
-   const dist=[0,180,326,462][stage],lat=[0,90,-88,16][stage]*sg;
-   tx=originX+bc*dist+nx*lat;ty=originY+bs*dist+ny*lat;
-   if(tc){const pull=stage===3?.82:stage===2?.56:.32;tx+=(tc.x-tx)*pull;ty+=(tc.y-ty)*pull;look=Math.atan2(tc.y-player.y,tc.x-player.x);}
-  }
-  const dx=tx-player.x,dy=ty-player.y,d=Math.hypot(dx,dy)||1,spd=[1900,2850,3020,3250][stage],mv=Math.min(d,spd*dt);moveBody(player,dx/d*mv,dy/d*mv);
-  player.facing=seq.facing=player.attackAngle=look;player.skillLift=Math.sin(clamp((t-[0,.13,.38,.64][stage])/[.13,.25,.26,.36][stage],0,1)*Math.PI)*(stage===0?1.5:3.5);
-  seq.fx-=dt;if(seq.fx<=0){seq.fx=.012;const th=swordStyleFxForSkill(sk.id),trailA=Math.atan2(player.y-py0,player.x-px0)||base,travel=Math.hypot(player.x-px0,player.y-py0),mx=(px0+player.x)/2,my=(py0+player.y)/2;
-   effects.push({type:'line',x:px0,y:py0,x2:player.x,y2:player.y,color:stage%2?th.sub:th.main,t:.075,max:.075});
-   effects.push({type:'dawnZTrace',x:mx,y:my,a:trailA,len:78+travel*2.15,width:34+stage*5,color:th.main,sub:th.sub,accent:th.accent,t:.15,max:.15});
-   effects.push({type:'dawnEchoCut',x:mx,y:my,a:trailA+(stage%2?.18:-.18),len:48+travel*1.50,spread:9+stage*2,cross:stage===3?1:0,color:th.sub,sub:th.main,accent:th.accent,t:.11,max:.11});
-   for(let j=0;j<7;j++){const aa=trailA+Math.PI+rnd(-.72,.72),sp=rnd(280,620);effects.push({type:'particle',x:player.x,y:player.y,vx:Math.cos(aa)*sp,vy:Math.sin(aa)*sp,color:j%3===0?th.sub:j%2?th.accent:th.main,t:rnd(.09,.22),max:.22,size:rnd(1.4,3.0)});}
+  const base=seq.dawnBaseFace,bc=Math.cos(base),bs=Math.sin(base),nx=-bs,ny=bc,stage=t<.14?0:t<.39?1:t<.64?2:3,sg=side,originX=seq.originX??player.x,originY=seq.originY??player.y;
+  const pts=[[-82,0],[170,102],[312,-98],[448,28]],p=pts[stage],tx=originX+bc*p[0]+nx*p[1]*sg,ty=originY+bs*p[0]+ny*p[1]*sg;
+  const dx=tx-player.x,dy=ty-player.y,d=Math.hypot(dx,dy)||1,spd=[1900,2920,3180,3360][stage],mv=Math.min(d,spd*dt);moveBody(player,dx/d*mv,dy/d*mv);
+  player.facing=seq.facing=player.attackAngle=base;player.skillLift=Math.sin(clamp((t-[0,.14,.39,.64][stage])/[.14,.25,.25,.36][stage],0,1)*Math.PI)*(stage===0?2:4);
+  seq.fx-=dt;if(seq.fx<=0){seq.fx=.011;const th=swordStyleFxForSkill(sk.id),trailA=Math.atan2(player.y-py0,player.x-px0)||base,segLen=Math.hypot(player.x-px0,player.y-py0);
+   effects.push({type:'line',x:px0,y:py0,x2:player.x,y2:player.y,color:stage%2?th.sub:th.main,t:.11,max:.11});
+   effects.push({type:'dawnEchoCut',x:(px0+player.x)/2,y:(py0+player.y)/2,a:trailA,len:88+segLen*2.4,spread:22+stage*5,cross:0,color:th.main,sub:th.sub,accent:th.accent,t:.22,max:.22});
+   for(let j=0;j<9;j++){const aa=trailA+Math.PI+rnd(-.64,.64),sp=rnd(240,520);effects.push({type:'particle',x:player.x,y:player.y,vx:Math.cos(aa)*sp,vy:Math.sin(aa)*sp,color:j%3===0?th.sub:j%2?th.accent:th.main,t:rnd(.13,.29),max:.29,size:rnd(1.7,4.2)});}
   }
  }
  else if(mode==='earthSlam'){player.skillLift=Math.sin(t*Math.PI)*42;if(t<.70)moveBody(player,ca*92*dt,sa*92*dt);}
  else if(mode==='dawnWave'&&seq.elapsed>.28&&seq.elapsed<.55)moveBody(player,-ca*105*dt,-sa*105*dt);
- else if(mode==='dawnBrakeFold'){
-  const tar=swordSeqTarget(seq),tc=tar?combatCenter(tar):null;
-  if(!Number.isFinite(seq.dawnBaseFace)){seq.dawnBaseFace=tc?Math.atan2(tc.y-(seq.originY??player.y),tc.x-(seq.originX??player.x)):seq.facing;}
-  const base=seq.dawnBaseFace,bc=Math.cos(base),bs=Math.sin(base),originX=seq.originX??player.x,originY=seq.originY??player.y,phase=t<.19?0:t<.47?1:t<.72?2:3;
-  if(phase===0){
-   let tx=originX+bc*390,ty=originY+bs*390;if(tc){const pass=player.r+combatRadius(tar)+70;tx=tc.x+bc*pass;ty=tc.y+bs*pass;}
-   const dx=tx-player.x,dy=ty-player.y,d=Math.hypot(dx,dy)||1,mv=Math.min(d,3500*dt);moveBody(player,dx/d*mv,dy/d*mv);
-   player.facing=seq.facing=player.attackAngle=base;player.skillLift=Math.sin(clamp(t/.19,0,1)*Math.PI)*3.5;
-  }else{
-   const look=tc?Math.atan2(tc.y-player.y,tc.x-player.x):base+Math.PI;player.facing=seq.facing=player.attackAngle=look;
-   player.skillLift=phase===3?Math.sin(clamp((t-.72)/.28,0,1)*Math.PI)*5:2;
-  }
-  seq.fx-=dt;if(seq.fx<=0){seq.fx=.012;const th=swordStyleFxForSkill(sk.id),moveA=Math.atan2(player.y-py0,player.x-px0)||player.facing,mx=(px0+player.x)/2,my=(py0+player.y)/2;
-   if(phase===0){
-    effects.push({type:'line',x:px0,y:py0,x2:player.x,y2:player.y,color:th.sub,t:.075,max:.075});
-    effects.push({type:'dawnEchoCut',x:mx,y:my,a:moveA,len:94+Math.hypot(player.x-px0,player.y-py0)*2.25,spread:11,cross:0,color:th.main,sub:th.sub,accent:th.accent,t:.15,max:.15});
-   }else{
-    for(let q=0;q<3;q++){const aa=player.facing+(q-1)*(.24+phase*.075);effects.push({type:'dawnEchoCut',x:player.x,y:player.y,a:aa,len:102+phase*22-q*8,spread:13+phase*3,cross:phase===3&&q===1?1:0,color:q===1?th.sub:th.main,sub:th.sub,accent:th.accent,t:.13+q*.015,max:.13+q*.015});}
-   }
-   for(let j=0;j<8;j++){const aa=(phase===0?moveA+Math.PI:player.facing+Math.PI)+rnd(-.82,.82),sp=rnd(300,650);effects.push({type:'particle',x:player.x,y:player.y,vx:Math.cos(aa)*sp,vy:Math.sin(aa)*sp,color:j%3===0?th.sub:j%2?th.accent:th.main,t:rnd(.09,.22),max:.22,size:rnd(1.4,3.2)});}
+ else if(mode==='dawnStillSun'){
+  const tar=swordSeqTarget(seq),tc=tar?combatCenter(tar):null,base=tc?Math.atan2(tc.y-player.y,tc.x-player.x):seq.facing,phase=t<.18?0:t<.36?1:t<.54?2:t<.72?3:4;
+  player.facing=seq.facing=player.attackAngle=base;player.skillLift=Math.sin(clamp((t-phase*.18)/.20,0,1)*Math.PI)*(phase===4?5:2.5);
+  seq.fx-=dt;if(seq.fx<=0){seq.fx=.012;const th=swordStyleFxForSkill(sk.id),aa=base+[-.62,.48,-.36,.26,0][phase];
+   effects.push({type:'slash',x:player.x,y:player.y,a:aa,arc:.72+phase*.12,r:66+phase*7,color:phase%2?th.sub:th.main,outerWidth:5+phase*.7,innerWidth:2,t:.11,max:.11});
+   for(let j=0;j<7;j++){const pa=aa+rnd(-.52,.52),sp=rnd(160,410);effects.push({type:'particle',x:player.x+Math.cos(base)*38,y:player.y+Math.sin(base)*38,vx:Math.cos(pa)*sp,vy:Math.sin(pa)*sp,color:j%3===0?th.sub:j%2?th.accent:th.main,t:rnd(.13,.28),max:.28,size:rnd(1.6,3.8)});}
   }
  }
  else if(mode==='skyFall'){player.skillLift=Math.sin(t*Math.PI)*82;}
@@ -3778,9 +3760,9 @@ function styleAdeptPredictedPose(e,seq,k){
  else if(mode==='triadPyre'){const vs=crimsonTriadVertices({crimsonFace:a,anchorX:tx,anchorY:ty,side});const dst=vs[Math.min(k,2)];x=dst.x;y=dst.y;face=Math.atan2(ty-y,tx-x);}
  else if(mode==='guardPierce'){const lateral=180*Math.min(t,.20)*side;x=ox-sa*lateral+ca*step;y=oy+ca*lateral+sa*step;}
  else if(mode==='earthSlam'){const fwd=92*Math.min(t,.70)+step;x=ox+ca*fwd;y=oy+sa*fwd;}
- else if(mode==='dawnBrakeFold'){if(k===0){x=tx+ca*72;y=ty+sa*72;}else{x=tx+ca*72-sa*side*(k===1?18:k===2?-12:6);y=ty+sa*72+ca*side*(k===1?18:k===2?-12:6);}face=Math.atan2(ty-y,tx-x);}
+ else if(mode==='dawnStillSun'){x=ox;y=oy;face=Math.atan2(ty-y,tx-x);}
  else if(mode==='gravityDrift'){x=ox+ca*105*t-sa*side*145*t;y=oy+sa*105*t+ca*side*145*t;face=Math.atan2(ty-y,tx-x);}
- else if(mode==='dawnReboundZ'){const pts=[[-74,0],[155,92],[285,-88],[410,24]][Math.min(k,3)],nx=-sa,ny=ca;x=ox+ca*pts[0]+nx*pts[1]*side;y=oy+sa*pts[0]+ny*pts[1]*side;face=Math.atan2(ty-y,tx-x);}
+ else if(mode==='dawnReboundZ'){const pts=[[-82,0],[170,102],[312,-98],[448,28]][Math.min(k,3)],nx=-sa,ny=ca;x=ox+ca*pts[0]+nx*pts[1]*side;y=oy+sa*pts[0]+ny*pts[1]*side;face=a;}
  else if(mode==='moonBurst'){const rel=Math.atan2(oy-ty,ox-tx),tan=rel+side*Math.PI/2,dist=155*Math.min(t,.50);x=ox+Math.cos(tan)*dist;y=oy+Math.sin(tan)*dist;face=Math.atan2(ty-y,tx-x);}
  else if(mode==='quakeLine'){const d=Math.hypot(tx-ox,ty-oy),stop=77,speed=Math.min(1250,760+d*1.15),dist=Math.min(Math.max(0,d-stop),speed*t);x=ox+ca*dist+ca*step;y=oy+sa*dist+sa*step;}
  else if(mode==='singularityRush'){const tt=Math.min(t,(Number(cfg.duration)||.72)*.78),dist=Math.min(620,760*tt+260*tt*tt/Math.max(.1,Number(cfg.duration)||.72));x=ox+ca*dist;y=oy+sa*dist;}
@@ -3818,7 +3800,7 @@ function styleAdeptExactShapes(e,seq,k){
  if(mode==='lunarPull')return [circle(pose.x,pose.y,135)];
  if(mode==='quakeLine')return [circle(pose.x+ca*(55+k*38),pose.y+sa*(55+k*38),62)];
  if(mode==='fracturePrison')return [circle(tx,ty,k===2?138:118)];
- if(mode==='dawnBrakeFold')return [sector(pose.x,pose.y,pose.a,reach,arc)];
+ if(mode==='dawnStillSun')return [sector(pose.x,pose.y,pose.a,reach,arc)];
  if(mode==='fanLances')return [-2,-1,0,1,2].map(j=>proj(pose.x,pose.y,a+j*.16,680));
  if(mode==='skyFall')return [circle(tx,ty,145)];
  if(mode==='gravityDrift')return [sector(pose.x,pose.y,pose.a,reach,arc)];
