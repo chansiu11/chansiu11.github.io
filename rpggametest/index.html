@@ -1333,38 +1333,45 @@ function updateDawnSeals(dt){
  }
 }
 function beginDawnReboundBind(seq,reach,arc,damage){
- if(!seq)return 0;
+ if(!seq||seq.dawnReboundCaughtAny)return 0;
  seq.dawnReboundTargetIds??=new Set();
- const caught=[];
+ let target=null,best=Infinity;
  for(const e of combatTargets()){
   if(!e||e.dead||e.riftSleeping||(e.type==='finalBoss'&&!e.alert))continue;
   const key=e.id??e;if(seq.dawnReboundTargetIds.has(key)||dawnReboundBinds.has(e))continue;
   const d=combatDistance(e,player),er=combatRadius(e),ea=combatAngleFrom(player,e);
   if(d>=reach+er||Math.abs(angleDiff(ea,player.attackAngle))>=arc/2+er/Math.max(35,d))continue;
-  seq.dawnReboundTargetIds.add(key);caught.push(e);
+  if(d<best){best=d;target=e;}
  }
- if(!caught.length)return 0;
- const until=realTime+.5,th=swordStyleFxForSkill('tempest');
- seq.dawnReboundCaughtAny=true;seq.dawnReboundFrozen=true;seq.dawnReboundReleaseAt=until;seq.duration=Math.max(seq.elapsed+.5,seq.duration);
- player.dx=player.dy=0;player.moveLock=Math.max(player.moveLock||0,.08);
- for(const e of caught){
-  e.dawnReboundBoundUntil=until;
-  if(e.networkPlayer){
-   const rp=multiRemotePlayers.get(e.id);if(rp)rp.dawnReboundBoundUntil=until;
-   worldTargetControl(e.id,{stun:.5,root:.5,bypassShield:true,skillId:'tempest'});
-  }else{
-   e.guardActive=false;e.aiDashEvade=0;e.stun=Math.max(Number(e.stun)||0,.5);e.state='stunned';
-  }
-  dawnReboundBinds.set(e,{target:e,seq,t:.5,damage});
-  const cc=combatCenter(e);
-  effects.push({type:'dawnReboundLock',x:cc.x,y:cc.y,r:combatRadius(e)+23,color:th.main,sub:th.sub,t:.52,max:.52});
-  floating(cc.x,cc.y-58,'역광 봉쇄 · 0.5초','#ffe86a',true);
+ if(!target)return 0;
+ const e=target,key=e.id??e,until=realTime+.5,th=swordStyleFxForSkill('tempest');
+ seq.dawnReboundTargetIds.add(key);
+ seq.dawnReboundCaughtAny=true;
+ seq.dawnReboundResolved=false;
+ seq.dawnReboundReleaseAt=until;
+ // Important: do NOT freeze, extend, or stop the caster here.
+ // The Z-path keeps running to its natural end even when the target is caught mid-dash.
+ e.dawnReboundBoundUntil=until;
+ if(e.networkPlayer){
+  const rp=multiRemotePlayers.get(e.id);if(rp)rp.dawnReboundBoundUntil=until;
+  worldTargetControl(e.id,{stun:.5,root:.5,bypassShield:true,skillId:'tempest'});
+ }else{
+  e.guardActive=false;e.aiDashEvade=0;e.stun=Math.max(Number(e.stun)||0,.5);e.state='stunned';
  }
- return caught.length;
+ dawnReboundBinds.set(e,{target:e,seq,t:.5,damage});
+ const cc=combatCenter(e);
+ effects.push({type:'dawnReboundLock',x:cc.x,y:cc.y,r:combatRadius(e)+23,color:th.main,sub:th.sub,t:.52,max:.52});
+ floating(cc.x,cc.y-58,'역광 봉쇄 · 0.5초','#ffe86a',true);
+ return 1;
 }
 function releaseDawnReboundSeq(seq){
  if(!seq)return;
- seq.dawnReboundFrozen=false;seq.dawnReboundResolved=true;seq.elapsed=seq.duration;
+ seq.dawnReboundResolved=true;
+ seq.dawnReboundReleaseAt=0;
+ if(seq.dawnReboundFrozen){
+  seq.dawnReboundFrozen=false;
+  seq.elapsed=seq.duration;
+ }
 }
 function updateDawnReboundBinds(dt){
  for(const [e,b] of [...dawnReboundBinds]){
@@ -1654,7 +1661,7 @@ const SWORD_SKILL_LIBRARY=[
  {id:'crossBloom',name:'연속 교차 베기',level:13,price:420,cost:40,cool:7.4,color:'#b88cff',desc:'표적의 좌우를 번갈아 밟으며 위치를 바꾸고 일곱 번의 교차 베기를 한 대상 주변에 집중합니다.',cfg:{duration:1.42,hits:[.10,.26,.42,.58,.76,.96,1.20],mult:[.43,.45,.48,.52,.56,.66,1.08],arc:[1.20,1.25,1.30,1.35,1.40,1.50,1.85],reach:[20,20,22,22,24,26,30],step:[0,0,0,0,0,0,4],mode:'stationaryFlurry'}},
  {id:'crescent',name:'초승달 이연참',level:16,price:520,cost:34,cool:9,color:'#b88cff',desc:'뒤로 크게 빠지면서 서로 다른 각도의 초승달 검압 두 개를 연속 발사합니다.',cfg:{duration:.80,hits:[.16,.52],mult:[.90,1.18],arc:[2.4,2.7],reach:[18,22],step:[2,4],mode:'crescentRetreat'}},
  {id:'guardBreak',name:'홍염 횡참',level:20,price:650,cost:28,cool:4.8,color:'#ff782e',desc:'검을 크게 휘둘러 전방에 두 겹의 화염 호를 남기는 2단 발도.',cfg:{duration:.72,hits:[.24,.48],mult:[1.15,.92],arc:[2.12,2.18],reach:[150,166],step:[0,0],mode:'flameBreathSweep'}},
- {id:'tempest',name:'역광 반섬',level:24,price:780,cost:48,cool:5.2,color:'#ffd95c',desc:'고정된 Z자 검로를 초고속으로 돌진합니다. 돌진 중 처음 맞은 적은 즉시 피해를 받지 않고 0.5초 동안 노란 봉쇄 상태가 되어 이동·스킬·쉴드를 사용할 수 없습니다. 0.5초 뒤 역광 피해가 한 번에 들어가며 2초 기절합니다. 적중 시 시전자는 피해가 터질 때까지 멈추고, 빗나가도 돌진 종료 후 0.5초 동안 정지합니다.',cfg:{duration:.42,hits:[.035,.105,.185,.31],mult:[.43,.55,.69,1.40],arc:[1.12,1.24,1.40,2.04],reach:[74,90,104,130],step:[0,0,0,0],mode:'dawnReboundZ'}},
+ {id:'tempest',name:'역광 반섬',level:24,price:780,cost:48,cool:5.2,color:'#ffd95c',desc:'고정된 Z자 검로를 초고속으로 끝까지 돌진합니다. 돌진 도중 적중해도 시전자는 절대 멈추지 않으며, 한 번의 사용에서는 처음 맞은 대상 1명만 노란 봉쇄 상태가 됩니다. 그 대상은 0.5초 동안 이동·스킬·쉴드를 사용할 수 없고, 0.5초 뒤 그 대상 혼자만 역광 피해와 2초 기절을 받습니다. 돌진이 먼저 끝나면 시전자는 지연 피해가 터질 때까지만 멈추며, 빗나가면 돌진 종료 후 0.5초 정지합니다.',cfg:{duration:.42,hits:[.035,.105,.185,.31],mult:[.43,.55,.69,1.40],arc:[1.12,1.24,1.40,2.04],reach:[74,90,104,130],step:[0,0,0,0],mode:'dawnReboundZ'}},
  {id:'earthRend',name:'승염 비상',level:30,price:920,cost:43,cool:7.4,color:'#ff782e',desc:'직선으로 328만큼 빠르게 돌진하며 점차 감속한다. 발동 0.5초 후 도착 지점의 원형 화염과 지나온 직선 경로에 동시에 피해를 주며 방패를 관통한다.',cfg:{duration:.78,hits:[.50],mult:[2.61],arc:[TAU],reach:[250],step:[0],mode:'flameBreathRise'}},
  {id:'dawnArc',name:'여명 검파',level:38,price:1100,cost:58,cool:3.5,color:'#ffd95c',desc:'정면과 좌우 25도 방향으로 총 세 갈래의 초장거리 검압을 동시에 발사합니다. 세 검압이 생성되는 순간 스킬은 바로 종료 판정이 나서 다음 행동으로 빠르게 이어집니다.',cfg:{duration:.72,hits:[.28],mult:[1.15],arc:[1.7],reach:[20],step:[0],mode:'dawnWave'}},
  {id:'thunderDrive',name:'천풍 추살',level:44,price:1280,cost:74,cool:15.8,color:'#61f0c7',desc:'질풍 유파의 궁극기. 장거리 초고속 돌진에 맞는 순간 2번 질풍 점멸처럼 돌진 방향으로 강하게 날아가며, 이후 0.05초마다 총 30회의 추살 연계를 합니다. Lv.100 기준 일반 타격 100, 마지막 타격 200 피해입니다.',cfg:{duration:2.35,hits:Array.from({length:30},(_,i)=>.70+i*.05),mult:Array.from({length:30},(_,i)=>i===29?.38:.20),arc:Array(30).fill(TAU),reach:Array(30).fill(0),step:Array(30).fill(0),mode:'galePursuit'}},
@@ -3672,6 +3679,13 @@ function updateSwordSkill(dt){
  while(seq.nextHit<cfg.hits.length&&seq.elapsed>=cfg.hits[seq.nextHit]){performSwordSkillHit(seq,seq.nextHit);seq.nextHit++;}
  if(cfg.mode==='singularityRush'&&seq.singularityPending&&!seq.singularityCaught&&performance.now()-(seq.singularityPendingAt||0)<750)seq.elapsed=Math.min(seq.elapsed,seq.duration-.01);
  if(seq.elapsed>=seq.duration){
+  if(cfg.mode==='dawnReboundZ'&&seq.dawnReboundCaughtAny&&!seq.dawnReboundResolved){
+   seq.dawnReboundFrozen=true;
+   seq.elapsed=Math.max(0,seq.duration-.001);
+   player.dx=player.dy=0;
+   player.moveLock=Math.max(player.moveLock||0,.08);
+   return;
+  }
   if(cfg.mode==='dawnReboundZ'&&!seq.dawnReboundCaughtAny&&!seq.dawnMissHold){seq.dawnMissHold=true;seq.dawnReboundFrozen=true;seq.duration=seq.elapsed+.5;player.dx=player.dy=0;player.moveLock=Math.max(player.moveLock||0,.5);return;}
   if(cfg.mode==='singularityRush'&&seq.singularityCaught){const caughtTarget=seq.singularityTargetId?combatTargets().find(e=>e.id===seq.singularityTargetId&&!e.dead&&!e.riftSleeping):null;if(caughtTarget){hitEnemy(caughtTarget,damageValue(1.45),true);applyEnemyStun(caughtTarget,caughtTarget.kind==='boss'?.3:.65);const c=combatCenter(caughtTarget),th=swordStyleFxForSkill(sk.id);effects.push({type:'riftCut',x:c.x,y:c.y,a:seq.facing+Math.PI/2,len:190,width:38,color:th.sub,t:.38,max:.38});burst(c.x,c.y,th.main,20,210);shake=Math.max(shake,8);}}
   if(seq.ultimate&&!seq.galePursuitMiss)ultimateFinishFx(seq,sk);finishSwordCarryTargets(seq,false);if(Math.hypot(player.x-seq.originX,player.y-seq.originY)>28)syncInstantPlayerMove(520);activeSwordSkill=null;player.skillPose=-1;player.skillLift=0;if(ECLIPSE_SKILLS.has(sk.id)){player.cast=0;player.attackCd=0;player.attackAnim=.04;player.moveLock=0;player.postSkillLockTimer=0;}if(cfg.mode==='galeCrescendo'){player.cast=0;player.attackCd=0;player.attackAnim=0;player.moveLock=0;player.postSkillLockTimer=0;}
