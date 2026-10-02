@@ -1359,9 +1359,6 @@ function beginDawnReboundBind(seq,reach,arc,damage){
   e.guardActive=false;e.aiDashEvade=0;e.stun=Math.max(Number(e.stun)||0,.5);e.state='stunned';
  }
  dawnReboundBinds.set(e,{target:e,seq,t:.5,damage});
- const cc=combatCenter(e);
- effects.push({type:'dawnReboundLock',x:cc.x,y:cc.y,r:combatRadius(e)+23,color:th.main,sub:th.sub,t:.52,max:.52});
- floating(cc.x,cc.y-58,'역광 봉쇄 · 0.5초','#ffe86a',true);
  return 1;
 }
 function releaseDawnReboundSeq(seq){
@@ -1384,12 +1381,7 @@ function updateDawnReboundBinds(dt){
   dawnReboundBinds.delete(e);
   if(e){e.dawnReboundBoundUntil=0;if(e.networkPlayer){const rp=multiRemotePlayers.get(e.id);if(rp)rp.dawnReboundBoundUntil=0;}}
   if(e&&!e.dead&&!e.riftSleeping){
-   const cc=combatCenter(e),th=swordStyleFxForSkill('tempest');
-   hitEnemy(e,b.damage,true,player,{stun:e.kind==='boss'?.65:2.0,dx:0,dy:0,duration:0,bypassShield:true,skillId:'tempest'});
-   effects.push({type:'dawnReboundLock',x:cc.x,y:cc.y,r:combatRadius(e)+42,color:th.sub,sub:th.main,t:.34,max:.34});
-   effects.push({type:'nova',x:cc.x,y:cc.y,r:88,color:th.accent,t:.28,max:.28});
-   burst(cc.x,cc.y,th.sub,22,260);
-   floating(cc.x,cc.y-64,'역광 폭발 · 2초 기절','#fff5a8',true);
+   hitEnemy(e,b.damage,true,player,{stun:e.kind==='boss'?.65:2.0,dx:0,dy:0,duration:0,bypassShield:true,skillId:'tempest',noHitstop:true});
   }
   releaseDawnReboundSeq(b.seq);
  }
@@ -2163,17 +2155,8 @@ function swordSignatureFx(id,hitIndex,finalHit,ang,reach,color,actor=player,cont
   effects.push({type:'riftCut',x,y,a:ang,len:255,width:34,color,t:.38,max:.38});
   effects.push({type:'nova',x,y,r:68,color:accent,t:.30,max:.30});burst(x,y,color,22,210);
  }else if(id==='tempest'){
-  const flip=hitIndex%2?1:-1,px=actor.x+Math.cos(ang)*Math.min(reach*.42,78),py=actor.y+Math.sin(ang)*Math.min(reach*.42,78),len=[138,184,220,252][hitIndex]||190,cutA=ang+flip*[.84,.50,.70,.30][hitIndex];
-  effects.push({type:'dawnEchoCut',x:px,y:py,a:cutA,len,spread:26+hitIndex*5,cross:finalHit?1:0,color:hitIndex===0?sub:color,sub,accent,t:finalHit?.46:.27,max:finalHit?.46:.27});
-  effects.push({type:'slash',x:actor.x,y:actor.y,a:cutA,arc:[.94,1.20,1.38,1.90][hitIndex],r:reach+24+hitIndex*8,color:hitIndex%2?accent:color,outerWidth:6+hitIndex,innerWidth:2.2,t:.15,max:.15});
-  for(let j=0;j<13+hitIndex*3;j++){const aa=cutA+rnd(-.70,.70),sp=rnd(190,470);effects.push({type:'particle',x:px,y:py,vx:Math.cos(aa)*sp,vy:Math.sin(aa)*sp,color:j%4===0?sub:j%2?accent:color,t:rnd(.13,.31),max:.31,size:rnd(1.7,4.2)});}
-  if(hitIndex>0)effects.push({type:'riftCut',x:px,y:py,a:cutA+Math.PI/2,len:82+hitIndex*30,width:11+hitIndex*3,color:hitIndex%2?sub:accent,t:.16,max:.16});
-  if(finalHit){
-   effects.push({type:'dawnEchoCut',x:px,y:py,a:cutA-Math.PI*.56,len:262,spread:46,cross:1,color:sub,sub:color,accent,t:.46,max:.46});
-   effects.push({type:'dawnZTrace',x:px,y:py,a:ang,len:360,width:118,color,sub,accent,t:.52,max:.52});
-   for(let q=0;q<3;q++)effects.push({type:'dawnZTrace',x:px-Math.cos(ang)*q*18,y:py-Math.sin(ang)*q*18,a:ang+(q-1)*.035,len:330-q*22,width:102-q*12,color:q%2?sub:color,sub,accent,t:.38+q*.04,max:.38+q*.04});
-   effects.push({type:'nova',x:px,y:py,r:96,color:accent,t:.30,max:.30});burst(px,py,sub,52,440);if(actor===player)shake=Math.max(shake,11);
-  }
+  // Skill 2 intentionally has no hit VFX. Its full damage resolves once after the 0.5s bind delay.
+ 
  }else if(id==='earthRend'){
   effects.push({type:'nova',x,y,r:150,color:accent,t:.55,max:.55});
   for(let j=-4;j<=4;j++)effects.push({type:'line',x,y,x2:x+Math.cos(ang+j*.18)*(120+Math.abs(j)*15),y2:y+Math.sin(ang+j*.18)*(120+Math.abs(j)*15),color:j%2?color:sub,t:.50,max:.50});
@@ -3428,23 +3411,12 @@ function updateSwordSkillMotion(seq,sk,dt){
  else if(mode==='crescentRetreat'&&seq.elapsed<.24)moveBody(player,-ca*185*dt,-sa*185*dt);
  else if(mode==='guardPierce'&&seq.elapsed<.20&&!seq.dashCatch){moveBody(player,-sa*side*180*dt,ca*side*180*dt);player.facing=a;}
  else if(mode==='dawnReboundZ'){
-  if(seq.dawnReboundFrozen){
-   player.dx=player.dy=0;player.moveLock=Math.max(player.moveLock||0,.07);
-   const th=swordStyleFxForSkill(sk.id);seq.fx-=dt;if(seq.fx<=0){seq.fx=.055;ring(player.x,player.y,34,th.main,.11);}
-  }else{
   const tar=swordSeqTarget(seq),tc=tar?combatCenter(tar):null;
   if(!Number.isFinite(seq.dawnBaseFace)){seq.dawnBaseFace=tc?Math.atan2(tc.y-(seq.originY??player.y),tc.x-(seq.originX??player.x)):seq.facing;}
   const base=seq.dawnBaseFace,bc=Math.cos(base),bs=Math.sin(base),nx=-bs,ny=bc,stage=t<.14?0:t<.39?1:t<.64?2:3,sg=side,originX=seq.originX??player.x,originY=seq.originY??player.y;
   const pts=[[-82,0],[170,102],[312,-98],[448,28]],p=pts[stage],tx=originX+bc*p[0]+nx*p[1]*sg,ty=originY+bs*p[0]+ny*p[1]*sg;
   const dx=tx-player.x,dy=ty-player.y,d=Math.hypot(dx,dy)||1,spd=[1900,2920,3180,3360][stage],mv=Math.min(d,spd*dt);moveBody(player,dx/d*mv,dy/d*mv);
   player.facing=seq.facing=player.attackAngle=base;player.skillLift=Math.sin(clamp((t-[0,.14,.39,.64][stage])/[.14,.25,.25,.36][stage],0,1)*Math.PI)*(stage===0?2:4);
-  seq.fx-=dt;if(seq.fx<=0){seq.fx=.011;const th=swordStyleFxForSkill(sk.id),trailA=Math.atan2(player.y-py0,player.x-px0)||base,segLen=Math.hypot(player.x-px0,player.y-py0);
-   effects.push({type:'line',x:px0,y:py0,x2:player.x,y2:player.y,color:stage%2?th.sub:th.main,t:.11,max:.11});
-   effects.push({type:'dawnEchoCut',x:(px0+player.x)/2,y:(py0+player.y)/2,a:trailA,len:88+segLen*2.4,spread:22+stage*5,cross:0,color:th.main,sub:th.sub,accent:th.accent,t:.22,max:.22});
-   for(let j=0;j<9;j++){const aa=trailA+Math.PI+rnd(-.64,.64),sp=rnd(240,520);effects.push({type:'particle',x:player.x,y:player.y,vx:Math.cos(aa)*sp,vy:Math.sin(aa)*sp,color:j%3===0?th.sub:j%2?th.accent:th.main,t:rnd(.13,.29),max:.29,size:rnd(1.7,4.2)});}
-  }
-
-  }
  }
  else if(mode==='earthSlam'){player.skillLift=Math.sin(t*Math.PI)*42;if(t<.70)moveBody(player,ca*92*dt,sa*92*dt);}
  else if(mode==='dawnWave'&&seq.elapsed>.28&&seq.elapsed<.55)moveBody(player,-ca*105*dt,-sa*105*dt);
