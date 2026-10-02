@@ -1293,8 +1293,8 @@ function ring(x,y,r,color,t=.5){effects.push({type:'ring',x,y,r,color,t,max:t});
 let prismCastSerial=0;
 function applyDawnSeal(e){
  if(!e||e.dead||e.riftSleeping)return;
- const m=dawnSeals.get(e)||{target:e,stacks:0,stored:0,t:3,max:3,fx:0,full:false};
- m.target=e;m.stacks=0;m.stored=0;m.t=3;m.max=3;m.fx=0;m.full=false;
+ const m=dawnSeals.get(e)||{target:e,stacks:0,stored:0,t:5,max:5,fx:0,full:false};
+ m.target=e;m.stacks=0;m.stored=0;m.t=5;m.max=5;m.fx=0;m.full=false;
  dawnSeals.set(e,m);
  const cc=combatCenter(e),th=swordStyleFxForSkill('prismLance');
  effects.push({type:'dawnSealGlyph',x:cc.x,y:cc.y,stacks:0,life:1,color:th.main,sub:th.sub,accent:th.accent,t:.42,max:.42});
@@ -1609,7 +1609,7 @@ const SWORD_SKILL_LIBRARY=[
  {id:'quakeRush',name:'열하 단공',level:12,price:0,cost:39,cool:7.8,color:'#ff782e',desc:'발동과 동시에 주변 화염 원으로 공격하고 바로 도약해 적을 내려찍는다. 원형 타격 직후 끊김 없이 앞으로 이동하며 착지 지점에서 추가 화염 피해를 준다.',cfg:{duration:.86,hits:[.10,.65],mult:[.73,1.52],arc:[TAU,TAU],reach:[190,245],step:[0,0],mode:'flameBreathCleave'}},
  {id:'ironJudgment',name:'유염 회천',level:36,price:0,cost:52,cool:10,color:'#ff782e',desc:'몸을 비틀며 회전 화염으로 앞쪽으로 돌진하고 세 번 베어 주변 적을 밀어낸다.',cfg:{duration:.75,hits:[.18,.375,.58],mult:[.65,.82,1.55],arc:[3.85,4.75,5.55],reach:[64,93,120],step:[0,0,0],mode:'flameBreathWheel'}},
  {id:'solarReturn',name:'일륜 정섬',level:14,price:0,cost:50,cool:9.2,color:'#ffd95c',desc:'이동·돌진·순간이동 없이 한 자리에서 검을 다섯 번 초고속으로 뽑아 베는 여명 전용 발도술입니다. 매 타격의 금빛 검흔이 서로 다른 각도로 공중에 남고, 마지막 다섯 번째 직접 검격과 동시에 모든 검흔이 한 점으로 접혀 태양빛 섬광을 만듭니다. 투사체와 추격 이동은 사용하지 않습니다.',cfg:{duration:.52,hits:[.055,.135,.215,.305,.42],mult:[.40,.48,.58,.72,1.74],arc:[1.04,1.18,1.32,1.52,2.34],reach:[82,94,108,124,158],step:[0,0,0,0,0],mode:'dawnStillSun'}},
- {id:'prismLance',name:'천명 · 광륜심판',level:22,price:0,cost:84,cool:19.5,color:'#ffd95c',desc:'여명 유파의 궁극기. 거대한 광륜을 등 뒤에 압축한 뒤 단 한 번의 넓은 근접 참격으로 적에게 여명 각인을 새깁니다. 각인은 3초 동안 유지되며 그 대상에게 내가 평타나 다른 여명 스킬로 피해를 줄 때마다 광편이 최대 5개까지 충전되고 해당 피해 일부를 저장합니다. 5개를 모두 채우면 즉시 완전 폭발하고, 끝까지 채우지 못해도 시간이 끝나면 약화 폭발합니다.',cfg:{duration:1.08,hits:[.72],mult:[1.55],arc:[2.78],reach:[280],step:[0],mode:'dawnJudgmentSeal'}},
+ {id:'prismLance',name:'천명 · 광륜심판',level:22,price:0,cost:84,cool:19.5,color:'#ffd95c',desc:'여명 유파의 궁극기. 거대한 광륜을 등 뒤에 압축한 뒤 단 한 번의 넓은 근접 참격으로 적에게 여명 각인을 새깁니다. 각인은 5초 동안 유지되며 그 대상에게 내가 평타나 다른 여명 스킬로 피해를 줄 때마다 광편이 최대 5개까지 충전되고 해당 피해 일부를 저장합니다. 5개를 모두 채우면 즉시 완전 폭발하고, 끝까지 채우지 못해도 시간이 끝나면 약화 폭발합니다. 첫 참격이 발생하면 스킬 본체는 즉시 종료됩니다.',cfg:{duration:1.08,hits:[.72],mult:[1.55],arc:[2.78],reach:[280],step:[0],mode:'dawnJudgmentSeal'}},
  {id:'skyFall',name:'천광 낙하',level:42,price:0,cost:64,cool:7.8,color:'#ffd95c',desc:'멀리 있는 적을 자동 포착해 크게 도약하며 따라붙은 뒤 목표 지점에 낙하 충격을 일으킵니다.',cfg:{duration:1.0,hits:[.78],mult:[3.25],arc:[TAU],reach:[0],step:[0],mode:'skyFall'}},
  {id:'chainReap',name:'궤도 편향',level:6,price:0,cost:29,cool:3.6,color:'#a76cff',desc:'중력을 비틀어 적 쪽으로 살짝 미끄러지면서 옆으로 궤도를 틉니다. 짧은 이동 끝에 휘어진 공간선을 따라 베어냅니다.',cfg:{duration:.58,hits:[.18,.44],mult:[.48,1.34],arc:[1.35,2.0],reach:[52,76],step:[0,0],mode:'gravityDrift'}},
  {id:'phantomSwap',name:'특이점 관통',level:17,price:0,cost:40,cool:5.5,color:'#a76cff',desc:'전방으로 특이점 돌진하며 처음 맞은 적을 내 앞에 붙여 끝까지 끌고 갑니다. 돌진이 끝날 때 포획한 적이 있으면 중력 붕괴 추가타를 한 번 더 넣습니다.',cfg:{duration:.72,hits:[.20,.48],mult:[.72,1.72],arc:[.72,1.0],reach:[68,92],step:[0,0],mode:'singularityRush'}},
@@ -2699,7 +2699,7 @@ function ultimateFinishFx(seq,sk){
   crimsonFlameBurst(cx,cy,318,1.18,1.95);crimsonEdgeFlames(cx,cy,a,338,TAU,1,.90,.95);for(const v of vs){crimsonFlameBurst(v.x,v.y,104,.71,1.08);crimsonAshPatch(v.x,v.y,85,1.1,a);}
   shake=Math.max(shake,20);
  }else if(sk.id==='prismLance'){
-  const a=seq.facing;effects.push({type:'riftCut',x:player.x+Math.cos(a)*260,y:player.y+Math.sin(a)*260,a,len:760,width:92,color:th.sub,t:.66,max:.66});for(let j=-3;j<=3;j++){const aa=a+j*.13;effects.push({type:'line',x:player.x,y:player.y,x2:player.x+Math.cos(aa)*520,y2:player.y+Math.sin(aa)*520,color:j===0?th.sub:th.main,t:.44,max:.44});}
+  // prismLance has its own custom hit/seal effects; do not layer the legacy finisher on top.
  }else if(sk.id==='voidDance'){
   effects.push({type:'nova',x:player.x,y:player.y,r:300,color:th.accent,t:.68,max:.68});effects.push({type:'starSeal',x:player.x,y:player.y,r:285,color:th.sub,t:.62,max:.62});for(let j=0;j<8;j++){const a=j*TAU/8;effects.push({type:'riftCut',x:player.x+Math.cos(a)*115,y:player.y+Math.sin(a)*115,a:a+Math.PI/2,len:230,width:32,color:th.main,t:.42,max:.42});}
  }
@@ -2778,7 +2778,6 @@ function startSwordSkill(slot){
  activeSwordSkill={slot,skillId:sk.id,elapsed:0,nextHit:0,facing:player.facing,duration:cfg.duration,originX:player.x,originY:player.y,targetId:motionTarget?.id||null,side:crimsonStrafeSide(player.facing,Math.random()<.5?-1:1),fx:0,carryIds:new Set(),dashCatch,ultimate:slot===4,ultPhase:0,ultFx:0,ultMovePhase:0,anchorX:anchorMode?(motionTarget?.x??player.x+Math.cos(player.facing)*anchorDist):null,anchorY:anchorMode?(motionTarget?.y??player.y+Math.sin(player.facing)*anchorDist):null,lastEchoX:player.x,lastEchoY:player.y};}
  sendSharedSkillFx(slot,cfg.mode==='galePulse'?'galeCharge':sk.id,player.weapon,player.facing);
  swordSkillStartVisuals(player,sk,slot,player.facing);if(slot===4){if(ECLIPSE_SKILLS.has(sk.id))eclipseShake(5.5);else shake=Math.max(shake,9);}
- if(slot===4&&sk.id==='prismLance')performSwordSkillHit(activeSwordSkill,activeSwordSkill.nextHit++);
  if(cfg.mode==='galePulse'){player.skillPose=-1;player.attackAnim=0;player.heavy=false;}else sound('swing');updateSkillTray();return true;
 }
 const SWORD_CARRY_MODES=new Set(['blinkThrust','chaseCombo','stationaryFlurry','orbitStrike','mirrorBackstab','phantomSwap','quakeLine','guardPierce','tempest','earthSlam','skyFall','holdVortex','holdShadow']);
@@ -2962,6 +2961,8 @@ function performSwordSkillHit(seq,hitIndex){
   const base=Number.isFinite(seq.dawnBaseFace)?seq.dawnBaseFace:ang;
   player.attackAngle=base;player.facing=base;
   meleeHit(reach,cfg.arc[hitIndex],damage,true,e=>{applyEnemyStun(e,e.kind==='boss'?.18:.52);applyDawnSeal(e);});
+  // One-hit ultimate: after the actual slash resolves, the skill body ends immediately.
+  seq.nextHit=cfg.hits.length;seq.elapsed=seq.duration;
  }else if(mode==='windShot'){const nx=-Math.sin(ang),ny=Math.cos(ang);for(const off of [-58,0,58])fireProjectile(player.x+Math.cos(ang)*38+nx*off,player.y+Math.sin(ang)*38+ny*off,ang,470,damageValue(.72),'player','wave',3,.72,105);}
  else if(mode==='galeBlink'){const push=Math.max(0,seq.galeBlinkDistance||0),pa=seq.facing,dur=window.EchoesCombat.forceDuration(push);for(const id of seq.galeBlinkTargets||[]){const e=combatTargets().find(v=>v.id===id);if(e&&!e.dead&&!e.riftSleeping)hitEnemy(e,damage,true,player,{stun:.55,dx:Math.cos(pa)*push,dy:Math.sin(pa)*push,duration:dur});}}
  else if(mode==='galePulse'){player.skillPose=seq.slot;player.attackDuration=.18;player.attackAnim=.18;const r=GALE_PULSE_RADIUS;for(const e of combatTargets()){if(e.dead||e.riftSleeping||combatDistance(e,player)>r+combatRadius(e))continue;if(!e.networkPlayer)e.galeRoot=Math.max(e.galeRoot||0,.9);hitEnemy(e,damage,false,player,{stun:0,root:.9,dx:0,dy:0});}}
