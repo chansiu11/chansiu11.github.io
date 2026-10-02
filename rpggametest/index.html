@@ -965,6 +965,8 @@ function addPvpPracticeBot(x,y,id){
   guardActive:false,aiDashEvade:0,stun:0,testHitCount:0,testDamageTotal:0});
  return e;
 }
+const dawnSeals=new Map();
+let dawnSealDetonating=false;
 function buildTestArena(){
  options.shake=true;shake=Math.max(shake,0);
  obstacles=[];decor=[];objects=[];enemies=[];spatial.clear();projectiles=[];remoteSkillProjectiles=[];effects=[];floaters=[];dawnSeals.clear();activeBoss=null;nearby=null;mapWaypoint=null;
@@ -1289,8 +1291,6 @@ function flameBreathSignature(id,index,final,ang,reach,actor=player,ctxInfo=null
 
 function ring(x,y,r,color,t=.5){effects.push({type:'ring',x,y,r,color,t,max:t});}
 let prismCastSerial=0;
-const dawnSeals=new Map();
-let dawnSealDetonating=false;
 function applyDawnSeal(e){
  if(!e||e.dead||e.riftSleeping)return;
  const m=dawnSeals.get(e)||{target:e,stacks:0,stored:0,t:3,max:3,fx:0,full:false};
